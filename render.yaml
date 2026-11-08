@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: aysha-music
+    env: docker
+    dockerfile: Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 5050

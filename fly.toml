@@ -1,0 +1,20 @@
+app = "aysha-music"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "5050"
+
+[[services]]
+  internal_port = 5050
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 5050
+
+  [[services.tcp_checks]]
+    interval = 10s
+    timeout = 2s
+    port = 5050

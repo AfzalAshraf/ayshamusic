@@ -861,6 +861,36 @@ fn api_bt_connect(query: Option<&str>) -> (String, String) {
     )
 }
 
+fn api_tailscale_status() -> (String, String) {
+    // Tailscale IPv4 address
+    let ip = Command::new("tailscale")
+        .args(&["ip", "-4"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    // Tailscale status (online/offline)
+    let online = Command::new("tailscale")
+        .args(&["status"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("100."))
+        .unwrap_or(false);
+
+    (
+        String::from("200 OK"),
+        json_obj(&[
+            ("online", if online { "true" } else { "false" }.to_string()),
+            ("ip", json_str(&ip)),
+            ("url", if !ip.is_empty() {
+                format!("http://{}:5050", ip)
+            } else {
+                String::new()
+            }),
+        ]),
+    )
+}
+
 fn api_liked(state: &Arc<AppState>) -> (String, String) {
     let p = state.player.lock().unwrap();
     let mut json_tracks: Vec<String> = Vec::new();
@@ -1098,6 +1128,10 @@ fn route(
         }
         ("POST", "/api/bt/connect") => {
             let (s, b) = api_bt_connect(query);
+            (s, String::from("application/json"), b)
+        }
+        ("GET", "/api/tailscale/status") => {
+            let (s, b) = api_tailscale_status();
             (s, String::from("application/json"), b)
         }
         ("GET", "/api/liked") => {
