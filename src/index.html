@@ -33,7 +33,7 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
 .tab-page{display:none}
 .tab-page.active{display:block}
 .now-playing-hero{background:linear-gradient(135deg,rgba(255,0,0,0.15)0%,rgba(20,20,20,0.8)100%);border:1px solid var(--border);border-radius:16px;padding:20px;display:flex;gap:24px;align-items:center;margin-bottom:32px}
-.hero-art-box{width:220px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#202020;flex-shrink:0;box-shadow:0 8px 20px rgba(0,0,0,0.6)}
+.hero-art-box{width:220px;max-width:55vw;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#202020;flex-shrink:0;box-shadow:0 8px 20px rgba(0,0,0,0.6)}
 .hero-art{width:100%;height:100%;object-fit:cover}
 .hero-details{flex:1;overflow:hidden}
 .hero-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px}
@@ -93,6 +93,11 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
  .main-wrapper{height:calc(100vh - 60px)}
  .player-bar{bottom:60px}
  .content-area{padding-bottom:140px}
+ .hero-art-box{width:140px;max-width:45vw}
+ .hero-details{padding-right:10px}
+ .hero-title{font-size:17px}
+ .search-wrap{max-width:100%}
+ .now-playing-hero{padding:16px;gap:16px}
 }
 /* Modern slim scrollbars */
 *::-webkit-scrollbar{width:6px;height:6px}
@@ -247,6 +252,10 @@ function updateMediaSession() {
 
 async function getStreamUrl(t) {
   const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
+  if (r.error) {
+    console.log('Stream error:', r.error);
+    document.getElementById('time-display').textContent = 'Stream error: ' + r.error;
+  }
   return r.stream_url || '';
 }
 
@@ -258,7 +267,7 @@ async function playSong(t) {
   document.getElementById('np-art').src = thumb;
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
-  document.getElementById('time-display').textContent = 'Loading stream...';
+  document.getElementById('time-display').textContent = 'Resolving stream...';
   setPlayingState(true);
   state.current_track = t;
 
@@ -268,15 +277,19 @@ async function playSong(t) {
   if (streamUrl) {
     audio.src = streamUrl;
     audio.volume = state.volume / 100;
-    audio.play().catch(function(e) {
-      console.log('Autoplay blocked, tap play to start', e);
-      document.getElementById('time-display').textContent = 'Tap Play to start';
-    });
+    audio.play()
+      .then(function() {
+        document.getElementById('time-display').textContent = 'Playing...';
+      })
+      .catch(function(e) {
+        console.log('Autoplay blocked, tap play to start', e);
+        document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
+      });
   } else {
-    document.getElementById('time-display').textContent = 'Stream unavailable';
+    document.getElementById('time-display').textContent = 'Server mpv playing (no browser audio)';
   }
 
-  // Also notify server for history/queue tracking (works on local server with mpv too)
+  // Also notify server for history/queue tracking (server-side mpv plays to Bluetooth)
   await api('POST', '/api/play', t);
   updateMediaSession();
 }
