@@ -1,0 +1,17 @@
+[package]
+name = "aysha-music"
+version = "0.1.0"
+edition = "2021"
+
+# Pure standard library — no external crates. Designed to compile and run
+# under ~20MB RAM on any machine with rustc + cargo.
+
+[[bin]]
+name = "music-server"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"        # Optimize for size
+lto = true             # Link-time optimization
+codegen-units = 1      # Better optimization
+panic = "abort"        # Smaller binaries, no unwind tables

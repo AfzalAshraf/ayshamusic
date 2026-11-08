@@ -1,44 +1,52 @@
-# Aysha's Music Player
+# Aysha's Music Player — Pure Rust
 
-A lightweight, self-contained music player backend + UI, built for Aysha.
-Branded "Made with ♥ for Aysha — with love, from Afzal".
+A lightweight music player backend + PWA frontend, made with ♥ for Aysha — with love, from Afzal.
+**Target: under 20MB RAM.** Pure Rust standard library — no external crates.
 
-## Stack
+## Features
 
-- **Backend:** Python 3 stdlib HTTP server (`http.server`, threaded) — no frameworks, ~3 MB RAM.
-- **UI:** Single self-contained HTML page (inline CSS/JS), YouTube Music–inspired.
-- **Media:** `yt-dlp` (search) + `mpv` (playback via IPC socket), invoked as subprocesses.
-- **Bluetooth:** `bluetoothctl` (scan/connect/disconnect/status).
-- **Persistence:** Listening history stored as JSON.
+- YouTube search via `yt-dlp` subprocess
+- Playback via `mpv` subprocess with IPC socket
+- Bluetooth control via `bluetoothctl` / `pactl` (PulseAudio)
+- Liked songs with heart button (♥) on every card, saved to Library tab
+- PWA: installable on iPhone Home Screen, full-screen standalone mode
+- MediaSession API: lock screen / Control Center controls with artwork + title
+- Modern dark UI, slim scrollbars, mobile-responsive
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/` | UI (single-page app) |
-| GET | `/status` | Player state + which tools are installed |
-| GET | `/search?q=...` | YouTube search via `yt-dlp` |
-| POST | `/play` | Play a track (JSON body) |
-| POST | `/pause` | Toggle pause |
-| POST | `/stop` | Stop playback |
-| POST | `/seek?pos=N` | Seek to position (seconds) |
-| POST | `/volume?val=N` | Set volume (0–100) |
-| GET | `/history` | Listening history |
-| GET | `/bt_devices` | Paired Bluetooth devices |
-| GET | `/bt_scan` | Scan for Bluetooth devices |
-| GET | `/bt_status` | Connected device status |
-| POST | `/bt_connect?mac=...` | Connect a Bluetooth device |
-| POST | `/bt_disconnect?mac=...` | Disconnect a Bluetooth device |
+| GET | `/` | SPA UI (PWA) |
+| GET | `/manifest.json` | PWA manifest |
+| GET | `/sw.js` | Service worker |
+| GET | `/api/status` | Player state |
+| GET | `/api/search?q=…` | YouTube search |
+| POST | `/api/play` | Play track (JSON body) |
+| POST | `/api/pause` | Pause |
+| POST | `/api/stop` | Stop |
+| POST | `/api/volume/up` | Volume up |
+| POST | `/api/volume/down` | Volume down |
+| POST | `/api/next` | Next track |
+| POST | `/api/prev` | Previous track |
+| GET | `/api/bt/status` | Bluetooth status |
+| POST | `/api/bt/connect` | Bluetooth connect |
+| GET | `/api/liked` | Liked songs |
+| POST | `/api/like` | Like a track |
+| POST | `/api/unlike` | Unlike a track |
 
-## Run
+## Build & Run
 
 ```bash
-python3 server.py
-# then open http://localhost:5050
+cargo build --release
+./target/release/music-server
+# open http://localhost:5050
 ```
 
-## Notes
+Requires `yt-dlp`, `mpv`, `bluetoothctl`, and `pactl` on the host for full functionality.
+Endpoints degrade gracefully when external tools are unavailable.
 
-This environment could not install `mpv`, `bluez`/`bluetoothctl`, and YouTube TLS is blocked by the network proxy, so `yt-dlp` cannot reach YouTube here. All endpoints are implemented and degrade gracefully: when a tool is unavailable they return a clear `error`/`ok:false` response instead of crashing. On a machine with `yt-dlp`, `mpv`, and `bluetoothctl` installed, the player is fully functional.
+## Deploy
 
-Made with ♥ for Aysha — with love, from Afzal.
+Compile on any machine with `rustc` + `cargo` + crates.io access, then copy the
+`target/release/music-server` binary to the target device.
