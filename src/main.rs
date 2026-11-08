@@ -1,12 +1,12 @@
 use axum::{
     body::Body,
     extract::{Query, State},
+    http::{header, StatusCode},
     response::{Html, Json, Response},
     routing::{get, post},
     Router,
 };
 use futures_util::StreamExt;
-use http::header;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
@@ -212,7 +212,7 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
                     continue;
                 }
                 tracks.push(Track {
-                    id: tid,
+                    id: tid.clone(),
                     title: item["title"].as_str().unwrap_or("Unknown Title").to_string(),
                     artist: item["uploader"]
                         .as_str()
@@ -249,55 +249,24 @@ fn get_stream_url(url: &str) -> Option<String> {
     }
 }
 
-/// Streaming proxy: fetches audio from YouTube's direct URL and streams it to the browser.
+/// Get direct audio stream URL for browser playback via yt-dlp.
+/// Returns JSON with stream_url that the browser's <audio> element fetches directly.
 async fn api_stream(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Query(sq): Query<StreamQuery>,
-) -> Result<Response, StatusCode> {
-    let client = {
-        let lock = state.lock().unwrap();
-        lock.http_client.clone()
-    };
-
-    // Resolve direct YouTube audio URL via yt-dlp
-    let direct_url = match get_stream_url(&sq.url) {
+) -> Json<serde_json::Value> {
+    let stream_url = match get_stream_url(&sq.url) {
         Some(u) => u,
         None => {
-            return Err(StatusCode::BAD_GATEWAY);
+            return Json(serde_json::json!({
+                "stream_url": "",
+                "error": "Could not resolve stream URL. YouTube may be blocking access."
+            }));
         }
     };
-
-    // Fetch the audio stream from YouTube and proxy it to the browser
-    let resp = client
-        .get(&direct_url)
-        .header(header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .header(header::ACCEPT, "*/*")
-        .header(header::ACCEPT_LANGUAGE, "en-US,en;q=0.9")
-        .header(header::REFERER, "https://www.youtube.com/")
-        .send()
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
-
-    let status = resp.status();
-    let headers = resp.headers().clone();
-    let stream = resp.bytes_stream().map_err(|e| {
-        axum::Error::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-    });
-
-    let body = Body::from_stream(stream);
-
-    let mut response = Response::new(body);
-    *response.status_mut() = status;
-    for (key, value) in headers {
-        if let Some(key) = key {
-            let _ = response.headers_mut().insert(key, value);
-        }
-    }
-    response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".parse().unwrap());
-    response.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_HEADERS, "*".parse().unwrap());
-    response.headers_mut().insert(header::CONTENT_TYPE, "audio/mpeg".parse().unwrap());
-
-    Ok(response)
+    Json(serde_json::json!({
+        "stream_url": stream_url
+    }))
 }
 
 async fn index_handler() -> Html<&'static str> {

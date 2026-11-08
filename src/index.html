@@ -76,7 +76,10 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
 .play-main svg{fill:#000;width:22px;height:22px}
 .player-right{display:flex;align-items:center;gap:12px;width:25%;justify-content:flex-end}
 .vol-box{display:flex;align-items:center;gap:8px}
-.vol-box input{width:80px;accent-color:var(--accent);cursor:pointer}
+.vol-box input{width:70px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.3);border-radius:2px;outline:none;cursor:pointer}
+.vol-box input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+.vol-box input::-moz-range-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+.ctrl-btn.muted{opacity:0.5}
 .time-str{font-size:12px;color:var(--sub);font-family:monospace}
 .footer{text-align:center;padding:24px;color:var(--sub);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
 .bt-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
@@ -185,14 +188,25 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
         <div><div class="np-title" id="np-title">No track playing</div><div class="np-artist" id="np-artist">Aysha's Music</div></div>
       </div>
       <div class="player-center">
-        <button class="ctrl-btn" onclick="prevTrack()" title="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM3 15l4-4-4-4z"/></svg></button>
-        <button class="ctrl-btn play-main" onclick="togglePlay()"><svg id="play-svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-        <button class="ctrl-btn" onclick="nextTrack()" title="Next"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM21 15l-4-4 4-4v8z"/></svg></button>
-        <button class="ctrl-btn" onclick="stopPlay()" title="Stop"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+        <button class="ctrl-btn" onclick="prevTrack()" title="Previous">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM3 15l4-4-4-4zM11.29 15.29l-4-4-4 4 1.41 1.41L7.83 13H19v-2H9.24l3.05-3.05z"/></svg>
+        </button>
+        <button class="ctrl-btn play-main" onclick="togglePlay()">
+          <svg id="play-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="ctrl-btn" onclick="nextTrack()" title="Next">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM12.71 15.29l4-4-4 4-1.41 1.41L16.17 13H5v-2h10.76l-3.05-3.05z"/></svg>
+        </button>
+        <button class="ctrl-btn" onclick="stopPlay()" title="Stop">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+        </button>
         <span class="time-str" id="time-display">0:00 / 0:00</span>
       </div>
       <div class="player-right">
-        <div class="vol-box"><input type="range" min="0" max="100" step="5" value="80" oninput="changeVol(this.value)"></div>
+        <button class="ctrl-btn" onclick="toggleMute()" title="Mute/Unmute" id="mute-btn">
+          <svg id="volume-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.56 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        <div class="vol-box"><input type="range" min="0" max="100" step="5" value="80" oninput="changeVol(this.value)" id="volume-slider"></div>
       </div>
     </div>
   </div>
@@ -256,8 +270,13 @@ async function checkBluetooth() {
 }
 
 async function getStreamUrl(t) {
-  // Return the proxy endpoint URL — the server streams audio directly to the browser
-  return '/api/stream?url=' + encodeURIComponent(t.url);
+  const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
+  if (r.error) {
+    console.log('Stream error:', r.error);
+    document.getElementById('time-display').textContent = 'Stream error: ' + r.error;
+    return '';
+  }
+  return r.stream_url || '';
 }
 
 async function playSong(t) {
@@ -396,6 +415,37 @@ async function changeVol(v) {
   const audio = document.getElementById('audio-player');
   audio.volume = v / 100;
   await api('POST', '/api/volume?val=' + v);
+  updateVolumeIcon(v);
+}
+
+async function toggleMute() {
+  const audio = document.getElementById('audio-player');
+  const slider = document.getElementById('volume-slider');
+  if (audio.volume > 0) {
+    audio.volume = 0;
+    slider.value = 0;
+    await api('POST', '/api/volume?val=0');
+  } else {
+    audio.volume = 0.8;
+    slider.value = 80;
+    await api('POST', '/api/volume?val=80');
+  }
+  updateVolumeIcon(audio.volume * 100);
+}
+
+function updateVolumeIcon(vol) {
+  const svg = document.getElementById('volume-svg');
+  const btn = document.getElementById('mute-btn');
+  if (vol === 0) {
+    svg.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v-2.3c2.23 1.14 3.5 3.61 3.5 6.33s-1.27 5.19-3.5 6.53v-2.3c1.48-.74 2.5-2.26 2.5-4.03zM4 9v6h4l5 5V4L7 9H3zm14.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.56 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM7.5 9.9L17 4.1v15.8L7.5 14.1z"/>';
+    btn.classList.add('muted');
+  } else if (vol < 40) {
+    svg.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.56 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM7.5 9.9L17 4.1v15.8L7.5 14.1z"/>';
+    btn.classList.remove('muted');
+  } else {
+    svg.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.56 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+    btn.classList.remove('muted');
+  }
 }
 
 function renderGrid(tracks, containerId, showHeart) {
