@@ -199,7 +199,7 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
   <audio id="audio-player" crossorigin="anonymous"></audio>
 </div>
 <script>
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [] };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null };
 let durationSec = 0;
 
 async function api(method, path, body) {
@@ -250,6 +250,11 @@ function updateMediaSession() {
   }
 }
 
+async function checkBluetooth() {
+  const st = await api('GET', '/api/bt/status');
+  return st.connected || false;
+}
+
 async function getStreamUrl(t) {
   const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
   if (r.error) {
@@ -267,11 +272,26 @@ async function playSong(t) {
   document.getElementById('np-art').src = thumb;
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
-  document.getElementById('time-display').textContent = 'Resolving stream...';
-  setPlayingState(true);
   state.current_track = t;
 
-  // Fetch direct audio stream URL from server (yt-dlp resolves it)
+  // Check if Bluetooth speaker is connected
+  const btConnected = await checkBluetooth();
+
+  if (btConnected) {
+    // Bluetooth connected → play on server mpv → JBL speaker
+    state.playMode = 'bt';
+    document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
+    setPlayingState(true);
+    await api('POST', '/api/play', t);
+    updateMediaSession();
+    return;
+  }
+
+  // Bluetooth NOT connected → play in browser (mobile/desktop speakers)
+  state.playMode = 'browser';
+  document.getElementById('time-display').textContent = 'Resolving stream...';
+  setPlayingState(true);
+
   const streamUrl = await getStreamUrl(t);
   const audio = document.getElementById('audio-player');
   if (streamUrl) {
@@ -279,28 +299,39 @@ async function playSong(t) {
     audio.volume = state.volume / 100;
     audio.play()
       .then(function() {
-        document.getElementById('time-display').textContent = 'Playing...';
+        document.getElementById('time-display').textContent = 'Playing on this device...';
       })
       .catch(function(e) {
         console.log('Autoplay blocked, tap play to start', e);
         document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
       });
   } else {
-    document.getElementById('time-display').textContent = 'Server mpv playing (no browser audio)';
+    document.getElementById('time-display').textContent = 'No stream & no Bluetooth. Try Bluetooth tab.';
   }
 
-  // Also notify server for history/queue tracking (server-side mpv plays to Bluetooth)
-  await api('POST', '/api/play', t);
+  // Notify server for history/queue tracking (only spawns server mpv when Bluetooth is connected)
+  if (btConnected) {
+    await api('POST', '/api/play', t);
+  }
   updateMediaSession();
 }
 
 async function togglePlay() {
+  if (state.playMode === 'bt') {
+    // Bluetooth mode → control server mpv
+    await api('POST', '/api/pause');
+    setPlayingState(!state.is_playing);
+    return;
+  }
+
+  // Browser mode → control HTML5 audio element
   const audio = document.getElementById('audio-player');
   if (state.is_playing) {
     audio.pause();
   } else {
     audio.play().catch(function(e) {
       console.log('Play failed', e);
+      document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
     });
   }
   setPlayingState(!state.is_playing);
@@ -308,20 +339,60 @@ async function togglePlay() {
 }
 
 async function stopPlay() {
+  if (state.playMode === 'bt') {
+    // Bluetooth mode → stop server mpv
+    await api('POST', '/api/stop');
+    setPlayingState(false);
+    state.current_track = null;
+    state.playMode = null;
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('time-display').textContent = '0:00 / 0:00';
+    updateMediaSession();
+    return;
+  }
+
+  // Browser mode → stop HTML5 audio element
   const audio = document.getElementById('audio-player');
   audio.pause();
   audio.src = '';
   audio.currentTime = 0;
   setPlayingState(false);
+  state.current_track = null;
+  state.playMode = null;
   document.getElementById('progress-bar').style.width = '0%';
   document.getElementById('time-display').textContent = '0:00 / 0:00';
-  state.current_track = null;
   await api('POST', '/api/stop');
   updateMediaSession();
 }
 
-async function nextTrack() { await api('POST', '/api/next'); }
-async function prevTrack() { await api('POST', '/api/prev'); }
+async function nextTrack() {
+  if (state.playMode === 'bt') {
+    await api('POST', '/api/next');
+    return;
+  }
+  await api('POST', '/api/next');
+  const st = await api('GET', '/api/status');
+  if (st.current_track) {
+    await playSong(st.current_track);
+  } else {
+    document.getElementById('time-display').textContent = 'Queue empty';
+    setPlayingState(false);
+  }
+}
+
+async function prevTrack() {
+  if (state.playMode === 'bt') {
+    await api('POST', '/api/prev');
+    return;
+  }
+  await api('POST', '/api/prev');
+  const st = await api('GET', '/api/status');
+  if (st.current_track) {
+    await playSong(st.current_track);
+  } else {
+    document.getElementById('time-display').textContent = 'No previous track';
+  }
+}
 
 async function seekTrack(e) {
   const audio = document.getElementById('audio-player');
