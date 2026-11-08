@@ -3,15 +3,20 @@ name = "aysha-music"
 version = "0.1.0"
 edition = "2021"
 
-# Pure standard library — no external crates. Designed to compile and run
-# under ~20MB RAM on any machine with rustc + cargo.
-
 [[bin]]
 name = "music-server"
 path = "src/main.rs"
 
+[dependencies]
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
+reqwest = { version = "0.12", features = ["json"] }
+
 [profile.release]
-opt-level = "z"        # Optimize for size
-lto = true             # Link-time optimization
-codegen-units = 1      # Better optimization
-panic = "abort"        # Smaller binaries, no unwind tables
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
