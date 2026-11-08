@@ -165,42 +165,124 @@ fn query_param(qs: Option<&str>, key: &str) -> Option<String> {
     qs.and_then(|q| parse_query(q).get(key).cloned())
 }
 
+/// Parse a flat JSON object like {"key1":"value1","key2":"value2"} into a HashMap.
+/// Handles escaped quotes inside string values.
 fn parse_flat_json(s: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
     let s = s.trim();
-    if s.starts_with('{') && s.ends_with('}') {
-        let inner = &s[1..s.len() - 1];
-        let mut current = String::new();
-        let mut in_string = false;
-        for ch in inner.chars() {
-            if ch == '"' && !in_string {
-                in_string = true;
-                current.push(ch);
-            } else if ch == '"' && in_string {
-                in_string = false;
-                current.push(ch);
-            } else if ch == ',' && !in_string {
-                let pair = current.trim();
-                current.clear();
-                if let Some(colon_pos) = pair.find(':') {
-                    let k = pair[..colon_pos].trim().trim_matches('"');
-                    let v = pair[colon_pos + 1..].trim().trim_matches('"');
-                    map.insert(k.to_string(), v.to_string());
-                }
-            } else {
-                current.push(ch);
+    if !(s.starts_with('{') && s.ends_with('}')) {
+        return map;
+    }
+    let inner = &s[1..s.len() - 1];
+    let mut key = String::new();
+    let mut val = String::new();
+    let mut state = ParseState::ExpectKey;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut collecting_key = false;
+    let mut collecting_val = false;
+
+    for ch in inner.chars() {
+        if escaped {
+            if collecting_key {
+                key.push(ch);
+            } else if collecting_val {
+                val.push(ch);
             }
+            escaped = false;
+            continue;
         }
-        let pair = current.trim();
-        if !pair.is_empty() {
-            if let Some(colon_pos) = pair.find(':') {
-                let k = pair[..colon_pos].trim().trim_matches('"');
-                let v = pair[colon_pos + 1..].trim().trim_matches('"');
-                map.insert(k.to_string(), v.to_string());
+        if ch == '\\' {
+            escaped = true;
+            if collecting_key {
+                key.push(ch);
+            } else if collecting_val {
+                val.push(ch);
+            }
+            continue;
+        }
+        match state {
+            ParseState::ExpectKey => {
+                if ch == '"' {
+                    in_string = true;
+                    collecting_key = true;
+                    state = ParseState::InKey;
+                }
+            }
+            ParseState::InKey => {
+                if ch == '"' {
+                    in_string = false;
+                    collecting_key = false;
+                    state = ParseState::ExpectColon;
+                } else {
+                    key.push(ch);
+                }
+            }
+            ParseState::ExpectColon => {
+                if ch == ':' {
+                    state = ParseState::ExpectValue;
+                }
+            }
+            ParseState::ExpectValue => {
+                if ch == '"' {
+                    in_string = true;
+                    collecting_val = true;
+                    state = ParseState::InValue;
+                } else if ch.is_whitespace() {
+                    // skip
+                } else {
+                    // non-string value (number, true, false, null)
+                    collecting_val = true;
+                    val.push(ch);
+                    state = ParseState::InValueNonString;
+                }
+            }
+            ParseState::InValue => {
+                if ch == '"' {
+                    in_string = false;
+                    collecting_val = false;
+                    map.insert(key.clone(), val.clone());
+                    key.clear();
+                    val.clear();
+                    state = ParseState::ExpectComma;
+                } else {
+                    val.push(ch);
+                }
+            }
+            ParseState::InValueNonString => {
+                if ch == ',' {
+                    map.insert(key.clone(), val.clone());
+                    key.clear();
+                    val.clear();
+                    state = ParseState::ExpectKey;
+                } else if !ch.is_whitespace() {
+                    val.push(ch);
+                }
+            }
+            ParseState::ExpectComma => {
+                if ch == ',' {
+                    state = ParseState::ExpectKey;
+                }
+                // skip whitespace
             }
         }
     }
+    // Handle last key-value pair (no trailing comma)
+    if !key.is_empty() && !val.is_empty() {
+        map.insert(key, val);
+    }
     map
+}
+
+#[derive(PartialEq)]
+enum ParseState {
+    ExpectKey,
+    InKey,
+    ExpectColon,
+    ExpectValue,
+    InValue,
+    InValueNonString,
+    ExpectComma,
 }
 
 // ============================================================================
@@ -647,29 +729,70 @@ fn api_unlike(body: &str, state: &Arc<AppState>) -> (String, String) {
 // HTTP server
 // ============================================================================
 
-fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<AppState>) -> (String, String) {
+fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<AppState>) -> (String, String, String) {
     match (method, path) {
-        ("GET", "/") => (String::from("200 OK"), INDEX_HTML.to_string()),
-        ("GET", "/manifest.json") => (String::from("200 OK"), MANIFEST_JSON.to_string()),
-        ("GET", "/sw.js") => (String::from("200 OK"), SW_JS.to_string()),
-        ("GET", "/api/status") => api_status(state),
-        ("GET", "/api/search") => {
-            api_search(&query_param(query, "q").unwrap_or_default())
+        ("GET", "/") => (String::from("200 OK"), String::from("text/html; charset=utf-8"), INDEX_HTML.to_string()),
+        ("GET", "/manifest.json") => (String::from("200 OK"), String::from("application/manifest+json"), MANIFEST_JSON.to_string()),
+        ("GET", "/sw.js") => (String::from("200 OK"), String::from("application/javascript"), SW_JS.to_string()),
+        ("GET", "/api/status") => {
+            let (s, b) = api_status(state);
+            (s, String::from("application/json"), b)
         }
-        ("POST", "/api/play") => api_play(body, state),
-        ("POST", "/api/pause") => api_pause(state),
-        ("POST", "/api/stop") => api_stop(state),
-        ("POST", "/api/volume/up") => api_volume(state, true, query),
-        ("POST", "/api/volume/down") => api_volume(state, false, query),
-        ("POST", "/api/next") => api_next(state),
-        ("POST", "/api/prev") => api_prev(state),
-        ("GET", "/api/bt/status") => api_bt_status(),
-        ("POST", "/api/bt/connect") => api_bt_connect(query),
-        ("GET", "/api/liked") => api_liked(state),
-        ("POST", "/api/like") => api_like(body, state),
-        ("POST", "/api/unlike") => api_unlike(body, state),
+        ("GET", "/api/search") => {
+            let (s, b) = api_search(&query_param(query, "q").unwrap_or_default());
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/play") => {
+            let (s, b) = api_play(body, state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/pause") => {
+            let (s, b) = api_pause(state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/stop") => {
+            let (s, b) = api_stop(state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/volume/up") => {
+            let (s, b) = api_volume(state, true, query);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/volume/down") => {
+            let (s, b) = api_volume(state, false, query);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/next") => {
+            let (s, b) = api_next(state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/prev") => {
+            let (s, b) = api_prev(state);
+            (s, String::from("application/json"), b)
+        }
+        ("GET", "/api/bt/status") => {
+            let (s, b) = api_bt_status();
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/bt/connect") => {
+            let (s, b) = api_bt_connect(query);
+            (s, String::from("application/json"), b)
+        }
+        ("GET", "/api/liked") => {
+            let (s, b) = api_liked(state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/like") => {
+            let (s, b) = api_like(body, state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/unlike") => {
+            let (s, b) = api_unlike(body, state);
+            (s, String::from("application/json"), b)
+        }
         _ => (
             String::from("404 Not Found"),
+            String::from("application/json"),
             json_obj(&[("error", json_str("not found"))]),
         ),
     }
@@ -757,12 +880,13 @@ fn handle_client(mut stream: TcpStream, state: Arc<AppState>) {
         }
     }
 
-    let (status, body_str) = route(method, path, query, &body, &state);
+    let (status, content_type, body_str) = route(method, path, query, &body, &state);
     let body_bytes = body_str.as_bytes();
     let _ = stream.write_all(
         format!(
-            "HTTP/1.1 {}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            "HTTP/1.1 {}\r\nContent-Type: {}\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
             status,
+            content_type,
             body_bytes.len()
         )
         .as_bytes(),
