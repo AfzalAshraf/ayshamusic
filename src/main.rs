@@ -1,11 +1,12 @@
 use axum::{
+    body::Body,
     extract::{Query, State},
     response::{Html, Json, Response},
     routing::{get, post},
     Router,
 };
-use axum::body::{Body, boxed};
-use axum::http::{header, HeaderMap, StatusCode};
+use futures_util::StreamExt;
+use http::header;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
@@ -211,7 +212,7 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
                     continue;
                 }
                 tracks.push(Track {
-                    id: tid.clone(),
+                    id: tid,
                     title: item["title"].as_str().unwrap_or("Unknown Title").to_string(),
                     artist: item["uploader"]
                         .as_str()
@@ -279,11 +280,13 @@ async fn api_stream(
 
     let status = resp.status();
     let headers = resp.headers().clone();
-    let stream = resp
-        .bytes_stream()
-        .map_err(|e| axum::Error::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())));
+    let stream = resp.bytes_stream().map_err(|e| {
+        axum::Error::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    });
 
-    let mut response = Response::new(boxed(Body::wrap_stream(stream)));
+    let body = Body::from_stream(stream);
+
+    let mut response = Response::new(body);
     *response.status_mut() = status;
     for (key, value) in headers {
         if let Some(key) = key {
@@ -423,7 +426,6 @@ async fn play_handler(
 
     let vol_percent = {
         let mut lock = state.lock().unwrap();
-        // Clone current track before moving it to history (fixes borrow checker)
         if let Some(tr) = lock.player.current_track.as_ref().cloned() {
             lock.player.history.push(tr);
         }
