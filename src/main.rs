@@ -6,6 +6,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::io::{BufRead, Read, Write};
+use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
 
@@ -60,27 +62,12 @@ async fn main() {
     println!("Starting Aysha's Music Player Server...");
 
     // Spawn non-blocking background Bluetooth auto-reconnect loop
-    let bt_state = Arc::clone(&Arc::new(Mutex::new(())));
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
             tokio::task::spawn_blocking(|| {
                 let _ = run_bt_connect_script();
             }).await.ok();
-        }
-    });
-
-    // Spawn autoplay watcher (Spotify Radio style: fetch related when queue empties)
-    let http_client_for_watcher = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-        .build()
-        .unwrap_or_default();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            // We need access to AppState; this watcher is spawned before state exists,
-            // so we instead start it after state is created below.
-            let _ = http_client_for_watcher;
         }
     });
 
@@ -358,8 +345,8 @@ async fn play_handler(
 
     let vol_percent = {
         let mut lock = state.lock().unwrap();
-        if let Some(ref current) = lock.player.current_track {
-            let tr = current.clone();
+        // Clone current track before moving it to history (fixes borrow checker)
+        if let Some(tr) = lock.player.current_track.as_ref().cloned() {
             lock.player.history.push(tr);
         }
         lock.player.current_track = Some(track);
@@ -456,23 +443,25 @@ async fn volume_down_handler(
 async fn next_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let next_track = {
         let mut lock = state.lock().unwrap();
-        if !lock.player.queue.is_empty() {
-            Some(lock.player.queue.remove(0))
-        } else {
+        if lock.player.queue.is_empty() {
             None
+        } else {
+            Some(lock.player.queue.remove(0))
         }
     };
-    if let Some(t) = next_track {
-        let pq = PlayQuery {
-            url: t.url,
-            title: Some(t.title),
-            artist: Some(t.artist),
-            thumbnail: Some(t.thumbnail),
-            id: Some(t.id),
-        };
-        return play_handler(State(state), Query(pq)).await;
+    match next_track {
+        Some(t) => {
+            let pq = PlayQuery {
+                url: t.url,
+                title: Some(t.title),
+                artist: Some(t.artist),
+                thumbnail: Some(t.thumbnail),
+                id: Some(t.id),
+            };
+            return play_handler(State(state), Query(pq)).await;
+        }
+        None => stop_handler(State(state)).await,
     }
-    stop_handler(State(state)).await
 }
 
 async fn prev_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -480,17 +469,19 @@ async fn prev_handler(State(state): State<AppState>) -> Json<serde_json::Value> 
         let mut lock = state.lock().unwrap();
         lock.player.history.pop()
     };
-    if let Some(t) = prev_track {
-        let pq = PlayQuery {
-            url: t.url,
-            title: Some(t.title),
-            artist: Some(t.artist),
-            thumbnail: Some(t.thumbnail),
-            id: Some(t.id),
-        };
-        return play_handler(State(state), Query(pq)).await;
+    match prev_track {
+        Some(t) => {
+            let pq = PlayQuery {
+                url: t.url,
+                title: Some(t.title),
+                artist: Some(t.artist),
+                thumbnail: Some(t.thumbnail),
+                id: Some(t.id),
+            };
+            return play_handler(State(state), Query(pq)).await;
+        }
+        None => stop_handler(State(state)).await,
     }
-    stop_handler(State(state)).await
 }
 
 async fn status_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -574,8 +565,6 @@ async fn bt_connect_handler() -> Json<serde_json::Value> {
 }
 
 fn send_mpv_ipc(cmd: &str) {
-    use std::io::Write;
-    use std::os::unix::net::UnixStream;
     if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
         let mut full_cmd = cmd.to_string();
         full_cmd.push('\n');
@@ -584,9 +573,6 @@ fn send_mpv_ipc(cmd: &str) {
 }
 
 fn get_mpv_pos_duration() -> (f64, f64) {
-    use std::io::{Read, Write};
-    use std::os::unix::net::UnixStream;
-
     let mut pos = 0.0;
     let mut duration = 0.0;
 
