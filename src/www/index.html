@@ -158,6 +158,8 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
     <div class="tab-page" id="tab-library">
       <div class="section-title">Liked Songs <span class="liked-count" id="liked-count">0</span></div>
       <div class="grid-cards" id="full-history"></div>
+      <div class="section-title">Queue <span id="queue-count">0</span> <button class="chip" onclick="queueClear()" style="float:right">Clear</button> <span style="color:var(--sub);font-size:11px">auto-plays next</span></div>
+      <div class="grid-cards" id="queue-list"></div>
     </div>
     <div class="tab-page" id="tab-bluetooth">
       <div class="section-title">Bluetooth Settings</div>
@@ -189,7 +191,7 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
   </div>
 </div>
 <script>
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [] };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [] };
 let durationSec = 0;
 
 async function api(method, path, body) {
@@ -279,12 +281,7 @@ async function seekTrack(e) {
 }
 
 async function changeVol(v) {
-  await api('POST', '/api/volume/up?step=' + (v - state.volume));
-  // fallback: set absolute via down/up is awkward; just call up with delta
-}
-
-async function setVolumeAbs(v) {
-  await api('POST', '/api/volume/' + (v > state.volume ? 'up' : 'down') + '?step=' + Math.abs(v - state.volume));
+  await api('POST', '/api/volume?val=' + v);
 }
 
 function renderGrid(tracks, containerId, showHeart) {
@@ -296,6 +293,7 @@ function renderGrid(tracks, containerId, showHeart) {
   }
   tracks.forEach(t => {
     const isLiked = state.liked.some(l => l.id === t.id);
+    const qIn = state.queue ? state.queue.some(q => q.id === t.id) : false;
     const card = document.createElement('div');
     card.className = 'song-card';
     card.innerHTML =
@@ -306,6 +304,8 @@ function renderGrid(tracks, containerId, showHeart) {
       '</div>' +
       '<button class="card-action" onclick="event.stopPropagation(); playSong(' + JSON.stringify(t) + ')" title="Play">' +
       '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>' +
+      '<button class="card-action' + (qIn ? ' active' : '') + '" onclick="event.stopPropagation(); queueAdd(' + JSON.stringify(t) + ')" title="Add to Queue">' +
+      '<svg viewBox="0 0 24 24"><path d="M3 5v14h2V5H3zm14 14v-14h2v14h-2zm-6-4v-14h2v14h-2z"/></svg></button>' +
       '<button class="card-heart' + (isLiked ? ' liked' : '') + '" onclick="event.stopPropagation(); toggleLike(' + JSON.stringify(t) + ')">' +
       (isLiked ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' :
        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>') +
@@ -349,7 +349,13 @@ async function searchMusic(q) {
   switchTab('explore');
   document.getElementById('explore-title').textContent = 'Results for "' + q + '"';
   const d = await api('GET', '/api/search?q=' + encodeURIComponent(q));
-  renderGrid(d, 'explore-cards', true);
+  // Handle both array (success) and object (error) responses
+  const tracks = Array.isArray(d) ? d : (d.results || []);
+  if (d.error) {
+    document.getElementById('explore-cards').innerHTML =
+      '<div class="empty-msg">' + escapeHtml(d.error) + '</div>';
+  }
+  renderGrid(tracks, 'explore-cards', true);
 }
 
 async function fetchCategory(cat) {
@@ -357,23 +363,55 @@ async function fetchCategory(cat) {
   if (event && event.target) event.target.classList.add('active');
   document.getElementById('explore-title').textContent = cat;
   const d = await api('GET', '/api/search?q=' + encodeURIComponent(cat + ' songs'));
-  renderGrid(d, 'explore-cards', true);
+  const tracks = Array.isArray(d) ? d : (d.results || []);
+  if (d.error) {
+    document.getElementById('explore-cards').innerHTML =
+      '<div class="empty-msg">' + escapeHtml(d.error) + '</div>';
+  }
+  renderGrid(tracks, 'explore-cards', true);
 }
 
 async function loadHome() {
   const picks = await api('GET', '/api/search?q=Aysha%20love%20songs');
-  renderGrid(picks, 'quick-picks', true);
+  const pt = Array.isArray(picks) ? picks : (picks.results || []);
+  renderGrid(pt, 'quick-picks', true);
   const hist = await api('GET', '/api/liked');
   state.liked = hist || [];
   document.getElementById('liked-count').textContent = state.liked.length;
-  renderGrid(hist, 'recent-history', true);
+  const ht = Array.isArray(hist) ? hist : (hist.results || []);
+  renderGrid(ht, 'recent-history', true);
+  loadQueue();
 }
 
 async function loadLiked() {
   const hist = await api('GET', '/api/liked');
-  state.liked = hist || [];
+  state.liked = Array.isArray(hist) ? hist : (hist.results || []);
   document.getElementById('liked-count').textContent = state.liked.length;
-  renderGrid(hist, 'full-history', true);
+  const ht = Array.isArray(hist) ? hist : (hist.results || []);
+  renderGrid(ht, 'full-history', true);
+  loadQueue();
+}
+
+async function loadQueue() {
+  const q = await api('GET', '/api/queue');
+  const tracks = Array.isArray(q) ? q : (q.results || []);
+  state.queue = tracks;
+  renderGrid(tracks, 'queue-list', true);
+}
+
+async function queueAdd(t) {
+  await api('POST', '/api/queue_add', t);
+  state.queue = state.queue || [];
+  if (!state.queue.some(q => q.id === t.id)) {
+    state.queue.push(t);
+  }
+  loadQueue();
+}
+
+async function queueClear() {
+  await api('POST', '/api/queue_clear');
+  state.queue = [];
+  loadQueue();
 }
 
 async function loadBluetooth() {
@@ -423,6 +461,9 @@ setInterval(async () => {
       state.volume = st.volume;
       setPlayingState(st.is_playing);
       updateMediaSession();
+    }
+    if (st.queue_len !== undefined) {
+      document.getElementById('queue-count').textContent = st.queue_len;
     }
     if (st.duration > 0) {
       durationSec = st.duration;

@@ -3,14 +3,19 @@
 //! under ~20MB RAM.
 //!
 //! Endpoints:
-//!   GET  /                 — SPA UI (PWA, MediaSession, liked songs)
+//!   GET  /                 — SPA UI (PWA, MediaSession, liked songs, queue)
 //!   GET  /manifest.json    — PWA manifest
 //!   GET  /sw.js            — Service worker
-//!   GET  /api/status       — Player state
+//!   GET  /api/status       — Player state (incl. queue length)
 //!   GET  /api/search?q=    — YouTube search via yt-dlp subprocess
+//!   GET  /api/queue        — Current queue
+//!   POST /api/queue_add    — Add track to queue (JSON body)
+//!   POST /api/queue_clear  — Clear queue
 //!   POST /api/play         — Play track (JSON body)
 //!   POST /api/pause        — Pause
 //!   POST /api/stop         — Stop
+//!   POST /api/seek?pos=N   — Seek to position (seconds)
+//!   POST /api/volume?val=N — Set volume (0-100)
 //!   POST /api/volume/up    — Volume up
 //!   POST /api/volume/down  — Volume down
 //!   POST /api/next         — Next track
@@ -35,6 +40,8 @@ const PORT: u16 = 5050;
 const SOCK_PATH: &str = "/tmp/aysha-mpv.sock";
 const HISTORY_FILE: &str = "/tmp/aysha-history.json";
 const LIKED_FILE: &str = "/tmp/aysha-liked.json";
+const MAX_HISTORY: usize = 50;
+const MAX_QUEUE: usize = 200;
 
 const INDEX_HTML: &str = include_str!("www/index.html");
 const MANIFEST_JSON: &str = include_str!("www/manifest.json");
@@ -82,8 +89,7 @@ fn json_arr(items: &[String]) -> String {
     out
 }
 
-/// Extract a top-level string field from a JSON line.
-/// Handles `"field": "value"` and `"field": value`.
+/// Extract a top-level string field from a JSON line like {"id": "abc", ...}.
 fn extract_json_field(s: &str, field: &str) -> String {
     let pattern = format!("\"{}\"", field);
     match s.find(&pattern) {
@@ -166,7 +172,6 @@ fn query_param(qs: Option<&str>, key: &str) -> Option<String> {
 }
 
 /// Parse a flat JSON object like {"key1":"value1","key2":"value2"} into a HashMap.
-/// Handles escaped quotes inside string values.
 fn parse_flat_json(s: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
     let s = s.trim();
@@ -231,7 +236,6 @@ fn parse_flat_json(s: &str) -> HashMap<String, String> {
                 } else if ch.is_whitespace() {
                     // skip
                 } else {
-                    // non-string value (number, true, false, null)
                     collecting_val = true;
                     val.push(ch);
                     state = ParseState::InValueNonString;
@@ -263,11 +267,9 @@ fn parse_flat_json(s: &str) -> HashMap<String, String> {
                 if ch == ',' {
                     state = ParseState::ExpectKey;
                 }
-                // skip whitespace
             }
         }
     }
-    // Handle last key-value pair (no trailing comma)
     if !key.is_empty() && !val.is_empty() {
         map.insert(key, val);
     }
@@ -286,7 +288,7 @@ enum ParseState {
 }
 
 // ============================================================================
-// State
+// Data structures
 // ============================================================================
 
 #[derive(Clone, Debug)]
@@ -296,6 +298,7 @@ struct Track {
     artist: String,
     thumbnail: String,
     url: String,
+    duration: f64,
 }
 
 impl Track {
@@ -306,6 +309,7 @@ impl Track {
             ("artist", json_str(&self.artist)),
             ("thumbnail", json_str(&self.thumbnail)),
             ("url", json_str(&self.url)),
+            ("duration", self.duration.to_string()),
         ])
     }
 }
@@ -321,21 +325,6 @@ struct PlayerState {
 
 struct AppState {
     player: Mutex<PlayerState>,
-}
-
-impl AppState {
-    fn new() -> Self {
-        Self {
-            player: Mutex::new(PlayerState {
-                current_track: None,
-                is_playing: false,
-                volume: 80,
-                history: Vec::new(),
-                queue: Vec::new(),
-                liked: Vec::new(),
-            }),
-        }
-    }
 }
 
 // ============================================================================
@@ -363,6 +352,9 @@ fn load_tracks(path: &str) -> Vec<Track> {
             artist: extract_json_field(line, "artist"),
             thumbnail: extract_json_field(line, "thumbnail"),
             url: extract_json_field(line, "url"),
+            duration: extract_json_field(line, "duration")
+                .parse::<f64>()
+                .unwrap_or(0.0),
         });
     }
     tracks
@@ -392,12 +384,13 @@ fn mpv_ipc(cmd: &str) {
 
 fn mpv_get_prop(prop: &str) -> Option<String> {
     if let Ok(mut stream) = UnixStream::connect(SOCK_PATH) {
-        let cmd = format!(
-            "{{\"command\":[\"get_property\",\"{}\"]}}\n",
-            prop
-        );
+        let cmd = format!("{{\"command\":[\"get_property\",\"{}\"]}}\n", prop);
         let _ = stream.write_all(cmd.as_bytes());
-        let mut reader = BufReader::new(stream.try_clone().unwrap_or(stream));
+        let mut cloned = match stream.try_clone() {
+            Ok(c) => c,
+            Err(_) => return None,
+        };
+        let mut reader = BufReader::new(cloned);
         let mut line = String::new();
         if reader.read_line(&mut line).ok()? > 0 {
             let data_field = "\"data\":";
@@ -441,6 +434,23 @@ fn get_mpv_pos_duration() -> (f64, f64) {
     (pos, dur)
 }
 
+fn check_mpv_eof() -> bool {
+    if let Ok(mut stream) = UnixStream::connect(SOCK_PATH) {
+        let cmd = r#"{"command":["get_property","eof-reached"]}"#;
+        let _ = stream.write_all(format!("{}\n", cmd).as_bytes());
+        let mut cloned = match stream.try_clone() {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        let mut reader = BufReader::new(cloned);
+        let mut line = String::new();
+        if reader.read_line(&mut line).ok()? > 0 {
+            return line.contains("\"data\":true");
+        }
+    }
+    false
+}
+
 // ============================================================================
 // Bluetooth helpers
 // ============================================================================
@@ -462,6 +472,107 @@ fn run_bt_connect(mac: &str) -> bool {
 }
 
 // ============================================================================
+// YouTube search via yt-dlp subprocess
+// ============================================================================
+
+fn search_youtube(q: &str) -> (Vec<Track>, String) {
+    let output = Command::new("yt-dlp")
+        .args(&[
+            "--flat-playlist",
+            "--dump-json",
+            &format!("ytsearch16:{}", q),
+        ])
+        .output();
+
+    let mut tracks = Vec::new();
+    let mut error = String::new();
+
+    match output {
+        Ok(out) => {
+            if !out.status.success() {
+                error = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            }
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                let id = extract_json_field(line, "id");
+                if id.is_empty() {
+                    continue;
+                }
+                let title = extract_json_field(line, "title");
+                let artist = extract_json_field(line, "uploader");
+                let artist = if artist.is_empty() {
+                    "YouTube".to_string()
+                } else {
+                    artist
+                };
+                let thumbnail = format!("https://img.youtube.com/vi/{}/hqdefault.jpg", id);
+                let url = format!("https://www.youtube.com/watch?v={}", id);
+                let duration = extract_json_field(line, "duration")
+                    .parse::<f64>()
+                    .unwrap_or(0.0);
+                tracks.push(Track {
+                    id,
+                    title,
+                    artist,
+                    thumbnail,
+                    url,
+                    duration,
+                });
+            }
+        }
+        Err(e) => {
+            error = format!("yt-dlp not found: {}", e);
+        }
+    }
+
+    (tracks, error)
+}
+
+/// Fetch related/similar tracks for auto-play (Spotify Radio style).
+fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
+    let query = format!("{} {} similar", title, artist);
+    let output = Command::new("yt-dlp")
+        .args(&[
+            "--flat-playlist",
+            "--dump-json",
+            &format!("ytsearch10:{}", query),
+        ])
+        .output();
+
+    let mut tracks = Vec::new();
+    if let Ok(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            let tid = extract_json_field(line, "id");
+            if tid.is_empty() || tid == id {
+                continue;
+            }
+            let ttitle = extract_json_field(line, "title");
+            let tartist = extract_json_field(line, "uploader");
+            let tartist = if tartist.is_empty() {
+                "YouTube".to_string()
+            } else {
+                tartist
+            };
+            let thumbnail = format!("https://img.youtube.com/vi/{}/hqdefault.jpg", tid);
+            let url = format!("https://www.youtube.com/watch?v={}", tid);
+            let duration = extract_json_field(line, "duration")
+                .parse::<f64>()
+                .unwrap_or(0.0);
+            tracks.push(Track {
+                id: tid,
+                title: ttitle,
+                artist: tartist,
+                thumbnail,
+                url,
+                duration,
+            });
+        }
+    }
+    tracks
+}
+
+// ============================================================================
 // API route handlers
 // ============================================================================
 
@@ -478,47 +589,29 @@ fn api_status(state: &Arc<AppState>) -> (String, String) {
         ("volume", p.volume.to_string()),
         ("pos", pos.to_string()),
         ("duration", duration.to_string()),
+        ("queue_len", p.queue.len().to_string()),
         ("liked_count", p.liked.len().to_string()),
     ]);
     (String::from("200 OK"), body)
 }
 
 fn api_search(q: &str) -> (String, String) {
-    let output = Command::new("yt-dlp")
-        .args(&[
-            "--flat-playlist",
-            "--dump-json",
-            &format!("ytsearch16:{}", q),
-        ])
-        .output();
-
-    let mut tracks: Vec<String> = Vec::new();
-    if let Ok(out) = output {
-        let text = String::from_utf8_lossy(&out.stdout);
-        for line in text.lines() {
-            let id = extract_json_field(line, "id");
-            if id.is_empty() {
-                continue;
-            }
-            let title = extract_json_field(line, "title");
-            let artist = extract_json_field(line, "uploader");
-            let artist = if artist.is_empty() {
-                "YouTube".to_string()
-            } else {
-                artist
-            };
-            let thumbnail = format!("https://img.youtube.com/vi/{}/hqdefault.jpg", id);
-            let url = format!("https://www.youtube.com/watch?v={}", id);
-            tracks.push(Track {
-                id,
-                title,
-                artist,
-                thumbnail,
-                url,
-            }.to_json());
-        }
+    let (tracks, error) = search_youtube(q);
+    let mut json_tracks: Vec<String> = Vec::new();
+    for t in &tracks {
+        json_tracks.push(t.to_json());
     }
-    (String::from("200 OK"), json_arr(&tracks))
+    let body = if !error.is_empty() {
+        json_obj(&[("error", json_str(&error)), ("results", json_arr(&json_tracks))])
+    } else if tracks.is_empty() {
+        json_obj(&[
+            ("error", json_str("No results found. Check network access to YouTube.")),
+            ("results", json_arr(&json_tracks)),
+        ])
+    } else {
+        json_arr(&json_tracks)
+    };
+    (String::from("200 OK"), body)
 }
 
 fn api_play(body: &str, state: &Arc<AppState>) -> (String, String) {
@@ -534,6 +627,10 @@ fn api_play(body: &str, state: &Arc<AppState>) -> (String, String) {
         .unwrap_or_else(|| "YouTube".to_string());
     let thumbnail = params.get("thumbnail").cloned().unwrap_or_default();
     let id = params.get("id").cloned().unwrap_or_default();
+    let duration = params
+        .get("duration")
+        .and_then(|d| d.parse().ok())
+        .unwrap_or(0.0);
 
     let track = Track {
         id: id.clone(),
@@ -541,12 +638,16 @@ fn api_play(body: &str, state: &Arc<AppState>) -> (String, String) {
         artist: artist.clone(),
         thumbnail: thumbnail.clone(),
         url: url.clone(),
+        duration,
     };
 
     {
         let mut p = state.player.lock().unwrap();
         if let Some(ref current) = p.current_track {
             p.history.push(current.clone());
+            if p.history.len() > MAX_HISTORY {
+                p.history.remove(0);
+            }
         }
         p.current_track = Some(track.clone());
         p.is_playing = true;
@@ -603,20 +704,57 @@ fn api_stop(state: &Arc<AppState>) -> (String, String) {
     (String::from("200 OK"), json_obj(&[("status", json_str("stopped"))]))
 }
 
-fn api_volume(state: &Arc<AppState>, up: bool, query: Option<&str>) -> (String, String) {
+fn api_seek(query: Option<&str>) -> (String, String) {
+    let pos: f64 = query
+        .and_then(|q| parse_query(q).get("pos").cloned())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
+    mpv_ipc(&format!(r#"{{"command":["seek",{},"absolute"]}}"#, pos));
+    (String::from("200 OK"), json_obj(&[("status", json_str("seeked"))]))
+}
+
+fn api_volume(state: &Arc<AppState>, query: Option<&str>) -> (String, String) {
+    let val: u32 = query
+        .and_then(|q| parse_query(q).get("val").cloned())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(80)
+        .min(100);
+    {
+        let mut p = state.player.lock().unwrap();
+        p.volume = val;
+        mpv_ipc(&format!(
+            r#"{{"command":["set_property","volume",{}]}}"#,
+            val
+        ));
+    }
+    (String::from("200 OK"), json_obj(&[("volume", val.to_string())]))
+}
+
+fn api_volume_up(state: &Arc<AppState>, query: Option<&str>) -> (String, String) {
     let step: u32 = query
         .and_then(|q| parse_query(q).get("step").cloned())
         .and_then(|s| s.parse().ok())
         .unwrap_or(5);
     {
         let mut p = state.player.lock().unwrap();
-        if up {
-            p.volume = (p.volume + step).min(100);
-        } else {
-            p.volume = p.volume.saturating_sub(step);
-        }
+        p.volume = (p.volume + step).min(100);
         let vol = p.volume;
-        mpv_ipc(&format!("{{\"command\":[\"set_property\",\"volume\",{}]}}", vol));
+        mpv_ipc(&format!(r#"{{"command":["set_property","volume",{}]}}"#, vol));
+    }
+    let vol = { let p = state.player.lock().unwrap(); p.volume };
+    (String::from("200 OK"), json_obj(&[("volume", vol.to_string())]))
+}
+
+fn api_volume_down(state: &Arc<AppState>, query: Option<&str>) -> (String, String) {
+    let step: u32 = query
+        .and_then(|q| parse_query(q).get("step").cloned())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(5);
+    {
+        let mut p = state.player.lock().unwrap();
+        p.volume = p.volume.saturating_sub(step);
+        let vol = p.volume;
+        mpv_ipc(&format!(r#"{{"command":["set_property","volume",{}]}}"#, vol));
     }
     let vol = { let p = state.player.lock().unwrap(); p.volume };
     (String::from("200 OK"), json_obj(&[("volume", vol.to_string())]))
@@ -628,9 +766,8 @@ fn api_next(state: &Arc<AppState>) -> (String, String) {
         p.queue.remove(0)
     };
     match next_track {
-        Some(t) => {
-            let body = t.to_json();
-            let _ = api_play(&body, state);
+        Some(track) => {
+            let _ = api_play(&track.to_json(), state);
             (String::from("200 OK"), json_obj(&[("status", json_str("next"))]))
         }
         None => {
@@ -646,13 +783,59 @@ fn api_prev(state: &Arc<AppState>) -> (String, String) {
         p.history.pop()
     };
     match prev_track {
-        Some(t) => {
-            let body = t.to_json();
-            let _ = api_play(&body, state);
+        Some(track) => {
+            let _ = api_play(&track.to_json(), state);
             (String::from("200 OK"), json_obj(&[("status", json_str("prev"))]))
         }
         None => (String::from("200 OK"), json_obj(&[("status", json_str("no_prev"))])),
     }
+}
+
+fn api_queue(state: &Arc<AppState>) -> (String, String) {
+    let p = state.player.lock().unwrap();
+    let mut json_tracks: Vec<String> = Vec::new();
+    for t in &p.queue {
+        json_tracks.push(t.to_json());
+    }
+    (String::from("200 OK"), json_arr(&json_tracks))
+}
+
+fn api_queue_add(body: &str, state: &Arc<AppState>) -> (String, String) {
+    let params = parse_flat_json(body);
+    let id = params.get("id").cloned().unwrap_or_default();
+    if id.is_empty() {
+        return (
+            String::from("400 Bad Request"),
+            json_obj(&[("error", json_str("missing id"))]),
+        );
+    }
+    let track = Track {
+        id: id.clone(),
+        title: params.get("title").cloned().unwrap_or_default(),
+        artist: params.get("artist").cloned().unwrap_or_default(),
+        thumbnail: params.get("thumbnail").cloned().unwrap_or_default(),
+        url: params.get("url").cloned().unwrap_or_default(),
+        duration: params
+            .get("duration")
+            .and_then(|d| d.parse().ok())
+            .unwrap_or(0.0),
+    };
+
+    {
+        let mut p = state.player.lock().unwrap();
+        if p.queue.len() < MAX_QUEUE && !p.queue.iter().any(|q| q.id == id) {
+            p.queue.push(track);
+        }
+    }
+    (String::from("200 OK"), json_obj(&[("status", json_str("queued"))]))
+}
+
+fn api_queue_clear(state: &Arc<AppState>) -> (String, String) {
+    {
+        let mut p = state.player.lock().unwrap();
+        p.queue.clear();
+    }
+    (String::from("200 OK"), json_obj(&[("status", json_str("cleared"))]))
 }
 
 fn api_bt_status() -> (String, String) {
@@ -702,6 +885,10 @@ fn api_like(body: &str, state: &Arc<AppState>) -> (String, String) {
         artist: params.get("artist").cloned().unwrap_or_default(),
         thumbnail: params.get("thumbnail").cloned().unwrap_or_default(),
         url: params.get("url").cloned().unwrap_or_default(),
+        duration: params
+            .get("duration")
+            .and_then(|d| d.parse().ok())
+            .unwrap_or(0.0),
     };
 
     {
@@ -726,14 +913,129 @@ fn api_unlike(body: &str, state: &Arc<AppState>) -> (String, String) {
 }
 
 // ============================================================================
+// Autoplay watcher (Spotify-style: auto-play related when queue empties)
+// ============================================================================
+
+fn autoplay_watcher(state: Arc<AppState>) {
+    loop {
+        thread::sleep(Duration::from_millis(500));
+
+        let is_playing = {
+            let p = match state.player.lock() {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+            p.is_playing
+        };
+        if !is_playing {
+            continue;
+        }
+
+        let eof = check_mpv_eof();
+        if !eof {
+            continue;
+        }
+
+        // Try to pop next from queue
+        let next_track = {
+            let mut p = match state.player.lock() {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+            p.queue.remove(0)
+        };
+
+        match next_track {
+            Some(track) => {
+                let body = track.to_json();
+                let _ = api_play(&body, &state);
+            }
+            None => {
+                // Queue empty — fetch related tracks based on current track
+                let current_info = {
+                    let p = match state.player.lock() {
+                        Ok(p) => p,
+                        Err(_) => continue,
+                    };
+                    p.current_track.as_ref().map(|t| {
+                        (t.id.clone(), t.title.clone(), t.artist.clone())
+                    })
+                };
+
+                if let Some((ref cid, ref ctitle, ref cartist)) = current_info {
+                    if !cid.is_empty() {
+                        let related = fetch_related_tracks(cid, ctitle, cartist);
+                        if !related.is_empty() {
+                            {
+                                let mut p = match state.player.lock() {
+                                    Ok(p) => p,
+                                    Err(_) => continue,
+                                };
+                                for t in &related {
+                                    if p.queue.len() < MAX_QUEUE
+                                        && !p.queue.iter().any(|q| q.id == t.id)
+                                    {
+                                        p.queue.push(t.clone());
+                                    }
+                                }
+                            }
+                            if let Some(first) = related.first() {
+                                let body = first.to_json();
+                                let _ = api_play(&body, &state);
+                            }
+                        } else {
+                            let mut p = match state.player.lock() {
+                                Ok(p) => p,
+                                Err(_) => continue,
+                            };
+                            p.is_playing = false;
+                        }
+                    } else {
+                        let mut p = match state.player.lock() {
+                            Ok(p) => p,
+                            Err(_) => continue,
+                        };
+                        p.is_playing = false;
+                    }
+                } else {
+                    let mut p = match state.player.lock() {
+                        Ok(p) => p,
+                        Err(_) => continue,
+                    };
+                    p.is_playing = false;
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
 // HTTP server
 // ============================================================================
 
-fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<AppState>) -> (String, String, String) {
+fn route(
+    method: &str,
+    path: &str,
+    query: Option<&str>,
+    body: &str,
+    state: &Arc<AppState>,
+) -> (String, String, String) {
     match (method, path) {
-        ("GET", "/") => (String::from("200 OK"), String::from("text/html; charset=utf-8"), INDEX_HTML.to_string()),
-        ("GET", "/manifest.json") => (String::from("200 OK"), String::from("application/manifest+json"), MANIFEST_JSON.to_string()),
-        ("GET", "/sw.js") => (String::from("200 OK"), String::from("application/javascript"), SW_JS.to_string()),
+        ("GET", "/") => (
+            String::from("200 OK"),
+            String::from("text/html; charset=utf-8"),
+            INDEX_HTML.to_string(),
+        ),
+        ("GET", "/manifest.json") => (
+            String::from("200 OK"),
+            String::from("application/manifest+json"),
+            MANIFEST_JSON.to_string(),
+        ),
+        ("GET", "/sw.js") => (
+            String::from("200 OK"),
+            String::from("application/javascript"),
+            SW_JS.to_string(),
+        ),
         ("GET", "/api/status") => {
             let (s, b) = api_status(state);
             (s, String::from("application/json"), b)
@@ -754,12 +1056,20 @@ fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<
             let (s, b) = api_stop(state);
             (s, String::from("application/json"), b)
         }
+        ("POST", "/api/seek") => {
+            let (s, b) = api_seek(query);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/volume") => {
+            let (s, b) = api_volume(state, query);
+            (s, String::from("application/json"), b)
+        }
         ("POST", "/api/volume/up") => {
-            let (s, b) = api_volume(state, true, query);
+            let (s, b) = api_volume_up(state, query);
             (s, String::from("application/json"), b)
         }
         ("POST", "/api/volume/down") => {
-            let (s, b) = api_volume(state, false, query);
+            let (s, b) = api_volume_down(state, query);
             (s, String::from("application/json"), b)
         }
         ("POST", "/api/next") => {
@@ -768,6 +1078,18 @@ fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<
         }
         ("POST", "/api/prev") => {
             let (s, b) = api_prev(state);
+            (s, String::from("application/json"), b)
+        }
+        ("GET", "/api/queue") => {
+            let (s, b) = api_queue(state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/queue_add") => {
+            let (s, b) = api_queue_add(body, state);
+            (s, String::from("application/json"), b)
+        }
+        ("POST", "/api/queue_clear") => {
+            let (s, b) = api_queue_clear(state);
             (s, String::from("application/json"), b)
         }
         ("GET", "/api/bt/status") => {
@@ -799,7 +1121,6 @@ fn route(method: &str, path: &str, query: Option<&str>, body: &str, state: &Arc<
 }
 
 fn handle_client(mut stream: TcpStream, state: Arc<AppState>) {
-    // Clone stream for reading so we can write to the original after
     let reader_stream = match stream.try_clone() {
         Ok(s) => s,
         Err(_) => return,
@@ -809,7 +1130,6 @@ fn handle_client(mut stream: TcpStream, state: Arc<AppState>) {
     let mut buf = Vec::new();
     let mut tmp = [0u8; 1024];
 
-    // Read headers until \r\n\r\n
     loop {
         match reader.read(&mut tmp) {
             Ok(0) => return,
@@ -861,7 +1181,6 @@ fn handle_client(mut stream: TcpStream, state: Arc<AppState>) {
         }
     }
 
-    // Body bytes already read into buf
     let mut body = if body_start < buf.len() {
         String::from_utf8_lossy(&buf[body_start..]).to_string()
     } else {
@@ -910,11 +1229,16 @@ fn main() {
 
     let state = Arc::new(AppState::new());
 
-    // Load liked songs from disk
     {
         let mut p = state.player.lock().unwrap();
         p.liked = load_tracks(LIKED_FILE);
     }
+
+    // Spawn autoplay watcher (Spotify-style auto-next with related tracks)
+    let watcher_state = state.clone();
+    thread::spawn(move || {
+        autoplay_watcher(watcher_state);
+    });
 
     for stream in listener.incoming() {
         match stream {
