@@ -256,12 +256,8 @@ async function checkBluetooth() {
 }
 
 async function getStreamUrl(t) {
-  const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
-  if (r.error) {
-    console.log('Stream error:', r.error);
-    document.getElementById('time-display').textContent = 'Stream error: ' + r.error;
-  }
-  return r.stream_url || '';
+  // Return the proxy endpoint URL — the server streams audio directly to the browser
+  return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
 async function playSong(t) {
@@ -287,32 +283,26 @@ async function playSong(t) {
     return;
   }
 
-  // Bluetooth NOT connected → play in browser (mobile/desktop speakers)
+  // Bluetooth NOT connected → play in browser via streaming proxy
   state.playMode = 'browser';
-  document.getElementById('time-display').textContent = 'Resolving stream...';
+  document.getElementById('time-display').textContent = 'Loading stream...';
   setPlayingState(true);
 
   const streamUrl = await getStreamUrl(t);
   const audio = document.getElementById('audio-player');
-  if (streamUrl) {
-    audio.src = streamUrl;
-    audio.volume = state.volume / 100;
-    audio.play()
-      .then(function() {
-        document.getElementById('time-display').textContent = 'Playing on this device...';
-      })
-      .catch(function(e) {
-        console.log('Autoplay blocked, tap play to start', e);
-        document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
-      });
-  } else {
-    document.getElementById('time-display').textContent = 'No stream & no Bluetooth. Try Bluetooth tab.';
-  }
+  audio.src = streamUrl;
+  audio.volume = state.volume / 100;
+  audio.play()
+    .then(function() {
+      document.getElementById('time-display').textContent = 'Playing on this device...';
+    })
+    .catch(function(e) {
+      console.log('Autoplay blocked, tap play to start', e);
+      document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
+    });
 
-  // Notify server for history/queue tracking (only spawns server mpv when Bluetooth is connected)
-  if (btConnected) {
-    await api('POST', '/api/play', t);
-  }
+  // Notify server for history/queue tracking
+  await api('POST', '/api/play', t);
   updateMediaSession();
 }
 
