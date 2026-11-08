@@ -20,6 +20,7 @@
 //!   POST /api/volume/down  — Volume down
 //!   POST /api/next         — Next track
 //!   POST /api/prev         — Previous track
+//!   GET  /api/stream?url=… — Get direct audio stream URL via yt-dlp
 //!   GET  /api/bt/status    — Bluetooth status
 //!   POST /api/bt/connect   — Bluetooth connect
 //!   GET  /api/liked        — Liked songs
@@ -528,6 +529,17 @@ fn search_youtube(q: &str) -> (Vec<Track>, String) {
     (tracks, error)
 }
 
+/// Get direct audio stream URL for a YouTube video via yt-dlp.
+fn get_stream_url(url: &str) -> String {
+    let output = Command::new("yt-dlp")
+        .args(&["-f", "bestaudio", "--get-url", url])
+        .output();
+    match output {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        Err(_) => String::new(),
+    }
+}
+
 /// Fetch related/similar tracks for auto-play (Spotify Radio style).
 fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
     let query = format!("{} {} similar", title, artist);
@@ -612,6 +624,22 @@ fn api_search(q: &str) -> (String, String) {
         json_arr(&json_tracks)
     };
     (String::from("200 OK"), body)
+}
+
+fn api_stream(query: Option<&str>) -> (String, String) {
+    let url = query_param(query, "url").unwrap_or_default();
+    let stream_url = get_stream_url(&url);
+    if stream_url.is_empty() {
+        (
+            String::from("200 OK"),
+            json_obj(&[("stream_url", json_str("")), ("error", json_str("Could not resolve stream URL"))]),
+        )
+    } else {
+        (
+            String::from("200 OK"),
+            json_obj(&[("stream_url", json_str(&stream_url))]),
+        )
+    }
 }
 
 fn api_play(body: &str, state: &Arc<AppState>) -> (String, String) {
@@ -1072,6 +1100,10 @@ fn route(
         }
         ("GET", "/api/search") => {
             let (s, b) = api_search(&query_param(query, "q").unwrap_or_default());
+            (s, String::from("application/json"), b)
+        }
+        ("GET", "/api/stream") => {
+            let (s, b) = api_stream(query);
             (s, String::from("application/json"), b)
         }
         ("POST", "/api/play") => {

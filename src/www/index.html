@@ -189,6 +189,7 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
       </div>
     </div>
   </div>
+  <audio id="audio-player" crossorigin="anonymous"></audio>
 </div>
 <script>
 let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [] };
@@ -221,6 +222,7 @@ function setPlayingState(playing) {
 function updateMediaSession() {
   if (!('mediaSession' in navigator)) return;
   const t = state.current_track;
+  const audio = document.getElementById('audio-player');
   navigator.mediaSession.metadata = new MediaMetadata({
     title: t ? t.title : 'Aysha\'s Music',
     artist: t ? t.artist : '',
@@ -234,11 +236,16 @@ function updateMediaSession() {
   navigator.mediaSession.setActionHandler('stop', stopPlay);
   if (t) {
     navigator.mediaSession.setPositionState({
-      duration: state.duration || 0,
-      position: state.pos || 0,
+      duration: audio.duration || 0,
+      position: audio.currentTime || 0,
       playbackRate: 1,
     });
   }
+}
+
+async function getStreamUrl(t) {
+  const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
+  return r.stream_url || '';
 }
 
 async function playSong(t) {
@@ -249,19 +256,47 @@ async function playSong(t) {
   document.getElementById('np-art').src = thumb;
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
-  document.getElementById('time-display').textContent = 'Loading...';
+  document.getElementById('time-display').textContent = 'Loading stream...';
   setPlayingState(true);
   state.current_track = t;
+
+  // Fetch direct audio stream URL from server (yt-dlp resolves it)
+  const streamUrl = await getStreamUrl(t);
+  const audio = document.getElementById('audio-player');
+  if (streamUrl) {
+    audio.src = streamUrl;
+    audio.volume = state.volume / 100;
+    audio.play().catch(function(e) {
+      console.log('Autoplay blocked, tap play to start', e);
+      document.getElementById('time-display').textContent = 'Tap Play to start';
+    });
+  } else {
+    document.getElementById('time-display').textContent = 'Stream unavailable';
+  }
+
+  // Also notify server for history/queue tracking (works on local server with mpv too)
   await api('POST', '/api/play', t);
   updateMediaSession();
 }
 
 async function togglePlay() {
+  const audio = document.getElementById('audio-player');
+  if (state.is_playing) {
+    audio.pause();
+  } else {
+    audio.play().catch(function(e) {
+      console.log('Play failed', e);
+    });
+  }
   setPlayingState(!state.is_playing);
   await api('POST', '/api/pause');
 }
 
 async function stopPlay() {
+  const audio = document.getElementById('audio-player');
+  audio.pause();
+  audio.src = '';
+  audio.currentTime = 0;
   setPlayingState(false);
   document.getElementById('progress-bar').style.width = '0%';
   document.getElementById('time-display').textContent = '0:00 / 0:00';
@@ -274,13 +309,16 @@ async function nextTrack() { await api('POST', '/api/next'); }
 async function prevTrack() { await api('POST', '/api/prev'); }
 
 async function seekTrack(e) {
-  if (!durationSec) return;
+  const audio = document.getElementById('audio-player');
+  if (!audio.duration || audio.duration === 0) return;
   const r = e.currentTarget.getBoundingClientRect();
   const pct = (e.clientX - r.left) / r.width;
-  await api('POST', '/api/seek?pos=' + (pct * durationSec));
+  audio.currentTime = pct * audio.duration;
 }
 
 async function changeVol(v) {
+  const audio = document.getElementById('audio-player');
+  audio.volume = v / 100;
   await api('POST', '/api/volume?val=' + v);
 }
 
@@ -465,15 +503,23 @@ setInterval(async () => {
     if (st.queue_len !== undefined) {
       document.getElementById('queue-count').textContent = st.queue_len;
     }
-    if (st.duration > 0) {
-      durationSec = st.duration;
-      const pct = (st.pos / st.duration) * 100;
+
+    // Read playback position from the HTML5 audio element (client-side)
+    const audio = document.getElementById('audio-player');
+    if (audio && audio.duration > 0) {
+      durationSec = audio.duration;
+      const pct = (audio.currentTime / audio.duration) * 100;
       document.getElementById('progress-bar').style.width = pct + '%';
-      const m1 = Math.floor(st.pos / 60), s1 = Math.floor(st.pos % 60);
-      const m2 = Math.floor(st.duration / 60), s2 = Math.floor(st.duration % 60);
+      const m1 = Math.floor(audio.currentTime / 60), s1 = Math.floor(audio.currentTime % 60);
+      const m2 = Math.floor(audio.duration / 60), s2 = Math.floor(audio.duration % 60);
       document.getElementById('time-display').textContent = m1 + ':' + (s1 < 10 ? '0' : '') + s1 + ' / ' + m2 + ':' + (s2 < 10 ? '0' : '') + s2;
-    } else if (st.is_playing && st.pos === 0) {
-      document.getElementById('time-display').textContent = 'Buffering...';
+
+      // Auto-advance when track ends
+      if (audio.ended) {
+        await api('POST', '/api/next');
+      }
+    } else if (state.is_playing) {
+      document.getElementById('time-display').textContent = 'Loading...';
     }
   } catch (e) {}
 }, 400);
