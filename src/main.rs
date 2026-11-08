@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::{BufRead, Read, Write};
+use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
@@ -203,7 +203,7 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
                     continue;
                 }
                 tracks.push(Track {
-                    id: tid,
+                    id: tid.clone(),
                     title: item["title"].as_str().unwrap_or("Unknown Title").to_string(),
                     artist: item["uploader"]
                         .as_str()
