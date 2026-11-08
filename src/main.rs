@@ -1,12 +1,9 @@
 use axum::{
-    body::Body,
     extract::{Query, State},
-    http::{header, StatusCode},
-    response::{Html, Json, Response},
+    response::{Html, Json},
     routing::{get, post},
     Router,
 };
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
