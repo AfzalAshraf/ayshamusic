@@ -57,6 +57,11 @@ struct SearchQuery {
     q: String,
 }
 
+#[derive(Deserialize)]
+struct StreamQuery {
+    url: String,
+}
+
 #[tokio::main]
 async fn main() {
     println!("Starting Aysha's Music Player Server...");
@@ -98,6 +103,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/api/search", get(search_handler))
+        .route("/api/stream", get(api_stream))
         .route("/api/play", post(play_handler))
         .route("/api/pause", post(pause_handler))
         .route("/api/resume", post(resume_handler))
@@ -217,6 +223,34 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
         }
     }
     tracks
+}
+
+/// Get direct audio stream URL for a YouTube video via yt-dlp.
+fn get_stream_url(url: &str) -> String {
+    let output = std::process::Command::new("yt-dlp")
+        .args(&["-f", "bestaudio", "--get-url", url])
+        .output();
+    match output {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+async fn api_stream(
+    State(_state): State<AppState>,
+    Query(sq): Query<StreamQuery>,
+) -> Json<serde_json::Value> {
+    let stream_url = get_stream_url(&sq.url);
+    if stream_url.is_empty() {
+        Json(serde_json::json!({
+            "stream_url": "",
+            "error": "Could not resolve stream URL"
+        }))
+    } else {
+        Json(serde_json::json!({
+            "stream_url": stream_url
+        }))
+    }
 }
 
 async fn index_handler() -> Html<&'static str> {
