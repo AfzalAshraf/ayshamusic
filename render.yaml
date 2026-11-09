@@ -1,0 +1,17 @@
+# Render deployment config for Aysha's Music Player
+# Connect your GitHub repo to Render, or use:
+#   https://render.com/deploy?repo=https://github.com/AfzalAshraf/ayshamusic
+
+services:
+  - type: web
+    name: aysha-music
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 5050

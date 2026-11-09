@@ -1,0 +1,31 @@
+# Fly.io deployment config for Aysha's Music Player
+# Install flyctl: https://fly.io/docs/hands-on/install/
+#   fly login
+#   fly launch --dockerfile Dockerfile --name aysha-music --region ewr
+#   fly deploy
+
+app = "aysha-music"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "5050"
+
+[[services]]
+  internal_port = 5050
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 5050
+    handlers = ["http"]
+
+  [[services.tcp_checks]]
+    interval = "10s"
+    timeout = "2s"
+    port = 5050
+
+[[mounts]]
+  source = "data"
+  destination = "/tmp"
