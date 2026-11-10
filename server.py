@@ -9,8 +9,11 @@ Works on Koyeb/Fly/Render free tiers without server-side audio stack.
 import http.server
 import json
 import os
+import shutil
 import subprocess
 import threading
+import urllib.request
+import urllib.error
 from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("PORT", 5050))
@@ -276,13 +279,8 @@ async function checkBluetooth() {
 }
 
 async function getStreamUrl(t) {
-  const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
-  if (r.error) {
-    console.log('Stream error:', r.error);
-    document.getElementById('time-display').textContent = 'Stream error: ' + r.error;
-    return '';
-  }
-  return r.stream_url || '';
+  // /api/stream now proxies audio directly, so return the proxy URL
+  return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
 async function playSong(t) {
@@ -878,6 +876,50 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    def _proxy_stream(self, url):
+        """Proxy YouTube audio through the server with CORS headers so
+        browser HTML5 <audio> can play it without CORS/referer issues."""
+        # Resolve the YouTube URL to a direct audio stream URL using yt-dlp
+        stream_url = get_stream_url(url)
+        if not stream_url:
+            self._send(400, json.dumps({"error": "Could not resolve stream URL"}))
+            return
+
+        try:
+            req = urllib.request.Request(
+                stream_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+                    "Accept": "*/*",
+                    "Referer": "https://www.youtube.com/",
+                    "Range": "bytes=0-",
+                },
+            )
+            resp = urllib.request.urlopen(req, timeout=30)
+            content_type = resp.headers.get("Content-Type", "audio/mpeg")
+
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Range")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+
+            # Pipe the audio stream to the client
+            while True:
+                chunk = resp.read(8192)
+                if not chunk:
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except (BrokenPipeError, ConnectionResetError):
+                    break
+        except urllib.error.HTTPError as e:
+            self._send(e.code, json.dumps({"error": f"Upstream error: {e.code}"}))
+        except Exception as e:
+            self._send(500, json.dumps({"error": f"Proxy error: {str(e)}"}))
+
     def do_GET(self):
         u = urlparse(self.path)
         path = u.path
@@ -909,11 +951,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send(200, json.dumps(tracks))
         elif path == "/api/stream":
             url = qs.get("url", [""])[0]
-            stream_url = get_stream_url(url)
-            if stream_url:
-                self._send(200, json.dumps({"stream_url": stream_url}))
-            else:
-                self._send(200, json.dumps({"stream_url": "", "error": "Could not resolve stream URL"}))
+            self._proxy_stream(url)
         elif path == "/api/queue":
             with state_lock:
                 q = list(state["queue"])
