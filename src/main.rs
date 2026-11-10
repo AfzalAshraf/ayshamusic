@@ -12,7 +12,7 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
-use futures_util::stream::StreamExt;
+use futures_util::TryStreamExt;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
