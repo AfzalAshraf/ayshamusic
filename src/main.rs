@@ -1,7 +1,7 @@
 use axum::{
     extract::{Query, State},
     response::{Html, Json, Response},
-    body::Body,
+    body::{Body, Bytes},
     routing::{get, post},
     Router,
 };
@@ -10,9 +10,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
 use tower_http::cors::CorsLayer;
-use futures_util::TryStreamExt;
+use futures_util::stream::Stream;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
@@ -249,55 +251,81 @@ fn get_stream_url(url: &str) -> Option<String> {
     }
 }
 
-/// Proxy YouTube audio through the server with CORS headers so
-/// browser HTML5 <audio> can play it without CORS/referer issues.
+/// Proxy YouTube audio through the server using yt-dlp to download chunks
+/// and pipe them to the browser HTML5 <audio> element with CORS headers.
+/// The audio never goes directly from YouTube to the browser — it always
+/// passes through this local server first.
 async fn api_stream(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Query(sq): Query<StreamQuery>,
 ) -> Result<Response, axum::http::StatusCode> {
-    let stream_url = match get_stream_url(&sq.url) {
-        Some(u) => u,
-        None => return Err(axum::http::StatusCode::BAD_REQUEST),
-    };
+    let url = sq.url.clone();
 
-    let client = {
-        let s = state.lock().unwrap();
-        s.http_client.clone()
-    };
-
-    let resp = match client
-        .get(&stream_url)
-        .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
-        .header("Accept", "*/*")
-        .header("Referer", "https://www.youtube.com/")
-        .send()
-        .await
+    let mut child = match tokio::process::Command::new("yt-dlp")
+        .args(&[
+            "-f", "bestaudio",
+            "-o", "-",
+            "--no-check-certificate",
+            "--no-warnings",
+        ])
+        .arg(&url)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
     {
-        Ok(r) => r,
-        Err(_) => return Err(axum::http::StatusCode::BAD_GATEWAY),
+        Ok(c) => c,
+        Err(_) => return Err(axum::http::StatusCode::BAD_REQUEST),
     };
 
-    let content_type = resp
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("audio/mpeg")
-        .to_string();
+    let stdout = match child.stdout.take() {
+        Some(s) => s,
+        None => return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-    let stream = resp.bytes_stream().map_err(|e| {
-        Box::<dyn std::error::Error + Send + Sync>::from(e)
-    });
+    let stream = YtDlpStream {
+        stdout,
+        buf: [0u8; 8192],
+        eof: false,
+    };
     let body = Body::from_stream(stream);
 
     Response::builder()
         .status(200)
-        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_TYPE, "audio/mpeg")
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Headers", "Range")
         .header("Accept-Ranges", "bytes")
         .header("Cache-Control", "no-cache")
         .body(body)
         .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+/// Wraps a tokio::process::ChildStdout as a byte stream for axum response body.
+/// yt-dlp downloads audio chunks and this stream pipes them to the browser.
+struct YtDlpStream {
+    stdout: tokio::process::ChildStdout,
+    buf: [u8; 8192],
+    eof: bool,
+}
+
+impl Stream for YtDlpStream {
+    type Item = Result<Bytes, std::io::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.eof {
+            return Poll::Ready(None);
+        }
+        let n = match Pin::new(&mut self.stdout).poll_read(cx, &mut self.buf) {
+            Poll::Ready(Ok(n)) => n,
+            Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
+            Poll::Pending => return Poll::Pending,
+        };
+        if n == 0 {
+            self.eof = true;
+            return Poll::Ready(None);
+        }
+        Poll::Ready(Some(Ok(Bytes::copy_from_slice(&self.buf[..n]))))
+    }
 }
 
 async fn index_handler() -> Html<&'static str> {
