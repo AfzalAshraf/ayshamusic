@@ -1,15 +1,18 @@
 use axum::{
     extract::{Query, State},
-    response::{Html, Json},
+    response::{Html, Json, Response},
+    body::Body,
     routing::{get, post},
     Router,
 };
+use axum::http::header;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
+use futures_util::stream::StreamExt;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
@@ -246,24 +249,55 @@ fn get_stream_url(url: &str) -> Option<String> {
     }
 }
 
-/// Get direct audio stream URL for browser playback via yt-dlp.
-/// Returns JSON with stream_url that the browser's <audio> element fetches directly.
+/// Proxy YouTube audio through the server with CORS headers so
+/// browser HTML5 <audio> can play it without CORS/referer issues.
 async fn api_stream(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(sq): Query<StreamQuery>,
-) -> Json<serde_json::Value> {
+) -> Result<Response, axum::http::StatusCode> {
     let stream_url = match get_stream_url(&sq.url) {
         Some(u) => u,
-        None => {
-            return Json(serde_json::json!({
-                "stream_url": "",
-                "error": "Could not resolve stream URL. YouTube may be blocking access."
-            }));
-        }
+        None => return Err(axum::http::StatusCode::BAD_REQUEST),
     };
-    Json(serde_json::json!({
-        "stream_url": stream_url
-    }))
+
+    let client = {
+        let s = state.lock().unwrap();
+        s.http_client.clone()
+    };
+
+    let resp = match client
+        .get(&stream_url)
+        .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+        .header("Accept", "*/*")
+        .header("Referer", "https://www.youtube.com/")
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(_) => return Err(axum::http::StatusCode::BAD_GATEWAY),
+    };
+
+    let content_type = resp
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("audio/mpeg")
+        .to_string();
+
+    let stream = resp.bytes_stream().map_err(|e| {
+        Box::<dyn std::error::Error + Send + Sync>::from(e)
+    });
+    let body = Body::from_stream(stream);
+
+    Response::builder()
+        .status(200)
+        .header(header::CONTENT_TYPE, content_type)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", "Range")
+        .header("Accept-Ranges", "bytes")
+        .header("Cache-Control", "no-cache")
+        .body(body)
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn index_handler() -> Html<&'static str> {
