@@ -19,6 +19,20 @@ git pull --ff-only origin arena/a850fb0d-ayshamusic &&
 bash scripts/install_local.sh
 ```
 
+### Confirm the refresh fix is actually served
+
+The UI is embedded by Rust's `include_str!`: `git pull` or refreshing the phone alone does **not** replace the running executable. Run the installer above after stopping any foreground copy. Rebuilding a repository binary without installing it at the systemd ExecStart path is also insufficient.
+
+On the Linux host after installation:
+
+```bash
+curl --fail --silent --show-error http://127.0.0.1:5050/ | grep -F "const selectionKey = 'aysha.selection.v1';"
+```
+
+The expected output is that exact declaration. If it is absent, inspect `systemctl status aysha-music` and `systemctl show aysha-music -p ExecStart -p MainPID`: the endpoint is not serving this fix. Do not run a second server on port 5050. If local output is correct but the phone still gets old behavior, verify it uses this same server/address and reload the page; a different origin has separate tab storage. Do not erase site storage as the first fix, since that removes the saved selection.
+
+After loading the updated page, select a song once (the old version did not save one), Stop, Play, Stop, refresh, and Play again. Confirm the same title/artist remains and music audibly restarts. Refresh ends browser audio by design; it should no longer make the song unplayable. There is no uninterrupted-refresh or cross-tab persistence promise.
+
 The script tests and builds before stopping the service, backs up the existing unit and binary, atomically installs the newly built Rust binary to the confirmed ExecStart path, installs deploy/aysha-music.service, enables lingering for afine, and enables/starts the system service. It verifies service liveness and the status endpoint. A failing installation step stops the script; it does not claim a successful install or automatically roll back.
 
 The unit explicitly provides HOME, PATH, XDG_RUNTIME_DIR and PULSE_SERVER for the known local audio session. MUSIC_YTDLP_JS_RUNTIME=node:/usr/bin/node enables the same runtime that successfully downloaded the previously failing track. The setting is passed to browser-stream yt-dlp and mpv's yt-dlp hook. No new JS runtime or remote EJS download is installed/enabled by this script.

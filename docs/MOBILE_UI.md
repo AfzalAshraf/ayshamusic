@@ -74,6 +74,17 @@ Public rollout still requires device-session isolation and Access protection des
 
 ## Stop versus Pause regression
 
-After choosing a track, Stop now releases its stream/process while retaining the selection in this page. Any shared Play control (soundtrack card, mini-player or expanded player) starts that track again from the beginning with /api/play. Pause retains the active source/process, so Play resumes via /api/resume without registering the track twice. Repeated Stop remains restartable. A page reload still does not restore an in-memory selection.
+After choosing a track, Stop now releases its stream/process while retaining the selection in this page. Any shared Play control (soundtrack card, mini-player or expanded player) starts that track again from the beginning with /api/play. Pause retains the active source/process, so Play resumes via /api/resume without registering the track twice. Repeated Stop remains restartable. The last selected song/output now survives a reload in the same tab via sessionStorage; see the refresh regression below.
 
 Manual target check: select a song, hear it, press the soundtrack card's Stop, press Play, and confirm it starts again. Repeat using expanded-player Stop/Play, and test Pause/Play separately. The browser fixture suite exercises these buttons with media calls stubbed; audible restart and Bluetooth hardware still require local checks.
+
+
+## Refresh / empty Now Playing regression
+
+The last selected track and output mode are saved in this tab's `sessionStorage` under `aysha.selection.v1`. Reload restores validated metadata, generated artwork and a Play state synchronously, without autoplay or a misleading Pause icon. Press Play to restart from the beginning. Browser audio cannot continue uninterrupted across a document reload; seeking to an old position is not promised by the sequential proxy. Bluetooth may continue on the server across a browser refresh, but this page conservatively offers a restart rather than assuming a server process exists.
+
+Storage is tab/origin-scoped, not a cross-device profile, permanent library or guarantee after closing the tab. Corrupt data and unavailable storage fall back to normal in-memory playback; refresh recovery then needs a new selection or available server metadata. No listening-time or quote-preference tracking was added. Stored fields are only track ID, title, artist, URL and output mode. Clearing this site's session data removes them.
+
+Status polling must not replace an existing local selection with another device's track or claim browser playback solely because global `/api/status` says playing. If a fresh tab has no selection, available server metadata can provide a restartable candidate, not an automatically playing audio source. This does not isolate backend controls/queues across devices.
+
+The real Chromium fixture test clicks a Home card, Stop/Play, expanded Stop/Play, then actually reloads both after Stop (server track null) and during playback (server still playing). It checks restored text, no autoplay, working Play and no uncaught errors. Media output alone is stubbed; live audio remains a host/device test. MediaSession artwork is derived from the track ID because restored/server tracks may not supply a thumbnail; undefined artwork otherwise throws in Chromium before playback starts.

@@ -22,6 +22,12 @@ const tracks = [
   const browser = await chromium.launch({ executablePath: await binary.executablePath(), args: binary.args, headless: true });
   try {
     const context = await browser.newContext({ viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true });
+    // Stub only media output, including after a real document reload.
+    await context.addInitScript(() => {
+      window.mediaPlayAttempts = 0;
+      HTMLMediaElement.prototype.play = function() { window.mediaPlayAttempts++; return Promise.resolve(); };
+      HTMLMediaElement.prototype.pause = function() {};
+    });
     const page = await context.newPage();
     for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 412, height: 915 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
       await page.setViewportSize(viewport);
@@ -29,6 +35,7 @@ const tracks = [
       await page.unroute('**/*');
       const errors = [];
       const playRegistrations = [];
+      let serverTrack = null;
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
@@ -39,15 +46,16 @@ const tracks = [
         if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: html });
         if (url.pathname === '/icons.svg') return route.fulfill({ contentType: 'image/svg+xml', body: icons });
         let data;
-        if (url.pathname === '/api/play') { playRegistrations.push(url.search); data = { status: 'playing', mode: 'browser' }; }
-        else if (url.pathname === '/api/stop') data = { status: 'stopped' };
+        if (url.pathname === '/api/play') { playRegistrations.push(url.search); serverTrack = tracks[0]; data = { status: 'playing', mode: 'browser' }; }
+        else if (url.pathname === '/api/stop') { serverTrack = null; data = { status: 'stopped' }; }
         else if (url.pathname === '/api/search' || url.pathname === '/api/liked') data = tracks;
         else if (url.pathname === '/api/queue') data = [];
-        else if (url.pathname === '/api/status') data = { current_track: null, is_playing: false, volume: 0.8, queue_len: 0 };
+        else if (url.pathname === '/api/status') data = { current_track: serverTrack, is_playing: !!serverTrack, volume: 0.8, queue_len: 0 };
         else if (url.pathname === '/api/bt/status') data = { connected: false, device: 'JBL Flip Essential', mac: '04:CB:88:92:43:60' };
         else data = { status: 'failed', error: 'Read-only UI test fixture' };
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
       });
+      if (page.url().startsWith('https://aysha.test/')) await page.evaluate(() => sessionStorage.clear());
       await page.goto('https://aysha.test/');
       await page.locator('#quick-picks .song-card').first().waitFor();
       assert.equal((await page.locator('.footer').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
@@ -86,13 +94,8 @@ const tracks = [
       // Exercise actual hero/expanded-player buttons with media calls stubbed;
       // this verifies UI wiring and requests, not audible playback or YouTube.
       if (viewport.width === 390) {
-        await page.evaluate(() => {
-          const audio = document.getElementById('audio-player');
-          audio.preload = 'none';
-          audio.play = () => Promise.resolve();
-          audio.pause = () => {};
-        });
-        await page.evaluate(track => playSong(track), tracks[0]);
+        await page.locator('#quick-picks .song-card').first().click();
+        await page.waitForFunction(() => window.mediaPlayAttempts === 1);
         await page.locator('.btn-stop').click();
         await page.locator('#hero-toggle').click();
         await page.waitForFunction(() => document.getElementById('hero-play-label').textContent === 'Pause');
@@ -104,6 +107,29 @@ const tracks = [
         assert.equal(playRegistrations.length, 3, 'Expanded Play must also restart after Stop');
         await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
         assert.match(await page.locator('#audio-player').getAttribute('src'), /sample1/);
+        // Stop clears the server track, then reload must recover from tab storage.
+        await page.locator('.now-footer button').click();
+        await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Play');
+        await page.reload();
+        await page.locator('#quick-picks .song-card').first().waitFor();
+        assert.equal(await page.locator('#hero-title').textContent(), tracks[0].title);
+        assert.equal(await page.locator('#hero-toggle').getAttribute('aria-label'), 'Play');
+        assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 0, 'Reload must not autoplay');
+        await page.locator('#open-player').click();
+        assert.equal(await page.locator('#full-artist').textContent(), tracks[0].artist);
+        await page.locator('#full-play-toggle').click();
+        await page.waitForFunction(() => window.mediaPlayAttempts === 1);
+        assert.equal(playRegistrations.length, 4, 'Reloaded Play starts the selected track again');
+        // Also reload while the server still advertises browser playback.
+        await page.reload();
+        await page.locator('#quick-picks .song-card').first().waitFor();
+        await page.evaluate(() => pollStatus());
+        assert.equal(await page.locator('#hero-toggle').getAttribute('aria-label'), 'Play');
+        assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 0);
+        await page.locator('#hero-toggle').click();
+        await page.waitForFunction(() => window.mediaPlayAttempts === 1);
+        assert.equal(playRegistrations.length, 5);
+
       }
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const script = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8').split('<script>')[1].split('</script>')[0];
 
-function harness(connected = false) {
+function harness(connected = false, storage = new Map()) {
   const calls = [];
   const elements = new Map();
   const element = id => {
@@ -25,6 +25,10 @@ function harness(connected = false) {
   const context = vm.createContext({
     console, URLSearchParams, encodeURIComponent, navigator: {},
     document: { getElementById: element, querySelectorAll: () => [] },
+    sessionStorage: {
+      getItem(key) { return storage.get(key) || null; },
+      setItem(key, value) { storage.set(key, value); },
+    },
     setInterval() {}, setTimeout() {},
     fetch: async (url, opts) => {
       calls.push({ url, opts });
@@ -33,7 +37,7 @@ function harness(connected = false) {
   });
   // Disable only the page's initial network load; keep all production functions intact.
   vm.runInContext(script.replace("initializeNavigation();", ''), context);
-  return { context, calls, element };
+  return { context, calls, element, storage };
 }
 
 const track = { id: 'abc', title: 'Song & title', artist: 'Artist', url: 'https://www.youtube.com/watch?v=abc' };
@@ -219,4 +223,93 @@ test('browser Stop remains locally stopped if its server notification fails', as
   assert.equal(h.element('audio-player').src, '');
   assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
   assert.match(h.element('time-display').textContent, /Stopped on this device; server update failed/);
+});
+
+
+test('Stop then refresh restores the selected song without autoplay and Play restarts it', async () => {
+  const original = harness();
+  await original.context.playSong(track);
+  await original.context.stopPlay();
+  const refreshed = harness(false, original.storage);
+  assert.equal(refreshed.element('hero-title').textContent, track.title);
+  assert.equal(refreshed.element('full-artist').textContent, track.artist);
+  assert.equal(refreshed.element('audio-player').playCount, 0);
+  assert.equal(refreshed.element('play-toggle').attributes['aria-label'], 'Play');
+  await refreshed.context.togglePlay();
+  assert.equal(refreshed.element('audio-player').playCount, 1);
+  assert.equal(refreshed.calls.filter(call => call.url.startsWith('/api/play?')).length, 1);
+  assert.equal(refreshed.calls.some(call => call.url === '/api/resume'), false);
+});
+
+test('refresh during browser playback is restartable, not falsely playing from global status', async () => {
+  const original = harness();
+  await original.context.playSong(track);
+  const refreshed = harness(false, original.storage);
+  refreshed.context.fetch = async () => ({ ok: true, json: async () => ({ current_track: track, is_playing: true, volume: 0.8 }) });
+  await refreshed.context.pollStatus();
+  assert.equal(refreshed.element('play-toggle').attributes['aria-label'], 'Play');
+  assert.equal(refreshed.element('audio-player').src, '');
+  await refreshed.context.togglePlay();
+  assert.equal(refreshed.element('audio-player').playCount, 1);
+});
+
+test('polling does not replace this tabs selected song with another devices song', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  h.context.fetch = async () => ({ ok: true, json: async () => ({ current_track: { ...track, id: 'other', title: 'Other device' }, is_playing: true }) });
+  await h.context.pollStatus();
+  assert.equal(h.element('hero-title').textContent, track.title);
+  assert.equal(h.element('full-title').textContent, track.title);
+  assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
+});
+
+test('corrupt and unavailable tab storage do not prevent playback', async () => {
+  for (const storage of [new Map([['aysha.selection.v1', '{broken']]), {
+    get() { throw new Error('Storage denied'); }, set() { throw new Error('Storage full'); },
+  }]) {
+    const h = harness(false, storage);
+    await h.context.playSong(track);
+    await h.context.stopPlay();
+    await h.context.togglePlay();
+    assert.equal(h.element('audio-player').playCount, 2);
+  }
+});
+
+
+test('restored selection supplies valid artwork to Chromium MediaSession', async () => {
+  const original = harness();
+  await original.context.playSong(track);
+  const refreshed = harness(false, original.storage);
+  refreshed.context.navigator.mediaSession = { setActionHandler() {}, setPositionState() {} };
+  refreshed.context.MediaMetadata = function(data) {
+    assert.equal(typeof data.artwork[0].src, 'string');
+    Object.assign(this, data);
+  };
+  refreshed.context.restoreSelection();
+  await refreshed.context.togglePlay();
+  assert.equal(refreshed.element('audio-player').playCount, 1);
+  assert.equal(refreshed.context.navigator.mediaSession.metadata.title, track.title);
+  assert.equal(new URLSearchParams(refreshed.calls.find(call => call.url.startsWith('/api/play?')).url.split('?')[1]).get('thumbnail'), 'https://img.youtube.com/vi/abc/hqdefault.jpg');
+});
+
+test('Bluetooth selection survives Stop and refresh and restarts via play, not resume', async () => {
+  const original = harness(true);
+  await original.context.playSong(track);
+  await original.context.stopPlay();
+  const refreshed = harness(true, original.storage);
+  assert.equal(refreshed.element('full-output').textContent, 'Home Bluetooth speaker');
+  await refreshed.context.togglePlay();
+  assert.equal(new URLSearchParams(refreshed.calls[0].url.split('?')[1]).get('mode'), 'bt');
+  assert.equal(refreshed.calls.some(call => call.url === '/api/resume'), false);
+  assert.equal(refreshed.element('audio-player').playCount, 0);
+});
+
+test('invalid saved selection schema is ignored without breaking the empty player', () => {
+  for (const saved of [null, {}, { mode: 'bt', track: {} }, { mode: 'browser', track: { ...track, url: 'javascript:alert(1)' } }, { mode: 'browser', track: { ...track, title: 'x'.repeat(501) } }]) {
+    const h = harness(false, new Map([['aysha.selection.v1', JSON.stringify(saved)]]));
+    h.context.syncNowPlaying();
+    assert.equal(h.element('full-artist').textContent, 'Choose a song from Home or Explore.');
+    assert.equal(h.element('audio-player').playCount, 0);
+  }
 });

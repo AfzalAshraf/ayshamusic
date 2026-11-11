@@ -164,6 +164,49 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
 let durationSec = 0;
 
+// Tab-scoped selection survives reload, never an autoplay instruction or a
+// shared-device profile. Storage denial must not break in-memory playback.
+const selectionKey = 'aysha.selection.v1';
+function saveSelection() {
+  try {
+    const t = state.current_track;
+    sessionStorage.setItem(selectionKey, JSON.stringify({
+      track: { id: t.id, title: t.title, artist: t.artist, url: t.url },
+      mode: state.playMode,
+    }));
+  } catch (_) { /* Session storage may be unavailable in private/restricted contexts. */ }
+}
+
+function renderSelection(t) {
+  const thumb = 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg';
+  for (const prefix of ['hero', 'np']) {
+    document.getElementById(prefix + '-art').src = thumb;
+    document.getElementById(prefix + '-title').textContent = t.title;
+    document.getElementById(prefix + '-artist').textContent = t.artist;
+  }
+}
+
+function restoreSelection() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(selectionKey));
+    const t = saved && saved.track;
+    if (!t || !['browser', 'bt'].includes(saved.mode)) return;
+    for (const [key, limit] of [['id', 256], ['title', 500], ['artist', 500], ['url', 2048]]) {
+      if (typeof t[key] !== 'string' || t[key].length > limit) return;
+    }
+    if (!t.id || !t.title || !/^https?:\/\//.test(t.url)) return;
+    state.current_track = {
+      id: t.id, title: t.title, artist: t.artist, url: t.url,
+      thumbnail: 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg',
+    };
+    state.playMode = saved.mode;
+    state.stopped = true;
+    renderSelection(state.current_track);
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = 'Song restored — press Play to start again';
+  } catch (_) { /* Ignore missing, malformed or inaccessible session data. */ }
+}
+
 async function api(method, path, body) {
   // The Rust play endpoint extracts query parameters, not a JSON body.
   if (method === 'POST' && path === '/api/play' && body) {
@@ -208,7 +251,7 @@ function updateMediaSession() {
     title: t ? t.title : 'Aysha\'s Music',
     artist: t ? t.artist : '',
     album: 'Aysha\'s Music',
-    artwork: t ? [{ src: t.thumbnail, sizes: '512x512', type: 'image/jpeg' }] : [],
+    artwork: t ? [{ src: 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg', sizes: '512x512', type: 'image/jpeg' }] : [],
   });
   navigator.mediaSession.setActionHandler('play', () => { if (!state.is_playing) togglePlay(); });
   navigator.mediaSession.setActionHandler('pause', () => { if (state.is_playing) togglePlay(); });
@@ -235,13 +278,7 @@ async function getStreamUrl(t) {
 }
 
 async function playSong(t, options = {}) {
-  const thumb = 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg';
-  document.getElementById('hero-art').src = thumb;
-  document.getElementById('hero-title').textContent = t.title;
-  document.getElementById('hero-artist').textContent = t.artist;
-  document.getElementById('np-art').src = thumb;
-  document.getElementById('np-title').textContent = t.title;
-  document.getElementById('np-artist').textContent = t.artist;
+  renderSelection(t);
   state.current_track = t;
   state.stopped = true;
 
@@ -255,6 +292,7 @@ async function playSong(t, options = {}) {
   if (btConnected) {
     // Bluetooth connected → play on server mpv → JBL speaker
     state.playMode = 'bt';
+    saveSelection();
     document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
     setPlayingState(true);
     try {
@@ -270,6 +308,7 @@ async function playSong(t, options = {}) {
 
   // Bluetooth NOT connected → play in browser via streaming proxy
   state.playMode = 'browser';
+  saveSelection();
   document.getElementById('time-display').textContent = 'Loading stream...';
   setPlayingState(true);
 
@@ -704,22 +743,23 @@ function initializeNavigation() {
   renderTab(tab);
 }
 
-setInterval(async () => {
+async function pollStatus() {
   try {
     const st = await api('GET', '/api/status');
-    if (st.current_track) {
-      document.getElementById('hero-title').textContent = st.current_track.title;
-      document.getElementById('hero-artist').textContent = st.current_track.artist;
-      document.getElementById('hero-art').src = 'https://img.youtube.com/vi/' + st.current_track.id + '/hqdefault.jpg';
-      document.getElementById('np-title').textContent = st.current_track.title;
-      document.getElementById('np-artist').textContent = st.current_track.artist;
-      document.getElementById('np-art').src = 'https://img.youtube.com/vi/' + st.current_track.id + '/hqdefault.jpg';
+    // Global server metadata is not evidence that this browser has an audio
+    // source. Never replace an existing local selection with another device's.
+    if (st.current_track && !state.current_track) {
       state.current_track = st.current_track;
-      if (state.playMode !== 'browser') {
-        state.volume = st.volume * 100;
-        setPlayingState(st.is_playing);
-      }
-      updateMediaSession();
+      state.playMode = 'browser';
+      state.stopped = true;
+      renderSelection(state.current_track);
+      saveSelection();
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = 'Press Play to start on this device';
+    } else if (state.playMode === 'bt' && !state.stopped && st.current_track &&
+               st.current_track.id === state.current_track.id) {
+      state.volume = st.volume * 100;
+      setPlayingState(st.is_playing);
     }
     if (st.queue_len !== undefined) {
       document.getElementById('queue-count').textContent = st.queue_len;
@@ -740,7 +780,8 @@ setInterval(async () => {
       document.getElementById('time-display').textContent = 'Loading...';
     }
   } catch (e) {}
-}, 400);
+}
+setInterval(pollStatus, 400);
 
 document.getElementById('audio-player').addEventListener('ended', function() {
   if (state.playMode === 'browser') {
@@ -760,6 +801,9 @@ document.getElementById('audio-player').addEventListener('error', function() {
 if ('mediaSession' in navigator) {
   updateMediaSession();
 }
+
+// Restore synchronously before navigation/polling; never start media on load.
+restoreSelection();
 
 // Start
 initializeNavigation();
