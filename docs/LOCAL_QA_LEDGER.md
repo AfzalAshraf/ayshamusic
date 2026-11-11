@@ -206,3 +206,21 @@ Source commit 4e19638 passed Linux CI run 43078897480:
 https://github.com/AfzalAshraf/ayshamusic/actions/runs/43078897480
 
 Both jobs passed: Rust tests/release build, 14 Python tests, 12 frontend tests, Linux shell syntax, and real Chromium fixture layout/history checks at all seven viewports. The isolated CI browser job completed successfully without the sandbox-only shared-library workaround. This verifies the new embedded frontend builds with Rust; it does not verify real Android audio, two-device isolation or a deployed tunnel.
+
+## User-approved foundation and main upgrade skill
+
+Active department: Product & Architecture. User explicitly approves the latest mobile design ("Fantastic and the best i love it") and asks for a main skill making this the foundation for future upgrades. User also explicitly requests the visible dedication with the real love emoji.
+
+Change contract: preserve the approved Android layout/controls and local Rust path; add upgrade governance/discovery, correct the requested branding only, and verify it without redesign or infrastructure changes. Recovery is a selective revert of these files, not a reset of unrelated later work.
+
+Created:
+- AGENTS.md: project entry point linking the main and specialist skills.
+- skills/main-upgrade/SKILL.md: baseline-preserving workflow, department routing, approval/ambiguity rules, priorities, verification ladder, ownership/resource/security constraints, host/maintenance boundaries, evidence-based scoring and mandatory logs.
+- docs/UPGRADE_BASELINE.md: approved source/verification anchors (4e19638 / 307db41), preservation requirements, known gaps and current readiness gates. These anchors are references, not instructions to reset future work.
+- tests/test_upgrade_baseline.py: exact dedication/emoji and skill-discovery checks.
+
+Updated README links and both visible src/index.html footers to: Made with ❤️ for Aysha — with love, from Afzal. The heart uses U+2764 U+FE0F with an accessible love label. Expanded footer text wraps while preserving the Stop control. Browser tests assert the exact text in both locations and no expanded-player horizontal overflow.
+
+Verification: all 16 Python tests and 12 frontend tests pass locally. Real Chromium fixture tests pass all seven portrait/tablet/landscape/desktop viewports with the new footer checks. CI build result is recorded separately when complete. No new runtime dependencies, APIs, installed services, domain/tunnel, timer or scheduling changes. No actual target Android/hardware tests were performed here.
+
+Current app scores remain Architecture 2/5, UI/UX 4/5, Backend 2/5, QA/Security 3/5 and Networking/Self-Hosting 1/5. Approval establishes the design baseline, not completion of unresolved device isolation, authentication, Bluetooth connection, remote-access, persistence, memory or maintenance gates. The main skill is a repository procedure, not a platform skill registration or unlimited authorization to upgrade services.

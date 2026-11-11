@@ -47,6 +47,7 @@ const tracks = [
       });
       await page.goto('https://aysha.test/');
       await page.locator('#quick-picks .song-card').first().waitFor();
+      assert.equal((await page.locator('.footer').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Horizontal viewport overflow at ${viewport.width}`);
       const nav = await page.locator('#nav-home').boundingBox();
       assert.ok(nav.height >= 44 && nav.width >= 44, 'Navigation target must be at least 44px');
@@ -70,6 +71,8 @@ const tracks = [
       await page.waitForFunction(() => document.querySelector('#tab-home').classList.contains('active'));
       await page.locator('#open-player').click();
       assert.ok(await page.locator('#now-playing').isVisible(), 'Now playing opens');
+      assert.equal((await page.locator('.now-footer > span').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
+      assert.ok(await page.locator('#now-playing').evaluate(el => el.scrollWidth <= el.clientWidth), 'Dedication must wrap without modal overflow');
       if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-player.png') });
       await page.goBack();
       assert.ok(await page.locator('#now-playing').isHidden(), 'Browser Back closes player before leaving page');

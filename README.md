@@ -1,7 +1,14 @@
 # Aysha's Music Player
 
-A lightweight music player backend + PWA frontend, made with ♥ for Aysha — with love, from Afzal.
+A lightweight music player backend and Android-first frontend.
+
+Made with ❤️ for Aysha — with love, from Afzal
+
 **Target: under 20MB RAM.**
+
+## Future upgrades: preserve the approved foundation
+
+Start with [the main upgrade skill](skills/main-upgrade/SKILL.md), discoverable through [AGENTS.md](AGENTS.md). The [approved baseline](docs/UPGRADE_BASELINE.md) records the design to preserve, current limits and honest readiness gates. Future upgrades should build on this version—not replace the interface you approved.
 
 ## Local Linux: run without keeping SSH open
 
