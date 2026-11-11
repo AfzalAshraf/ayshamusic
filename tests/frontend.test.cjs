@@ -29,7 +29,7 @@ function harness(connected = false) {
     },
   });
   // Disable only the page's initial network load; keep all production functions intact.
-  vm.runInContext(script.replace("switchTab('home');", ''), context);
+  vm.runInContext(script.replace("initializeNavigation();", ''), context);
   return { context, calls, element };
 }
 

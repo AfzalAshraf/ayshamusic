@@ -16,4 +16,6 @@
   <symbol id="heart" viewBox="0 0 24 24"><path d="M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z"/></symbol>
   <symbol id="queue" viewBox="0 0 24 24"><path d="M3 5h14M3 10h14M3 15h8m7-2v8m-4-4h8"/></symbol>
   <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="arrow-left" viewBox="0 0 24 24"><path d="m12 5-7 7 7 7M5 12h15"/></symbol>
+  <symbol id="chevron-down" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7"/></symbol>
 </svg>

@@ -20,3 +20,11 @@ jobs:
         run: node --test tests/frontend.test.cjs
       - name: Linux script syntax
         run: bash -n scripts/install_local.sh scripts/diagnose_local.sh
+  mobile-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test-only browser tools outside the repository
+        run: npm install --prefix "$RUNNER_TEMP/aysha-browser" --no-audit --no-fund playwright-core@1.65.0 @sparticuz/chromium@153.0.0
+      - name: Portrait layout and browser navigation
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/mobile.browser.cjs

@@ -13,7 +13,7 @@ class IconTests(unittest.TestCase):
         symbols = sprite.findall("{http://www.w3.org/2000/svg}symbol")
         names = [node.attrib["id"] for node in symbols]
         self.assertEqual(len(names), len(set(names)))
-        self.assertEqual(len(names), 16)
+        self.assertEqual(len(names), 18)
         for symbol in symbols:
             self.assertEqual(symbol.attrib.get("viewBox"), "0 0 24 24")
         for node in sprite.iter():

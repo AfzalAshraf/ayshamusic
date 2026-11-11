@@ -2,116 +2,37 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Aysha's Music">
 <meta name="theme-color" content="#030303">
-<link rel="manifest" href="/manifest.json">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff0000'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>">
 <title>Aysha's Music Player</title>
 <style>
-:root{--bg:#030303;--sidebar:#000000;--panel:#121212;--accent:#ff0000;--text:#fff;--sub:#aaaaaa;--dim:#717171;--border:rgba(255,255,255,0.08);--liked:#ff0000}
-*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden}
-.sidebar{width:230px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 12px;flex-shrink:0;z-index:10}
-.brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;padding-left:10px;cursor:pointer}
-.brand svg{width:28px;height:28px;fill:var(--accent)}
-.brand h1{font-size:16px;font-weight:700;letter-spacing:-0.5px}
-.nav-group{display:flex;flex-direction:column;gap:4px}
-.nav-item{display:flex;align-items:center;gap:16px;padding:12px 16px;border-radius:12px;color:var(--sub);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
-.nav-item svg{width:22px;height:22px;fill:currentColor}
-.nav-item:hover{color:#fff;background:rgba(255,255,255,0.05)}
-.nav-item.active{color:#fff;background:rgba(255,255,255,0.12)}
-.main-wrapper{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;position:relative}
-.header{height:64px;background:rgba(3,3,3,0.9);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);flex-shrink:0}
-.search-wrap{flex:1;max-width:480px;position:relative}
-.search-bar{width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:20px;padding:8px 16px 8px 40px;color:#fff;font-size:14px;outline:none}
-.search-bar:focus{border-color:var(--accent)}
-.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:var(--sub)}
-.content-area{flex:1;overflow-y:auto;padding:24px 28px 120px}
-.tab-page{display:none}
-.tab-page.active{display:block}
-.now-playing-hero{background:linear-gradient(135deg,rgba(255,0,0,0.15)0%,rgba(20,20,20,0.8)100%);border:1px solid var(--border);border-radius:16px;padding:20px;display:flex;gap:24px;align-items:center;margin-bottom:32px}
-.hero-art-box{width:220px;max-width:55vw;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#202020;flex-shrink:0;box-shadow:0 8px 20px rgba(0,0,0,0.6)}
-.hero-art{width:100%;height:100%;object-fit:cover}
-.hero-details{flex:1;overflow:hidden}
-.hero-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px}
-.hero-title{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hero-artist{font-size:14px;color:var(--sub);margin-bottom:16px}
-.hero-controls{display:flex;gap:12px;align-items:center}
-.btn-hero{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#000;border:none;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer}
-.btn-hero:hover{background:#f0f0f0}
-.btn-hero.btn-stop{background:rgba(255,255,255,0.15);color:#fff}
-.btn-hero svg{width:18px;height:18px;fill:currentColor}
-.section-title{font-size:18px;font-weight:700;margin:24px 0 16px}
-.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.song-card{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid transparent;transition:all .2s;cursor:pointer;position:relative}
-.song-card:hover{background:rgba(255,255,255,0.08);border-color:var(--border)}
-.card-thumb{width:80px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#202020;flex-shrink:0}
-.card-info{overflow:hidden;flex:1}
-.card-title{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-artist{font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-action{background:rgba(255,255,255,0.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.card-action svg{width:18px;height:18px;fill:currentColor}
-.card-heart{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;transition:all .2s}
-.card-heart:hover{background:rgba(255,255,255,0.2);color:#fff}
-.card-heart.liked{color:var(--liked);background:rgba(255,0,0,0.2)}
-.card-heart.liked:hover{background:rgba(255,0,0,0.3)}
-.chips-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;margin-bottom:20px}
-.chip{background:rgba(255,255,255,0.08);color:#fff;padding:8px 18px;border-radius:18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid transparent}
-.chip:hover,.chip.active{background:#fff;color:#000}
-.player-bar{position:absolute;bottom:0;left:0;right:0;height:72px;background:rgba(18,18,18,0.96);backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
-.progress-container{width:100%;height:3px;background:rgba(255,255,255,0.15);cursor:pointer;position:relative}
-.progress-bar{height:100%;width:0%;background:var(--accent)}
-.player-content{display:flex;align-items:center;justify-content:space-between;height:69px;padding:0 24px}
-.player-left{display:flex;align-items:center;gap:12px;width:30%}
-.np-art{width:64px;aspect-ratio:16/9;object-fit:cover;border-radius:4px;background:#282828;flex-shrink:0}
-.np-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.np-artist{font-size:11px;color:var(--sub);margin-top:2px}
-.player-center{display:flex;align-items:center;gap:16px}
-.ctrl-btn{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.ctrl-btn svg{width:22px;height:22px;fill:currentColor}
-.play-main{background:#fff;color:#000;width:40px;height:40px}
-.play-main svg{fill:#000;width:22px;height:22px}
-.player-right{display:flex;align-items:center;gap:12px;width:25%;justify-content:flex-end}
-.vol-box{display:flex;align-items:center;gap:8px}
-.vol-box input{width:70px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.3);border-radius:2px;outline:none;cursor:pointer}
-.vol-box input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
-.vol-box input::-moz-range-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
-.ctrl-btn.muted{opacity:0.5}
-.time-str{font-size:12px;color:var(--sub);font-family:monospace}
-.footer{text-align:center;padding:24px;color:var(--sub);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
-.bt-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-.bt-card b{color:#fff}
-.bt-card small{color:var(--sub);display:block}
-.liked-count{color:var(--accent);font-weight:700;margin-left:4px}
-.empty-msg{color:var(--sub);text-align:center;padding:40px;font-size:14px}
-@media(max-width:768px){
- body{flex-direction:column}
- .sidebar{width:100%;height:60px;flex-direction:row;justify-content:space-around;padding:0;position:fixed;bottom:0;border-right:none;border-top:1px solid var(--border);z-index:200}
- .brand{display:none}
- .nav-item span{display:none}
- .nav-item{padding:10px}
- .main-wrapper{height:calc(100vh - 60px)}
- .player-bar{bottom:60px}
- .content-area{padding-bottom:140px}
- .hero-art-box{width:140px;max-width:45vw}
- .hero-details{padding-right:10px}
- .hero-title{font-size:17px}
- .search-wrap{max-width:100%}
- .now-playing-hero{padding:16px;gap:16px}
+:root{color-scheme:dark;--bg:#0c0c0e;--panel:#171719;--raised:#232326;--accent:#ff525f;--text:#f6f4f2;--sub:#a3a1a7;--dim:#74727a;--border:rgba(255,255,255,.08);--liked:#ff6375;--nav:76px;--mini:78px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;background:var(--bg)}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg);display:flex;height:100vh;height:100dvh;overflow:hidden;font-size:14px;line-height:1.5}
+button,input{font:inherit}button{cursor:pointer;color:inherit}button:disabled{opacity:.45;cursor:default}button,input{-webkit-appearance:none}button{touch-action:manipulation}button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}img{display:block;max-width:100%}.muted{color:var(--sub)}
+.sidebar{width:208px;flex-shrink:0;padding:32px 14px;background:#101012;border-right:1px solid var(--border);z-index:20}.brand{display:flex;align-items:center;gap:10px;padding:0 10px 36px;cursor:pointer}.brand svg{color:var(--accent);width:28px;height:28px}.brand h1{font-size:18px;letter-spacing:-.7px}.nav-group{display:flex;flex-direction:column;gap:7px}.nav-item{width:100%;display:flex;gap:14px;align-items:center;min-height:50px;padding:12px 16px;border-radius:12px;background:transparent;color:var(--sub);font-size:14px;font-weight:600;text-align:left}.nav-item:hover{background:var(--panel);color:#fff}.nav-item.active{background:var(--raised);color:#fff}.nav-item.active svg{color:var(--accent)}
+.main-wrapper{min-width:0;flex:1;display:flex;flex-direction:column;height:100%;position:relative}.header{display:flex;align-items:center;gap:16px;padding:20px 36px;flex-shrink:0;background:rgba(12,12,14,.96)}.back-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--panel);flex-shrink:0}.search-wrap{position:relative;flex:1;max-width:520px}.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--sub);pointer-events:none}.search-bar{width:100%;min-width:0;height:46px;background:#1a1a1d;color:#fff;border:1px solid var(--border);border-radius:24px;padding:10px 18px 10px 48px;font-size:15px}.search-bar::placeholder{color:#8b8992}.search-bar:focus{border-color:#68646e;outline:none}.profile-mark{margin-left:auto;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#30232c;color:#f0c9d2;border:1px solid #50333e;font-size:12px;font-weight:700;letter-spacing:1px;flex-shrink:0}
+.content-area{flex:1;min-height:0;overflow:auto;overscroll-behavior-y:contain;scroll-behavior:smooth;padding:8px 36px 120px}.tab-page{display:none;max-width:1180px;margin:0 auto}.tab-page.active{display:block}.page-eyebrow{color:var(--sub);font-size:10px;letter-spacing:2.2px;font-weight:700;text-transform:uppercase;margin:12px 0 8px}.page-heading{font-size:clamp(26px,3vw,42px);line-height:1.15;font-weight:750;letter-spacing:-1.4px;margin-bottom:24px}.page-heading span{color:#aaa6ae}.section-title{font-size:21px;line-height:1.3;font-weight:700;letter-spacing:-.5px;margin:30px 0 16px}.section-subtitle{color:var(--sub);font-size:12px;margin:-8px 0 16px}.section-heading-row{display:flex;justify-content:space-between;align-items:center;gap:12px}.section-heading-row .section-title{margin-bottom:10px}.section-badge{color:var(--sub);font-size:10px;text-transform:uppercase;letter-spacing:1.4px}
+.now-playing-hero{display:flex;align-items:center;gap:32px;background:radial-gradient(ellipse at 0 10%,#52252f 0,transparent 65%),linear-gradient(120deg,#251d25,#151416);border:1px solid rgba(241,143,162,.13);border-radius:22px;padding:28px;margin-bottom:28px;overflow:hidden}.hero-art-box{width:220px;aspect-ratio:1;border-radius:14px;overflow:hidden;flex-shrink:0;background:#30242c;box-shadow:0 20px 50px #0006}.hero-art{width:100%;height:100%;object-fit:cover}.hero-details{min-width:0;flex:1}.hero-tag{font-size:10px;color:#edb7c5;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:12px}.hero-title{font-size:clamp(24px,3vw,38px);line-height:1.15;letter-spacing:-1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}.hero-artist{font-size:14px;color:#c2b4bd;margin:12px 0 24px}.hero-controls{display:flex;gap:10px}.btn-hero{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 24px;border-radius:24px;background:#f8f5f3;color:#171417;font-weight:700;font-size:13px}.btn-hero.btn-stop{background:#ffffff12;color:#e4dce0;border:1px solid #ffffff14}.btn-hero svg{width:18px;height:18px}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px 16px}.song-card{display:flex;align-items:center;gap:12px;min-width:0;padding:10px 6px;border-radius:12px;cursor:pointer;background:transparent;transition:background .15s;position:relative}.song-card:hover,.song-card:focus-within{background:#ffffff08}.card-thumb{width:56px;height:56px;object-fit:cover;border-radius:9px;flex-shrink:0;background:var(--raised)}.card-info{min-width:0;flex:1}.card-title{font-size:14px;line-height:1.4;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-artist{font-size:12px;color:var(--sub);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-action,.card-heart{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--sub);flex-shrink:0}.card-action:hover,.card-heart:hover{background:#ffffff0c;color:#fff}.card-heart.liked{color:var(--liked)}.card-heart.liked .app-icon{fill:currentColor}.card-action svg,.card-heart svg{width:19px;height:19px}.card-play{display:none}.card-queue{display:none}.song-card:hover .card-queue,.song-card:focus-within .card-queue{display:grid}.chips-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 0 12px;margin-bottom:12px}.chips-row::-webkit-scrollbar{display:none}.chip{min-height:44px;padding:10px 18px;border-radius:12px;background:var(--raised);border:1px solid var(--border);color:var(--text);white-space:nowrap;font-size:12px;font-weight:600}.chip.active{background:var(--text);color:#19181c}.chip:hover{border-color:#777}
+.player-bar{position:fixed;left:208px;right:0;bottom:0;height:88px;border-top:1px solid var(--border);background:#19191cf5;backdrop-filter:blur(20px);z-index:30}.progress-container{height:3px;background:#ffffff10}.progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s linear}.player-content{height:calc(100% - 3px);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 28px}.player-left{display:flex;align-items:center;gap:12px;min-width:0;width:32%;background:transparent;text-align:left;border-radius:8px;min-height:44px}.np-art{width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--raised);flex-shrink:0}.player-text{min-width:0}.np-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.np-artist{font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.player-center{display:flex;align-items:center;gap:8px;flex-shrink:0}.ctrl-btn{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:transparent;color:var(--text);flex-shrink:0}.ctrl-btn:hover{background:#ffffff0c}.play-main{background:var(--text);color:#121214;width:44px;height:44px}.play-main:hover{background:#ddd}.player-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:24%}.vol-box input{accent-color:var(--accent);width:92px;min-height:44px;background:transparent}.time-str{font-size:10px;font-variant-numeric:tabular-nums;color:var(--sub);max-width:115px}.footer{max-width:1180px;margin:36px auto 0;padding:24px 0;border-top:1px solid var(--border);color:var(--dim);font-size:11px;letter-spacing:.2px}
+.bt-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;background:var(--panel);border:1px solid var(--border);border-radius:16px;margin:16px 0}.bt-card small{display:block;color:var(--sub);margin-top:6px;overflow-wrap:anywhere}.liked-count{color:var(--sub);font-size:14px;margin-left:6px}.empty-msg{color:var(--sub);padding:28px 12px;font-size:13px;background:var(--panel);border-radius:12px;grid-column:1/-1}.app-message{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:80;background:#30272d;color:#f4e5ea;border:1px solid #805360;border-radius:12px;padding:12px 18px;font-size:13px;max-width:min(90vw,520px);box-shadow:0 12px 40px #0008}.app-message:empty{display:none}.skeleton-card{height:76px;border-radius:12px;background:linear-gradient(100deg,#19191c 30%,#252529 50%,#19191c 70%);background-size:200% 100%;animation:shimmer 1.5s infinite}@keyframes shimmer{to{background-position:-200% 0}}
+.now-dialog{inset:0;margin:auto;width:480px;max-width:100%;height:min(90dvh,820px);max-height:100dvh;padding:24px 30px;border:1px solid var(--border);border-radius:24px;color:var(--text);background:radial-gradient(ellipse at 50% 0,#4c2b38,transparent 75%),#161317;overflow:auto}.now-dialog::backdrop{background:#000b;backdrop-filter:blur(12px)}.now-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.now-header p{text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#c3b2bc}.now-header strong{display:block;color:#fff;font-size:12px;text-transform:none;letter-spacing:0;margin-top:3px}.now-art{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:#31242d;box-shadow:0 24px 60px #0007;margin-bottom:28px}.now-title{font-size:25px;letter-spacing:-.7px;line-height:1.25;overflow-wrap:anywhere}.now-artist{color:#b7a9b3;margin-top:8px;font-size:14px}.now-time{display:flex;justify-content:space-between;color:#b7a9b3;font-size:11px;margin:12px 0 24px;font-variant-numeric:tabular-nums}.now-progress{margin-top:24px;height:3px;border-radius:4px;background:#ffffff20}.now-progress span{display:block;width:0;height:100%;background:#f7f0f4}.now-controls{display:flex;align-items:center;justify-content:space-evenly;margin:20px 0}.now-controls .play-main{width:68px;height:68px}.now-controls .play-main svg{width:30px;height:30px}.now-volume{display:flex;align-items:center;gap:12px;margin:20px 8px}.now-volume input{width:100%;min-height:44px;accent-color:#eee;background:transparent}.now-volume input,.vol-box input{appearance:none;-webkit-appearance:none;background:transparent;border:0}.now-volume input::-webkit-slider-runnable-track,.vol-box input::-webkit-slider-runnable-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-webkit-slider-thumb,.vol-box input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#f5f1f3;margin-top:-5px}.now-volume input::-moz-range-track,.vol-box input::-moz-range-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-moz-range-thumb,.vol-box input::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#f5f1f3}.now-footer{display:flex;justify-content:space-between;align-items:center;color:#ad9fa9;border-top:1px solid #ffffff10;padding-top:20px;font-size:11px}.now-footer button{background:transparent;color:inherit;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px}.now-header .ctrl-btn{background:#ffffff08}
+@media(max-width:900px){
+ .sidebar{position:fixed;bottom:0;left:0;right:0;width:100%;height:calc(var(--nav) + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom);border:0;border-top:1px solid var(--border);background:#111113f8;backdrop-filter:blur(20px);z-index:40}.brand{display:none}.nav-group{height:var(--nav);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;align-items:center}.nav-item{min-width:0;min-height:60px;flex-direction:column;gap:5px;padding:8px 4px;border-radius:12px;font-size:10px;line-height:1.2;letter-spacing:.15px}.nav-item.active{background:transparent}.nav-item.active svg{color:#fff;filter:drop-shadow(0 0 8px #ffffff35)}.nav-item.active span{color:#fff}.nav-item svg{width:23px;height:23px}.main-wrapper{height:100%;width:100%}.header{padding:calc(12px + env(safe-area-inset-top)) 18px 12px;gap:10px}.profile-mark{width:36px;height:36px}.search-bar{height:44px;font-size:14px}.back-btn{background:transparent;width:44px;min-width:44px}.content-area{padding:8px 20px calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 26px)}.page-eyebrow{margin-top:8px}.page-heading{font-size:31px;letter-spacing:-1px;margin-bottom:22px}.section-title{font-size:21px}.now-playing-hero{padding:18px;gap:16px;border-radius:18px;flex-direction:row;align-items:center}.hero-art-box{width:34%;max-width:130px;align-self:center;border-radius:10px}.hero-details{padding-top:2px}.hero-tag{margin-bottom:8px;font-size:8px;letter-spacing:1.3px}.hero-title{font-size:21px;letter-spacing:-.6px}.hero-artist{margin:8px 0 14px;font-size:12px}.hero-controls{gap:8px;flex-wrap:wrap}.hero-controls .btn-hero{min-height:44px;padding:8px 14px;font-size:12px}.grid-cards{grid-template-columns:1fr;gap:2px}.song-card{padding:8px 0;gap:12px}.card-thumb{width:56px;height:56px}.card-title{font-size:14px}.card-heart{width:44px;height:44px}.song-card .card-queue{display:grid}.song-card:hover{background:transparent}.chips-row{margin-right:-20px;padding-right:20px}.bt-card{padding:16px;gap:8px}.bt-card .chip{padding:10px 12px}.player-bar{left:10px;right:10px;bottom:calc(var(--nav) + env(safe-area-inset-bottom));height:var(--mini);border:1px solid #ffffff10;border-radius:12px 12px 0 0;background:#252326;box-shadow:0 -8px 32px #0003;overflow:hidden}.progress-container{position:absolute;bottom:0;width:100%;height:2px}.player-content{height:100%;padding:10px;gap:4px}.player-left{width:auto;flex:1;gap:10px}.np-art{width:48px;height:48px}.np-title{font-size:12px}.np-artist{font-size:10px}.player-center{gap:0}.player-center>button:first-child,.player-center>button[aria-label="Stop"],.time-str,.player-right{display:none}.player-center .play-main{background:transparent;color:#fff}.player-center .play-main svg{width:26px;height:26px}.app-message{bottom:calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 12px);width:max-content}.now-dialog{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0;padding:calc(12px + env(safe-area-inset-top)) 26px calc(20px + env(safe-area-inset-bottom))}.now-art{max-width:440px;margin:0 auto 28px}.now-title{font-size:25px}.now-header{margin-bottom:28px}.now-footer{margin-top:26px}.footer{font-size:10px}
 }
-/* Modern slim scrollbars */
-*::-webkit-scrollbar{width:6px;height:6px}
-*::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:10px}
-*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
-.content-area{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent}
-svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.nav-item{border:0;font:inherit;text-align:left;width:100%;background:transparent}
-.nav-item:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.card-heart.liked .app-icon{fill:currentColor}
+@media(min-width:600px) and (max-width:900px){.now-playing-hero{flex-direction:row;align-items:center}.hero-art-box{width:220px}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:360px){.content-area{padding-left:14px;padding-right:14px}.header{padding-left:10px;padding-right:10px;gap:6px}.profile-mark{display:none}.hero-title{font-size:23px}.card-queue{display:none!important}.now-dialog{padding-left:20px;padding-right:20px}.page-heading{font-size:28px}}
+@media(max-height:520px) and (orientation:landscape){.now-dialog{height:100dvh;overflow:auto}.now-art{max-width:220px}.now-playing-hero{flex-direction:row}.hero-art-box{width:150px}.now-header{margin-bottom:16px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+*{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
+
 </style>
 </head>
 <body>
@@ -128,41 +49,43 @@ svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
   </div>
 </div>
 <div class="main-wrapper">
-  <div class="header">
-    <div class="search-wrap">
-      <svg  class="app-icon search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#search"></use></svg>
-      <input type="text" class="search-bar" aria-label="Search songs and artists" placeholder="Search songs, artists..." onkeypress="if(event.key==='Enter')searchMusic(this.value)">
-    </div>
-  </div>
-  <div class="content-area">
-    <div class="tab-page active" id="tab-home">
+  <header class="header">
+    <button class="back-btn" id="back-button" onclick="goBack()" aria-label="Go back" title="Go back"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#arrow-left"></use></svg></button>
+    <form class="search-wrap" role="search" onsubmit="event.preventDefault(); searchMusic(document.getElementById('search-input').value)">
+      <svg class="app-icon search-icon" aria-hidden="true"><use href="/icons.svg#search"></use></svg>
+      <input id="search-input" type="search" class="search-bar" aria-label="Search songs and artists" placeholder="Songs, artists, a feeling…" autocomplete="off" enterkeyhint="search">
+    </form>
+    <div class="profile-mark" aria-label="Aysha's Music">AY</div>
+  </header>
+  <main class="content-area" id="content-area">
+    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment.</span></h2>
       <div class="now-playing-hero" id="hero-box">
-        <div class="hero-art-box"><img class="hero-art" id="hero-art" src="https://img.youtube.com/vi/dikC8UmxxnE/hqdefault.jpg"></div>
+        <div class="hero-art-box"><img class="hero-art" id="hero-art" alt="Current track artwork" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E"></div>
         <div class="hero-details">
-          <div class="hero-tag">Now Playing</div>
-          <div class="hero-title" id="hero-title">Select a song to play</div>
-          <div class="hero-artist" id="hero-artist">Aysha's Music Player</div>
+          <div class="hero-tag">YOUR DAILY SOUNDTRACK</div>
+          <div class="hero-title" id="hero-title">Find your next favorite.</div>
+          <div class="hero-artist" id="hero-artist">Press play. Make yourself at home.</div>
           <div class="hero-controls">
             <button class="btn-hero" id="hero-toggle" aria-label="Play" onclick="togglePlay()"><svg id="hero-play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg><span id="hero-play-label">Play</span></button>
             <button class="btn-hero btn-stop" onclick="stopPlay()"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>Stop</button>
           </div>
         </div>
       </div>
-      <div class="section-title">Quick Picks for Aysha</div>
+      <div class="section-heading-row"><h2 class="section-title">Quick picks</h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
       <div class="grid-cards" id="quick-picks"></div>
-      <div class="section-title">Listen Again</div>
+      <h2 class="section-title">Close to your heart</h2><p class="section-subtitle">Your liked songs, always within reach.</p>
       <div class="grid-cards" id="recent-history"></div>
-    </div>
+    </section>
     <div class="tab-page" id="tab-explore">
       <div class="chips-row">
-        <div class="chip active" onclick="fetchCategory('Jazz')">Jazz</div>
-        <div class="chip" onclick="fetchCategory('Malayalam')">Malayalam</div>
-        <div class="chip" onclick="fetchCategory('Tamil')">Tamil</div>
-        <div class="chip" onclick="fetchCategory('Hindi')">Hindi</div>
-        <div class="chip" onclick="fetchCategory('Enrique')">Enrique</div>
-        <div class="chip" onclick="fetchCategory('English love songs')">English Love Songs</div>
-        <div class="chip" onclick="fetchCategory('Lofi')">Lofi</div>
-        <div class="chip" onclick="fetchCategory('Arabic')">Arabic</div>
+        <button class="chip active" onclick="fetchCategory('Jazz', event)">Jazz</button>
+        <button class="chip" onclick="fetchCategory('Malayalam', event)">Malayalam</button>
+        <button class="chip" onclick="fetchCategory('Tamil', event)">Tamil</button>
+        <button class="chip" onclick="fetchCategory('Hindi', event)">Hindi</button>
+        <button class="chip" onclick="fetchCategory('Enrique', event)">Enrique</button>
+        <button class="chip" onclick="fetchCategory('English love songs', event)">English Love Songs</button>
+        <button class="chip" onclick="fetchCategory('Lofi', event)">Lofi</button>
+        <button class="chip" onclick="fetchCategory('Arabic', event)">Arabic</button>
       </div>
       <div class="section-title" id="explore-title">Featured Genre</div>
       <div class="grid-cards" id="explore-cards"></div>
@@ -183,14 +106,14 @@ svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
       <div id="bt-list"></div>
     </div>
     <div class="footer">Made with &hearts; for Aysha &mdash; with love, from Afzal</div>
-  </div>
+  </main>
   <div class="player-bar" id="player-bar">
-    <div class="progress-container" onclick="seekTrack(event)"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-container" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
     <div class="player-content">
-      <div class="player-left">
-        <img class="np-art" id="np-art" src="https://img.youtube.com/vi/dikC8UmxxnE/hqdefault.jpg">
-        <div><div class="np-title" id="np-title">No track playing</div><div class="np-artist" id="np-artist">Aysha's Music</div></div>
-      </div>
+      <button class="player-left" id="open-player" onclick="openNowPlaying()" aria-label="Open now playing">
+        <img class="np-art" id="np-art" alt="" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E">
+        <div class="player-text"><div class="np-title" id="np-title">No track playing</div><div class="np-artist" id="np-artist">Aysha's Music</div></div>
+      </button>
       <div class="player-center">
         <button class="ctrl-btn" onclick="prevTrack()" title="Previous track" aria-label="Previous track">
           <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#previous"></use></svg>
@@ -216,6 +139,27 @@ svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
   </div>
   <audio id="audio-player" crossorigin="anonymous"></audio>
 </div>
+
+<dialog class="now-dialog" id="now-playing" aria-labelledby="full-title">
+  <div class="now-header">
+    <button class="ctrl-btn" onclick="closeNowPlaying()" aria-label="Close now playing"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#chevron-down"></use></svg></button>
+    <p>NOW PLAYING<strong id="full-output">This device</strong></p>
+    <button class="ctrl-btn" onclick="queueFromPlayer()" aria-label="Open queue"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#queue"></use></svg></button>
+  </div>
+  <img class="now-art" id="full-art" alt="Current track artwork">
+  <h2 class="now-title" id="full-title">Select a song</h2>
+  <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
+  <div class="now-progress" aria-hidden="true"><span id="full-progress"></span></div>
+  <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
+  <div class="now-controls">
+    <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
+    <button class="ctrl-btn play-main" id="full-play-toggle" onclick="togglePlay()" aria-label="Play"><svg class="app-icon" id="full-play-svg" aria-hidden="true"><use href="/icons.svg#play"></use></svg></button>
+    <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
+  </div>
+  <div class="now-volume"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#volume-low"></use></svg><input id="full-volume" type="range" min="0" max="100" step="5" value="80" aria-label="Playback volume" oninput="changeVol(this.value)"></div>
+  <div class="now-footer"><span>Made with love, for Aysha</span><button onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg>Stop</button></div>
+</dialog>
+<div class="app-message" id="app-message" role="status" aria-live="polite"></div>
 <script>
 let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null };
 let durationSec = 0;
@@ -250,10 +194,13 @@ function setPlayingState(playing) {
   document.getElementById('hero-play-label').textContent = playing ? 'Pause' : 'Play';
   document.getElementById('play-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
   document.getElementById('hero-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  document.getElementById('full-play-svg').innerHTML = '<use href="/icons.svg#' + name + '"></use>';
+  document.getElementById('full-play-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
   updateMediaSession();
 }
 
 function updateMediaSession() {
+  syncNowPlaying();
   if (!('mediaSession' in navigator)) return;
   const t = state.current_track;
   const audio = document.getElementById('audio-player');
@@ -420,6 +367,8 @@ async function seekTrack(e) {
 }
 
 async function changeVol(v) {
+  document.getElementById('volume-slider').value = v;
+  document.getElementById('full-volume').value = v;
   const audio = document.getElementById('audio-player');
   audio.volume = v / 100;
   state.volume = Number(v);
@@ -461,15 +410,18 @@ function renderGrid(tracks, containerId, showHeart) {
     const qIn = state.queue ? state.queue.some(q => q.id === t.id) : false;
     const card = document.createElement('div');
     card.className = 'song-card';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', t.title + ' by ' + t.artist);
     card.innerHTML =
-      '<img class="card-thumb" src="https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg">' +
+      '<img class="card-thumb" alt="" loading="lazy" src="https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg">' +
       '<div class="card-info">' +
       '<div class="card-title">' + escapeHtml(t.title) + '</div>' +
       '<div class="card-artist">' + escapeHtml(t.artist) + '</div>' +
       '</div>' +
-      '<button class="card-action" data-action="play" title="Play">' +
+      '<button class="card-action card-play" data-action="play" title="Play">' +
       icon('play') + '</button>' +
-      '<button class="card-action' + (qIn ? ' active' : '') + '" data-action="queue" title="Add to Queue">' +
+      '<button class="card-action card-queue' + (qIn ? ' active' : '') + '" data-action="queue" title="Add to Queue">' +
       icon(qIn ? 'check' : 'queue') + '</button>' +
       '<button class="card-heart' + (isLiked ? ' liked' : '') + '" data-action="like" data-track-id="' + escapeHtml(t.id) + '" aria-label="Like song" aria-pressed="' + isLiked + '">' +
       icon('heart') +
@@ -478,6 +430,9 @@ function renderGrid(tracks, containerId, showHeart) {
     card.querySelector('[data-action="queue"]').onclick = event => { event.stopPropagation(); queueAdd(t); };
     card.querySelector('[data-action="like"]').onclick = event => { event.stopPropagation(); toggleLike(t); };
     card.onclick = () => playSong(t);
+    card.onkeydown = event => {
+      if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); playSong(t); }
+    };
     c.appendChild(card);
   });
 }
@@ -513,35 +468,54 @@ function renderHearts() {
   });
 }
 
+let searchGeneration = 0;
+function showMessage(message) {
+  document.getElementById('app-message').textContent = message || '';
+}
+
+function showLoading(containerId) {
+  const container = document.getElementById(containerId);
+  container.setAttribute('aria-busy', 'true');
+  container.innerHTML = Array.from({ length: 4 }, () => '<div class="skeleton-card" aria-hidden="true"></div>').join('');
+}
+
 async function searchMusic(q) {
+  q = String(q || '').trim();
   if (!q) return;
-  switchTab('explore');
-  document.getElementById('explore-title').textContent = 'Results for "' + q + '"';
-  const d = await api('GET', '/api/search?q=' + encodeURIComponent(q));
-  // Handle both array (success) and object (error) responses
-  const tracks = Array.isArray(d) ? d : (d.results || []);
-  if (d.error) {
-    document.getElementById('explore-cards').innerHTML =
-      '<div class="empty-msg">' + escapeHtml(d.error) + '</div>';
+  switchTab('explore', { load: false });
+  document.getElementById('search-input').value = q;
+  return searchTracks(q, 'Results for “' + q + '”');
+}
+
+async function searchTracks(query, label) {
+  const generation = ++searchGeneration;
+  document.getElementById('explore-title').textContent = label;
+  showLoading('explore-cards');
+  showMessage('');
+  try {
+    const result = await api('GET', '/api/search?q=' + encodeURIComponent(query));
+    if (generation !== searchGeneration) return;
+    renderGrid(Array.isArray(result) ? result : [], 'explore-cards', true);
+  } catch (error) {
+    if (generation === searchGeneration) {
+      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again to retry.</div>';
+      showMessage(error.message);
+    }
+  } finally {
+    if (generation === searchGeneration) document.getElementById('explore-cards').setAttribute('aria-busy', 'false');
   }
-  renderGrid(tracks, 'explore-cards', true);
 }
 
 async function fetchCategory(cat, sourceEvent) {
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.chips-row .chip').forEach(chip => chip.classList.remove('active'));
   if (sourceEvent && sourceEvent.target) sourceEvent.target.classList.add('active');
-  document.getElementById('explore-title').textContent = cat;
-  const d = await api('GET', '/api/search?q=' + encodeURIComponent(cat + ' songs'));
-  const tracks = Array.isArray(d) ? d : (d.results || []);
-  if (d.error) {
-    document.getElementById('explore-cards').innerHTML =
-      '<div class="empty-msg">' + escapeHtml(d.error) + '</div>';
-  }
-  renderGrid(tracks, 'explore-cards', true);
+  return searchTracks(cat + ' songs', cat);
 }
 
 async function loadHome() {
+  showLoading('quick-picks');
   const picks = await api('GET', '/api/search?q=Aysha%20love%20songs');
+  document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
   const pt = Array.isArray(picks) ? picks : (picks.results || []);
   renderGrid(pt, 'quick-picks', true);
   const hist = await api('GET', '/api/liked');
@@ -618,15 +592,104 @@ async function scanBluetooth() {
   }
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+const appTabs = ['home', 'explore', 'library', 'bluetooth'];
+let currentTab = 'home';
+const tabScroll = new Map();
+const loadedTabs = new Set();
+
+function renderTab(tab, options = {}) {
+  if (!appTabs.includes(tab)) tab = 'home';
+  const content = document.getElementById('content-area');
+  tabScroll.set(currentTab, content.scrollTop || 0);
+  document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(nav => { nav.classList.remove('active'); nav.removeAttribute('aria-current'); });
   document.getElementById('tab-' + tab).classList.add('active');
   document.getElementById('nav-' + tab).classList.add('active');
-  if (tab === 'bluetooth') loadBluetooth();
-  if (tab === 'library') loadLiked();
-  if (tab === 'explore') fetchCategory('Jazz');
-  if (tab === 'home') loadHome();
+  document.getElementById('nav-' + tab).setAttribute('aria-current', 'page');
+  currentTab = tab;
+  content.scrollTop = tabScroll.get(tab) || 0;
+  showMessage('');
+  if (options.load === false) { loadedTabs.add(tab); return; }
+  let work;
+  if (tab === 'bluetooth') work = loadBluetooth();
+  else if (tab === 'library') work = loadLiked();
+  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Jazz');
+  loadedTabs.add(tab);
+  if (work) Promise.resolve(work).catch(error => {
+    loadedTabs.delete(tab);
+    document.querySelectorAll('[aria-busy="true"]').forEach(el => el.setAttribute('aria-busy', 'false'));
+    showMessage(error.message + ' — tap the tab to retry.');
+  });
+}
+
+function switchTab(tab, options = {}) {
+  if (!appTabs.includes(tab)) return;
+  if (currentTab !== tab) {
+    const depth = (history.state && history.state.ayshaDepth || 0) + 1;
+    history.pushState({ ayshaTab: tab, ayshaDepth: depth }, '', '#' + tab);
+  }
+  renderTab(tab, options);
+}
+
+function goBack() {
+  if (history.state && history.state.ayshaDepth > 0) history.back();
+  else if (currentTab !== 'home') {
+    history.replaceState({ ayshaTab: 'home', ayshaDepth: 0 }, '', '#home');
+    renderTab('home');
+  } else showMessage('You’re home. Choose a song or explore something new.');
+}
+
+function formatClock(value) {
+  if (!Number.isFinite(value) || value < 0) return '0:00';
+  return Math.floor(value / 60) + ':' + String(Math.floor(value % 60)).padStart(2, '0');
+}
+
+function syncNowPlaying() {
+  const track = state.current_track;
+  const audio = document.getElementById('audio-player');
+  document.getElementById('full-title').textContent = track ? track.title : 'Your next favorite is waiting.';
+  document.getElementById('full-artist').textContent = track ? track.artist : 'Choose a song from Home or Explore.';
+  document.getElementById('full-output').textContent = state.playMode === 'bt' ? 'Home Bluetooth speaker' : 'This device';
+  const artwork = document.getElementById('hero-art').src;
+  if (document.getElementById('full-art').src !== artwork) document.getElementById('full-art').src = artwork;
+  document.getElementById('full-elapsed').textContent = formatClock(audio.currentTime);
+  document.getElementById('full-duration').textContent = Number.isFinite(audio.duration) ? formatClock(audio.duration) : 'Streaming audio';
+  document.getElementById('full-progress').style.width = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.min(100, audio.currentTime / audio.duration * 100) + '%' : '0%';
+  document.getElementById('full-volume').value = state.volume;
+}
+
+function openNowPlaying() {
+  const dialog = document.getElementById('now-playing');
+  if (dialog.open) return;
+  syncNowPlaying();
+  history.pushState({ ayshaTab: currentTab, ayshaDepth: (history.state && history.state.ayshaDepth || 0) + 1, ayshaPlayer: true }, '', '#' + currentTab + '/playing');
+  dialog.showModal();
+}
+
+function closeNowPlaying() {
+  if (history.state && history.state.ayshaPlayer) history.back();
+  else document.getElementById('now-playing').close();
+}
+
+function queueFromPlayer() {
+  document.getElementById('now-playing').close();
+  history.replaceState({ ayshaTab: 'library', ayshaDepth: history.state && history.state.ayshaDepth || 0 }, '', '#library');
+  renderTab('library');
+}
+
+function initializeNavigation() {
+  const requested = location.hash.slice(1).split('/')[0];
+  const tab = appTabs.includes(requested) ? requested : 'home';
+  history.replaceState({ ayshaTab: tab, ayshaDepth: 0 }, '', '#' + tab);
+  window.addEventListener('popstate', event => {
+    const dialog = document.getElementById('now-playing');
+    const next = event.state || { ayshaTab: 'home' };
+    if (dialog.open && !next.ayshaPlayer) dialog.close();
+    renderTab(next.ayshaTab || 'home', { load: false });
+    if (next.ayshaPlayer && !dialog.open) { syncNowPlaying(); dialog.showModal(); }
+  });
+  document.getElementById('now-playing').addEventListener('cancel', event => { event.preventDefault(); closeNowPlaying(); });
+  renderTab(tab);
 }
 
 setInterval(async () => {
@@ -650,6 +713,7 @@ setInterval(async () => {
       document.getElementById('queue-count').textContent = st.queue_len;
     }
 
+    syncNowPlaying();
     // Read playback position from the HTML5 audio element (client-side)
     const audio = document.getElementById('audio-player');
     if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -681,15 +745,12 @@ document.getElementById('audio-player').addEventListener('error', function() {
 });
 
 // PWA + MediaSession init
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
-}
 if ('mediaSession' in navigator) {
   updateMediaSession();
 }
 
 // Start
-switchTab('home');
+initializeNavigation();
 </script>
 </body>
 </html>

@@ -180,3 +180,22 @@ Current provisional ratings for the expanded local-plus-remote scope: Product & 
 Research: official Cloudflare Tunnel overview, self-hosted public Access application guidance, remote tunnel API/install guidance, and current CDN service-specific terms were checked. Access must protect UI/API/audio before the route is public. CDN audio restrictions are a suitability concern, not grounds to assert that all Tunnel uses are prohibited; confirm the intended product/plan before sustained audio relay. No unlimited-free-audio promise is made.
 
 Questions blocking implementation: independent playback vs synchronized room, actual domain and permitted audience, concurrency and RAM-budget scope, remote Bluetooth privileges and persistence. Await design approval before changing data ownership or deploying the route. Verification this turn is source inspection and git diff --check only; no remote account configuration or new live multi-device tests occurred.
+
+## Android portrait and back navigation frontend pass
+
+Active department: UI/UX Design & Frontend. User requests a premium music-app-like mobile experience, working Back/portrait layout, plus Cloudflare installation and nightly updates. Networking work is deferred to its own department because the domain, access policy, maintenance time/timezone and update scope remain unknown. No remote shell is available to install services on the user's host.
+
+Source findings: the prior mobile sidebar was positioned at the bottom but its nav-group still used a vertical column, hiding/clipping controls. Desktop-style player sizing and rigid viewport dimensions did not provide a coherent portrait layout. Tab switching was DOM-only with no history entries, so browser Back could leave instead of returning inside the app. Search initialization could race a default genre request. The page advertised a manifest/worker not served by the Rust router.
+
+Frontend changes:
+- Rebuilt the served src/index.html layout and styles with original Aysha design: dynamic viewport/safe areas, compact hero and song rows, four labelled bottom tabs, 44px primary targets, native search, zoom/reduced-motion support, clear loading/empty/error states and a mini-player.
+- Added a full-screen native Now Playing dialog reusing the existing audio element and playback API, with synchronized title/art/output/progress/volume and accessible controls.
+- Added tab/overlay history with Back/Forward, header back button, modal cancel handling and per-tab scroll restoration. Search/genre responses are generation-guarded.
+- Added arrow-left and chevron-down to the embedded SVG set (18 total). Removed unserved manifest/worker registration rather than claiming offline/PWA behavior. Updated frontend unit harness initialization and icon count checks.
+- Added skills/mobile-frontend/SKILL.md, docs/MOBILE_UI.md and tests/mobile.browser.cjs. Browser dependencies are test-only, outside the repo. Added a CI browser-layout job. Screenshots are sample-data test previews, excluded from Git.
+
+Verification: 12 frontend regressions and 14 Python tests pass. Chromium fixture tests passed at seven viewports: 320x740, 360x800, 390x844, 412x915, 768x1024, 844x390 and 1440x900. Checks cover overflow, nav target size, search/genre, browser/app Back, Forward and modal close/restore, with no uncaught page errors. Home/full-player screenshots were inspected; a gray default range track was replaced with an explicitly styled volume slider.
+
+Test infrastructure issues encountered (not target-player failures): sandbox headless Chromium initially lacked libnspr4/libnss3; supplied package-bundled shared libraries outside Git. Repeated isolated-context launches produced browser termination/SIGSEGV with the serverless binary; changed the test harness to reuse one browser context/page across viewport checks. Subsequent complete browser run passed. No runtime/hardware audio claims are derived from fixtures.
+
+Current ratings: Product/Architecture 2/5; UI/UX 4/5 pending actual Android/TalkBack/background/audio checks; Backend 2/5 pending per-device isolation; QA/Security 3/5; Networking/Self-Hosting 1/5 pending Access/tunnel/maintenance decisions. Shared-state multi-device interference, Bluetooth connection timeout, provider media suitability and total RAM remain unresolved. No automatic updates were enabled and no public route was published.
