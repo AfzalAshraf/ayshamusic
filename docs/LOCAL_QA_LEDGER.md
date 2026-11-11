@@ -199,3 +199,10 @@ Verification: 12 frontend regressions and 14 Python tests pass. Chromium fixture
 Test infrastructure issues encountered (not target-player failures): sandbox headless Chromium initially lacked libnspr4/libnss3; supplied package-bundled shared libraries outside Git. Repeated isolated-context launches produced browser termination/SIGSEGV with the serverless binary; changed the test harness to reuse one browser context/page across viewport checks. Subsequent complete browser run passed. No runtime/hardware audio claims are derived from fixtures.
 
 Current ratings: Product/Architecture 2/5; UI/UX 4/5 pending actual Android/TalkBack/background/audio checks; Backend 2/5 pending per-device isolation; QA/Security 3/5; Networking/Self-Hosting 1/5 pending Access/tunnel/maintenance decisions. Shared-state multi-device interference, Bluetooth connection timeout, provider media suitability and total RAM remain unresolved. No automatic updates were enabled and no public route was published.
+
+### Mobile UI CI result
+
+Source commit 4e19638 passed Linux CI run 43078897480:
+https://github.com/AfzalAshraf/ayshamusic/actions/runs/43078897480
+
+Both jobs passed: Rust tests/release build, 14 Python tests, 12 frontend tests, Linux shell syntax, and real Chromium fixture layout/history checks at all seven viewports. The isolated CI browser job completed successfully without the sandbox-only shared-library workaround. This verifies the new embedded frontend builds with Rust; it does not verify real Android audio, two-device isolation or a deployed tunnel.
