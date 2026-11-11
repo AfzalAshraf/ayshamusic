@@ -52,3 +52,12 @@ Ratings below are provisional evidence-based readiness scores, not guarantees. A
 4. Must queue, likes and history survive restarts, and may multiple clients control playback?
 
 No next-department implementation should begin until the user approves the architecture step and resolves its consequential ambiguities.
+
+## Runnable test baseline
+
+- Added scripts/test_local.py: read-only UI/status/queue smoke checks and optional bounded real-stream container/header validation, with nonzero failure exits.
+- Added tests/test_local_smoke.py: 11 offline tests for the checker, including the observed WebM/MPEG mismatch, empty stream, unverified ranges and a local HTTP fixture.
+- Added docs/LOCAL_TESTING.md: exact Linux commands, service inspection, resource snapshots and manual acceptance matrix.
+- Verified: all 11 checker tests pass; CLI help and git diff --check pass. These are test-tool results, not a Rust application or hardware verification.
+- Current stream metadata remains a known failing application check; it is deliberately not hidden by the test suite.
+- No department is promoted to 5/5 from test-tool fixture results. Architecture access scope, total memory budget, browser targets, persistence and multi-client requirements remain unanswered.
