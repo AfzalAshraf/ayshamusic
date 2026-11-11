@@ -33,7 +33,7 @@ The heart is the real red-heart emoji U+2764 U+FE0F, not the text word "love", t
 - The JBL last reported `org.bluez.Error.Failed br-connection-page-timeout`. UI approval does not establish a hardware fix.
 - Cloudflare is not deployed. Domain, access policy, provider media suitability and origin protection must be decided before public launch.
 - Nightly maintenance time/timezone/scope and idle-update behavior are not approved. Do not auto-update arbitrary branch code or restart active music without agreement.
-- The 20 MB budget needs an explicit process-scope decision and measurements during playback/concurrency. No total-process-tree guarantee has been demonstrated.
+- The user has replaced the earlier 20 MB budget with a 100 MB maximum for concurrent devices. Listener count, accounting scope and independent/synchronized semantics need confirmation; see MEMORY_BUDGET_PLAN.md. No measured multi-device memory guarantee has been demonstrated.
 - Queue/history/likes are in-memory; persistent storage semantics remain unapproved.
 - Sequential audio proxy does not implement Range/206 seeking; no offline/PWA guarantees are made.
 

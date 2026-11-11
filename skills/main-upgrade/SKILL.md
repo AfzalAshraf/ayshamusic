@@ -111,7 +111,7 @@ If a local tool is missing, use the existing Linux CI where appropriate and repo
 - Never request or store credentials in chat/Git. Tunnel tokens stay in protected local storage and must be rotated if exposed.
 - Cloudflare domain/access/media-plan suitability and nightly update time/timezone/scope are unresolved until explicitly answered. Do not guess them or enable unattended updates to arbitrary branch heads.
 - Proposed nightly updates should be idle-window aware, tested, health-checked and recoverable. Approval is required for a specific schedule and scope; do not restart active music silently.
-- The 20 MB target remains a requirement. Clarify whether it covers Rust alone or the entire process tree/tunnel, then measure idle and loaded peaks. Do not promise multiple yt-dlp/Node/mpv/tunnel processes fit in 20 MB, or enforce a limit that simply kills audio and call it optimization.
+- The user replaced the earlier 20 MB target with a maximum 100 MB target for simultaneous devices. Clarify listener count and whether it covers the entire service process tree/tunnel, then measure idle and loaded peaks. Follow docs/MEMORY_BUDGET_PLAN.md for the pending proposal. Do not claim that using Rust alone bounds subprocess memory, or enforce a limit that simply kills audio and call it optimization.
 
 ## 10. Honest 0–5 department ratings
 

@@ -116,13 +116,13 @@ If that use is not suitable, choose an approved private-network access path or m
 
 ## Capacity and RAM
 
-The 20 MB constraint needs clarification before a concurrency promise. Independently playing devices generally need multiple downloader streams and may launch JS-runtime processes; cloudflared is an additional daemon. Report peak RSS separately for Rust, downloader/JS processes, mpv and tunnel, plus total. Home upload use scales with the sum of active streams and overhead (for illustration, three 160 kbps streams require at least 480 kbps of audio payload). Buffering may burst above media bitrate. No fixed device capacity is promised without load measurements.
+The updated 100 MB maximum (replacing the earlier 20 MB target) needs an accounting scope and device count before a concurrency promise; see MEMORY_BUDGET_PLAN.md. Independently playing devices generally need multiple downloader streams and may launch JS-runtime processes; cloudflared is an additional daemon. Report peak RSS separately for Rust, downloader/JS processes, mpv and tunnel, plus total. Home upload use scales with the sum of active streams and overhead (for illustration, three 160 kbps streams require at least 480 kbps of audio payload). Buffering may burst above media bitrate. No fixed device capacity is promised without load measurements.
 
 ## Decisions requested
 
 1. Independent tracks per device, or one shared synchronized room?
 2. Which domain/subdomain is available, and is the zone already in Cloudflare? Must access be private to selected people or public?
-3. Maximum simultaneous listeners, and does the 20 MB cap include all child/tunnel processes or only Rust?
+3. Maximum simultaneous listeners, and does the updated 100 MB cap include all child/tunnel processes or only Rust?
 4. May remote users control the home JBL, and should likes/queue/history survive restart?
 
 After these are answered and the design is approved, the Backend & Database department implements session/output isolation; QA verifies it; Networking & Self-Hosting deploys the protected route; UI/UX validates the actual Android experience. One department is active per response, with failures returned to QA before further feature work.

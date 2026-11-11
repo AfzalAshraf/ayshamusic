@@ -6,6 +6,21 @@
 - The Linux host running music-server must remain powered on and awake. A powered-off or suspended local server cannot serve audio.
 - Browser-mode audio still needs the listening browser/device to remain open. Bluetooth mode runs mpv on the Linux server; closing the SSH client does not close mpv when it belongs to the service.
 
+## Source and compile only
+
+Current work is on `arena/a850fb0d-ayshamusic`. Use the existing checkout of that branch; do not launch a second server alongside systemd.
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo test &&
+cargo build --release
+```
+
+Output: `/home/afine/ayshamusic/target/release/music-server`. Compiling does not update the installed service executable, which lives at `/home/afine/music-server/target/release/music-server`. To test/install/restart the service safely, use the installer below instead of manually copying over a running binary. It already runs both Cargo commands, so there is no need to compile twice when updating.
+
+The UI and SVGs are embedded at compile time. Current source still requires yt-dlp/Node for extraction and mpv for server-speaker playback; compilation is not a native Rust replacement for these tools. The 100 MB target and verified iPhone compatibility are not completed features of this build. See [the memory and native-helper proposal](MEMORY_BUDGET_PLAN.md).
+
 ## One-time installation / update
 
 This installer is deliberately for the verified local host: afine UID 1000, /home/afine, Node at /usr/bin/node, yt-dlp at /home/afine/.local/bin/yt-dlp. It refuses a different user/UID or existing service drop-ins that have not been reviewed. It does not install Python as the server or deploy anything to a cloud provider.
@@ -79,4 +94,4 @@ The service is not a solution to that radio-level failure. Keep the JBL on nearb
 
 ## Resource and security limits
 
-The server remains bound to 0.0.0.0:5050 with its existing permissive API boundary. This is not an authenticated internet-facing service; network exposure must be approved and restricted separately. No 20 MB cgroup limit is imposed because that could kill the downloader/mpv and the scope of the user's RAM ceiling is still unresolved. Measure Rust and child processes separately during actual playback. Restart loses in-memory queue/history/likes; persistence has not been promised or implemented in this update.
+The server remains bound to 0.0.0.0:5050 with its existing permissive API boundary. This is not an authenticated internet-facing service; network exposure must be approved and restricted separately. The user has replaced the earlier 20 MB target with a 100 MB concurrent-device maximum. No new cgroup ceiling has been applied: limiting the existing process tree without reducing/admitting work could kill playback. Confirm device count/accounting scope and follow MEMORY_BUDGET_PLAN.md before claiming the target is met. Measure the aggregate service cgroup as well as Rust and child processes separately during actual playback. Restart loses in-memory queue/history/likes; persistence has not been promised or implemented in this update.
