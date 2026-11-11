@@ -157,7 +157,15 @@ fn memory_report(stage: &str) {
 fn run(options: Options) -> Result<()> {
     memory_report("startup");
     // BufReader and on-demand Source decoding: no whole-file collect or buffered().
-    let source = Decoder::try_from(BufReader::with_capacity(32 * 1024, open_file(&options.file)?))?;
+    let file = open_file(&options.file)?;
+    let mut builder = Decoder::builder()
+        .with_byte_len(file.metadata()?.len())
+        .with_seekable(true)
+        .with_data(BufReader::with_capacity(32 * 1024, file));
+    if let Some(extension) = options.file.extension().and_then(|value| value.to_str()) {
+        builder = builder.with_hint(extension);
+    }
+    let source = builder.build()?;
     let (channels, rate) = (source.channels(), source.sample_rate());
     let duration = source.total_duration();
     println!("DECODE channels={channels} sample_rate={rate} duration={duration:?}");
