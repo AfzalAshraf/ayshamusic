@@ -11,7 +11,10 @@ function harness(connected = false) {
   const element = id => {
     if (!elements.has(id)) elements.set(id, {
       style: {}, value: 80, textContent: '', innerHTML: '', src: '', volume: 0.8,
-      pause() {}, load() {}, removeAttribute() {}, addEventListener() {},
+      listeners: {}, attributes: {},
+      pause() {}, load() {}, removeAttribute() {},
+      setAttribute(name, value) { this.attributes[name] = value; },
+      addEventListener(name, callback) { this.listeners[name] = callback; },
       play() { this.played = true; return Promise.resolve(); },
     });
     return elements.get(id);
@@ -76,4 +79,67 @@ test('Bluetooth script errors appear in the interface', async () => {
   h.context.fetch = async () => ({ ok: true, json: async () => ({ error: 'script missing' }) });
   await h.context.scanBluetooth();
   assert.equal(h.element('bt-device-text').textContent, 'script missing');
+});
+
+
+test('Next consumes returned track without posting play a second time', async () => {
+  const h = harness();
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({ url, opts });
+    return { ok: true, json: async () => ({ status: 'playing', mode: 'browser', track }) };
+  };
+  await h.context.nextTrack();
+  assert.deepEqual(h.calls.map(call => call.url), ['/api/next']);
+  assert.equal(h.element('audio-player').played, true);
+});
+
+test('Previous uses the same single navigation transaction', async () => {
+  const h = harness();
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({ url, opts });
+    return { ok: true, json: async () => ({ status: 'playing', mode: 'browser', track }) };
+  };
+  await h.context.prevTrack();
+  assert.deepEqual(h.calls.map(call => call.url), ['/api/prev']);
+});
+
+test('missing previous track shows an error without replacing audio', async () => {
+  const h = harness();
+  h.element('audio-player').src = 'current';
+  h.context.fetch = async () => ({ ok: true, json: async () => ({ status: 'failed', error: 'No previous track' }) });
+  await h.context.prevTrack();
+  assert.equal(h.element('audio-player').src, 'current');
+  assert.equal(h.element('time-display').textContent, 'No previous track');
+});
+
+test('navigation is single flight while a request is pending', async () => {
+  const h = harness();
+  let finish;
+  h.context.fetch = (url, opts) => {
+    h.calls.push({ url, opts });
+    return new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => ({ mode: 'browser', track }) }); });
+  };
+  const first = h.context.nextTrack();
+  await h.context.nextTrack();
+  assert.equal(h.calls.length, 1);
+  finish();
+  await first;
+});
+
+test('play/pause changes SVG symbol and accessible label together', () => {
+  const h = harness();
+  h.context.setPlayingState(true);
+  assert.match(h.element('play-svg').innerHTML, /#pause/);
+  assert.equal(h.element('play-toggle').attributes['aria-label'], 'Pause');
+  h.context.setPlayingState(false);
+  assert.match(h.element('play-svg').innerHTML, /#play/);
+  assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
+});
+
+test('volume states reference distinct local SVG symbols', () => {
+  const h = harness();
+  for (const [value, name] of [[0, 'volume-off'], [30, 'volume-low'], [80, 'volume-high']]) {
+    h.context.updateVolumeIcon(value);
+    assert.match(h.element('volume-svg').innerHTML, new RegExp('#' + name));
+  }
 });

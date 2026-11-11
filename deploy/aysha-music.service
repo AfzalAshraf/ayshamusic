@@ -1,0 +1,25 @@
+# Confirmed local afine Linux host configuration; not a cloud deployment.
+[Unit]
+Description=Aysha's Music Player (Rust)
+Wants=network-online.target user@1000.service
+After=network-online.target bluetooth.service user@1000.service
+
+[Service]
+Type=simple
+User=afine
+WorkingDirectory=/home/afine/music-server
+ExecStart=/home/afine/music-server/target/release/music-server
+Environment="HOME=/home/afine"
+Environment="PATH=/home/afine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+Environment="MUSIC_YTDLP_JS_RUNTIME=node:/usr/bin/node"
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

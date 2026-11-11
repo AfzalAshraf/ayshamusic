@@ -130,3 +130,30 @@ Conclusions/actions:
 - Persistent yt-dlp settings and systemd PATH must be checked separately after a successful direct test: the user's ~/.local/bin downloader is not guaranteed to be visible in the service environment.
 
 Only documentation changed in this turn. Latest known application build/tests remain successful; browser audibility, a successful JBL connection and service recovery are still pending. All departmental scores remain provisional below 5/5.
+
+## SSH-independent service, controls and icon regression pass
+
+New target evidence: explicit Node runtime test downloaded 10 KiB of previously failing Jm7Satp7Zqk successfully. JBL direct connection failed with org.bluez.Error.Failed br-connection-page-timeout; remains paired/trusted but disconnected, with no Bluetooth sink. This does not establish a need to reset pairing or reinstall PipeWire.
+
+User asks for SSH-independent operation, working next/previous and better SVG icons with a dedicated icon skill.
+
+Root causes found in source:
+- Browser navigation called server Next/Previous and then called playSong with another play notification, duplicating history.
+- Previous popped history then play_handler pushed the displaced current song back into history, causing back-and-forth behavior instead of walking backward.
+- Empty navigation stopped playback. Browser autoplay repeatedly posted Next from a polling loop without assigning the next audio source.
+- Related-track watcher immediately started another song instead of only prefetching; browser mode was excluded from prefetch.
+- Volume slider called an absent /api/volume route; library called an absent /api/liked route; unlike payload did not match the Rust Track schema.
+- Previous/next and mute icons had confusing or malformed path geometry and duplicated state-specific markup.
+
+Changes:
+- Added pure queue/history transitions in src/playback.rs with four tests; navigation returns track/mode and preserves playback on empty history/lookup failure.
+- Browser navigation is single-flight, reuses returned selection without duplicate server notification, and ended event advances once. Related prefetch is asynchronous/time-bounded and no longer interrupts current playback.
+- Added /api/volume and /api/liked, fixed unlike metadata, visible heart state and category event handling.
+- Added 16 original local SVG symbols in src/icons.svg, embedded route, shared rendering, native navigation buttons, labels and focus styles. skills/icons/SKILL.md defines the dedicated semantic/accessibility procedure. This is a repository skill, not a platform feature registration.
+- Added deploy/aysha-music.service and scripts/install_local.sh for the verified afine machine: test/build first, backup, install to the confirmed ExecStart, supply audio/PATH/Node environment, enable linger and boot service. The installer refuses a foreground copy or unreviewed drop-ins. It is not executed in the sandbox or claimed tested on the user's host.
+- MUSIC_YTDLP_JS_RUNTIME is an optional administrator environment setting, forwarded to stream yt-dlp and mpv's downloader hook. The unit selects the user's successfully tested node:/usr/bin/node without installing runtimes or changing global yt-dlp config.
+- Added four Rust handler tests, six additional frontend tests and three icon-integrity tests. Updated Linux CI script syntax check.
+
+Initial local test-tool failure: two frontend tests reported TypeError: document.getElementById(...).setAttribute is not a function because the minimal DOM mock lacked the new native accessibility API. Extended the mock with attributes/listeners; all 12 frontend and 14 Python tests subsequently pass. Shell syntax and diff checks pass. New Rust tests/build are verified by CI separately before reporting success.
+
+Remaining gates: actual updated service installation, SSH logout/reboot survival, audible browser playback, JBL radio connection, Bluetooth natural-end autoplay, concurrent clients, browser visual/screen-reader validation, persistence decision, network boundary, and memory budget/measurement. Closing SSH client is supported by systemd; shutting down the Linux server itself cannot preserve playback.

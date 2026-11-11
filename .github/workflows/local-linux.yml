@@ -18,3 +18,5 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Embedded frontend regression tests
         run: node --test tests/frontend.test.cjs
+      - name: Linux script syntax
+        run: bash -n scripts/install_local.sh scripts/diagnose_local.sh

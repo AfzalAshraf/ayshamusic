@@ -30,8 +30,11 @@ fn allowed_url(value: &str) -> bool {
 
 pub async fn open_stream(url: &str) -> Result<Response, StatusCode> {
     if !allowed_url(url) { return Err(StatusCode::BAD_REQUEST); }
-    let child = tokio::process::Command::new("yt-dlp")
-        .args(["-f", "bestaudio", "-o", "-", "--no-playlist", "--no-progress",
+    let mut command = tokio::process::Command::new("yt-dlp");
+    if let Ok(runtime) = std::env::var("MUSIC_YTDLP_JS_RUNTIME") {
+        if !runtime.is_empty() { command.args(["--js-runtimes", &runtime]); }
+    }
+    let child = command.args(["-f", "bestaudio", "-o", "-", "--no-playlist", "--no-progress",
             "--socket-timeout", "15", "--retries", "1", "--", url])
         .stdout(Stdio::piped())
         // Failures are visible in journalctl instead of silently discarded.

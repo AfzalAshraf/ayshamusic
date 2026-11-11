@@ -11,6 +11,7 @@ use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
 mod media;
+mod playback;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
@@ -56,6 +57,11 @@ struct VolumeQuery {
 }
 
 #[derive(Deserialize)]
+struct SetVolumeQuery {
+    val: f32,
+}
+
+#[derive(Deserialize)]
 struct SearchQuery {
     q: String,
 }
@@ -96,12 +102,14 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/icons.svg", get(icons_handler))
         .route("/api/search", get(search_handler))
         .route("/api/stream", get(api_stream))
         .route("/api/play", post(play_handler))
         .route("/api/pause", post(pause_handler))
         .route("/api/resume", post(resume_handler))
         .route("/api/stop", post(stop_handler))
+        .route("/api/volume", post(volume_handler))
         .route("/api/volume/up", post(volume_up_handler))
         .route("/api/volume/down", post(volume_down_handler))
         .route("/api/next", post(next_handler))
@@ -110,6 +118,7 @@ async fn main() {
         .route("/api/queue", get(queue_handler))
         .route("/api/queue_add", post(queue_add_handler))
         .route("/api/queue_clear", post(queue_clear_handler))
+        .route("/api/liked", get(liked_handler))
         .route("/api/like", post(like_handler))
         .route("/api/unlike", post(unlike_handler))
         .route("/api/bt/status", get(bt_status_handler))
@@ -123,80 +132,36 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-/// Autoplay watcher: when a track ends and queue is empty, fetch related tracks
-/// and auto-play them (Spotify Radio style).
+/// Prefetch related tracks without interrupting the current song.
+/// Browser advancement is driven by the media element's ended event.
 async fn autoplay_watcher(state: AppState) {
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
-        let (playing, queue_empty, current) = {
-            let lock = match state.lock() {
-                Ok(l) => l,
-                Err(_) => continue,
-            };
-            let playing = lock.player.is_playing && lock.player.play_mode == "bt";
-            let queue_empty = lock.player.queue.is_empty();
-            let current = lock.player.current_track.clone();
-            (playing, queue_empty, current)
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        let current = {
+            let lock = state.lock().unwrap();
+            if !lock.player.is_playing || !lock.player.queue.is_empty() { continue; }
+            lock.player.current_track.clone()
         };
-
-        if !playing || !queue_empty {
-            continue;
-        }
-
-        let Some(t) = current else { continue };
-        if t.id.is_empty() { continue; }
-
-        // Fetch related/similar tracks
-        let related = fetch_related_tracks(&t.id, &t.title, &t.artist);
-        if related.is_empty() {
-            continue;
-        }
-
-        // Add related tracks to queue
-        {
-            let mut lock = match state.lock() {
-                Ok(l) => l,
-                Err(_) => continue,
-            };
-            for r in &related {
-                if lock.player.queue.len() < 200
-                    && !lock.player.queue.iter().any(|q| q.id == r.id)
-                    && r.id != t.id
-                {
-                    lock.player.queue.push(r.clone());
-                }
+        if let Some(current) = current {
+            let related = fetch_related_tracks(&current.id, &current.title, &current.artist).await;
+            let mut lock = state.lock().unwrap();
+            if lock.player.current_track.as_ref().map(|t| &t.url) == Some(&current.url) {
+                lock.player.enqueue_related(related);
             }
-        }
-
-        // Play the first related track
-        if let Some(first) = related.first() {
-            let pq = PlayQuery {
-                url: first.url.clone(),
-                title: Some(first.title.clone()),
-                artist: Some(first.artist.clone()),
-                thumbnail: Some(first.thumbnail.clone()),
-                id: Some(first.id.clone()),
-                mode: Some("bt".to_string()),
-            };
-            let _ = play_handler(State(Arc::clone(&state)), Query(pq)).await;
         }
     }
 }
 
 /// Fetch related/similar tracks via yt-dlp search.
-fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
+async fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
     let query = format!("{} {} similar", title, artist);
-    let output = std::process::Command::new("yt-dlp")
-        .args(&[
-            "--flat-playlist",
-            "--dump-json",
-            &format!("ytsearch10:{}", query),
-        ])
-        .output();
+    let mut command = tokio::process::Command::new("yt-dlp");
+    command.args(["--flat-playlist", "--dump-json", "--socket-timeout", "10", "--retries", "1",
+        &format!("ytsearch10:{}", query)]).kill_on_drop(true);
+    let output = tokio::time::timeout(std::time::Duration::from_secs(30), command.output()).await;
 
     let mut tracks = Vec::new();
-    if let Ok(out) = output {
+    if let Ok(Ok(out)) = output {
         let text = String::from_utf8_lossy(&out.stdout);
         for line in text.lines() {
             if let Ok(item) = serde_json::from_str::<Value>(line) {
@@ -226,6 +191,14 @@ async fn api_stream(
     Query(sq): Query<StreamQuery>,
 ) -> Result<Response, axum::http::StatusCode> {
     media::open_stream(&sq.url).await
+}
+
+async fn icons_handler() -> Response {
+    Response::builder()
+        .header("Content-Type", "image/svg+xml")
+        .header("Cache-Control", "no-cache")
+        .body(axum::body::Body::from(include_str!("icons.svg")))
+        .expect("static SVG response")
 }
 
 async fn index_handler() -> Html<&'static str> {
@@ -338,7 +311,7 @@ async fn play_handler(
     State(state): State<AppState>,
     Query(pq): Query<PlayQuery>,
 ) -> Json<serde_json::Value> {
-    let browser_mode = pq.mode.as_deref() == Some("browser");
+    let mode = pq.mode.unwrap_or_else(|| "bt".to_string());
     let video_url = pq.url.clone();
     let title = pq.title.unwrap_or_else(|| "Unknown Track".to_string());
     let artist = pq.artist.unwrap_or_else(|| "YouTube".to_string());
@@ -353,11 +326,16 @@ async fn play_handler(
         url: video_url.clone(),
     };
 
+    start_track(state, track, mode, true).await
+}
+
+async fn start_track(state: AppState, track: Track, mode: String, remember: bool) -> Json<Value> {
+    let browser_mode = mode == "browser";
+    let video_url = track.url.clone();
+    let response_track = track.clone();
     let vol_percent = {
         let mut lock = state.lock().unwrap();
-        if let Some(tr) = lock.player.current_track.as_ref().cloned() {
-            lock.player.history.push(tr);
-        }
+        if remember { lock.player.remember_current(&track); }
         lock.player.current_track = Some(track);
         lock.player.is_playing = true;
         lock.player.play_mode = if browser_mode { "browser" } else { "bt" }.to_string();
@@ -371,7 +349,7 @@ async fn play_handler(
         .output();
 
     if browser_mode {
-        return Json(serde_json::json!({"status": "playing", "mode": "browser"}));
+        return Json(serde_json::json!({"status": "playing", "mode": "browser", "track": response_track}));
     }
 
     let result = tokio::task::spawn_blocking(move || {
@@ -382,13 +360,18 @@ async fn play_handler(
             "--demuxer-readahead-secs=5", &format!("--volume={}", vol_percent),
             "--ao=pulse", "--input-ipc-server=/tmp/mpv-music.sock", &video_url,
         ]);
+        if let Ok(runtime) = std::env::var("MUSIC_YTDLP_JS_RUNTIME") {
+            if !runtime.is_empty() {
+                command.arg(format!("--ytdl-raw-options=js-runtimes={runtime}"));
+            }
+        }
         command.spawn().map(|mut child| {
             // Reap mpv when it exits without blocking an async runtime worker.
             std::thread::spawn(move || { let _ = child.wait(); });
         })
     }).await;
     match result {
-        Ok(Ok(())) => Json(serde_json::json!({"status": "playing"})),
+        Ok(Ok(())) => Json(serde_json::json!({"status": "playing", "mode": "bt", "track": response_track})),
         other => {
             let error = format!("Unable to start mpv: {other:?}");
             eprintln!("{error}");
@@ -457,50 +440,52 @@ async fn volume_down_handler(
     Json(serde_json::json!({"volume": lock.player.volume}))
 }
 
-async fn next_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let next_track = {
+async fn next_handler(State(state): State<AppState>) -> Json<Value> {
+    let seed = {
+        let lock = state.lock().unwrap();
+        if lock.player.queue.is_empty() { lock.player.current_track.clone() } else { None }
+    };
+    if let Some(seed) = seed {
+        let related = fetch_related_tracks(&seed.id, &seed.title, &seed.artist).await;
         let mut lock = state.lock().unwrap();
-        if lock.player.queue.is_empty() {
-            None
-        } else {
-            Some(lock.player.queue.remove(0))
+        if lock.player.current_track.as_ref().map(|t| &t.url) != Some(&seed.url) {
+            return Json(serde_json::json!({"status": "failed", "error": "Track changed; retry Next"}));
+        }
+        lock.player.enqueue_related(related);
+    }
+    let selection = {
+        let mut lock = state.lock().unwrap();
+        if lock.player.queue.is_empty() { None } else {
+            Some((lock.player.queue.remove(0), lock.player.play_mode.clone()))
         }
     };
-    match next_track {
-        Some(t) => {
-            let pq = PlayQuery {
-                url: t.url,
-                title: Some(t.title),
-                artist: Some(t.artist),
-                thumbnail: Some(t.thumbnail),
-                id: Some(t.id),
-                mode: Some(state.lock().unwrap().player.play_mode.clone()),
-            };
-            return play_handler(State(state), Query(pq)).await;
-        }
-        None => stop_handler(State(state)).await,
+    match selection {
+        Some((track, mode)) => start_track(state, track, mode, true).await,
+        None => Json(serde_json::json!({"status": "failed", "error": "No next track available. Add songs to the queue or retry."})),
     }
 }
 
-async fn prev_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let prev_track = {
+async fn prev_handler(State(state): State<AppState>) -> Json<Value> {
+    let selection = {
         let mut lock = state.lock().unwrap();
-        lock.player.history.pop()
+        lock.player.previous_track().map(|track| (track, lock.player.play_mode.clone()))
     };
-    match prev_track {
-        Some(t) => {
-            let pq = PlayQuery {
-                url: t.url,
-                title: Some(t.title),
-                artist: Some(t.artist),
-                thumbnail: Some(t.thumbnail),
-                id: Some(t.id),
-                mode: Some(state.lock().unwrap().player.play_mode.clone()),
-            };
-            return play_handler(State(state), Query(pq)).await;
-        }
-        None => stop_handler(State(state)).await,
+    match selection {
+        Some((track, mode)) => start_track(state, track, mode, false).await,
+        None => Json(serde_json::json!({"status": "failed", "error": "No previous track in this session"})),
     }
+}
+
+async fn volume_handler(State(state): State<AppState>, Query(vq): Query<SetVolumeQuery>) -> Json<Value> {
+    if !vq.val.is_finite() || !(0.0..=100.0).contains(&vq.val) {
+        return Json(serde_json::json!({"status": "failed", "error": "Volume must be between 0 and 100"}));
+    }
+    let mut lock = state.lock().unwrap();
+    lock.player.volume = vq.val / 100.0;
+    if lock.player.play_mode == "bt" {
+        send_mpv_ipc(&format!(r#"{{"command":["set_property","volume",{}]}}"#, vq.val));
+    }
+    Json(serde_json::json!({"volume": lock.player.volume}))
 }
 
 async fn status_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -544,6 +529,10 @@ async fn queue_clear_handler(State(state): State<AppState>) -> Json<Value> {
     let mut lock = state.lock().unwrap();
     lock.player.queue.clear();
     Json(serde_json::json!({"status": "cleared"}))
+}
+
+async fn liked_handler(State(state): State<AppState>) -> Json<Vec<Track>> {
+    Json(state.lock().unwrap().player.liked.clone())
 }
 
 async fn like_handler(
@@ -625,6 +614,8 @@ fn send_mpv_ipc(cmd: &str) {
     if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
         let mut full_cmd = cmd.to_string();
         full_cmd.push('\n');
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
+        let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.write_all(full_cmd.as_bytes());
     }
 }
@@ -634,6 +625,8 @@ fn get_mpv_pos_duration() -> (f64, f64) {
     let mut duration = 0.0;
 
     if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
+        let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.write_all(b"{\"command\": [\"get_property\", \"time-pos\"]}\n");
         let mut buf = [0u8; 256];
         if let Ok(n) = stream.read(&mut buf) {
@@ -647,6 +640,8 @@ fn get_mpv_pos_duration() -> (f64, f64) {
     }
 
     if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
+        let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.write_all(b"{\"command\": [\"get_property\", \"duration\"]}\n");
         let mut buf = [0u8; 256];
         if let Ok(n) = stream.read(&mut buf) {
@@ -728,5 +723,55 @@ fn setup_pulse_bt_audio(mac: &str) {
                 }
             }
         }
+    }
+}
+
+
+#[cfg(test)]
+mod api_tests {
+    use super::*;
+    fn state() -> AppState {
+        Arc::new(Mutex::new(AppStateInner {
+            player: PlayerState { current_track: None, is_playing: false, volume: 0.8,
+                status_msg: String::new(), history: vec![], queue: vec![], liked: vec![], play_mode: "browser".into() },
+            http_client: reqwest::Client::new(),
+        }))
+    }
+
+    #[tokio::test]
+    async fn absolute_volume_updates_browser_state() {
+        let state = state();
+        let result = volume_handler(State(state.clone()), Query(SetVolumeQuery { val: 35.0 })).await;
+        assert_eq!(result.0["volume"], serde_json::json!(0.35f32));
+        assert_eq!(state.lock().unwrap().player.volume, 0.35);
+    }
+
+    #[tokio::test]
+    async fn invalid_volume_does_not_mutate_state() {
+        let state = state();
+        for val in [-1.0, 101.0, f32::NAN, f32::INFINITY] {
+            let result = volume_handler(State(state.clone()), Query(SetVolumeQuery { val })).await;
+            assert_eq!(result.0["status"], "failed");
+            assert_eq!(state.lock().unwrap().player.volume, 0.8);
+        }
+    }
+
+    #[tokio::test]
+    async fn missing_previous_does_not_stop_current_playback() {
+        let state = state();
+        state.lock().unwrap().player.is_playing = true;
+        let result = prev_handler(State(state.clone())).await;
+        assert_eq!(result.0["status"], "failed");
+        assert!(state.lock().unwrap().player.is_playing);
+    }
+
+    #[tokio::test]
+    async fn icons_are_served_from_embedded_sprite() {
+        let response = icons_handler().await;
+        assert_eq!(response.headers()["Content-Type"], "image/svg+xml");
+        let bytes = axum::body::to_bytes(response.into_body(), 100_000).await.unwrap();
+        let svg = std::str::from_utf8(&bytes).unwrap();
+        assert!(svg.contains("id=\"previous\""));
+        assert!(svg.contains("id=\"next\""));
     }
 }
