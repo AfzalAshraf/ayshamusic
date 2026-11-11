@@ -161,7 +161,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 </dialog>
 <div class="app-message" id="app-message" role="status" aria-live="polite"></div>
 <script>
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
 let durationSec = 0;
 
 async function api(method, path, body) {
@@ -243,6 +243,7 @@ async function playSong(t, options = {}) {
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
   state.current_track = t;
+  state.stopped = true;
 
   // Check if Bluetooth speaker is connected
   const audio = document.getElementById('audio-player');
@@ -258,6 +259,7 @@ async function playSong(t, options = {}) {
     setPlayingState(true);
     try {
       if (options.notifyServer !== false) await api('POST', '/api/play', { ...t, mode: 'bt' });
+      state.stopped = false;
     } catch (error) {
       setPlayingState(false);
       document.getElementById('time-display').textContent = error.message;
@@ -280,6 +282,7 @@ async function playSong(t, options = {}) {
   }
   const streamUrl = await getStreamUrl(t);
   audio.src = streamUrl;
+  state.stopped = false;
   audio.volume = state.volume / 100;
   audio.play()
     .then(function() {
@@ -299,6 +302,11 @@ async function togglePlay() {
     document.getElementById('time-display').textContent = 'Select a song first';
     return;
   }
+  // Stop releases the old stream/mpv process; Pause does not. Restart the
+  // retained selection with /api/play instead of resuming an empty source.
+  if (state.stopped) {
+    return playSong(state.current_track, { mode: state.playMode || 'browser' });
+  }
   const shouldPlay = !state.is_playing;
   try {
     if (state.playMode === 'browser') {
@@ -313,30 +321,34 @@ async function togglePlay() {
 }
 
 async function stopPlay() {
-  if (state.playMode === 'bt') {
-    // Bluetooth mode → stop server mpv
-    await api('POST', '/api/stop');
-    setPlayingState(false);
-    state.current_track = null;
-    state.playMode = null;
-    document.getElementById('progress-bar').style.width = '0%';
-    document.getElementById('time-display').textContent = '0:00 / 0:00';
-    updateMediaSession();
-    return;
+  const bluetooth = state.playMode === 'bt';
+  if (bluetooth) {
+    try {
+      await api('POST', '/api/stop');
+    } catch (error) {
+      document.getElementById('time-display').textContent = error.message;
+      return;
+    }
+  } else {
+    const audio = document.getElementById('audio-player');
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
   }
-
-  // Browser mode → stop HTML5 audio element
-  const audio = document.getElementById('audio-player');
-  audio.pause();
-  audio.src = '';
-  audio.currentTime = 0;
+  // Keep the selected song and output so every Play control can restart it.
+  state.stopped = true;
+  state.pos = 0;
   setPlayingState(false);
-  state.current_track = null;
-  state.playMode = null;
   document.getElementById('progress-bar').style.width = '0%';
-  document.getElementById('time-display').textContent = '0:00 / 0:00';
-  await api('POST', '/api/stop');
+  document.getElementById('time-display').textContent = 'Stopped — press Play to start again';
   updateMediaSession();
+  if (!bluetooth) {
+    try {
+      await api('POST', '/api/stop');
+    } catch (error) {
+      document.getElementById('time-display').textContent = 'Stopped on this device; server update failed: ' + error.message;
+    }
+  }
 }
 
 let navigationBusy = false;

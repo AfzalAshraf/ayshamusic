@@ -71,3 +71,9 @@ Before preparing the host-side networking/update installer, confirm:
 Recommended policy for approval: check nightly, install only within an approved idle maintenance window, run tests/health checks before accepting player changes, retain rollback, and never auto-merge unreviewed repository changes or restart active listeners just because the clock passed a guessed time.
 
 Public rollout still requires device-session isolation and Access protection described in docs/REMOTE_MULTI_DEVICE_PLAN.md. Do not publish the current unauthenticated shared-state API while those gates remain open.
+
+## Stop versus Pause regression
+
+After choosing a track, Stop now releases its stream/process while retaining the selection in this page. Any shared Play control (soundtrack card, mini-player or expanded player) starts that track again from the beginning with /api/play. Pause retains the active source/process, so Play resumes via /api/resume without registering the track twice. Repeated Stop remains restartable. A page reload still does not restore an in-memory selection.
+
+Manual target check: select a song, hear it, press the soundtrack card's Stop, press Play, and confirm it starts again. Repeat using expanded-player Stop/Play, and test Pause/Play separately. The browser fixture suite exercises these buttons with media calls stubbed; audible restart and Bluetooth hardware still require local checks.

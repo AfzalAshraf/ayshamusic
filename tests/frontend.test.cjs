@@ -12,10 +12,13 @@ function harness(connected = false) {
     if (!elements.has(id)) elements.set(id, {
       style: {}, value: 80, textContent: '', innerHTML: '', src: '', volume: 0.8,
       listeners: {}, attributes: {},
-      pause() {}, load() {}, removeAttribute() {},
+      currentTime: 0, paused: true, playCount: 0,
+      pause() { this.paused = true; },
+      load() { this.currentTime = 0; },
+      removeAttribute(name) { if (name === 'src') this.src = ''; delete this.attributes[name]; },
       setAttribute(name, value) { this.attributes[name] = value; },
       addEventListener(name, callback) { this.listeners[name] = callback; },
-      play() { this.played = true; return Promise.resolve(); },
+      play() { this.played = true; this.paused = false; this.playCount++; return Promise.resolve(); },
     });
     return elements.get(id);
   };
@@ -142,4 +145,78 @@ test('volume states reference distinct local SVG symbols', () => {
     h.context.updateVolumeIcon(value);
     assert.match(h.element('volume-svg').innerHTML, new RegExp('#' + name));
   }
+});
+
+
+test('Stop then Play restarts the selected browser track from the soundtrack card', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  assert.equal(h.element('audio-player').paused, true);
+  assert.equal(h.element('audio-player').src, '');
+  await h.context.togglePlay();
+  assert.equal(h.element('audio-player').playCount, 2);
+  assert.equal(h.element('audio-player').src, '/api/stream?url=' + encodeURIComponent(track.url));
+  assert.equal(h.calls.filter(call => call.url.startsWith('/api/play?')).length, 2);
+  assert.equal(h.calls.some(call => call.url === '/api/resume'), false);
+});
+
+test('repeated Stop remains restartable without losing the selected song', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  await h.context.stopPlay();
+  await h.context.togglePlay();
+  assert.equal(h.element('audio-player').playCount, 2);
+  assert.equal(h.element('hero-title').textContent, track.title);
+});
+
+test('Pause then Play resumes without creating another track registration', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.togglePlay();
+  assert.equal(h.element('audio-player').paused, true);
+  await h.context.togglePlay();
+  assert.equal(h.element('audio-player').paused, false);
+  assert.equal(h.calls.filter(call => call.url.startsWith('/api/play?')).length, 1);
+  assert.equal(h.calls.filter(call => call.url === '/api/resume').length, 1);
+});
+
+test('Bluetooth Stop then Play starts mpv again rather than resuming a dead process', async () => {
+  const h = harness(true);
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  await h.context.togglePlay();
+  assert.equal(h.calls.filter(call => call.url.startsWith('/api/play?')).length, 2);
+  assert.equal(h.calls.some(call => call.url === '/api/resume'), false);
+  assert.equal(h.element('audio-player').playCount, 0);
+});
+
+test('Play with no selected song still asks the listener to choose one', async () => {
+  const h = harness();
+  await h.context.togglePlay();
+  assert.equal(h.element('time-display').textContent, 'Select a song first');
+  assert.equal(h.calls.length, 0);
+});
+
+test('failed restart keeps Play available instead of pretending audio started', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  h.context.fetch = async () => ({ ok: true, json: async () => ({ status: 'failed', error: 'Downloader unavailable' }) });
+  await h.context.togglePlay();
+  assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
+  assert.equal(h.element('audio-player').playCount, 1);
+  assert.equal(h.element('time-display').textContent, 'Downloader unavailable');
+});
+
+test('browser Stop remains locally stopped if its server notification fails', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  h.context.fetch = async () => { throw new Error('Network unavailable'); };
+  await h.context.stopPlay();
+  assert.equal(h.element('audio-player').paused, true);
+  assert.equal(h.element('audio-player').src, '');
+  assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
+  assert.match(h.element('time-display').textContent, /Stopped on this device; server update failed/);
 });

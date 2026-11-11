@@ -231,3 +231,17 @@ CI run 43080374193 for source commit 86e9d30 passed both jobs: Rust tests and re
 https://github.com/AfzalAshraf/ayshamusic/actions/runs/43080374193
 
 Both visible footers contain the exact requested heart-emoji sentence; the full-player footer wraps without horizontal overflow in the browser suite. No host-side deployment is claimed by this CI result.
+
+## Soundtrack Stop -> Play regression and separate comfort-space proposal
+
+Active department: QA, Security & Debugging. User reports the YOUR DAILY SOUNDTRACK card does not play after Stop and asks for a separate supportive-quote experience with personalization.
+
+Reproduced failure: new frontend tests for browser Stop/Play, repeated Stop and Bluetooth Stop/Play failed with AssertionError, actual 1 versus expected 2 play registrations/attempts in tests/frontend.test.cjs. Root cause in src/index.html stopPlay/togglePlay: Stop cleared current_track/playMode and removed the audio source (or killed mpv), while Play required a current selection and only knew the resume path.
+
+Fix: retain the selected track/output on this page, add an explicit stopped lifecycle flag, release browser media via removeAttribute('src') and load(), and restart a stopped selection with playSong plus /api/play. Pause remains resume-only. Failed Bluetooth Stop does not falsely mark the server stopped; a failed browser server notification still leaves local audio stopped with a visible diagnostic. Failed restart keeps the Play control and error available. The selected track is not persisted across reloads, and global backend/device-state limitations are unchanged.
+
+Verification: the three originally failing cases now pass; 19 frontend tests pass including pause/resume, initial empty selection and failure cases. All 16 Python tests pass. The Chromium suite passes all seven viewports and exercises actual soundtrack/expanded Stop/Play buttons at 390px with media methods explicitly stubbed. An initial browser assertion sampled src before asynchronous play registration completed; it was corrected to await the source assignment, then passed. These tests prove UI lifecycle/wiring, not actual audio/Bluetooth output. Linux CI result is recorded separately when available.
+
+Quotes are deliberately separate from the bug fix: docs/COMFORT_SPACE_PROPOSAL.md proposes an optional, hideable space with original gentle messages and transparent on-device personalization using explicit likes/Show more actions only. No quotes, preference collection, dwell tracking, mood inference, remote analytics or relationship scoring were added to the app. Ask for approval of the opt-in approach before the next department implements it. No claim is made that messages cure anxiety, guarantee safety or make someone love another person; the design emphasizes choice and kindness.
+
+No dependencies, endpoints, service schedules or host installations changed. Current scores remain Architecture 2/5, UI/UX 4/5, Backend 2/5, QA/Security 3/5, Networking/Self-Hosting 1/5. Preserve the approved design and dedication. Remaining work includes real Android restart verification, global-state isolation, hardware connection, remote-access/security/resource gates and approval for the separate comfort space.

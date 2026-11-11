@@ -28,6 +28,7 @@ const tracks = [
       page.removeAllListeners('pageerror');
       await page.unroute('**/*');
       const errors = [];
+      const playRegistrations = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
@@ -38,7 +39,9 @@ const tracks = [
         if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: html });
         if (url.pathname === '/icons.svg') return route.fulfill({ contentType: 'image/svg+xml', body: icons });
         let data;
-        if (url.pathname === '/api/search' || url.pathname === '/api/liked') data = tracks;
+        if (url.pathname === '/api/play') { playRegistrations.push(url.search); data = { status: 'playing', mode: 'browser' }; }
+        else if (url.pathname === '/api/stop') data = { status: 'stopped' };
+        else if (url.pathname === '/api/search' || url.pathname === '/api/liked') data = tracks;
         else if (url.pathname === '/api/queue') data = [];
         else if (url.pathname === '/api/status') data = { current_track: null, is_playing: false, volume: 0.8, queue_len: 0 };
         else if (url.pathname === '/api/bt/status') data = { connected: false, device: 'JBL Flip Essential', mac: '04:CB:88:92:43:60' };
@@ -80,6 +83,28 @@ const tracks = [
       assert.ok(await page.locator('#now-playing').isVisible(), 'Forward restores the player');
       await page.keyboard.press('Escape');
       await page.locator('#now-playing').waitFor({ state: 'hidden' });
+      // Exercise actual hero/expanded-player buttons with media calls stubbed;
+      // this verifies UI wiring and requests, not audible playback or YouTube.
+      if (viewport.width === 390) {
+        await page.evaluate(() => {
+          const audio = document.getElementById('audio-player');
+          audio.preload = 'none';
+          audio.play = () => Promise.resolve();
+          audio.pause = () => {};
+        });
+        await page.evaluate(track => playSong(track), tracks[0]);
+        await page.locator('.btn-stop').click();
+        await page.locator('#hero-toggle').click();
+        await page.waitForFunction(() => document.getElementById('hero-play-label').textContent === 'Pause');
+        assert.equal(playRegistrations.length, 2, 'Hero Play must restart the stopped selection');
+        await page.locator('#open-player').click();
+        await page.locator('.now-footer button').click();
+        await page.locator('#full-play-toggle').click();
+        await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Pause');
+        assert.equal(playRegistrations.length, 3, 'Expanded Play must also restart after Stop');
+        await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
+        assert.match(await page.locator('#audio-player').getAttribute('src'), /sample1/);
+      }
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);
 
