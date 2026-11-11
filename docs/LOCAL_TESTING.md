@@ -40,7 +40,7 @@ python3 scripts/test_local.py --video-url 'https://www.youtube.com/watch?v=dQw4w
 
 The checker reads at most a 4096-byte sample, does not print binary audio, checks the container against Content-Type, and exits nonzero on failure. It does not require downloading a full song.
 
-**Known expected failure on current server:** WebM bytes served as audio/mpeg. The server also advertises byte ranges without implementing Range/206. The checker intentionally reports these rather than calling transport success end-to-end playback success. The byte-range check is conservative: it requires separate verification of seeking before trusting the advertised capability.
+**Regression being fixed:** The previous server labelled WebM bytes as audio/mpeg and advertised unimplemented byte ranges. The new media module detects the container and advertises Accept-Ranges: none. Build and run the new Rust binary before retesting; rebuilding alone does not replace the currently running service binary. The checker intentionally reports mismatches rather than calling transport success end-to-end playback success. The byte-range check is conservative: it requires separate verification of seeking before trusting the advertised capability.
 
 ## 4. Capture evidence for remaining acceptance gates
 
@@ -68,3 +68,25 @@ Record PASS/FAIL, browser/device, and observed error for each:
 - Access is restricted to the approved host/LAN/remote boundary.
 
 Do not assign 5/5 until the relevant automated and manual gates are verified. Live stream, hardware and memory gates cannot be replaced with fixture tests.
+
+
+## Playback and Bluetooth regression tests
+
+```bash
+cargo test
+node --test tests/frontend.test.cjs
+bash -n scripts/diagnose_local.sh
+bash scripts/diagnose_local.sh
+```
+
+Node is needed only to run frontend regression tests, not to run the player.
+
+To test the fresh binary without guessing your systemd installation path, first build successfully, then stop the service and run the new executable in the foreground as your normal audio-session user:
+
+```bash
+cargo test && cargo build --release && sudo systemctl stop aysha-music && ./target/release/music-server
+```
+
+Leave that terminal open. In a second terminal, run the smoke checks. Hard-refresh the browser to load the new embedded page. When finished, Ctrl-C stops the foreground process; `sudo systemctl start aysha-music` restores the installed service, which may still use the older binary until you update its actual ExecStart path. Do not copy to an assumed installation path.
+
+Bluetooth still targets the existing JBL MAC 04:CB:88:92:43:60. Confirm this is your speaker. Connect uses the existing connection script, optionally overridden by MUSIC_BT_CONNECT_SCRIPT. No real device scan or automatic pairing is claimed. Failures are now shown in the Bluetooth page; powering/pairing/adapter and service-user permissions require local diagnostics. Automatic background reconnect was removed so Disconnect is respected.

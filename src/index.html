@@ -173,9 +173,9 @@ body{background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:h
       <div class="section-title">Bluetooth Settings</div>
       <div class="bt-card" id="bt-status-card">
         <div><b id="bt-status-text">Status: Checking...</b><small id="bt-device-text">--</small></div>
-        <button class="chip" onclick="scanBluetooth()">Scan Speakers</button>
+        <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
       </div>
-      <div class="section-title">Available Devices</div>
+      <div class="section-title">Configured Speaker</div>
       <div id="bt-list"></div>
     </div>
     <div class="footer">Made with &hearts; for Aysha &mdash; with love, from Afzal</div>
@@ -217,10 +217,21 @@ let state = { current_track: null, is_playing: false, volume: 80, pos: 0, durati
 let durationSec = 0;
 
 async function api(method, path, body) {
+  // The Rust play endpoint extracts query parameters, not a JSON body.
+  if (method === 'POST' && path === '/api/play' && body) {
+    path += '?' + new URLSearchParams(body).toString();
+    body = null;
+  }
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
-  try { return await r.json(); } catch (e) { return {}; }
+  if (!r.ok) {
+    const detail = (await r.text()).slice(0, 300);
+    throw new Error('HTTP ' + r.status + ': ' + detail);
+  }
+  const result = await r.json();
+  if (result.status === 'failed') throw new Error(result.error || 'Request failed');
+  return result;
 }
 
 function setPlayingState(playing) {
@@ -257,8 +268,8 @@ function updateMediaSession() {
   navigator.mediaSession.setActionHandler('stop', stopPlay);
   if (t) {
     navigator.mediaSession.setPositionState({
-      duration: audio.duration || 0,
-      position: audio.currentTime || 0,
+      duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+      position: Number.isFinite(audio.duration) ? Math.min(audio.currentTime || 0, audio.duration) : 0,
       playbackRate: 1,
     });
   }
@@ -270,13 +281,8 @@ async function checkBluetooth() {
 }
 
 async function getStreamUrl(t) {
-  const r = await api('GET', '/api/stream?url=' + encodeURIComponent(t.url));
-  if (r.error) {
-    console.log('Stream error:', r.error);
-    document.getElementById('time-display').textContent = 'Stream error: ' + r.error;
-    return '';
-  }
-  return r.stream_url || '';
+  // Assign the proxy URL directly to <audio>; never fetch audio through the JSON API helper.
+  return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
 async function playSong(t) {
@@ -290,14 +296,23 @@ async function playSong(t) {
   state.current_track = t;
 
   // Check if Bluetooth speaker is connected
-  const btConnected = await checkBluetooth();
+  const audio = document.getElementById('audio-player');
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  const btConnected = await checkBluetooth().catch(() => false);
 
   if (btConnected) {
     // Bluetooth connected → play on server mpv → JBL speaker
     state.playMode = 'bt';
     document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
     setPlayingState(true);
-    await api('POST', '/api/play', t);
+    try {
+      await api('POST', '/api/play', { ...t, mode: 'bt' });
+    } catch (error) {
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = error.message;
+    }
     updateMediaSession();
     return;
   }
@@ -307,8 +322,14 @@ async function playSong(t) {
   document.getElementById('time-display').textContent = 'Loading stream...';
   setPlayingState(true);
 
+  try {
+    await api('POST', '/api/play', { ...t, mode: 'browser' });
+  } catch (error) {
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = error.message;
+    return;
+  }
   const streamUrl = await getStreamUrl(t);
-  const audio = document.getElementById('audio-player');
   audio.src = streamUrl;
   audio.volume = state.volume / 100;
   audio.play()
@@ -316,19 +337,18 @@ async function playSong(t) {
       document.getElementById('time-display').textContent = 'Playing on this device...';
     })
     .catch(function(e) {
-      console.log('Autoplay blocked, tap play to start', e);
-      document.getElementById('time-display').textContent = 'Tap ▶ Play to start';
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = e.name === 'NotAllowedError'
+        ? 'Tap ▶ Play to start' : 'Playback failed: ' + e.message;
     });
 
-  // Notify server for history/queue tracking
-  await api('POST', '/api/play', t);
   updateMediaSession();
 }
 
 async function togglePlay() {
   if (state.playMode === 'bt') {
     // Bluetooth mode → control server mpv
-    await api('POST', '/api/pause');
+    await api('POST', state.is_playing ? '/api/pause' : '/api/resume');
     setPlayingState(!state.is_playing);
     return;
   }
@@ -344,7 +364,7 @@ async function togglePlay() {
     });
   }
   setPlayingState(!state.is_playing);
-  await api('POST', '/api/pause');
+  await api('POST', state.is_playing ? '/api/resume' : '/api/pause');
 }
 
 async function stopPlay() {
@@ -466,14 +486,17 @@ function renderGrid(tracks, containerId, showHeart) {
       '<div class="card-title">' + escapeHtml(t.title) + '</div>' +
       '<div class="card-artist">' + escapeHtml(t.artist) + '</div>' +
       '</div>' +
-      '<button class="card-action" onclick="event.stopPropagation(); playSong(' + JSON.stringify(t) + ')" title="Play">' +
+      '<button class="card-action" data-action="play" title="Play">' +
       '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>' +
-      '<button class="card-action' + (qIn ? ' active' : '') + '" onclick="event.stopPropagation(); queueAdd(' + JSON.stringify(t) + ')" title="Add to Queue">' +
+      '<button class="card-action' + (qIn ? ' active' : '') + '" data-action="queue" title="Add to Queue">' +
       '<svg viewBox="0 0 24 24"><path d="M3 5v14h2V5H3zm14 14v-14h2v14h-2zm-6-4v-14h2v14h-2z"/></svg></button>' +
-      '<button class="card-heart' + (isLiked ? ' liked' : '') + '" onclick="event.stopPropagation(); toggleLike(' + JSON.stringify(t) + ')">' +
+      '<button class="card-heart' + (isLiked ? ' liked' : '') + '" data-action="like">' +
       (isLiked ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' :
        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>') +
       '</button>';
+    card.querySelector('[data-action="play"]').onclick = event => { event.stopPropagation(); playSong(t); };
+    card.querySelector('[data-action="queue"]').onclick = event => { event.stopPropagation(); queueAdd(t); };
+    card.querySelector('[data-action="like"]').onclick = event => { event.stopPropagation(); toggleLike(t); };
     card.onclick = () => playSong(t);
     c.appendChild(card);
   });
@@ -579,25 +602,38 @@ async function queueClear() {
 }
 
 async function loadBluetooth() {
-  const st = await api('GET', '/api/bt/status');
-  document.getElementById('bt-status-text').textContent = st.connected ? 'Status: Connected' : 'Status: Disconnected';
-  document.getElementById('bt-device-text').textContent = st.device || 'No device active';
-  const devs = await api('GET', '/api/bt/status');
-  // bt_devices endpoint not implemented in rust yet; show connected only
-  document.getElementById('bt-list').innerHTML = st.connected ?
-    '<div class="bt-card"><div><strong>' + escapeHtml(st.device) + '</strong><small>' + st.mac + '</small></div><button class="chip" onclick="disconnectBT()">Disconnect</button></div>' :
-    '<div class="empty-msg">No device connected.</div>';
+  try {
+    const st = await api('GET', '/api/bt/status');
+    document.getElementById('bt-status-text').textContent = st.connected ? 'Status: Connected' : 'Status: Disconnected';
+    document.getElementById('bt-device-text').textContent = st.error || st.device || 'No device active';
+    document.getElementById('bt-list').innerHTML = st.connected ?
+      '<div class="bt-card"><div><strong>' + escapeHtml(st.device) + '</strong><small>' + escapeHtml(st.mac) + '</small></div><button class="chip" onclick="disconnectBT()">Disconnect</button></div>' :
+      '<div class="empty-msg">Configured JBL is not connected. Power it on and check pairing.</div>';
+  } catch (error) {
+    document.getElementById('bt-status-text').textContent = error.message;
+  }
 }
 
 async function disconnectBT() {
-  await api('POST', '/api/bt/connect?mac=04:CB:88:92:43:60');
-  setTimeout(loadBluetooth, 2000);
+  try {
+    const result = await api('POST', '/api/bt/disconnect');
+    if (result.error) throw new Error(result.error);
+    await loadBluetooth();
+  } catch (error) {
+    document.getElementById('bt-device-text').textContent = error.message;
+  }
 }
 
 async function scanBluetooth() {
-  document.getElementById('bt-list').innerHTML = '<div class="empty-msg">Scanning...</div>';
-  await api('POST', '/api/bt/connect?mac=04:CB:88:92:43:60');
-  loadBluetooth();
+  document.getElementById('bt-status-text').textContent = 'Connecting configured JBL...';
+  try {
+    const result = await api('POST', '/api/bt/connect');
+    if (result.error) throw new Error(result.error);
+    await loadBluetooth();
+  } catch (error) {
+    document.getElementById('bt-status-text').textContent = 'Connection failed';
+    document.getElementById('bt-device-text').textContent = error.message;
+  }
 }
 
 function switchTab(tab) {
@@ -622,8 +658,10 @@ setInterval(async () => {
       document.getElementById('np-artist').textContent = st.current_track.artist;
       document.getElementById('np-art').src = 'https://img.youtube.com/vi/' + st.current_track.id + '/hqdefault.jpg';
       state.current_track = st.current_track;
-      state.volume = st.volume;
-      setPlayingState(st.is_playing);
+      if (state.playMode !== 'browser') {
+        state.volume = st.volume * 100;
+        setPlayingState(st.is_playing);
+      }
       updateMediaSession();
     }
     if (st.queue_len !== undefined) {
@@ -644,11 +682,18 @@ setInterval(async () => {
       if (audio.ended) {
         await api('POST', '/api/next');
       }
-    } else if (state.is_playing) {
+    } else if (state.is_playing && !audio.error) {
       document.getElementById('time-display').textContent = 'Loading...';
     }
   } catch (e) {}
 }, 400);
+
+document.getElementById('audio-player').addEventListener('error', function() {
+  if (state.playMode !== 'browser') return;
+  setPlayingState(false);
+  const code = this.error ? this.error.code : 'unknown';
+  document.getElementById('time-display').textContent = 'Audio error ' + code + ': check stream test and server journal';
+});
 
 // PWA + MediaSession init
 if ('serviceWorker' in navigator) {

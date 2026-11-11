@@ -1,21 +1,16 @@
 use axum::{
     extract::{Query, State},
     response::{Html, Json, Response},
-    body::{Body, Bytes},
     routing::{get, post},
     Router,
 };
-use axum::http::header;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, ReadBuf};
 use tower_http::cors::CorsLayer;
-use futures_util::stream::Stream;
+mod media;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
@@ -35,6 +30,7 @@ struct PlayerState {
     history: Vec<Track>,
     queue: Vec<Track>,
     liked: Vec<Track>,
+    play_mode: String,
 }
 
 struct AppStateInner {
@@ -51,6 +47,7 @@ struct PlayQuery {
     artist: Option<String>,
     thumbnail: Option<String>,
     id: Option<String>,
+    mode: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -72,16 +69,6 @@ struct StreamQuery {
 async fn main() {
     println!("Starting Aysha's Music Player Server...");
 
-    // Spawn non-blocking background Bluetooth auto-reconnect loop
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
-            tokio::task::spawn_blocking(|| {
-                let _ = run_bt_connect_script();
-            }).await.ok();
-        }
-    });
-
     let http_client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         .build()
@@ -96,6 +83,7 @@ async fn main() {
             history: Vec::new(),
             queue: Vec::new(),
             liked: Vec::new(),
+            play_mode: "bt".to_string(),
         },
         http_client,
     }));
@@ -126,6 +114,7 @@ async fn main() {
         .route("/api/unlike", post(unlike_handler))
         .route("/api/bt/status", get(bt_status_handler))
         .route("/api/bt/connect", post(bt_connect_handler))
+        .route("/api/bt/disconnect", post(bt_disconnect_handler))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -145,7 +134,7 @@ async fn autoplay_watcher(state: AppState) {
                 Ok(l) => l,
                 Err(_) => continue,
             };
-            let playing = lock.player.is_playing;
+            let playing = lock.player.is_playing && lock.player.play_mode == "bt";
             let queue_empty = lock.player.queue.is_empty();
             let current = lock.player.current_track.clone();
             (playing, queue_empty, current)
@@ -188,6 +177,7 @@ async fn autoplay_watcher(state: AppState) {
                 artist: Some(first.artist.clone()),
                 thumbnail: Some(first.thumbnail.clone()),
                 id: Some(first.id.clone()),
+                mode: Some("bt".to_string()),
             };
             let _ = play_handler(State(Arc::clone(&state)), Query(pq)).await;
         }
@@ -231,86 +221,11 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
     tracks
 }
 
-/// Proxy YouTube audio through the server using yt-dlp to download chunks
-/// and pipe them to the browser HTML5 <audio> element with CORS headers.
-/// The audio never goes directly from YouTube to the browser — it always
-/// passes through this local server first.
 async fn api_stream(
     State(_state): State<AppState>,
     Query(sq): Query<StreamQuery>,
 ) -> Result<Response, axum::http::StatusCode> {
-    let url = sq.url.clone();
-
-    let mut child = match tokio::process::Command::new("yt-dlp")
-        .args(&[
-            "-f", "bestaudio",
-            "-o", "-",
-            "--no-check-certificate",
-            "--no-warnings",
-        ])
-        .arg(&url)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(_) => return Err(axum::http::StatusCode::BAD_REQUEST),
-    };
-
-    let stdout = match child.stdout.take() {
-        Some(s) => s,
-        None => return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
-    };
-
-    let stream = YtDlpStream {
-        stdout,
-        buf: [0u8; 8192],
-        eof: false,
-    };
-    let body = Body::from_stream(stream);
-
-    Response::builder()
-        .status(200)
-        .header(header::CONTENT_TYPE, "audio/mpeg")
-        .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Headers", "Range")
-        .header("Accept-Ranges", "bytes")
-        .header("Cache-Control", "no-cache")
-        .body(body)
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-}
-
-/// Wraps a tokio::process::ChildStdout as a byte stream for axum response body.
-/// yt-dlp downloads audio chunks and this stream pipes them to the browser.
-struct YtDlpStream {
-    stdout: tokio::process::ChildStdout,
-    buf: [u8; 8192],
-    eof: bool,
-}
-
-impl Stream for YtDlpStream {
-    type Item = Result<Bytes, std::io::Error>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.eof {
-            return Poll::Ready(None);
-        }
-        // Split self into fields to allow independent mutable borrows of buf and stdout
-        let Self { stdout, buf, eof } = self.get_mut();
-        let mut rb = ReadBuf::new(buf);
-        match Pin::new(stdout).poll_read(cx, &mut rb) {
-            Poll::Ready(Ok(())) => {
-                let n = rb.filled().len();
-                if n == 0 {
-                    *eof = true;
-                    return Poll::Ready(None);
-                }
-                Poll::Ready(Some(Ok(Bytes::copy_from_slice(&buf[..n]))))
-            }
-            Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
-            Poll::Pending => return Poll::Pending,
-        }
-    }
+    media::open_stream(&sq.url).await
 }
 
 async fn index_handler() -> Html<&'static str> {
@@ -423,6 +338,7 @@ async fn play_handler(
     State(state): State<AppState>,
     Query(pq): Query<PlayQuery>,
 ) -> Json<serde_json::Value> {
+    let browser_mode = pq.mode.as_deref() == Some("browser");
     let video_url = pq.url.clone();
     let title = pq.title.unwrap_or_else(|| "Unknown Track".to_string());
     let artist = pq.artist.unwrap_or_else(|| "YouTube".to_string());
@@ -444,6 +360,7 @@ async fn play_handler(
         }
         lock.player.current_track = Some(track);
         lock.player.is_playing = true;
+        lock.player.play_mode = if browser_mode { "browser" } else { "bt" }.to_string();
         lock.player.status_msg = "Playing".to_string();
         (lock.player.volume * 100.0) as u32
     };
@@ -453,27 +370,34 @@ async fn play_handler(
         .args(&["-f", "mpv.*mpv-music.sock"])
         .output();
 
-    // Spawn tuned low-RAM mpv background process
-    tokio::task::spawn_blocking(move || {
-        let mut child = std::process::Command::new("mpv");
-        child.args(&[
-            "--no-video",
-            "--no-terminal",
-            "--demuxer-max-bytes=2MiB",
-            "--demuxer-readahead-secs=5",
-            &format!("--volume={}", vol_percent),
-            "--ao=pulse",
-            "--input-ipc-server=/tmp/mpv-music.sock",
-            &video_url,
-        ]);
-        child.env("XDG_RUNTIME_DIR", "/run/user/1000");
-        child.env("PULSE_SERVER", "unix:/run/user/1000/pulse/native");
-        let _ = child.spawn();
+    if browser_mode {
+        return Json(serde_json::json!({"status": "playing", "mode": "browser"}));
+    }
 
+    let result = tokio::task::spawn_blocking(move || {
         setup_pulse_bt_audio("04:CB:88:92:43:60");
-    });
-
-    Json(serde_json::json!({"status": "playing"}))
+        let mut command = audio_command("mpv");
+        command.args([
+            "--no-video", "--no-terminal", "--demuxer-max-bytes=2MiB",
+            "--demuxer-readahead-secs=5", &format!("--volume={}", vol_percent),
+            "--ao=pulse", "--input-ipc-server=/tmp/mpv-music.sock", &video_url,
+        ]);
+        command.spawn().map(|mut child| {
+            // Reap mpv when it exits without blocking an async runtime worker.
+            std::thread::spawn(move || { let _ = child.wait(); });
+        })
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({"status": "playing"})),
+        other => {
+            let error = format!("Unable to start mpv: {other:?}");
+            eprintln!("{error}");
+            let mut lock = state.lock().unwrap();
+            lock.player.is_playing = false;
+            lock.player.status_msg = error.clone();
+            Json(serde_json::json!({"status": "failed", "error": error}))
+        }
+    }
 }
 
 async fn pause_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -550,6 +474,7 @@ async fn next_handler(State(state): State<AppState>) -> Json<serde_json::Value> 
                 artist: Some(t.artist),
                 thumbnail: Some(t.thumbnail),
                 id: Some(t.id),
+                mode: Some(state.lock().unwrap().player.play_mode.clone()),
             };
             return play_handler(State(state), Query(pq)).await;
         }
@@ -570,6 +495,7 @@ async fn prev_handler(State(state): State<AppState>) -> Json<serde_json::Value> 
                 artist: Some(t.artist),
                 thumbnail: Some(t.thumbnail),
                 id: Some(t.id),
+                mode: Some(state.lock().unwrap().player.play_mode.clone()),
             };
             return play_handler(State(state), Query(pq)).await;
         }
@@ -579,7 +505,7 @@ async fn prev_handler(State(state): State<AppState>) -> Json<serde_json::Value> 
 
 async fn status_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let lock = state.lock().unwrap();
-    let (pos, duration) = get_mpv_pos_duration();
+    let (pos, duration) = if lock.player.play_mode == "bt" { get_mpv_pos_duration() } else { (0.0, 0.0) };
     Json(serde_json::json!({
         "current_track": lock.player.current_track,
         "is_playing": lock.player.is_playing,
@@ -641,20 +567,58 @@ async fn unlike_handler(
 }
 
 async fn bt_status_handler() -> Json<serde_json::Value> {
-    let connected = is_bt_connected("04:CB:88:92:43:60").await;
+    let info = bluetooth_info().await;
     Json(serde_json::json!({
         "device": "JBL Flip Essential",
         "mac": "04:CB:88:92:43:60",
-        "connected": connected,
-        "sink_name": if connected { "JBL Flip Essential (Active)" } else { "Internal Audio" }
+        "connected": info.as_ref().map(|text| text.contains("Connected: yes")).unwrap_or(false),
+        "error": info.err(),
     }))
 }
 
+async fn bluetooth_info() -> Result<String, String> {
+    bluetooth_command(&["info", "04:CB:88:92:43:60"]).await
+}
+
+async fn bluetooth_command(args: &[&str]) -> Result<String, String> {
+    let mut command = tokio::process::Command::new("bluetoothctl");
+    command.args(args).kill_on_drop(true);
+    match tokio::time::timeout(std::time::Duration::from_secs(20), command.output()).await {
+        Ok(Ok(output)) => {
+            let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            if output.status.success() { Ok(text) } else { Err(text) }
+        }
+        Ok(Err(error)) => Err(format!("Cannot run bluetoothctl: {error}")),
+        Err(_) => Err("bluetoothctl timed out after 20 seconds".to_string()),
+    }
+}
+
 async fn bt_connect_handler() -> Json<serde_json::Value> {
-    let success = run_bt_connect_script();
-    Json(serde_json::json!({
-        "status": if success { "connected" } else { "failed" }
-    }))
+    let script = std::env::var("MUSIC_BT_CONNECT_SCRIPT")
+        .unwrap_or_else(|_| "/home/afine/connect_jbl.sh".to_string());
+    let mut command = tokio::process::Command::new("bash");
+    command.arg(&script).kill_on_drop(true);
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), command.output()).await;
+    let error = match result {
+        Ok(Ok(output)) if output.status.success() => None,
+        Ok(Ok(output)) => Some(format!("Connect script failed ({}): {}{}", output.status,
+            String::from_utf8_lossy(&output.stderr), String::from_utf8_lossy(&output.stdout))),
+        Ok(Err(error)) => Some(format!("Cannot run {script}: {error}")),
+        Err(_) => Some("Connect script timed out after 30 seconds".to_string()),
+    };
+    let info = bluetooth_info().await;
+    let connected = info.as_ref().map(|text| text.contains("Connected: yes")).unwrap_or(false);
+    let error = if connected { None } else {
+        error.or_else(|| info.err()).or_else(|| Some("Script finished but JBL is not connected. Check pairing, adapter power and service permissions.".to_string()))
+    };
+    Json(serde_json::json!({"status": if connected { "connected" } else { "failed" }, "error": error}))
+}
+
+async fn bt_disconnect_handler() -> Json<serde_json::Value> {
+    match bluetooth_command(&["disconnect", "04:CB:88:92:43:60"]).await {
+        Ok(_) => Json(serde_json::json!({"status": "disconnected"})),
+        Err(error) => Json(serde_json::json!({"status": "failed", "error": error})),
+    }
 }
 
 fn send_mpv_ipc(cmd: &str) {
@@ -698,41 +662,32 @@ fn get_mpv_pos_duration() -> (f64, f64) {
     (pos, duration)
 }
 
-async fn is_bt_connected(mac: &str) -> bool {
-    if let Ok(out) = std::process::Command::new("bluetoothctl")
-        .args(&["info", mac])
-        .output()
-    {
-        let text = String::from_utf8_lossy(&out.stdout);
-        return text.contains("Connected: yes");
+fn audio_command(program: &str) -> std::process::Command {
+    let mut command = std::process::Command::new(program);
+    let runtime = std::env::var("XDG_RUNTIME_DIR").ok().or_else(|| {
+        let output = std::process::Command::new("id").arg("-u").output().ok()?;
+        if !output.status.success() { return None; }
+        let uid = String::from_utf8(output.stdout).ok()?;
+        Some(format!("/run/user/{}", uid.trim()))
+    });
+    if let Some(runtime) = runtime {
+        command.env("XDG_RUNTIME_DIR", &runtime);
+        if std::env::var_os("PULSE_SERVER").is_none() {
+            command.env("PULSE_SERVER", format!("unix:{runtime}/pulse/native"));
+        }
     }
-    false
-}
-
-fn run_bt_connect_script() -> bool {
-    let output = std::process::Command::new("bash")
-        .arg("/home/afine/connect_jbl.sh")
-        .output();
-    if let Ok(out) = output {
-        let text = String::from_utf8_lossy(&out.stdout);
-        return text.contains("SUCCESS");
-    }
-    false
+    command
 }
 
 fn setup_pulse_bt_audio(mac: &str) {
     let mac_underscore = mac.replace(":", "_");
     let card_name = format!("bluez_card.{}", mac_underscore);
 
-    let _ = std::process::Command::new("pactl")
-        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+    let _ = audio_command("pactl")
         .args(&["set-card-profile", &card_name, "a2dp_sink"])
         .output();
 
-    if let Ok(out) = std::process::Command::new("pactl")
-        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+    if let Ok(out) = audio_command("pactl")
         .args(&["list", "sinks", "short"])
         .output()
     {
@@ -741,28 +696,20 @@ fn setup_pulse_bt_audio(mac: &str) {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2 {
                 let sink_name = parts[1];
-                if sink_name.contains(&mac_underscore) || sink_name.contains("bluez") {
-                    let _ = std::process::Command::new("pactl")
-                        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-                        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+                if sink_name.contains(&mac_underscore) {
+                    let _ = audio_command("pactl")
                         .args(&["set-default-sink", sink_name])
                         .output();
 
-                    let _ = std::process::Command::new("pactl")
-                        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-                        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+                    let _ = audio_command("pactl")
                         .args(&["set-sink-mute", sink_name, "0"])
                         .output();
 
-                    let _ = std::process::Command::new("pactl")
-                        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-                        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+                    let _ = audio_command("pactl")
                         .args(&["set-sink-volume", sink_name, "100%"])
                         .output();
 
-                    if let Ok(inputs) = std::process::Command::new("pactl")
-                        .env("XDG_RUNTIME_DIR", "/run/user/1000")
-                        .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+                    if let Ok(inputs) = audio_command("pactl")
                         .args(&["list", "sink-inputs", "short"])
                         .output()
                     {
@@ -771,9 +718,7 @@ fn setup_pulse_bt_audio(mac: &str) {
                             let in_parts: Vec<&str> = in_line.split_whitespace().collect();
                             if !in_parts.is_empty() {
                                 let input_id = in_parts[0];
-                                let _ = std::process::Command::new("pactl")
-                                    .env("XDG_RUNTIME_DIR", "/run/user/1000")
-                                    .env("PULSE_SERVER", "unix:/run/user/1000/pulse/native")
+                                let _ = audio_command("pactl")
                                     .args(&["move-sink-input", input_id, sink_name])
                                     .output();
                             }

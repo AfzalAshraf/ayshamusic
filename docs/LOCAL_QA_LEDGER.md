@@ -61,3 +61,28 @@ No next-department implementation should begin until the user approves the archi
 - Verified: all 11 checker tests pass; CLI help and git diff --check pass. These are test-tool results, not a Rust application or hardware verification.
 - Current stream metadata remains a known failing application check; it is deliberately not hidden by the test suite.
 - No department is promoted to 5/5 from test-tool fixture results. Architecture access scope, total memory budget, browser targets, persistence and multi-client requirements remain unanswered.
+
+## Browser playback and Bluetooth failure remediation
+
+Evidence supplied by user: release build succeeds, Rust reports zero tests, all 11 Python checker tests pass, live UI/status/queue pass, live audio fails MIME mismatch (audio/mpeg versus WebM).
+
+Additional source findings:
+- The served src/index.html still parsed the binary stream as JSON and expected stream_url.
+- Frontend posted play metadata as JSON while play_handler extracts Query<PlayQuery>, yielding missing URL errors.
+- Browser play notifications still launched server mpv. The autoplay watcher could also launch mpv while browser audio was selected.
+- Card action handlers inserted unescaped JSON into double-quoted HTML attributes.
+- Disconnect called connect, Scan Speakers was not a scan, connection diagnostics were discarded, and a background reconnect loop could undo a user disconnect.
+- Audio routing forced UID 1000 regardless of the service user.
+
+Changes:
+- src/media.rs owns stream startup and process lifetime, detects media headers, preserves header bytes, advertises no seeking, enables TLS verification, logs downloader failures, and imposes a startup timeout. Downloader input is restricted to HTTPS YouTube hosts. This is not a complete SSRF/authentication boundary; redirects and configured downloader behavior still require review.
+- The embedded page directly assigns the proxy URL, sends play query parameters with explicit browser/bt mode, reports request/media failures, and binds card buttons with closures.
+- Browser mode tracks state without spawning mpv. The server watcher no longer starts mpv for browser mode.
+- Bluetooth connection verifies actual bluetoothctl state after the configured script, exposes errors and timeout, and disconnect has a dedicated endpoint. Background reconnect was removed so explicit disconnect stays disconnected.
+- Existing JBL MAC remains unchanged, pending user confirmation. MUSIC_BT_CONNECT_SCRIPT can override the existing /home/afine/connect_jbl.sh path.
+- Audio commands honor service-provided XDG_RUNTIME_DIR/PULSE_SERVER; otherwise derive the runtime directory from the process user's id rather than UID 1000. mpv startup failures are returned, and mpv children are reaped after exit.
+- Added seven Rust media tests and six embedded-frontend tests. Added read-only scripts/diagnose_local.sh and Linux CI build/test workflow; no deployment workflow is added.
+
+Verification: six frontend tests and eleven Python tests pass locally. Rust is unavailable in the agent workspace; CI/target-machine verification is recorded separately when available.
+
+Still open: actual Bluetooth adapter/pairing/permissions and audio server status, installed service path, browser decoding/device compatibility, browser ended-to-next behavior, Bluetooth track-end detection (watcher still has pre-existing eager advancement), process concurrency/idle timeouts, persistence and memory budget. Hardware playback is not claimed fixed or rated 5/5 based on these code changes.
