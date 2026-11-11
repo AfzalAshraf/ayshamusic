@@ -13,7 +13,7 @@ use std::os::unix::net::UnixStream;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, ReadBuf};
 use tower_http::cors::CorsLayer;
 use futures_util::stream::Stream;
 
@@ -316,16 +316,19 @@ impl Stream for YtDlpStream {
         if self.eof {
             return Poll::Ready(None);
         }
-        let n = match Pin::new(&mut self.stdout).poll_read(cx, &mut self.buf) {
-            Poll::Ready(Ok(n)) => n,
+        let mut rb = ReadBuf::new(&mut self.buf);
+        match Pin::new(&mut self.stdout).poll_read(cx, &mut rb) {
+            Poll::Ready(Ok(())) => {
+                let n = rb.filled().len();
+                if n == 0 {
+                    self.eof = true;
+                    return Poll::Ready(None);
+                }
+                Poll::Ready(Some(Ok(Bytes::copy_from_slice(&self.buf[..n]))))
+            }
             Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
             Poll::Pending => return Poll::Pending,
-        };
-        if n == 0 {
-            self.eof = true;
-            return Poll::Ready(None);
         }
-        Poll::Ready(Some(Ok(Bytes::copy_from_slice(&self.buf[..n]))))
     }
 }
 
