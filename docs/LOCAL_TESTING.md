@@ -98,3 +98,26 @@ First run `bash scripts/diagnose_local.sh` and capture the complete output. Each
 According to the official guide (https://github.com/yt-dlp/yt-dlp/wiki/EJS), YouTube extraction needs both a supported JS runtime and EJS challenge scripts. Deno >=2.3 is recommended and enabled by default. Node >=22 needs `--js-runtimes node`; merely installing Node does not enable it in yt-dlp. EJS packaging depends on the yt-dlp installation method. Confirm those details before upgrading, installing, editing config or enabling remote component downloads.
 
 A successful stream test is not proof of audible playback. A completed download can simply mean the browser buffered a whole track. Report separately whether sound is heard, which browser/device is used, and the visible player error. A 403 remains an upstream extraction/access failure until a retest establishes its cause; a missing JS runtime is a candidate, not a guaranteed explanation.
+
+## Confirmed afine machine: next targeted tests
+
+The supplied diagnostics identify Node 22.22.1 and yt-dlp 2026.08.19. No new runtime installation is necessary for a Node test. Run as afine, not with sudo:
+
+```bash
+# Small real download of the track that returned 403; use a fresh temporary directory.
+test_dir=$(mktemp -d /tmp/aysha-ytdlp.XXXXXX) &&
+yt-dlp --js-runtimes node:/usr/bin/node --no-playlist --test \
+  -f bestaudio -o "$test_dir/audio.%(ext)s" \
+  'https://www.youtube.com/watch?v=Jm7Satp7Zqk'
+
+# JBL is already paired and trusted. Attempt connection without resetting pairing.
+timeout --kill-after=2s 25s bluetoothctl connect 04:CB:88:92:43:60
+bluetoothctl info 04:CB:88:92:43:60
+pactl list sinks short
+```
+
+Power the speaker on nearby first. If another device is connected to it, disconnect that device for this test. Capture the exact connect error; do not infer a failed Bluetooth service when diagnostics show it is active. A sink may take a few seconds to appear after connection.
+
+The previously observed MainPID=0 and absence of music-server mean the player was stopped at diagnostic time. For a browser-only foreground retest, use `cd /home/afine/ayshamusic && ./target/release/music-server` and leave that terminal open. If port 5050 is already occupied, inspect the existing process instead of starting another instance. A per-command --js-runtimes option tests only that downloader invocation; it does not automatically configure the server's future yt-dlp subprocesses.
+
+After the direct tests succeed, persist the supported runtime in the appropriate user yt-dlp configuration and verify that the systemd service PATH includes /home/afine/.local/bin. The confirmed service binary is /home/afine/music-server/target/release/music-server, but do not overwrite a running executable or restart an old installed binary under the assumption that cargo build installed it.

@@ -111,3 +111,22 @@ Research: https://github.com/yt-dlp/yt-dlp/wiki/EJS (both setup sections read). 
 Changes: diagnostics now print downloader/runtime paths and versions, OS/architecture, disable systemctl paging, and force-kill stuck probes two seconds after their 15-second timeout. No runtime is installed, no downloader configuration changed, and no automatic remote script downloads are enabled.
 
 Next action: get full diagnostic output, confirm whether sound is actually audible and which browser is used, then choose installation/configuration steps matching the existing yt-dlp installation and approved memory budget. Do not prescribe sudo pip, replace system packages or install a JS runtime blindly. Department ratings remain provisional.
+
+## Full target diagnostics: stopped player, installed Node, disconnected JBL
+
+Evidence supplied by user:
+- Ubuntu 26.04 x86_64, afine uid=1000.
+- yt-dlp 2026.08.19 at /home/afine/.local/bin/yt-dlp; Node v22.22.1 at /usr/bin/node; Deno/QuickJS not on the shell PATH.
+- aysha-music MainPID=0; no music-server, yt-dlp or mpv processes were found at diagnostic time. ps exits nonzero when no processes match; that output does not establish a timeout.
+- Confirmed installed ExecStart: /home/afine/music-server/target/release/music-server; WorkingDirectory=/home/afine/music-server; User=afine.
+- Bluetooth service active, controller powered. JBL 04:CB:88:92:43:60 paired/bonded/trusted, not blocked, Connected: no.
+- PulseAudio compatibility server is PipeWire 1.6.2 at /run/user/1000/pulse/native. Only the internal ALSA card/sink appears. User-shell access works; systemd environment is not yet verified.
+
+Conclusions/actions:
+- The player must be started for UI/API playback; successful compilation does not imply a running server.
+- Test the already-installed Node explicitly with yt-dlp --js-runtimes node:/usr/bin/node against the previously failing track before any runtime installation or package upgrade.
+- Direct bluetoothctl connect is the next diagnostic, followed by info and sink enumeration. The reason the speaker is disconnected is still unknown. Pairable: no is not itself a reason to re-pair an already bonded speaker.
+- No automatic pairing reset, trust changes, service reinstall or runtime installation is justified by these logs.
+- Persistent yt-dlp settings and systemd PATH must be checked separately after a successful direct test: the user's ~/.local/bin downloader is not guaranteed to be visible in the service environment.
+
+Only documentation changed in this turn. Latest known application build/tests remain successful; browser audibility, a successful JBL connection and service recovery are still pending. All departmental scores remain provisional below 5/5.
