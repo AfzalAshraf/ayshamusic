@@ -231,27 +231,6 @@ fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track> {
     tracks
 }
 
-/// Get direct audio stream URL for a YouTube video via yt-dlp.
-fn get_stream_url(url: &str) -> Option<String> {
-    let output = std::process::Command::new("yt-dlp")
-        .args(&[
-            "-f",
-            "bestaudio",
-            "--get-url",
-            "--no-check-certificate",
-            "--no-warnings",
-        ])
-        .arg(url)
-        .output();
-    match output {
-        Ok(out) => {
-            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if url.is_empty() { None } else { Some(url) }
-        }
-        Err(_) => None,
-    }
-}
-
 /// Proxy YouTube audio through the server using yt-dlp to download chunks
 /// and pipe them to the browser HTML5 <audio> element with CORS headers.
 /// The audio never goes directly from YouTube to the browser — it always
@@ -312,7 +291,7 @@ struct YtDlpStream {
 impl Stream for YtDlpStream {
     type Item = Result<Bytes, std::io::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.eof {
             return Poll::Ready(None);
         }
