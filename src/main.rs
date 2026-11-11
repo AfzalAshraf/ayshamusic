@@ -316,15 +316,17 @@ impl Stream for YtDlpStream {
         if self.eof {
             return Poll::Ready(None);
         }
-        let mut rb = ReadBuf::new(&mut self.buf);
-        match Pin::new(&mut self.stdout).poll_read(cx, &mut rb) {
+        // Split self into fields to allow independent mutable borrows of buf and stdout
+        let Self { stdout, buf, eof } = self.get_mut();
+        let mut rb = ReadBuf::new(buf);
+        match Pin::new(stdout).poll_read(cx, &mut rb) {
             Poll::Ready(Ok(())) => {
                 let n = rb.filled().len();
                 if n == 0 {
-                    self.eof = true;
+                    *eof = true;
                     return Poll::Ready(None);
                 }
-                Poll::Ready(Some(Ok(Bytes::copy_from_slice(&self.buf[..n]))))
+                Poll::Ready(Some(Ok(Bytes::copy_from_slice(&buf[..n]))))
             }
             Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
             Poll::Pending => return Poll::Pending,
