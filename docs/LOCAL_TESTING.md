@@ -90,3 +90,11 @@ cargo test && cargo build --release && sudo systemctl stop aysha-music && ./targ
 Leave that terminal open. In a second terminal, run the smoke checks. Hard-refresh the browser to load the new embedded page. When finished, Ctrl-C stops the foreground process; `sudo systemctl start aysha-music` restores the installed service, which may still use the older binary until you update its actual ExecStart path. Do not copy to an assumed installation path.
 
 Bluetooth still targets the existing JBL MAC 04:CB:88:92:43:60. Confirm this is your speaker. Connect uses the existing connection script, optionally overridden by MUSIC_BT_CONNECT_SCRIPT. No real device scan or automatic pairing is claimed. Failures are now shown in the Bluetooth page; powering/pairing/adapter and service-user permissions require local diagnostics. Automatic background reconnect was removed so Disconnect is respected.
+
+## Missing yt-dlp JavaScript runtime / occasional HTTP 403
+
+First run `bash scripts/diagnose_local.sh` and capture the complete output. Each probe is bounded and systemctl paging is disabled. The script reports yt-dlp, Node and Deno paths/versions, the Linux distribution and Bluetooth/audio status. It does not install or enable any runtime.
+
+According to the official guide (https://github.com/yt-dlp/yt-dlp/wiki/EJS), YouTube extraction needs both a supported JS runtime and EJS challenge scripts. Deno >=2.3 is recommended and enabled by default. Node >=22 needs `--js-runtimes node`; merely installing Node does not enable it in yt-dlp. EJS packaging depends on the yt-dlp installation method. Confirm those details before upgrading, installing, editing config or enabling remote component downloads.
+
+A successful stream test is not proof of audible playback. A completed download can simply mean the browser buffered a whole track. Report separately whether sound is heard, which browser/device is used, and the visible player error. A 403 remains an upstream extraction/access failure until a retest establishes its cause; a missing JS runtime is a candidate, not a guaranteed explanation.

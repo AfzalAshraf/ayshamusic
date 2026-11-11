@@ -95,3 +95,19 @@ https://github.com/AfzalAshraf/ayshamusic/actions/runs/43069050583
 All four job steps passed: cargo test, cargo build --release, Python checker tests, and embedded frontend regression tests. This closes the unverified-compilation caveat for that source commit. Full log download was blocked by this workspace's outbound-host restriction, but run/job success was confirmed by gh run watch --exit-status. The workflow reported a nonblocking actions/checkout v4 Node runtime deprecation notice.
 
 This does not verify the user's Bluetooth hardware, service environment, YouTube availability or browser decoding. Live retest must use the freshly built binary, not just the previously installed systemd binary. Department scores remain provisional pending those acceptance gates.
+
+## Target-machine stream success; extractor/runtime warning
+
+User verified seven Rust tests and the release build pass on local Linux. Live UI, status, queue, and audio transport/metadata checks all pass. Sample is audio/webm, 4096 bytes. Browser decoding is still not confirmed by these checks.
+
+New reported errors:
+- yt-dlp: "No supported JavaScript runtime could be found. Only deno is enabled by default".
+- Track Jm7Satp7Zqk: "unable to download video data: HTTP Error 403: Forbidden"; media::response_from_child reports "early eof".
+- Other reported tracks reach download completion. Completion means download finished, not that the browser played the audio.
+- Diagnostic output stops at systemctl show; no adapter, pairing or sink evidence was supplied. Cannot infer Bluetooth root cause from uid=1000 or group membership.
+
+Research: https://github.com/yt-dlp/yt-dlp/wiki/EJS (both setup sections read). Official guide requires a supported JS runtime plus EJS scripts. Deno >=2.3 is recommended and enabled by default; Node >=22 must be explicitly enabled with --js-runtimes node. Script installation depends on yt-dlp distribution. An absent enabled runtime is a plausible extraction problem, not proof that it caused this particular 403.
+
+Changes: diagnostics now print downloader/runtime paths and versions, OS/architecture, disable systemctl paging, and force-kill stuck probes two seconds after their 15-second timeout. No runtime is installed, no downloader configuration changed, and no automatic remote script downloads are enabled.
+
+Next action: get full diagnostic output, confirm whether sound is actually audible and which browser is used, then choose installation/configuration steps matching the existing yt-dlp installation and approved memory budget. Do not prescribe sudo pip, replace system packages or install a JS runtime blindly. Department ratings remain provisional.

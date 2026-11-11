@@ -1,17 +1,35 @@
 #!/usr/bin/env bash
 # Read-only local Linux diagnostics. No pairing, connection or service changes.
 set -u
+# Do not let systemctl invoke a pager or leave an unresponsive probe running.
+export SYSTEMD_PAGER=cat SYSTEMD_COLORS=0 PAGER=cat
 run() {
   printf '\n--- %s ---\n' "$*"
   if ! command -v "$1" >/dev/null 2>&1; then
     printf 'Missing command: %s\n' "$1"
     return
   fi
-  timeout 15 "$@" 2>&1 || printf '(command failed or timed out)\n'
+  timeout --kill-after=2s 15s "$@" 2>&1 || printf '(command failed or timed out; continuing)\n'
 }
+if ! command -v timeout >/dev/null 2>&1; then
+  printf 'Missing GNU timeout; cannot run bounded diagnostics safely.\n' >&2
+  exit 1
+fi
 run id
-run systemctl show aysha-music -p User -p ExecStart -p WorkingDirectory -p MainPID
-run systemctl is-active bluetooth
+printf '\n--- Downloader and JavaScript runtime paths ---\n'
+for tool in yt-dlp node deno qjs; do
+  command -v "$tool" || printf '%s is not on this shell PATH\n' "$tool"
+done
+run yt-dlp --version
+run node --version
+run deno --version
+run uname -m
+if [[ -r /etc/os-release ]]; then
+  printf '\n--- Linux distribution ---\n'
+  grep -E '^(NAME|VERSION_ID|ID)=' /etc/os-release
+fi
+run systemctl --no-pager show aysha-music -p User -p ExecStart -p WorkingDirectory -p MainPID
+run systemctl --no-pager is-active bluetooth
 run bluetoothctl show
 run bluetoothctl info 04:CB:88:92:43:60
 run pactl info
