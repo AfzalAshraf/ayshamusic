@@ -157,3 +157,10 @@ Changes:
 Initial local test-tool failure: two frontend tests reported TypeError: document.getElementById(...).setAttribute is not a function because the minimal DOM mock lacked the new native accessibility API. Extended the mock with attributes/listeners; all 12 frontend and 14 Python tests subsequently pass. Shell syntax and diff checks pass. New Rust tests/build are verified by CI separately before reporting success.
 
 Remaining gates: actual updated service installation, SSH logout/reboot survival, audible browser playback, JBL radio connection, Bluetooth natural-end autoplay, concurrent clients, browser visual/screen-reader validation, persistence decision, network boundary, and memory budget/measurement. Closing SSH client is supported by systemd; shutting down the Linux server itself cannot preserve playback.
+
+### Verification of controls/service/icon source commit 1420ffa
+
+Linux CI run 43073462317 passed: Rust regression tests, release build, all Python tests (14 locally), embedded frontend tests (12 locally) and Linux script syntax. Source commit: 1420ffaf07be4113a22cc3e72808c3a2d9e90c6b.
+https://github.com/AfzalAshraf/ayshamusic/actions/runs/43073462317
+
+The host-specific installer has not been executed against the user's machine by the agent, and CI does not exercise systemd installation, reboot/logout, speaker hardware or visual browser rendering. README now directs local users to the installer and correctly identifies src/index.html as the Rust-served frontend. No pending source compile failure remains from this pass.

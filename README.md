@@ -3,10 +3,23 @@
 A lightweight music player backend + PWA frontend, made with ♥ for Aysha — with love, from Afzal.
 **Target: under 20MB RAM.**
 
+## Local Linux: run without keeping SSH open
+
+For the confirmed `afine` UID 1000 machine, stop any foreground player with Ctrl-C, then run:
+
+```bash
+cd /home/afine/ayshamusic
+bash scripts/install_local.sh
+```
+
+The installer tests/builds the Rust binary, backs up the existing installation, installs the systemd service, enables boot startup and user lingering, and supplies the tested Node runtime. Run it as `afine`, not as root. Closing the SSH client is then safe; the Linux server itself must remain powered on. Browser audio still requires its listening browser to remain open.
+
+See [local service installation and verification](docs/LOCAL_SERVICE.md), [local tests](docs/LOCAL_TESTING.md), and the dedicated [SVG icon skill](skills/icons/SKILL.md). Hardware Bluetooth connectivity and reboot recovery must be checked on the real machine; automated builds do not prove those gates.
+
 ## What it is
 
 - **Rust server** (`src/main.rs`) — runs on your own Linux machine/Raspberry Pi with `mpv` + `bluetoothctl` + `pactl`. Plays audio to your Bluetooth speaker via PulseAudio. ~6MB RAM.
-- **PWA frontend** (`src/www/index.html`) — installable on iPhone/Android Home Screen, lock screen controls, dark UI, queue, liked songs, Bluetooth tab.
+- **Frontend** — the local Rust server embeds `src/index.html` and `src/icons.svg`; `src/www/index.html` is the separate web/PWA asset copy. Changes to the latter alone do not update the Rust-served player.
 - **Free-tier deployment** — `Dockerfile`, `fly.toml`, `render.yaml` for one-click deploy to Fly.io, Render, Koyeb. Uses Python `server.py` fallback (no Rust compile needed on the platform).
 
 ## Features
