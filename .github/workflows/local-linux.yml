@@ -31,7 +31,20 @@ jobs:
       - name: Build isolated prototype
         run: cargo build --release --manifest-path prototypes/rust-audio/Cargo.toml
       - name: Decode fixtures and exercise null audio output
-        run: bash tests/rust_audio_smoke.sh prototypes/rust-audio/target/release/aysha-audio-prototype
+        run: |
+          set +e
+          bash tests/rust_audio_smoke.sh prototypes/rust-audio/target/release/aysha-audio-prototype > prototype-smoke.log 2>&1
+          result=$?
+          set -e
+          cat prototype-smoke.log
+          if [[ $result -ne 0 ]]; then
+            detail=$(tail -c 8000 prototype-smoke.log)
+            detail="${detail//'%'/'%25'}"
+            detail="${detail//$'\r'/'%0D'}"
+            detail="${detail//$'\n'/'%0A'}"
+            printf '::error title=Prototype smoke failure::%s\n' "$detail"
+          fi
+          exit "$result"
       - name: Retain resolved prototype dependency lock for reproducibility
         uses: actions/upload-artifact@v4
         with:
