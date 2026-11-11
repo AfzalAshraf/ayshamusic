@@ -6,6 +6,10 @@
 - The Linux host running music-server must remain powered on and awake. A powered-off or suspended local server cannot serve audio.
 - Browser-mode audio still needs the listening browser/device to remain open. Bluetooth mode runs mpv on the Linux server; closing the SSH client does not close mpv when it belongs to the service.
 
+## Optional native Rust playback experiment
+
+The user-approved first prototype is a **separate local-file audio command**, not a service replacement. Follow [RUST_AUDIO_PROTOTYPE.md](RUST_AUDIO_PROTOTYPE.md) for its isolated build, prepared-file test, controls and memory reporting. The root Cargo commands and production installer below do not build or install that experiment. Do not replace ExecStart with the prototype.
+
 ## Source and compile only
 
 Current work is on `arena/a850fb0d-ayshamusic`. Use the existing checkout of that branch; do not launch a second server alongside systemd.
