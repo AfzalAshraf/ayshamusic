@@ -86,3 +86,12 @@ Changes:
 Verification: six frontend tests and eleven Python tests pass locally. Rust is unavailable in the agent workspace; CI/target-machine verification is recorded separately when available.
 
 Still open: actual Bluetooth adapter/pairing/permissions and audio server status, installed service path, browser decoding/device compatibility, browser ended-to-next behavior, Bluetooth track-end detection (watcher still has pre-existing eager advancement), process concurrency/idle timeouts, persistence and memory budget. Hardware playback is not claimed fixed or rated 5/5 based on these code changes.
+
+### Linux build verification result
+
+GitHub Actions run 43069050583 for source commit 6088c84 completed successfully:
+https://github.com/AfzalAshraf/ayshamusic/actions/runs/43069050583
+
+All four job steps passed: cargo test, cargo build --release, Python checker tests, and embedded frontend regression tests. This closes the unverified-compilation caveat for that source commit. Full log download was blocked by this workspace's outbound-host restriction, but run/job success was confirmed by gh run watch --exit-status. The workflow reported a nonblocking actions/checkout v4 Node runtime deprecation notice.
+
+This does not verify the user's Bluetooth hardware, service environment, YouTube availability or browser decoding. Live retest must use the freshly built binary, not just the previously installed systemd binary. Department scores remain provisional pending those acceptance gates.
