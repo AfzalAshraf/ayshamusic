@@ -164,3 +164,19 @@ Linux CI run 43073462317 passed: Rust regression tests, release build, all Pytho
 https://github.com/AfzalAshraf/ayshamusic/actions/runs/43073462317
 
 The host-specific installer has not been executed against the user's machine by the agent, and CI does not exercise systemd installation, reboot/logout, speaker hardware or visual browser rendering. README now directs local users to the installer and correctly identifies src/index.html as the Rust-served frontend. No pending source compile failure remains from this pass.
+
+## Remote access and simultaneous devices: architecture department
+
+Active skill: Product & Architecture. New department: Networking & Self-Hosting, provisional 1/5 until deployment and off-LAN security/playback tests pass. User now reports "it plays" and identifies Android Chromium as the primary browser. Audible playback is reported; output destination, actual Android build, SSH logout/reboot and multiple-device acceptance are not yet established.
+
+User requests: custom-domain outside-home listening using Cloudflare Tunnel, simultaneous devices without interference, a skill/rating for the new department and recommendations.
+
+Source audit: all requests share one AppStateInner.player, global mpv stop pattern and a frontend that auto-selects the home speaker if connected. This explains a concrete cross-device interference risk but not every unspecified symptom. /api/stream starts downloader processes without a configured per-device/global admission cap. Origin is unauthenticated with permissive CORS and 0.0.0.0:5050 binding. Do not publish it as-is for multi-user use.
+
+Created skills/networking-self-hosting/SKILL.md and docs/REMOTE_MULTI_DEVICE_PLAN.md. They specify private Access-before-route setup, current provider media-term verification, per-device sessions and owned streams, separate administrator-owned Bluetooth output, resource caps, Android acceptance tests, rollout/rollback and department ratings. No application code, packages, firewall, DNS, installed services or tunnel credentials were changed.
+
+Current provisional ratings for the expanded local-plus-remote scope: Product & Architecture 2/5, UI/UX Design & Frontend 3/5, Backend & Database 2/5, QA/Security 3/5, Networking & Self-Hosting 1/5. Exact acceptance gates are in the plan. These supersede only the current readiness assessment, not historical audit evidence.
+
+Research: official Cloudflare Tunnel overview, self-hosted public Access application guidance, remote tunnel API/install guidance, and current CDN service-specific terms were checked. Access must protect UI/API/audio before the route is public. CDN audio restrictions are a suitability concern, not grounds to assert that all Tunnel uses are prohibited; confirm the intended product/plan before sustained audio relay. No unlimited-free-audio promise is made.
+
+Questions blocking implementation: independent playback vs synchronized room, actual domain and permitted audience, concurrency and RAM-budget scope, remote Bluetooth privileges and persistence. Await design approval before changing data ownership or deploying the route. Verification this turn is source inspection and git diff --check only; no remote account configuration or new live multi-device tests occurred.
