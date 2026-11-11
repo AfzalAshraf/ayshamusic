@@ -20,6 +20,23 @@ jobs:
         run: node --test tests/frontend.test.cjs
       - name: Linux script syntax
         run: bash -n scripts/install_local.sh scripts/diagnose_local.sh
+  rust-audio-prototype:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prototype build and test-only media dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config ffmpeg
+      - name: Test isolated Rust audio prototype
+        run: cargo test --manifest-path prototypes/rust-audio/Cargo.toml
+      - name: Build isolated prototype
+        run: cargo build --release --manifest-path prototypes/rust-audio/Cargo.toml
+      - name: Decode fixtures and exercise null audio output
+        run: bash tests/rust_audio_smoke.sh prototypes/rust-audio/target/release/aysha-audio-prototype
+      - name: Retain resolved prototype dependency lock for reproducibility
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-audio-lock
+          path: prototypes/rust-audio/Cargo.lock
   mobile-browser:
     runs-on: ubuntu-latest
     steps:

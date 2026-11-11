@@ -3,3 +3,4 @@ __pycache__/
 *.py[cod]
 
 /previews/
+/prototypes/rust-audio/target/
