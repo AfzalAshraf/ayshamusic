@@ -3,6 +3,22 @@
   "scope": "user_supplied_target_host_observations_not_a_live_probe",
   "video_id": "Jm7Satp7Zqk",
   "latest_native": {
+    "source_revision": "39dd9fe",
+    "candidate": "aysha-direct-v5-data-literals",
+    "debug_build_passed": true,
+    "build_profile": "debug",
+    "debug_build_seconds": 1.64,
+    "status": "fail",
+    "code": "watch_visitor_missing",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 10884,
+    "watch_parser_only": false,
+    "player_requested": false,
+    "media_requested": false,
+    "production_ready": false
+  },
+  "previous_native": {
     "source_revision": "5dd69ff",
     "candidate": "aysha-direct-v4.1-watch-literals",
     "tests_passed": 25,
@@ -13,19 +29,6 @@
     "stage": "watch",
     "external_tools": false,
     "peak_rss_kib": 6016,
-    "production_ready": false
-  },
-  "previous_native": {
-    "source_revision": "120c5fe",
-    "candidate": "aysha-direct-v4-watch-bootstrap",
-    "tests_passed": 21,
-    "release_build_passed": true,
-    "release_build_seconds": 18.45,
-    "status": "fail",
-    "code": "watch_literal_invalid",
-    "stage": "watch",
-    "external_tools": false,
-    "peak_rss_kib": 5764,
     "production_ready": false
   },
   "baseline_trace": {
@@ -44,11 +47,11 @@
   "stop_identical_native_trials": true,
   "limits": "Historical attempts, not simultaneous controlled comparison. Failed-request RSS is not successful extraction, playback or whole-server memory. Baseline markers do not prove selected-media client or absence of JS. Bootstrap cause/solution unproved.",
   "approved_experiment": {
-    "candidate": "aysha-direct-v5-data-literals",
+    "candidate": "aysha-direct-v5.1-static-wrapper",
     "approval_recorded": true,
     "status": "awaiting_single_host_trial",
     "host_result_recorded": false,
-    "scope": "same_approved_bounded_anonymous_watch_player_media_chain_with_static_data_literal_reader_no_execution"
+    "scope": "same_approved_bounded_anonymous_chain_with_exact_static_wrapper_scaffold_and_value_free_observations_no_execution"
   },
   "historical_native": [
     {
@@ -79,12 +82,25 @@
       "external_tools": false,
       "peak_rss_kib": 5764,
       "production_ready": false
+    },
+    {
+      "source_revision": "5dd69ff",
+      "candidate": "aysha-direct-v4.1-watch-literals",
+      "tests_passed": 25,
+      "release_build_passed": true,
+      "release_build_seconds": 18.6,
+      "status": "fail",
+      "code": "watch_config_invalid",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 6016,
+      "production_ready": false
     }
   ],
   "pending_diagnostic": {
-    "candidate": "aysha-direct-v5-watch-inspect",
+    "candidate": "aysha-direct-v5.1-watch-observation",
     "status": "optional_not_the_next_host_trial",
-    "scope": "same_watch_only_mode_retained_for_offline_review_not_an_extra_live_request",
+    "scope": "watch_only_mode_retained_not_an_extra_live_request_before_or_after_the_one_full_trial",
     "external_tools": false
   },
   "latest_diagnostic": {

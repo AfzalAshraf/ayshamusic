@@ -18,13 +18,16 @@ NATIVE_ACTIONS = {
     "aysha-direct-v4-watch-bootstrap": "one_approved_v4_host_trial_after_offline_verification",
     "aysha-direct-v4.1-watch-literals": "one_parser_corrected_v4_1_trial_after_offline_verification",
     "aysha-direct-v5-data-literals": "one_bounded_v5_native_trial_after_offline_verification",
+    "aysha-direct-v5.1-static-wrapper": "one_bounded_v5_1_wrapper_trial_with_value_free_observations",
 }
 
 
 def assess(evidence):
     native = evidence.get("latest_native", {})
     prefix_pass = (native.get("status") == "pass" and native.get("bytes") == 65536
-                   and native.get("external_tools") is False and not native.get("code"))
+                   and native.get("external_tools") is False and not native.get("code")
+                   and native.get("watch_parser_only") is not True and native.get("stage") != "watch"
+                   and native.get("player_requested") is not False and native.get("media_requested") is not False)
     approved = evidence.get("approved_experiment", {})
     native_action = (NATIVE_ACTIONS.get(approved.get("candidate")) if isinstance(approved, dict)
                      and approved.get("approval_recorded") is True

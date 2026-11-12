@@ -252,3 +252,16 @@ source4cf5566 CI43284047821 all5jobs PASS. No live v5/provider/codec/budget acce
 Current direct guide now contains one next full native trial and a dependency-ordered
 plan for audio/search/controls/complete memory/production, with historical commands
 archived. No new REA run/dependency or whole-app Rust/10–15MB claim.
+
+### V5.1 exact static wrapper, not generic function traversal
+
+User host39dd9fe compiled1.64s but watch_visitor_missing before player/media. Archive
+c9b17c81855981ed898636ced2ba57c3a85a6eba main config lives inside an IIFE; prior top-level
+reader skips it. This is reproduced coverage evidence, not proof of host shape.
+V5.1 matches only the fixed straight-line anonymous parameterless IIFE/config/optional
+localization scaffold and complete immediate invocation, never executes/searches general
+functions. Adds only value-free source counts/visitor-presence flags; no generated value,
+account/session/token provider/REA production dependency.55Rust tests/sourcea169b48
+CI43288159691 all5PASS, actual acquisition/audio/full10–15MB still blocked. Current
+direct guide supplies ONE changed bounded trial and explicit absent-data/unsupported-
+wrapper/restriction stop branches; no unchanged v5 retry or separate inspect request.

@@ -14,5 +14,18 @@
     "This proves a parser compatibility gap, not the actual syntax of the user's failed watch response or its exact root cause.",
     "Only fixed public syntax and blob identity are recorded; no raw HTML, visitor/session/cookie/account data is included.",
     "The new unit fixtures are synthetic and do not copy or execute the archived page."
-  ]
+  ],
+  "v5_1_offline_wrapper_review": {
+    "source": "same_pinned_public_blob_only_not_current_host",
+    "observed_scaffold": "(function() {window.ytplayer={}; ytcfg.set(STATIC_OBJECT); FIXED_MESSAGE_HELPER; setMessage(STATIC_OBJECT);})();",
+    "observed_following_display_calls": [
+      "ytcfg.set(\"initialInnerWidth\",window.innerWidth);",
+      "ytcfg.set(\"initialInnerHeight\",window.innerHeight);"
+    ],
+    "prior_reader_behavior": "ignores entire function-prefixed script; accepts initial player elsewhere but can end watch_visitor_missing if it has no visitorData",
+    "patch_scope": "match parameterless anonymous straight-line IIFE header, optional exact namespace reset, static configs, optional exact localization helper plus static message call, and complete immediate invocation; unknown wrapper suffixes fail; no general function traversal/execution",
+    "fixture": "prototypes/rust-direct/fixtures/static-wrapper.html",
+    "fixture_data": "synthetic only, including opaque sentinel; does not copy page values",
+    "host_cause_confirmed": false
+  }
 }

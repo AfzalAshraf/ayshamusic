@@ -1198,3 +1198,64 @@ path; historical commands moved to research/RUST_DIRECT_HISTORY.md with do-not-e
 warning. Memory plan and REA roadmap remain explicit that working all-Rust10–15MB is
 unproved. Production5050/UI/Vercel/systemd/audio/deps/stopped5051 unchanged. Extraction
 2/5; preserve unrelated trackedpyc deletion. No new REA execution/integration.
+
+## Host v5: visitor missing; static wrapper gap reproduced offline and bounded v5.1 patch
+
+Active department QA & Debugging. User pulled39dd9fe successfully, debug build1.64s
+PASS; candidate aysha-direct-v5-data-literals failed watch_visitor_missing, stagewatch,
+watch_parser_onlyfalse, player/media requestedfalse, external_toolsfalse, production_ready
+false, HWM10884KiB (11,145,216bytes). Accepted initial player playability/identity, but
+no visitor in recognized sources. This does NOT prove whether the full page omitted
+visitor data, skipped a config wrapper, or supplied some other unsupported source.
+No player POST/media acquired. Do not repeat v5 unchanged; low failed debug RSS not
+release/working-stack memory acceptance. Production unchanged.
+
+Offline re-inspection only, no live provider requests: pinned public archive blob
+c9b17c81855981ed898636ced2ba57c3a85a6eba contains main config at start of a parameterless
+IIFE `(function() {window.ytplayer={}; ytcfg.set({...}); FIXED_MESSAGE_HELPER;
+setMessage({...});})();`, followed by initialInnerWidth/Height setters. V5 ignores it
+because script starts with a function, so top-level-only fixture coverage missed a
+real known archived shape. This reproduces a concrete compatibility gap, not exact
+host cause. Recorded structural audit without real values; synthetic fixture only.
+Pinned yt-dlp_base.py extract_ytcfg regex finds config anywhere, but we do not copy
+that broad search into arbitrary strings/functions. No new REA/runtime integration.
+
+V5.1 bootstrap matches only that straight-line parameterless anonymous IIFE grammar,
+optional exact player namespace reset, static data statements, optional entire fixed
+localization helper plus static message object, and complete immediate invocation
+(two standard parenthesis positions). No function execution/general descent; no
+named/async/conditional/parameterized/arrow function source. Unsupported suffixes,
+returns, nested wrappers, altered/dynamic messages/auth operations inside a candidate
+wrapper stop. Literal/type/duplicate/auth/identity/restriction/header/ambiguity bounds
+preserved. Fixed viewport allowlist adds initialInnerWidth/Height exact window dimensions.
+Unrelated suffix scripts after fully accepted prefixes remain ignored as before;
+not general browser equivalence. Partial wrapper progress never permits network after
+parser error. Optional messages use existing1MiB/depth static reader, no new Value tree.
+
+Value-free Observation in both success/failure reports: eligible inline script count,
+skipped attribute count, ignored nonempty script tails, typed config object count,
+fully closed wrapper blocks, validated initial-player count, three accepted-source
+visitor-presence booleans. No keys/values/lengths/offsets/hashes/headers/raw page output.
+Counters may reflect partial progress before later errors, not runtime execution or
+media success; per invocation, no persistence. Avoid another blind visitor_missing
+cycle: parsed config+all visitor flagsfalse means absent in recognized data; zeroconfig
+with ignored scripts means missing coverage; explicit wrapper errors mean unsupported
+scaffold. All stop for evidence-based review, not generated context/regex fishing.
+
+Sourcea169b48 CI43288159691 all5jobs PASS; directjob131426972404 Rust55tests/release/
+noJSgraph/offlineCLI PASS. Tests main18/bootstrap25/literal12 include archived-shaped
+synthetic HTML -> visitor/header-only fixed-origin request -> fixed response selection
+-> exact prefix validation; negative closures, invocation, auth/duplicates/conflicts,
+restrictions, dynamic localization, hidden/quoted/conditional functions and safe
+missing-source counters. These are offline fixtures, not provider acquisition or
+codec/audio output. Agent Cargo absent.80localPython PASS/diffcheckPASS after recording
+hostv5 evidence and next v5.1 action; guard remains blocked and never equates counters/
+watch-only passes with media evidence. New candidate aysha-direct-v5.1-static-wrapper,
+optional inspect aysha-direct-v5.1-watch-observation. No extra inspect request advised.
+
+Next command in docs/RUST_DIRECT_PROTOTYPE.md: debug build + ONE approved bounded
+watch/player/media trial, same input/scope/deadlines. If no visitor/restriction, stop.
+No auth/session/token/client-switch/source-access/deployment expansion. No audio/server/
+UI/dependency/service/Vercel changes or installation;5050 preserved/5051stopped; unrelated
+trackedpyc deletion retained. Extraction2/5, all-Rust10–15MB remains unproved. No claim
+that static wrapper compatibility alone fixes audio/search/control/resource gates.

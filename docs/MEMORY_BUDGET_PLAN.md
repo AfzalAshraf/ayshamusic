@@ -153,3 +153,13 @@ worker offload, MemoryMax/OOM policy, swap trick or resource target increase. Na
 acquisition must pass before replacing production extraction/player helpers; then
 actual decoder/control/search/whole-stack release/device tests, not a pass inferred
 from successful syntax fixtures or failed debug-process RSS.
+
+### V5 target-host result and v5.1 wrapper correction
+
+Host39dd9fe debug build1.64s PASS, watch_visitor_missing before player/media, HWM10884KiB
+(11,145,216bytes). Not successful acquisition or whole-server/release15MB compliance.
+V5.1 fixes a known archived static-wrapper parsing gap; no confirmed current-host cause
+or live media/memory pass. Fixed per-invocation count/boolean observations add no raw
+page storage; wrapper parsing has fixed token/state overhead and reuses bounded1MiB
+config/message readers sequentially. Still no complete heap/TLS/audio/server budget
+certification, hidden helpers/offload/OOM acceptance or production switch.
