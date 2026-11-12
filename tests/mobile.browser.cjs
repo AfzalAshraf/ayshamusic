@@ -57,6 +57,11 @@ async function checkInteractiveSandbox(context) {
         const heart = frame.locator('.heart-particle').first();
         assert.equal(await heart.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
         assert.equal(await heart.locator('svg').evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
+        const reveal = frame.locator('#heart-effects-page .heart-reveal');
+        assert.equal(await reveal.evaluate(el => getComputedStyle(el).color), 'rgb(237, 48, 75)');
+        assert.ok(await reveal.evaluate(el => getComputedStyle(el).maskImage.includes('radial-gradient')));
+        assert.equal(await reveal.evaluate(el => getComputedStyle(el).transitionDuration), '0.12s');
+
         const before = await heart.boundingBox();
         await page.waitForTimeout(500);
         assert.ok((await heart.boundingBox()).y < before.y - 15, 'Actual preview flies under Reduce Motion');
@@ -378,6 +383,22 @@ let activeViewport = 'startup';
       await page.locator('#full-history .card-heart[data-track-id="sample1"]').waitFor({ state: 'detached' });
       if (viewport.width === 1440) {
         await page.evaluate(() => clearHeartEffects());
+        await page.mouse.move(650, 400);
+        const reveal = page.locator('#heart-effects-page .heart-reveal');
+        await page.waitForFunction(() => document.querySelector('#heart-effects-page .heart-reveal.is-revealed'));
+        const originalRect = await reveal.boundingBox();
+        const originalTiles = await reveal.innerHTML();
+        const originalX = await reveal.evaluate(el => el.style.getPropertyValue('--reveal-x'));
+        assert.equal(await page.locator('.heart-particle').count(), 0, 'Hover reveals red background hearts without launching flights');
+        await page.waitForTimeout(40);
+        await page.mouse.move(740, 450);
+        await page.waitForTimeout(160);
+        assert.notEqual(await reveal.evaluate(el => el.style.getPropertyValue('--reveal-x')), originalX);
+        assert.deepEqual(await reveal.boundingBox(), originalRect, 'Background field stays fixed');
+        assert.equal(await reveal.innerHTML(), originalTiles);
+        assert.ok(await reveal.evaluate(el => parseFloat(getComputedStyle(el).opacity) > .4));
+        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'desktop-red-heart-spotlight.png') });
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#heart-effects-page .heart-reveal')).opacity === '0');
         await page.mouse.click(720, 650);
         assert.equal(await page.locator('#heart-effects-page .heart-burst').count(), 8);
         const butterfly = page.locator('#heart-effects-page .heart-particle').first();

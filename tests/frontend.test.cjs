@@ -711,14 +711,14 @@ function heartEffectsHarness() {
     h.element(id).appendChild = particle => { particle.host = id; };
   }
   h.context.initializeHeartEffects();
-  return { ...h, get particles() { return nodes.filter(p => p.className.startsWith('heart-particle')); }, get fields() { return nodes.filter(p => p.className === 'heart-constellation'); }, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
+  return { ...h, get particles() { return nodes.filter(p => p.className.startsWith('heart-particle')); }, get fields() { return nodes.filter(p => p.className === 'heart-reveal'); }, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
 }
 
 test('click/tap launches eight fluttering local hearts at the click without network/storage/audio', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
   assert.equal(h.particles.length, 8);
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 9);
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page' && p.innerHTML.includes('/icons.svg#heart')));
   for (const p of h.particles) {
     assert.equal(p.style.left, '90px');
@@ -728,7 +728,7 @@ test('click/tap launches eight fluttering local hearts at the click without netw
     assert.ok(parseFloat(p.style['--heart-flap']) >= 150);
     assert.ok(parseFloat(p.style['--heart-size']) >= 18);
   }
-  assert.equal(h.fields.length, 0);
+  assert.equal(h.fields.length, 1);
   assert.equal(h.calls.length, 0);
   assert.equal(h.quoteStorage.size + h.storage.size, 0);
   assert.equal(h.element('audio-player').playCount, 0);
@@ -758,7 +758,7 @@ test('keyboard, secondary clicks and form editing do not launch butterflies', ()
   h.context.heartPointerClick(h.event({ button: 2 }));
   h.context.heartPointerClick(h.event({ target: { closest: () => ({}) } }));
   assert.equal(h.particles.length, 0);
-  assert.equal(h.listeners.pointermove, undefined, 'No hover-dependent interaction');
+  assert.equal(typeof h.listeners.pointermove.fn, 'function', 'Hover adds reveal, but clicks do not depend on it');
 });
 
 test('butterfly flights are capped and removed on animationend or fallback', () => {
@@ -778,7 +778,7 @@ test('explicit always-on hearts ignore reduced motion but hidden pages still sto
   h.preference.matches = true;
   h.context.heartPointerClick(h.event());
   assert.equal(h.particles.length, 8);
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 9);
   h.preference.matches = false;
   h.context.heartPointerClick(h.event());
   assert.equal(h.particles.length, 16);
@@ -801,18 +801,19 @@ test('butterfly initialization is idempotent and invalid coordinates never creat
 test('touch pointerout never cancels newly launched flights', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event({ pointerType: 'touch' }));
-  assert.equal(h.listeners.pointerout, undefined);
+  h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
   assert.equal(h.particles.filter(p => !p.removed).length, 8);
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 9);
 });
 
-test('butterfly CSS moves hearts upward and flaps the icon instead of revealing a fixed field', () => {
+test('butterfly flight and red spotlight CSS coexist', () => {
   const source = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
   assert.ok(source.includes('@keyframes heart-flight'));
   assert.ok(source.includes('@keyframes heart-flutter'));
   assert.ok(source.includes('rotateY('));
   assert.ok(!source.includes('heart-constellation'));
-  assert.ok(!source.includes('revealHeartField'));
+  assert.ok(source.includes('revealHeartField'));
+  assert.ok(source.includes('color:#ed304b'));
 });
 
 
@@ -821,4 +822,58 @@ test('embedded-preview coordinate clicks with detail zero still launch butterfly
   h.context.heartPointerClick(h.event({ detail: 0, clientX: 130, clientY: 220 }));
   assert.equal(h.particles.length, 8);
   assert.ok(h.particles.every(p => p.style.left === '130px' && p.style.top === '220px'));
+});
+
+test('hover reveals a stationary red tile pattern without spawning butterflies or growing nodes', () => {
+  const h = heartEffectsHarness();
+  let now = 1000;
+  h.context.Date = { now: () => now };
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.particles.length, 0);
+  const field = h.fields[0];
+  assert.ok(field.innerHTML.includes('<pattern'));
+  assert.ok(field.innerHTML.includes('width="100%" height="100%"'));
+  assert.equal((field.innerHTML.match(/<use /g) || []).length, 1, 'Pattern reuses one local icon, no viewport-sized DOM grid');
+  assert.equal(field.style['--reveal-x'], '70px');
+  const original = field.innerHTML;
+  h.context.heartPointerMove(h.event({clientX: 140}));
+  assert.equal(field.style['--reveal-x'], '70px');
+  now += 32;
+  h.context.heartPointerMove(h.event({clientX: 140}));
+  assert.equal(field.style['--reveal-x'], '120px');
+  for (let i = 0; i < 100; i++) h.context.revealHeartField(i, i);
+  assert.equal(field.innerHTML, original);
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.timers.size, 1);
+  for (const callback of [...h.timers.values()]) callback();
+  assert.equal(field.classList.contains('is-revealed'), false);
+});
+
+test('mouse exit fades reveal only; touch exit does not cancel flying hearts', () => {
+  const h = heartEffectsHarness();
+  h.context.heartPointerClick(h.event());
+  h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
+  assert.equal(h.timers.size, 9);
+  h.listeners.pointerout.fn({ pointerType: 'mouse', relatedTarget: null });
+  assert.equal(h.timers.size, 8);
+  assert.equal(h.fields[0].classList.contains('is-revealed'), false);
+  assert.ok(h.particles.every(p => !p.removed));
+});
+
+test('reveal fields are bounded to page/intro/player and ignore touch scrolling, dragging and edits', () => {
+  const h = heartEffectsHarness();
+  for (const extra of [{pointerType:'touch'}, {buttons:1}, {isPrimary:false}, {target:{closest:()=>({})}}]) h.context.heartPointerMove(h.event(extra));
+  assert.equal(h.fields.length, 0);
+  h.context.revealHeartField(80, 90);
+  h.element('now-playing').open = true;
+  h.context.revealHeartField(80, 90);
+  h.element('love-intro').open = true;
+  h.context.revealHeartField(80, 90);
+  assert.equal(h.fields.length, 3);
+  assert.equal(h.timers.size, 3);
+  h.context.document.hidden = true;
+  h.listeners.visibilitychange.fn();
+  assert.equal(h.timers.size, 0);
+  assert.ok(h.fields.every(f => !f.classList.contains('is-revealed')));
 });
