@@ -78,13 +78,37 @@ fn context_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<Context>,D::Er
         else { D::Error::custom("cfg_context_shape") }
     })
 }
+// Serde's public category collapses many syntax errors. Match only its known,
+// static message prefixes and emit our fixed codes, never the message or position.
+fn config_syntax_code(error: &serde_json::Error) -> &'static str {
+    if error.classify() == serde_json::error::Category::Eof { return "watch_config_json_incomplete"; }
+    let detail = error.to_string();
+    for (prefix,code) in [
+        ("invalid escape", "watch_config_json_invalid_escape"),
+        ("invalid unicode code point", "watch_config_json_unicode"),
+        ("lone leading surrogate", "watch_config_json_surrogate"),
+        ("unexpected end of hex escape", "watch_config_json_hex_escape"),
+        ("control character", "watch_config_json_raw_control"),
+        ("key must be a string", "watch_config_json_unquoted_key"),
+        ("expected value", "watch_config_json_expected_value"),
+        ("expected ident", "watch_config_json_invalid_keyword"),
+        ("expected `:`", "watch_config_json_missing_colon"),
+        ("expected `,` or `]`", "watch_config_json_array_separator"),
+        ("expected `,` or `}`", "watch_config_json_object_separator"),
+        ("expected `\"`", "watch_config_json_expected_quote"),
+        ("trailing comma", "watch_config_json_trailing_comma"),
+        ("trailing characters", "watch_config_json_trailing_data"),
+        ("invalid number", "watch_config_json_invalid_number"),
+        ("number out of range", "watch_config_json_number_range"),
+        ("recursion limit exceeded", "watch_config_json_parser_depth"),
+    ] {
+        if detail.starts_with(prefix) { return code; }
+    }
+    "watch_config_json_syntax_other"
+}
 fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
     // No full Value tree or new dependencies. Both passes stay within JSON_MAX.
-    serde_json::from_slice::<IgnoredAny>(data).map_err(|e| match e.classify() {
-        serde_json::error::Category::Syntax => "watch_config_json_syntax",
-        serde_json::error::Category::Eof => "watch_config_json_incomplete",
-        _ => "watch_config_json_invalid",
-    })?;
+    serde_json::from_slice::<IgnoredAny>(data).map_err(|e| config_syntax_code(&e))?;
     serde_json::from_slice::<Config>(data).map_err(|e| {
         let detail = e.to_string(); // classification only; never emit underlying text
         for (prefix, code) in [
@@ -429,7 +453,7 @@ mod tests {
             (r#"{"VISITOR_DATA":"a","VISITOR_DATA":"b"}"#,"watch_config_duplicate_visitor"),
             (r#"{"INNERTUBE_CONTEXT":{},"INNERTUBE_CONTEXT":{}}"#,"watch_config_duplicate_context"),
             (r#"{"LOGGED_IN":false,"LOGGED_IN":true}"#,"watch_config_duplicate_login"),
-            (r#"{"VISITOR_DATA":undefined}"#,"watch_config_json_syntax"),
+            (r#"{"VISITOR_DATA":undefined}"#,"watch_config_json_expected_value"),
             (r#"{"VISITOR_DATA":"PRIVATE""#,"watch_config_json_incomplete"),
         ] {
             let error = decode_config(data.as_bytes()).err().unwrap();
@@ -442,6 +466,37 @@ mod tests {
         let data = page(serde_json::json!({"VISITOR_DATA":null}),player());
         assert_eq!(parse(&data,ID).err(),Some("watch_visitor_missing"));
         assert_eq!(parse(&page(serde_json::json!({"LOGGED_IN":true}),player()),ID).err(),Some("watch_authenticated_unsupported"));
+    }
+    #[test] fn syntax_subtypes_are_fixed_and_never_include_input_or_positions() {
+        for (data,expected) in [
+            (r#"{"PRIVATE":"\x41"}"#,"watch_config_json_invalid_escape"),
+            ("{\"PRIVATE\":\"raw\nline\"}","watch_config_json_raw_control"),
+            (r#"{PRIVATE:1}"#,"watch_config_json_unquoted_key"),
+            (r#"{"PRIVATE":undefined}"#,"watch_config_json_expected_value"),
+            (r#"{"PRIVATE":NaN}"#,"watch_config_json_expected_value"),
+            (r#"{"PRIVATE":truX}"#,"watch_config_json_invalid_keyword"),
+            (r#"{"PRIVATE" 1}"#,"watch_config_json_missing_colon"),
+            (r#"{"PRIVATE":[1 2]}"#,"watch_config_json_array_separator"),
+            (r#"{"PRIVATE":1 "OTHER":2}"#,"watch_config_json_object_separator"),
+            (r#"{"PRIVATE":1,}"#,"watch_config_json_trailing_comma"),
+            (r#"{"PRIVATE":1} false"#,"watch_config_json_trailing_data"),
+            (r#"{"PRIVATE":01}"#,"watch_config_json_invalid_number"),
+            (r#"{"PRIVATE":"#,"watch_config_json_incomplete"),
+        ] {
+            let error = serde_json::from_slice::<IgnoredAny>(data.as_bytes()).unwrap_err();
+            let code = config_syntax_code(&error);
+            assert_eq!(code,expected);
+            assert!(!code.contains("PRIVATE"));
+            assert!(!code.contains("line "));
+            assert!(!code.contains("column"));
+        }
+    }
+    #[test] fn invalid_json_is_not_repaired_even_when_known_fields_are_valid() {
+        for bad in [r#"{"VISITOR_DATA":"good","IGNORED":"\x41"}"#,
+                    r#"{"VISITOR_DATA":"good",}"#,r#"{"VISITOR_DATA":"good","IGNORED":undefined}"#] {
+            let data = format!("<script>ytcfg.set({bad});</script><script>var ytInitialPlayerResponse = {};</script>",player());
+            assert!(parse(data.as_bytes(),ID).is_err());
+        }
     }
     #[test] fn malformed_literals_duplicate_keys_and_unsupported_wrappers_stop_safely() {
         for script in [b"ytcfg.set({\"VISITOR_DATA\":\"a\",\"VISITOR_DATA\":\"b\"});".as_slice(),
