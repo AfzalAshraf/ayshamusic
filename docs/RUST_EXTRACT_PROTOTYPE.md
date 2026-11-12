@@ -169,3 +169,26 @@ timeout --kill-after=2s 75s \
 The user now wants all server duties in Rust and10–15MB; see MEMORY_BUDGET_PLAN.md
 for the updated target and unresolved accounting/workload. Native failed RSS alone
 already exceeds15MB. Do not promote or remove production helpers yet.
+
+### Confirmed missing URL and selection correction
+
+User's next host run: six offline tests PASS, release build PASS, final JSON
+media_url_missing, VmHWM24956KiB (25,554,944bytes, about25.6decimalMB). This establishes
+that the selected AAC format had an empty URL. It does NOT establish that all AAC
+formats were empty or why upstream returned that selected record without a URL.
+
+Found a local selection bug: maximum bitrate was chosen before validating the URL.
+Now selection ranks only compatible AAC records with validated URLs. It can use a
+lower-bitrate AAC only when it actually exists and passes the same origin guard;
+it never invents a URL, retries another tool, changes codec/container or relaxes
+origin restrictions. This fixes a reproducible fixture where an empty high-bitrate
+record shadows a usable record. Live-host recovery is NOT yet demonstrated.
+
+A fixed numeric format_counts object now exposes formats_total, aac_candidates,
+empty_urls, invalid_urls, rejected_origins and usable_urls (no identifiers/URLs).
+If every AAC URL is empty, error is all_aac_urls_missing. If none validate for mixed
+reasons, no_validated_aac_url. If no compatible formats, aac_mp4_unavailable. Upstream
+format availability is separate from subsequent HTTP/media/decoding success. After
+this selection patch is tested, use the same one-probe build command above, not the
+full comparison yet. If all AAC URLs are missing, this candidate needs upstream
+extraction repair or replacement, not another permissive allowlist patch.

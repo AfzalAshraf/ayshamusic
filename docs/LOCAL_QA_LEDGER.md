@@ -569,3 +569,26 @@ Follow-up verification: sourceceb5655 CI43251653615 all4jobsPASS, including new
 extractor6offline tests/release/CLI, root suites, existing Rodio and browser suites.
 Diagnostic classification is compile/test verified, not a fix for the upstream failure.
 No new live native probe or actual successful memory measurement performed here.
+
+## Confirmed empty selected URL: correct format selection before another host probe
+
+Active department: QA & Debugging. User's host pulled63f959f; six tests/releasePASS;
+probe returned media_url_missing with peak_rss_kib24956 (~25.6decimalMB). This confirms
+selected format's empty URL, NOT all formats missing or an origin/network rejection.
+Found inspected local bug: ranking bitrate before URL validation allows an empty
+higher-bitrate AAC to shadow a valid lower-bitrate AAC. Added selection.rs to rank
+only validated compatible AAC and report bounded numeric inventory. No fallback tool,
+codec/container change, origin weakening, signed URL logging or production changes.
+Added four offline fixtures: shadowed usable AAC, all AAC empty, valid bitrate ordering
+with rejected origin, incompatible/malformed rejection. Missing-all case explicitly
+fails all_aac_urls_missing; mixed failure no_validated_aac_url. Candidate upstream root
+cause remains unproved; these fixtures do not claim live host success. Benchmark
+allowlists format_counts on pass/failure with privacy/type-bound regression test.
+Local49PythonPASS, whitespacePASS. Sourceea22b14 pushed; new Rust CI pending at this
+entry. Current failures/memory goal unresolved; no performance/readiness score increase.
+Production5050/UI/Vercel/Rodio unchanged; unrelated pyc deletion preserved.
+
+Verification outcome: ea22b14 CI43256268361 all4jobsPASS. Extractor10offline tests,
+release and CLI smoke passed; existing Rust/Python/Node/browser/audio checks passed.
+Compile/fixture proof only, not live-host recovery or15MB acceptance. Agent network
+cannot reach YouTube under sandbox policy; no claim of having reproduced live media.
