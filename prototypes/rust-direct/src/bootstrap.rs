@@ -9,15 +9,17 @@ pub const PAGE_MAX: usize = 2 * 1024 * 1024;
 const JSON_MAX: usize = 1024 * 1024;
 const VISITOR_MAX: usize = 4096;
 
-pub struct Visitor(String);
+pub struct Visitor { value: String, metadata_nonfinite_ignored: bool }
 impl Visitor {
-    pub fn as_header(&self) -> &str { &self.0 }
+    pub fn as_header(&self) -> &str { &self.value }
+    pub fn metadata_nonfinite_ignored(&self) -> bool { self.metadata_nonfinite_ignored }
 }
 #[derive(Default, Deserialize)]
 struct Config {
     #[serde(rename="VISITOR_DATA", default, deserialize_with="visitor_field")] visitor: Option<String>,
     #[serde(rename="INNERTUBE_CONTEXT", default, deserialize_with="context_field")] context: Option<Context>,
     #[serde(rename="LOGGED_IN", default, deserialize_with="login_field")] logged_in: Option<bool>,
+    #[serde(skip)] metadata_nonfinite_ignored: bool,
 }
 #[derive(Deserialize)]
 struct Context { #[serde(default, deserialize_with="client_field")] client: Option<ConfigClient> }
@@ -107,9 +109,14 @@ fn config_syntax_code(error: &serde_json::Error) -> &'static str {
     "watch_config_json_syntax_other"
 }
 fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
+    // Python's JSON decoder accepts these constants. Replace them ONLY in
+    // metadata our typed Config discards; never in visitor/auth/context subtrees.
+    let normalized = super::config_numbers::metadata_only(data,JSON_MAX)?;
+    let metadata_nonfinite_ignored = matches!(normalized,std::borrow::Cow::Owned(_));
+    let data = normalized.as_ref();
     // No full Value tree or new dependencies. Both passes stay within JSON_MAX.
     serde_json::from_slice::<IgnoredAny>(data).map_err(|e| config_syntax_code(&e))?;
-    serde_json::from_slice::<Config>(data).map_err(|e| {
+    let mut config = serde_json::from_slice::<Config>(data).map_err(|e| {
         let detail = e.to_string(); // classification only; never emit underlying text
         for (prefix, code) in [
             ("cfg_visitor_shape", "watch_config_visitor_type"),
@@ -124,7 +131,9 @@ fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
             if detail.starts_with(prefix) { return code; }
         }
         "watch_config_schema_unsupported"
-    })
+    })?;
+    config.metadata_nonfinite_ignored = metadata_nonfinite_ignored;
+    Ok(config)
 }
 
 fn remember(found: &mut Option<String>, value: Option<String>) -> Result<(), &'static str> {
@@ -259,6 +268,7 @@ pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
     }
     let mut visitor = None;
     let mut initial_seen = false;
+    let mut metadata_nonfinite_ignored = false;
     let mut template_depth = 0usize;
     let mut rest = page;
     while let Some(start) = rest.iter().position(|b| *b == b'<') {
@@ -288,12 +298,12 @@ pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
         let script = &rest[..close];
         rest = &rest[close..];
         if !eq(name,b"script") || template_depth != 0 || !attributes_safe(attrs) { continue; }
-        parse_script(script,id,&mut visitor,&mut initial_seen)?;
+        parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored)?;
     }
     if !initial_seen { return Err("watch_player_missing"); }
-    visitor.map(Visitor).ok_or("watch_visitor_missing")
+    visitor.map(|value| Visitor { value, metadata_nonfinite_ignored }).ok_or("watch_visitor_missing")
 }
-fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool) -> Result<(), &'static str> {
+fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool, metadata_nonfinite_ignored: &mut bool) -> Result<(), &'static str> {
     // Intentionally don't search inside arbitrary JS (strings/comments/functions).
     // Only recognized literals at script start or after another accepted literal.
     loop {
@@ -321,6 +331,7 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
         let next = statement_end(after,config)?;
         if config {
             let cfg = decode_config(&tail[..end])?;
+            *metadata_nonfinite_ignored |= cfg.metadata_nonfinite_ignored;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
             remember(visitor,cfg.visitor)?;
             remember(visitor,cfg.context.and_then(|c| c.client).and_then(|c| c.visitor))?;
@@ -453,7 +464,7 @@ mod tests {
             (r#"{"VISITOR_DATA":"a","VISITOR_DATA":"b"}"#,"watch_config_duplicate_visitor"),
             (r#"{"INNERTUBE_CONTEXT":{},"INNERTUBE_CONTEXT":{}}"#,"watch_config_duplicate_context"),
             (r#"{"LOGGED_IN":false,"LOGGED_IN":true}"#,"watch_config_duplicate_login"),
-            (r#"{"VISITOR_DATA":undefined}"#,"watch_config_json_expected_value"),
+            (r#"{"VISITOR_DATA":undefined}"#,"watch_config_js_undefined"),
             (r#"{"VISITOR_DATA":"PRIVATE""#,"watch_config_json_incomplete"),
         ] {
             let error = decode_config(data.as_bytes()).err().unwrap();
@@ -497,6 +508,17 @@ mod tests {
             let data = format!("<script>ytcfg.set({bad});</script><script>var ytInitialPlayerResponse = {};</script>",player());
             assert!(parse(data.as_bytes(),ID).is_err());
         }
+    }
+    #[test] fn discarded_nonfinite_metadata_does_not_change_visitor_auth_or_duplicate_rules() {
+        let config = br#"{"VISITOR_DATA":"opaque_fixture","LOGGED_IN":false,"EXPERIMENTS":{"values":[NaN,Infinity,-Infinity]}}"#;
+        let mut data = b"<script>ytcfg.set(".to_vec(); data.extend_from_slice(config); data.extend_from_slice(b");</script>");
+        data.extend_from_slice(format!("<script>var ytInitialPlayerResponse = {};</script>",player()).as_bytes());
+        let visitor = parse(&data,ID).unwrap();
+        assert_eq!(visitor.as_header(),"opaque_fixture");
+        assert!(visitor.metadata_nonfinite_ignored());
+        assert_eq!(decode_config(br#"{"LOGGED_IN":NaN}"#).err(),Some("watch_config_nonfinite_protected"));
+        assert_eq!(decode_config(br#"{"VISITOR_DATA":"a","VISITOR_DATA":"b","IGNORED":Infinity}"#).err(),Some("watch_config_duplicate_visitor"));
+        assert_eq!(parse(&page(serde_json::json!({"LOGGED_IN":true,"VISITOR_DATA":"x"}),player()),ID).err(),Some("watch_authenticated_unsupported"));
     }
     #[test] fn malformed_literals_duplicate_keys_and_unsupported_wrappers_stop_safely() {
         for script in [b"ytcfg.set({\"VISITOR_DATA\":\"a\",\"VISITOR_DATA\":\"b\"});".as_slice(),

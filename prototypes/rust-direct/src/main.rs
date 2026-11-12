@@ -1,14 +1,15 @@
 //! Bounded public-player feasibility probe. No downloader library, JS engine or subprocess.
 //! Does not solve signatures/tokens or bypass playability restrictions. Never production.
 mod bootstrap;
+mod config_numbers;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
-const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4.1-watch-literals";
-const INSPECT_IDENTITY: &str = "aysha-direct-v4.3-syntax-diagnostic";
+const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4.4-guarded-bootstrap";
+const INSPECT_IDENTITY: &str = "aysha-direct-v4.4-metadata-guard";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -181,9 +182,11 @@ fn http_client() -> Result<Client, &'static str> {
         .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")
 }
 fn watch_summary(visitor: bootstrap::Visitor, started: Instant) -> serde_json::Value {
+    let metadata_nonfinite_ignored = visitor.metadata_nonfinite_ignored();
     drop(visitor);
     json!({"status":"diagnostic_pass", "candidate":INSPECT_IDENTITY, "stage":"watch",
         "watch_parser_only":true, "player_requested":false, "media_requested":false,
+        "metadata_nonfinite_ignored":metadata_nonfinite_ignored,
         "native_acquisition_demonstrated":false, "production_ready":false, "external_tools":false,
         "total_ms":started.elapsed().as_millis(), "peak_rss_kib":peak_kib()})
 }
@@ -245,7 +248,7 @@ async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v4.3 syntax diagnostic ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v4.4 guarded metadata check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {
