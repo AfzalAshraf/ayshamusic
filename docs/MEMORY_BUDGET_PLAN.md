@@ -106,3 +106,15 @@ The user asks whether mpv or yt-dlp can be replaced with Rust. Separate their re
 - **Dependency order:** the current mpv path accepts a YouTube page URL and relies on extraction hooks. A Rust decoder alone cannot consume that page URL as audio; it needs a validated/resolved stream or prepared file. Prototype helper replacements behind explicit development configuration while preserving the working production path. Never silently fall back to an external tool while reporting a Rust-only test result.
 
 The approved first experiment is now implemented: prepare one supported track, play it through the isolated Rust audio-only path in prototypes/rust-audio, measure actual host output/memory and compare to mpv; see RUST_AUDIO_PROTOTYPE.md. Then exercise a native extraction candidate separately. Only switch production when required formats, target hardware and the chosen concurrent-device workload pass. The frontend remains browser HTML/CSS/JavaScript; Rust replaces server responsibilities, not the phone's browser engine. This proposal does not guarantee that replacing either tool alone achieves 100 MB.
+
+
+## Latest native context experiment — still no successful low-memory extraction
+
+Hostb2efd81directv3 passed11offlinetests/releasebuild, then gotplayer_bot_check with
+4404KiBVmHWM (4,509,696bytes). v2hadthesamerejection/HWM. The additionsofOrigin/UTC
+were insufficient for this attempt. Do not count eitherfailedrequest as a working
+10–15MB extractor, decoder or server. BaselinetracedAACsuccessused98672KiBsampled
+processgroupRSS; not cgroup/wholeappbudgetproof. Stopidenticalnativevariants. The
+offlinegate scripts/check_native_acceptance.py explicitlykeepsRAM/productionfalse
+and rejects buildsuccess/baselinepass as substitutesfornativebytes. Anonymouswatch
+bootstrap remains a scopeproposal requiringapproval, not a demonstrated memoryfix.

@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "scope": "user_supplied_target_host_observations_not_a_live_probe",
+  "video_id": "Jm7Satp7Zqk",
+  "latest_native": {
+    "source_revision": "b2efd81",
+    "candidate": "aysha-direct-v3-standard-context",
+    "tests_passed": 11,
+    "release_build_passed": true,
+    "status": "fail",
+    "code": "player_bot_check",
+    "peak_rss_kib": 4404,
+    "production_ready": false
+  },
+  "previous_native": {
+    "candidate": "aysha-direct-v2-visionos",
+    "status": "fail",
+    "code": "player_bot_check",
+    "peak_rss_kib": 4404
+  },
+  "baseline_trace": {
+    "source_revision": "93c7849",
+    "status": "pass",
+    "bytes": 65536,
+    "total_ms": 4242.01,
+    "sampled_group_peak_rss_kib": 98672,
+    "client_request_markers": ["visionos"],
+    "webpage_request_marker_seen": true,
+    "js_provider_markers": [],
+    "classification_truncated": false
+  },
+  "stop_identical_native_trials": true,
+  "next_scope_requires_approval": "ephemeral_anonymous_watch_bootstrap_no_account_cookies_or_token_generation",
+  "limits": "Historical attempts, not simultaneous controlled comparison. Failed-request RSS is not successful extraction, playback or whole-server memory. Baseline markers do not prove selected-media client or absence of JS. Bootstrap cause/solution unproved."
+}

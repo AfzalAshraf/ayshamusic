@@ -1,7 +1,7 @@
 # Bounded native direct-player experiment
 
-Status: **BLOCKED on actual Linux host and CI: v2 returns player_bot_check for the
-requested track. Stop identical rebuilds/probes; no native media bytes obtained.**
+Status: **BLOCKED: v2 failed on host+CI; opt-in v3 also returned player_bot_check
+on the actual Linux host. Stop both variants; no native media bytes obtained.**
 Compilation/offline tests pass, but source acquisition is not resolved. The build
 commands below are retained for reproduction, NOT the recommended next action.
 No working production replacement or 15 MB claim.
@@ -255,7 +255,7 @@ limitations and the new --baseline-only --trace-stages diagnostic. It does not r
 this failed native request, install REA on the host or claim signature transforms
 solve a bot check. No native source-acquisition fix has yet been demonstrated.
 
-## Opt-in v3 standard-context experiment (not a bot-check fix)
+## Opt-in v3 standard-context experiment — CONCLUDED BLOCKED on host
 
 Host offline profile at731166c: CLI and imported package both2026.08.19; VISIONOS1.02,
 Apple/device/OS/UA/clientheader101 match nativev2. Generated defaultcontext adds
@@ -277,7 +277,7 @@ proof that thosefields caused earlierfailure. Not a one-variable causality test:
 threefields change together and upstream time/network/challenge state may change.
 Earlierv2 metrics are historical, not a simultaneous controlled comparison.
 
-### Terminal: BUILD + ONE NATIVE DIAGNOSTIC — no install/restart
+### Historical reproduction only — DO NOT RERUN after the recorded host failure
 
 ```bash
 cd /home/afine/ayshamusic &&
@@ -313,3 +313,46 @@ Verification: sourcec751075 CI43272722794 all5jobsPASS; isolateddirecttests/rele
 noJSdependencygraph/invalidopt-inCLIpassed. Local68PythonregressiontestsPASS. Agent
 has no localCargo; CIresults are not targethostacquisition/playback proof. V3live
 acceptance pending the explicit oneattempt command above.
+
+## Latest host outcome and stop gate
+
+User host atb2efd81:11/11testsPASS, releasebuild17.66sPASS;
+`aysha-direct-v3-standard-context` -> `player_bot_check`, peak4404KiB
+(4,509,696bytes), production_readyfalse. No media bytes obtained.
+Origin+UTC additions were insufficient for this attempt; neither field-level
+causality nor a provider-side rootcause is established. Same v2/v3 rejectioncode
+is not proof that the provider received/evaluated both requests identically.
+
+No further v2/v3 trial, rebuildloop or JS-engine port is justified by this result.
+Machine-readable supplied evidence: research/NATIVE_ACQUISITION_HOST.json.
+Offline review command `python3 scripts/check_native_acceptance.py` returns
+`status: blocked`, exit1 **intentionally**. It never launches a native executable,
+request, service, build or package install; memory and whole-stack gates stayfalse.
+New regression tests ensure successful baseline/build/lowRSS cannot override a native
+rejection. The checker is a historical evidence gate, not independent media validation.
+
+### Next proposed scope — explicit approval required, not implemented
+
+Publicsource12ac9aca... `_extract_player_responses` obtains anonymous visitor context
+from watchconfig/initialplayer; `_extract_visitor_data` selects VISITOR_DATA,
+INNERTUBE_CONTEXT.client.visitorData or responseContext.visitorData;
+`generate_api_headers` can send X-Goog-Visitor-Id. This is an upstream capability
+absent from our standalonePOST, not proof it was used or sufficient on user's host.
+Do not collect HARs, headers, cookie exports or visitorvalues in chat.
+
+Proposed single isolated Rust experiment: one publicwatch GET to fixedYouTubeorigin,
+read at most2MiB into boundedbuffer, extract boundedanonymousvisitorcontext (max4KiB)
+without executingJS; retain inRAM for this one invocation only; use only with same
+fixedoriginplayerPOST, then at mostonevalidated64KiBmediaprobe if player permits.
+No cookiejar/accountlogin/consentacceptanceautomation/JS/POtoken generation or capture,
+proxy/clientrotation/persistenttracking/sessionreuse/fallback/productionchange.
+No raw page/visitorvalue/signedURL logged or saved. HTTPS/no redirects;60stotaldeadline.
+Retainallidentity/live/restriction/origin/format/metadata bounds. Consent/challenge/login/
+missingcontext/oversizepage -> fixedfailure, no workaround or secondtry.
+
+Before live use: offline synthetic fixtures for JSONescaping/stringboundaries,
+ambiguous/missing/oversizedvalues, hostileHTML, originvalidation, no-valueleakage and
+cancellation. One host attempt only after tests/buildpass; repeatedrestriction stops.
+This changes source-access/sessioncontext scope and needs approval; no implementation
+or hostcommand for it is supplied yet. Even if approved and successful it is NOT
+whole-app Rust/15MB or proof that all provider access requirements can be supported.

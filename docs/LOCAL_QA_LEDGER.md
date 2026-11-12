@@ -894,3 +894,31 @@ resultsreceiverhost (EOF), so stepstatus was verified viaGitHubrun/jobAPI instea
 claiming complete loginspection. No livev3 request made. Cargo unavailableagentlocal;
 Rustverification isCI, not a localbuild or userhostsuccess. Targethost command and
 stopbranches inRUST_DIRECT_PROTOTYPE.md. Preserve unrelatedtrackedpycdeletion.
+
+## Host v3 still blocked — stop Origin/UTC experiment, scope review before bootstrap
+
+User hostb2efd81:11/11RusttestsPASS, release17.66sPASS; JSONcandidate
+aysha-direct-v3-standard-context/statusfail/codeplayer_bot_check/peak_rss_kib4404/
+production_readyfalse. 4404KiB=4,509,696bytes on failedrequest; no successfulnative
+mediabytes, decoding/playback or wholebudgetevidence. Origin+UTC insufficient in this
+attempt, not exactrootcauseproof. Markv3CONCLUDEDBLOCKED alongsidev2; historicalbuild
+command relabelledDO NOT RERUN. No unchangedprobe/clientroulette/JSengine/productionfix.
+
+Pinned publicsource review _extract_player_responses -> _extract_visitor_data ->
+generate_api_headers shows optionalanonymouswatchvisitorcontext upstream. Not evidence
+this datawas used/sufficientonhost. Scopeproposal inRUST_DIRECT_PROTOTYPE.md: isolated
+RustfixedoriginpublicwatchGET,2MiBcap/4KiBanonymousvaluecap/60stotaldeadline/noJS/no
+cookiejar/account/consentautomation/POtoken/signature/proxy/redirect/persistence/session
+reuse/fallback; failonproviderrestrictions; offlinehostilefixturesfirst thenoneattempt.
+Explicitapprovalrequired beforeimplementation; nothingforbootstrapimplemented here.
+
+Concretecode now is offlineevidenceguard, not acquisitionfix:
+docs/research/NATIVE_ACQUISITION_HOST.jsonrecords suppliedhostresults;
+scripts/check_native_acceptance.pyreviewsonlycommittedevidence (noexec/network),
+blocksbuild/lowRSS/baselinepassfromcountingasnativeacceptance, andkeepswholeapp/RAMfalse.
+Prefixgate requires documented65536bytes, passstatusandexplicitnoexternaltools; even
+thatdoesnotcertifydecoder/hardware/production. No privatevalues/rawlogs echoed.
+5newtests;73totalPythonPASS, offlinegatecorrectlyreturnsblocked/exit1, diffcheckPASS.
+Userneednotrunanotherhostprobe: optionalofflinecommand only. Production5050/UI/
+Vercel/systemd/dependencies/stopped5051unchanged. Extraction2/5unchanged. Userapproval
+ofephemeralanonymouswatchbootstrap isthenextdecision, not anotherdiagnosticloop.
