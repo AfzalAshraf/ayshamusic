@@ -64,11 +64,11 @@ async function checkInteractiveSandbox(context) {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts always on'}).waitFor();
         if (mobile) await frame.locator('#tab-home .page-heading').tap(); else await frame.locator('#tab-home .page-heading').click();
-        const sample = await frame.locator('#tab-home').evaluate(() => {
+        const sample = await frame.locator('#tab-home').evaluate(async () => {
           const first = document.querySelector('.heart-particle');
           const reveal = document.querySelector('#heart-effects-page .heart-reveal');
           const letter = document.querySelector('.love-letter-particle');
-          return { count:document.querySelectorAll('.heart-particle').length,
+          const sample = { count:document.querySelectorAll('.heart-particle').length,
             flight:getComputedStyle(first).animationName,
             flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
             color:getComputedStyle(reveal).color, mask:getComputedStyle(reveal).maskImage,
@@ -77,6 +77,12 @@ async function checkInteractiveSandbox(context) {
             letters:[...document.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
             letterColor:getComputedStyle(letter).color, fontSize:getComputedStyle(letter).fontSize,
             fontFamily:getComputedStyle(letter).fontFamily, y:first.getBoundingClientRect().y };
+          // Measure the same short-lived node inside one browser call. Multiple
+          // protocol round trips can outlive its animation on a busy runner.
+          await new Promise(resolve => setTimeout(resolve, 400));
+          sample.afterY = first.getBoundingClientRect().y;
+          sample.connected = first.isConnected;
+          return sample;
         });
         assert.equal(sample.count, 17);
         assert.equal(sample.flight, 'heart-flight');
@@ -90,10 +96,8 @@ async function checkInteractiveSandbox(context) {
         assert.equal(sample.letterColor, 'rgb(255, 255, 255)');
         assert.equal(sample.fontSize, '18px');
         assert.ok(sample.fontFamily.includes('Delius'));
-        const heart = frame.locator('.heart-particle').first();
-        const before = { y:sample.y };
-        await page.waitForTimeout(500);
-        assert.ok((await heart.boundingBox()).y < before.y - 15, 'Actual preview flies under Reduce Motion');
+        assert.ok(sample.connected, 'Measured particle remains alive during flight');
+        assert.ok(sample.afterY < sample.y - 15, 'Actual preview flies under Reduce Motion');
         assert.deepEqual(errors, []);
         console.log(`PASS actual UI-only preview in iframe (${mobile ? 'touch' : 'mouse'}): hearts work while backend returns503, detail0 works, hearts fly even with Reduce Motion`);
       } finally { await page.close(); }
@@ -170,10 +174,10 @@ let activeViewport = 'startup';
       {
         // Sample the short-lived burst in one round trip, without font-loading
         // or many protocol calls consuming its animation lifetime.
-        const burst = await page.evaluate(() => {
+        const burst = await page.evaluate(async () => {
           const host = document.getElementById('heart-effects-intro');
           const first = host.querySelector('.is-butterfly');
-          return { count:host.querySelectorAll('.heart-burst').length,
+          const sample = { count:host.querySelectorAll('.heart-burst').length,
             letters:[...host.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
             hearts:host.querySelectorAll('.love-letter-heart use').length,
             letterColor:getComputedStyle(host.querySelector('.love-letter-particle')).color,
@@ -182,6 +186,13 @@ let activeViewport = 'startup';
             flight:getComputedStyle(first).animationName,
             flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
             y:first.getBoundingClientRect().y };
+          // Touch release must not cancel flights. Keep measurement in the page
+          // so protocol latency does not consume the short animation lifetime.
+          document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null }));
+          await new Promise(resolve => setTimeout(resolve, 400));
+          sample.afterCount = host.querySelectorAll('.heart-burst').length;
+          sample.afterY = first.getBoundingClientRect().y;
+          return sample;
         });
         assert.equal(burst.count, 12);
         assert.deepEqual(burst.letters, ['A','Y','S','H','A']);
@@ -192,14 +203,8 @@ let activeViewport = 'startup';
         assert.equal(burst.pointer, 'none');
         assert.equal(burst.flight, 'heart-flight');
         assert.equal(burst.flutter, 'heart-flutter');
-        const butterfly = page.locator('#heart-effects-intro .is-butterfly').first();
-        const liftOff = {y:burst.y};
-        // Touch browsers emit pointerout at finger release; the hearts must keep flying.
-        await page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null })));
-        await page.waitForTimeout(600);
-        assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 12);
-        const inFlight = await butterfly.boundingBox();
-        assert.ok(inFlight.y < liftOff.y - 15, 'Tap heart visibly lifts and flies upward, not a stationary reveal');
+        assert.equal(burst.afterCount, 12, 'Touch release preserves all twelve butterflies');
+        assert.ok(burst.afterY < burst.y - 15, 'Tap heart visibly lifts and flies upward, not a stationary reveal');
 
         if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) {
           fs.mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true });
