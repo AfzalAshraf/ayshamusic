@@ -15,16 +15,16 @@ It is Rust application code with ordinary native TLS/OS dependencies, not a clai
 that every cryptographic implementation or OS library is written in Rust. It does
 not include search, related tracks, full downloading, decoding or playback.
 
-One fixed HTTPS public-player POST uses ANDROID_VR context with client version1.65.10
-and a matching agent/header. This differs from the failed library path: no HTML
-page/config/visitor extraction, no intermediate downloader parser or JS evaluation.
-Protocol parameters were inspected at https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
-(android_vr configuration). No extractor code is copied; this is a small independently
-written protocol request/parser. Important: that source also describes current proof-
-of-origin requirements. No token generation, credential collection, sign-in, age/
-content-restriction flags or restriction bypass is implemented. If the public response
-cannot be used without such requirements, the result is a failure, not a workaround.
-Do not claim the client name means compatibility or exemption from provider controls.
+Current v2 candidate uses one fixed HTTPS public-player POST with VISIONOS context,
+client version1.02, header client ID101 and matching agent/device/OS metadata. The
+previous v1 used ANDROID_VR1.65.10; it is retained in Git history, not selected now.
+The mechanism remains no HTML/config/visitor extraction, no downloader parser or JS.
+See the compatibility correction below for exact source references and limitations.
+No token generation, credential collection, sign-in, age/content-check flags or
+restriction bypass is implemented. If the response requires unavailable authorization,
+signatures or tokens, fail honestly. A client profile is not a compatibility guarantee
+or an exemption from provider controls. No extractor implementation code is copied;
+these are protocol configuration facts used by independently written request/parser.
 
 ## Bounds and safety
 
@@ -123,3 +123,63 @@ This is not a new Rust-only extraction fix and does not claim100MB or15MB compli
 The direct-package build command above remains an optional experiment/reproduction,
 not the best working production build. Avoid confusing these paths or invoking the
 installer merely to compile. Native extraction-to-playback migration remains blocked.
+
+## v2: researched client correction and rejection classification
+
+Found a concrete missed compatibility detail: inspected yt-dlp _base.py explicitly
+comments that AndroidVR1.65.10 formats have been403 since2026-08-17. _video.py selects
+VISIONOS as its current _DEFAULT_JSLESS_CLIENTS, not android_vr. The prior research
+read configuration values without acting on surrounding deprecation comments. This
+was an avoidable candidate-selection error, not a reason for another unchanged build.
+References inspected through GitHub API (configuration facts only):
+
+- https://github.com/yt-dlp/yt-dlp/blob/12ac9aca79671420724227aca37bc888c604a6f8/yt_dlp/extractor/youtube/_base.py
+  — android_vr deprecation and visionos context/client version/header ID.
+- https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_video.py
+  — current JS-free default; child-directed-content limitations remain.
+- https://github.com/yt-dlp/yt-dlp/blob/master/test/test_youtube_misc.py
+  — public reference video IDBaW_jenozKc is used in upstream tests.
+
+v2 identityaysha-direct-v2-visionos uses that client profile, no extra dependencies,
+no retries/fallback/auth/provider-restriction flags. Public/identity/live/URL/byte/time
+bounds remain unchanged. This is a mechanism correction supported by source, not proof
+of source acquisition on the target host. No claim that the prior CI player rejection
+was specifically caused by the old profile before the new observation is obtained.
+
+Playability errors now distinguish missing/unknown status, login required, age/content
+check, unplayable, live offline, generic provider error and explicit English bot-check
+text signal. Raw reason/status/messages are parsed but never echoed. Localized/unknown
+messages do not become guessed categories; machine status remains available as a
+fixed code. An OK response still must pass identity/non-live/valid URL/media validation;
+no restriction is satisfied automatically. Eight offline tests include classification
+and privacy cases. CI observes the same requested ID plus one public reference,
+sequentially (maximum2requests), each in its own bounded process, no playlist/corpus
+scraping. Results are explicitly separated by case. Both failing in CI does not prove
+all tracks/regions/hosts fail. No new target build is requested solely to rename errors.
+
+### v2 live result: cloud bot check, not a solved extraction
+
+Source4984f54 CI43267932699 all5build/regression jobsPASS, including8direct offline
+tests/release/noJS dependency audit. Separate observations:
+
+- requested track: fail/player_bot_check, VmHWM3976KiB, process_exit1;
+- reference track: fail/player_error, VmHWM4008KiB, process_exit1.
+
+These are fixed classifications, not raw provider text. Requested case indicates an
+explicit English bot-check signal on that runner; it is not proof a native JS engine
+or another client would solve it. Reference generic error remains undiagnosed.
+Client correction did not establish successful audio acquisition. Bot classification
+is a rejection, not a challenge solver, and no bypass/credentials/tokens are added.
+The old generic player_not_playable did not give this evidence. Low RSS is still a
+failed-request measurement, not15MB working media acceptance. No faster claim.
+
+Actual Linux-host v2 has not run (the earlier c1de8e0 root build did NOT build this
+separate package). One optional current direct-package probe using the build command
+above is materially different from repeating either rusty_ytdl candidate or the old
+AndroidVR request. It distinguishes target-network behavior from CI. No installer,
+service restart, package deletion or provider workaround is needed. If it reports
+player_bot_check too, stop automatic retries/client roulette: acquisition under the
+current unauthenticated/native scope is blocked. Do not hide an external downloader
+or move extraction to another host to claim Rust-only15MB compliance. Keep production
+working and report need for a supported/authorized source-access design. If it succeeds,
+verify actual decode/audio and representative resource workload before integration.

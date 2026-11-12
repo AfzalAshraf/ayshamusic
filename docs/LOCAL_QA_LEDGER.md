@@ -708,3 +708,47 @@ the current CI-verified working production source build; still uses current help
 no install/restart/second5050 process. New experimental package available but explicitly
 not production-ready. No target hardware test performed. Guide updated with both
 paths and limits. Extraction readiness remains2/5; no speed/resource acceptance.
+
+## Target confirms current production-source compile (c1de8e0)
+
+Active department: QA & Verification. User supplied actual Linux host output:
+fast-forward566a812->c1de8e0, rootcargo test15/15PASS, rootrelease buildPASS, explicit
+"Nothing installed or restarted." This closes the target-host compilation check
+for that revision only. Outputtarget/release/music-server is not evidence that the
+installed/running service loaded it. No native-prototype test/live extraction, new
+memory profile, audible/hardware/concurrent-device or restart acceptance in this
+packet. Existing helpers remain in production; Rust-only/15MB gates still blocked.
+No install/restart recommended merely to repeat compilation. Documentation-only
+record; no code/dependency/service/Vercel change, no new test run claimed. Preserve
+unrelated pyc deletion. No readiness rating increase from build evidence alone.
+
+## Native acquisition investigation: correct deprecated direct-client profile
+
+Active department: QA & Debugging. User explicitly asks to resolve obtaining playable
+native Rust audio. Found missed source evidence: current yt-dlp _base.py comments
+AndroidVR1.65.10 broken sinceAug17; _video.py selects visionos as defaultJSless client.
+Earlier review missed surrounding deprecation comments; do not repeat the same v1
+probe. Changed bounded native request to VISIONOS1.02/client101/device+UA configuration,
+identityaysha-direct-v2-visionos. No dependencies/HTML/signature/token/auth/age-check
+bypass/fallback added. Same safety bounds. Added fixed status/bot-signal classifications
+without echoing arbitrary upstream reason/messages. Eight fixture tests now expected.
+CI now records two bounded sequential public probes (requested Jm7Satp7Zqk plus
+upstream public reference BaW_jenozKc), separately labelled, not acceptance on green.
+Source4984f54 pushed, local49PythonPASS/whitespacePASS; CI43267932699 pending at entry.
+No localCargo/target access. Source-backed compatibility correction is a hypothesis
+until live observation. Root5050/UI/Vercel/Rodio/helpers untouched. No15MB/speed claim;
+retain earlier user host build evidence and unrelated tracked pyc deletion.
+
+Outcome: source4984f54 CI43267932699 all5build/regression jobsPASS. Direct8offline
+fixtures/release/CLI/noJS auditPASS. Actual observations explicitlyFAILED: requested
+player_bot_check (3976KiBHWM,exit1), reference player_error (4008KiBHWM,exit1). This
+classifies requested-runner response as an explicit bot signal; reference reason not
+known. No cloud acquisition success, source/native sound fix or15MB pass. The source-
+backed profile correction was insufficient for that runner; do not mislabel green CI.
+Target home connection outcome unknown: rootc1de8e0 host build did not build rust-direct.
+One isolated v2host probe is justified by changed protocol mechanism and environment,
+not a promised fix; stop retries if it gets same bot-check. No auth/token/client roulette
+or external fallback added. Documentation command remains prototype-only, not service
+install. No localCargo/live home request. Extraction readiness remains2/5. Transient
+doc-generation shell/Python quoting error made no changes and was corrected before
+successful whitespace check; no source/runtime build failure remains within CI scope.
