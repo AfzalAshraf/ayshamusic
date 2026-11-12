@@ -42,6 +42,15 @@ def group_rss_kib(group, proc_root=Path("/proc")):
     return total if observed else None
 
 
+def safe_format_counts(payload):
+    counts = payload.get("format_counts")
+    if not isinstance(counts, dict):
+        return None
+    keys = ("formats_total", "aac_candidates", "empty_urls", "invalid_urls", "rejected_origins", "usable_urls")
+    return {key: counts[key] for key in keys
+            if type(counts.get(key)) is int and 0 <= counts[key] <= 100000}
+
+
 def execute(argv, binary_media=False, deadline=75):
     start = time.monotonic()
     proc = None
@@ -86,12 +95,14 @@ def execute(argv, binary_media=False, deadline=75):
         if not isinstance(payload, dict):
             raise ValueError("invalid native metrics")
         result = payload
+        counts = safe_format_counts(payload)
         # Only known numerical fields and fixed codes; never echo arbitrary tool output.
         if rc or result.get("status") != "pass":
             code = result.get("code", "native_failure")
             peak = result.get("peak_rss_kib")
             result = {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure",
-                      "peak_rss_kib": peak if type(peak) is int and peak >= 0 else None}
+                      "peak_rss_kib": peak if type(peak) is int and peak >= 0 else None,
+                      "format_counts": counts}
             return result
         allowed = ("resolve_ms", "first_byte_ms", "total_ms", "bytes", "itag", "peak_rss_kib")
         if result.get("bytes") != PROBE:
@@ -99,7 +110,7 @@ def execute(argv, binary_media=False, deadline=75):
         metrics = {key: result.get(key) for key in allowed if result.get(key) is None or type(result.get(key)) in (int, float)}
         metrics["native_total_ms"] = metrics.get("total_ms")
         metrics["total_ms"] = round(total, 2)
-        result = dict(metrics, status="pass")
+        result = dict(metrics, status="pass", format_counts=counts)
         return result
     except (OSError, ValueError, subprocess.TimeoutExpired):
         result = {"status": "fail", "code": "tool_missing_invalid_output_or_timeout"}

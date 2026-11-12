@@ -1,6 +1,7 @@
 //! Experimental native extractor. No production integration, cookies or subprocess fallback.
 mod media_origin;
-use rusty_ytdl::{reqwest, RequestOptions, Video, VideoFormat, VideoOptions};
+mod selection;
+use rusty_ytdl::{reqwest, RequestOptions, Video, VideoOptions};
 use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf, time::{Duration, Instant}};
 use serde_json::json;
 const PROBE: usize = 65536;
@@ -26,11 +27,6 @@ fn parse(args: impl IntoIterator<Item=String>) -> Result<Option<Options>, &'stat
     if !valid_id(&id) { return Err("invalid_id"); }
     Ok(Some(Options { id, output }))
 }
-fn compatible(format: &VideoFormat) -> bool {
-    format.has_audio && !format.has_video && !format.is_live && !format.is_hls && !format.is_dash_mpd
-        && format.mime_type.mime.essence_str() == "audio/mp4"
-        && format.mime_type.audio_codec.as_deref().is_some_and(|c| c.starts_with("mp4a"))
-}
 fn mp4(bytes: &[u8]) -> bool { bytes.len() >= 8 && &bytes[4..8] == b"ftyp" }
 // Exclusive output guard: retain only on success. Never overwrite/delete a preexisting file.
 struct Output { file: std::fs::File, path: PathBuf, complete: bool }
@@ -48,7 +44,11 @@ fn memory_kib() -> Option<u64> {
         line.strip_prefix("VmHWM:")?.split_whitespace().next()?.parse().ok()
     })
 }
-async fn extract(options: Options) -> Result<serde_json::Value, &'static str> {
+struct Failure { code: &'static str, format_counts: Option<serde_json::Value> }
+impl From<&'static str> for Failure {
+    fn from(code: &'static str) -> Self { Self { code, format_counts: None } }
+}
+async fn extract(options: Options) -> Result<serde_json::Value, Failure> {
     let start = Instant::now();
     let client = reqwest::Client::builder().https_only(true).no_proxy()
         .redirect(reqwest::redirect::Policy::none()).connect_timeout(Duration::from_secs(10))
@@ -59,13 +59,17 @@ async fn extract(options: Options) -> Result<serde_json::Value, &'static str> {
     }).map_err(|_| "extract_init_failed")?;
     // Candidate handles YouTube signatures with an embedded Rust JS engine, not Node.
     let info = video.get_info().await.map_err(|_| "extraction_failed")?;
-    let format = info.formats.iter().filter(|f| compatible(f)).max_by_key(|f| f.bitrate).ok_or("aac_mp4_unavailable")?;
+    let selected = selection::select(&info.formats);
+    let format = selected.format.ok_or_else(|| Failure {
+        code: selected.failure_code, format_counts: Some(selected.counts.clone()),
+    })?;
+    // Revalidate at the request boundary. Never request rejected/empty candidates.
     media_origin::validate(&format.url)?;
     let resolve_ms = start.elapsed().as_millis();
     let mut request = client.get(&format.url);
     if options.output.is_none() { request = request.header("Range", "bytes=0-65535"); }
     let mut response = request.send().await.map_err(|_| "media_request_failed")?;
-    if !response.status().is_success() { return Err("media_http_failed"); }
+    if !response.status().is_success() { return Err("media_http_failed".into()); }
     let mut output = match options.output { Some(ref path) => Some(Output::new(path)?), None => None };
     let limit = if output.is_some() { MAX_FILE } else { PROBE };
     let mut bytes = 0usize;
@@ -76,15 +80,15 @@ async fn extract(options: Options) -> Result<serde_json::Value, &'static str> {
         first_byte_ms.get_or_insert_with(|| start.elapsed().as_millis());
         let head = (12usize.saturating_sub(prefix.len())).min(chunk.len());
         prefix.extend_from_slice(&chunk[..head]);
-        if prefix.len() >= 8 && !mp4(&prefix) { return Err("invalid_mp4_header"); }
-        if output.is_some() && bytes.saturating_add(chunk.len()) > limit { return Err("output_size_limit"); }
+        if prefix.len() >= 8 && !mp4(&prefix) { return Err("invalid_mp4_header".into()); }
+        if output.is_some() && bytes.saturating_add(chunk.len()) > limit { return Err("output_size_limit".into()); }
         let take = chunk.len().min(limit - bytes);
         if let Some(ref mut out) = output { out.file.write_all(&chunk[..take]).map_err(|_| "output_write_failed")?; }
         bytes += take;
         if output.is_none() && bytes == PROBE { break; }
     }
-    if !mp4(&prefix) || bytes == 0 { return Err("empty_or_invalid_media"); }
-    if output.is_none() && bytes != PROBE { return Err("short_probe"); }
+    if !mp4(&prefix) || bytes == 0 { return Err("empty_or_invalid_media".into()); }
+    if output.is_none() && bytes != PROBE { return Err("short_probe".into()); }
     if let Some(ref mut out) = output {
         out.file.sync_all().map_err(|_| "output_sync_failed")?;
         out.complete = true;
@@ -92,7 +96,7 @@ async fn extract(options: Options) -> Result<serde_json::Value, &'static str> {
     Ok(json!({"status":"pass", "candidate":"rusty_ytdl-0.7.4", "mode":if output.is_some(){"file"}else{"probe"},
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":start.elapsed().as_millis(),
         "bytes":bytes, "itag":format.itag, "mime":"audio/mp4", "peak_rss_kib":memory_kib(),
-        "external_tools":false, "production_ready":false}))
+        "format_counts":selected.counts, "external_tools":false, "production_ready":false}))
 }
 #[tokio::main(flavor="current_thread")]
 async fn main() {
@@ -105,8 +109,9 @@ async fn main() {
     match result {
         Ok(Ok(metrics)) => println!("{metrics}"),
         error => {
-            let code = match error { Ok(Err(code)) => code, _ => "deadline_exceeded" };
-            println!("{}", json!({"status":"fail","code":code,"peak_rss_kib":memory_kib(),"production_ready":false}));
+            let failure = match error { Ok(Err(failure)) => failure, _ => "deadline_exceeded".into() };
+            println!("{}", json!({"status":"fail","code":failure.code,"format_counts":failure.format_counts,
+                "peak_rss_kib":memory_kib(),"production_ready":false}));
             std::process::exit(1);
         }
     }
