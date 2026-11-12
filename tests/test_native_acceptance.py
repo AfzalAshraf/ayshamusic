@@ -54,7 +54,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(evidence['latest_native']['code'], 'watch_config_invalid')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'one_guarded_metadata_watch_check_no_player_or_media')
+        self.assertEqual(result['next'], 'one_bounded_v5_native_trial_after_offline_verification')
 
     def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
         result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
@@ -66,7 +66,7 @@ class NativeAcceptanceTests(unittest.TestCase):
     def test_host_syntax_diagnostic_is_recorded_separately_without_media_claim(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         diagnostic = evidence['latest_diagnostic']
-        self.assertEqual(diagnostic['code'], 'watch_config_json_expected_value')
+        self.assertEqual(diagnostic['code'], 'watch_config_js_single_quote')
         self.assertEqual(diagnostic['build_profile'], 'debug')
         self.assertFalse(diagnostic['player_requested'])
         self.assertFalse(diagnostic['media_requested'])
@@ -77,6 +77,15 @@ class NativeAcceptanceTests(unittest.TestCase):
                   'watch_parser_only':True,'player_requested':False,'media_requested':False}
         result = gate.assess({'latest_native':report})
         self.assertFalse(result['native_prefix_gate_passed'])
+        self.assertFalse(result['memory_budget_accepted'])
+        self.assertFalse(result['whole_stack_ready'])
+
+    def test_v5_approval_and_fixture_success_do_not_replace_live_acquisition_evidence(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        result = gate.assess(evidence)
+        self.assertEqual(evidence['approved_experiment']['candidate'], 'aysha-direct-v5-data-literals')
+        self.assertEqual(result['next'], 'one_bounded_v5_native_trial_after_offline_verification')
+        self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['memory_budget_accepted'])
         self.assertFalse(result['whole_stack_ready'])
 

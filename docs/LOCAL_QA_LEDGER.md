@@ -1139,3 +1139,62 @@ coercion/JS/raw capture/cap increase/identical retry. Restriction -> stop, no wo
 Build/lock/timeout -> share normal output, no lock deletion or production update.
 Production5050/UI/Vercel/systemd/audio/deps/stopped5051 unchanged; extraction2/5 and
 10–15MB whole-server acceptance still unproved. Preserve unrelated trackedpyc deletion.
+
+## User requests complete fix after single-quote rejection: consolidate parsing, not another exception
+
+Active department QA & Debugging. Host5142200 debug build1.55s PASS; v4.4 watch-only
+failed watch_config_js_single_quote, player/media requestedfalse, VmHWM10928KiB
+(11,190,272bytes). This identifies a single-quote-leading value, not its complete
+contents or validity. No media or player request occurred; no 10–15MB acceptance.
+User asks to fix all listed issues. Keep production intact; do not claim all gates
+passed on a parser patch or silently replace yt-dlp/mpv with an unverified path.
+
+Replaced the incremental config_numbers scanner and double-quote-only framer with
+literal_data.rs. One bounded data-only grammar for config and initial player:
+quoted strings/keys, ASCII identifier keys, standard escapes/hex/Unicode+valid UTF16
+pairs/escaped line continuations, nested objects/arrays, comments, trailing commas,
+JSON finite numbers/bools/null. No JS evaluation/calls/operators/references/getters/
+computed keys/spread/templates/regex/BigInt/non-JSON number formats. Prototype-mutating
+non-JSON literal keys rejected. Strict JSON borrowed unchanged; non-JSON literals
+canonicalized into <=1MiB buffer, no Value tree; temporary decoded strings also bounded
+by input. Exact non-finite constants only in discarded config metadata, never protected
+visitor/login/context fields; initial-player non-finite constants rejected. Duplicate
+recognized fields preserved so typed checks reject; string false not coerced; escaped
+CRLF/NUL not sanitized into accepted headers. Fixed errors only, no opaque data output.
+
+Shared quote/comment-aware typed bracket framing, 64-level/input/output caps, statement
+trivia/spacing and var/let/const/bare assignment recognition. No unbounded searching
+inside arbitrary script functions/strings. Existing HTML subset/restriction/identity/
+live/auth/header/origin/privacy/request/deadline bounds retained. No new dependencies,
+endpoint/client/credential/cookie/PO-token/consent automation/proxy/redirect/persistence/
+external helper/fallback/production changes. Reader is not all ECMAScript or a browser,
+and cannot prove arbitrary runtime/provider semantics. New syntax deliberately accepted
+as static grammar; updated tests no longer call supported comments/trailing commas/hex
+string escapes malformed JSON. Invalid programs/unknown expressions still fail closed.
+
+46 Rust tests (main17/bootstrap17/literal12). Added complete synthetic watch-page ->
+offline request construction -> fixed player-response selection -> prefix-validation
+pipeline with negatives, single-quoted restrictions, deterministic string corpus,
+auth/type/duplicate/header controls, private errors, escape/depth/output/constant caps.
+Fixture pipeline is not real network acquisition, codec decode, hardware/audio output
+or whole-resource certification. Source4cf5566 CI43284047821 all5jobs PASS; directjob
+131412587797 tests/release/noJSgraph/CLI allPASS. Agent has no local Cargo. Local79Python
+PASS after evidence guard update; diffcheckPASS. No live v5 attempt here.
+
+New identities: --watch-bootstrap aysha-direct-v5-data-literals; optional --watch-inspect
+aysha-direct-v5-watch-inspect. Recommended next is ONE complete changed native trial
+within approved watch-bootstrap scope, not separate inspect/full requests. Debug build
+only (avoid repeated release LTO/test cycle already covered in CI), 75sexternal/60sasync.
+If supported watch data + allowed player + valid AAC, read one64KiB prefix; otherwise
+fixed stage/code and stop. Provider restriction stops path, no account/token/proxy
+workaround. Unsupported grammar requires meaningful offline review, not blind coercion
+or another unchanged attempt. Success still prefix only; next gates actual audio decode/
+output/controls/search/helper replacement/release complete memory then explicit deploy.
+
+Latest evidence keeps acquisition failure and watch-only diagnostic separate. Native
+acceptance guard remains blocked with next action approved v5 trial; approval/tests
+never media, memory or production acceptance. Main guide rewritten as one current
+path; historical commands moved to research/RUST_DIRECT_HISTORY.md with do-not-execute
+warning. Memory plan and REA roadmap remain explicit that working all-Rust10–15MB is
+unproved. Production5050/UI/Vercel/systemd/audio/deps/stopped5051 unchanged. Extraction
+2/5; preserve unrelated trackedpyc deletion. No new REA execution/integration.

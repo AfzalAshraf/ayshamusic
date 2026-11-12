@@ -206,7 +206,7 @@ async fn inspect_watch(id: &str, stage: &mut &'static str) -> Result<serde_json:
 async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
     let client = http_client()?;
-    // V4 alone reads anonymous context. Never loads or stores account cookies,
+    // The explicit watch-bootstrap mode alone reads anonymous context. Never loads or stores account cookies,
     // creates PO tokens, follows redirects or responds to provider restrictions.
     let visitor = if profile == RequestProfile::WatchBootstrap {
         *stage = "watch";
@@ -256,7 +256,7 @@ async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v5 data-literal check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v5 data-literal check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v5 static data/anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {

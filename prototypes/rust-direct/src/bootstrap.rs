@@ -1,5 +1,5 @@
 //! Conservative inert watch-page reader, not an HTML/JavaScript interpreter.
-//! Accepts only literal JSON assignments at the beginning of inline script text.
+//! Reads static data-literal assignments at the beginning of inline script text.
 //! Unsupported wrappers/markup fail closed. No raw values implement Debug or Display.
 use serde::{Deserialize, Deserializer, de::{Error as _, IgnoredAny}};
 #[cfg(test)]
@@ -111,8 +111,8 @@ fn config_syntax_code(error: &serde_json::Error) -> &'static str {
     "watch_config_json_syntax_other"
 }
 fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
-    // Python's JSON decoder accepts these constants. Replace them ONLY in
-    // metadata our typed Config discards; never in visitor/auth/context subtrees.
+    // Canonicalize a bounded static literal, preserving strings/types/duplicates.
+    // Nonfinite constants remain metadata-only, never visitor/auth/context values.
     let normalized = super::literal_data::config(data,JSON_MAX)?;
     let metadata_nonfinite_ignored = normalized.nonfinite_ignored;
     let literal_syntax_normalized = normalized.syntax_normalized;

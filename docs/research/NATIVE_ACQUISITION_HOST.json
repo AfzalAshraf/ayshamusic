@@ -44,11 +44,11 @@
   "stop_identical_native_trials": true,
   "limits": "Historical attempts, not simultaneous controlled comparison. Failed-request RSS is not successful extraction, playback or whole-server memory. Baseline markers do not prove selected-media client or absence of JS. Bootstrap cause/solution unproved.",
   "approved_experiment": {
-    "candidate": "aysha-direct-v4.1-watch-literals",
+    "candidate": "aysha-direct-v5-data-literals",
     "approval_recorded": true,
-    "status": "stopped_watch_parser_failure",
-    "host_result_recorded": true,
-    "scope": "same_approved_bootstrap_parser_only_correction_no_access_scope_change"
+    "status": "awaiting_single_host_trial",
+    "host_result_recorded": false,
+    "scope": "same_approved_bounded_anonymous_watch_player_media_chain_with_static_data_literal_reader_no_execution"
   },
   "historical_native": [
     {
@@ -82,21 +82,22 @@
     }
   ],
   "pending_diagnostic": {
-    "candidate": "aysha-direct-v4.4-metadata-guard",
-    "status": "awaiting_one_watch_only_request",
-    "scope": "same_approved_watch_only_scope_guarded_nonfinite_in_discarded_metadata_strict_visitor_auth_context",
+    "candidate": "aysha-direct-v5-watch-inspect",
+    "status": "optional_not_the_next_host_trial",
+    "scope": "same_watch_only_mode_retained_for_offline_review_not_an_extra_live_request",
     "external_tools": false
   },
   "latest_diagnostic": {
-    "source_revision": "127817d",
-    "candidate": "aysha-direct-v4.3-syntax-diagnostic",
+    "source_revision": "5142200",
+    "candidate": "aysha-direct-v4.4-metadata-guard",
     "debug_build_passed": true,
     "build_profile": "debug",
+    "debug_build_seconds": 1.55,
     "status": "fail",
-    "code": "watch_config_json_expected_value",
+    "code": "watch_config_js_single_quote",
     "stage": "watch",
     "external_tools": false,
-    "peak_rss_kib": 10964,
+    "peak_rss_kib": 10928,
     "watch_parser_only": true,
     "player_requested": false,
     "media_requested": false,
@@ -114,6 +115,21 @@
       "stage": "watch",
       "external_tools": false,
       "peak_rss_kib": 10848,
+      "watch_parser_only": true,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
+    },
+    {
+      "source_revision": "127817d",
+      "candidate": "aysha-direct-v4.3-syntax-diagnostic",
+      "debug_build_passed": true,
+      "build_profile": "debug",
+      "status": "fail",
+      "code": "watch_config_json_expected_value",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10964,
       "watch_parser_only": true,
       "player_requested": false,
       "media_requested": false,

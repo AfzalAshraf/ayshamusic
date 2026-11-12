@@ -240,3 +240,15 @@ JSvaluesnowfixedsubtypes. Extraownedbufferupto1MiBwhencompatibilityisused, no wh
 claim. Nextcommandwatch-inspectONLY, notbootstrap/playertrial. Seelatestdirectguide
 forprotected/nonfinite/unsupported/passbranches; no assumedhistoricalrootcause. No new
 REAexecution/deps/credentials/persistence/endpoint/provider-accessscope/productionchange.
+
+## V5: consolidated data-only reader, not another quote exception or REA runtime
+
+Host5142200 stopped at single-quote-leading config value before player/media. User
+requests the remaining issues fixed. Replaced incremental config_numbers/framing with
+literal_data.rs supporting bounded static strings/escapes/keys/containers/comments/
+trailing commas while rejecting execution and retaining typed privacy/restriction/
+identity/duplicate/auth guards.46Rust tests include a complete synthetic pipeline;
+source4cf5566 CI43284047821 all5jobs PASS. No live v5/provider/codec/budget acceptance.
+Current direct guide now contains one next full native trial and a dependency-ordered
+plan for audio/search/controls/complete memory/production, with historical commands
+archived. No new REA run/dependency or whole-app Rust/10–15MB claim.

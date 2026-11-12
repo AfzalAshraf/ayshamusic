@@ -14,15 +14,21 @@ WATCH_ACTIONS = {
     "aysha-direct-v4.4-metadata-guard": "one_guarded_metadata_watch_check_no_player_or_media",
 }
 
+NATIVE_ACTIONS = {
+    "aysha-direct-v4-watch-bootstrap": "one_approved_v4_host_trial_after_offline_verification",
+    "aysha-direct-v4.1-watch-literals": "one_parser_corrected_v4_1_trial_after_offline_verification",
+    "aysha-direct-v5-data-literals": "one_bounded_v5_native_trial_after_offline_verification",
+}
+
 
 def assess(evidence):
     native = evidence.get("latest_native", {})
     prefix_pass = (native.get("status") == "pass" and native.get("bytes") == 65536
                    and native.get("external_tools") is False and not native.get("code"))
     approved = evidence.get("approved_experiment", {})
-    awaiting_trial = (isinstance(approved, dict) and approved.get("approval_recorded") is True
-                      and approved.get("candidate") in ("aysha-direct-v4-watch-bootstrap", "aysha-direct-v4.1-watch-literals")
-                      and approved.get("status") == "awaiting_single_host_trial")
+    native_action = (NATIVE_ACTIONS.get(approved.get("candidate")) if isinstance(approved, dict)
+                     and approved.get("approval_recorded") is True
+                     and approved.get("status") == "awaiting_single_host_trial" else None)
     diagnostic = evidence.get("pending_diagnostic", {})
     watch_action = (WATCH_ACTIONS.get(diagnostic.get("candidate")) if isinstance(diagnostic, dict)
                     and diagnostic.get("status") == "awaiting_one_watch_only_request" else None)
@@ -37,8 +43,7 @@ def assess(evidence):
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
         "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
                  watch_action if watch_action else
-                 ("one_parser_corrected_v4_1_trial_after_offline_verification" if approved.get("candidate") == "aysha-direct-v4.1-watch-literals" else
-                  "one_approved_v4_host_trial_after_offline_verification") if awaiting_trial else
+                 native_action if native_action else
                  "review_and_approve_next_probe_scope_before_any_new_native_trial"),
         "limits": "Committed historical evidence only. No media validation occurs here. A prefix pass alone cannot certify decoding, audible output, resource budgets or production readiness.",
     }

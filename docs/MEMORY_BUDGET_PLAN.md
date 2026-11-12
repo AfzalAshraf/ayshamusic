@@ -140,3 +140,16 @@ Hostv4.3at127817ddebugbuildPASS: stagewatch/expected_value, no player/media,1096
 objecttree or externalhelper. Input/output logicalcaps are not wholeheap accounting.
 All-Rust source acquisition/playback/search/fullserver10–15MB acceptance unproved;
 debug failed-parserRSS cannot certify it. FinalofflineCIpassed; runtime resultpending.
+
+## Consolidated v5 data reader; resource gates remain real acceptance work
+
+Latest host watch-only failure at5142200 was a single-quote-leading value, debug HWM
+10,928KiB (11,190,272bytes), no player/media request. V5 consolidates static literal
+parsing and synthetic pipeline tests; it is not a demonstrated extraction, playback
+or memory fix. Strict JSON is borrowed; canonical non-JSON output <=1MiB plus temporary
+input-bounded strings/parser state, no Value object tree. HTTP/TLS/Serde/allocator and
+complete audio/server costs are still not proven within10–15MB. No hidden subprocess,
+worker offload, MemoryMax/OOM policy, swap trick or resource target increase. Native
+acquisition must pass before replacing production extraction/player helpers; then
+actual decoder/control/search/whole-stack release/device tests, not a pass inferred
+from successful syntax fixtures or failed debug-process RSS.
