@@ -7,7 +7,7 @@ use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
-const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4-watch-bootstrap";
+const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4.1-watch-literals";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;

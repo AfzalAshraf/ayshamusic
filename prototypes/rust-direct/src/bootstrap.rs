@@ -103,7 +103,7 @@ fn raw_close(data: &[u8], name: &[u8]) -> Option<usize> {
     None
 }
 fn json_end(data: &[u8]) -> Result<usize, &'static str> {
-    if data.first() != Some(&b'{') { return Err("watch_literal_invalid"); }
+    if data.first() != Some(&b'{') { return Err("watch_json_object_expected"); }
     let mut depth = 0usize;
     let mut string = false;
     let mut escaped = false;
@@ -118,14 +118,42 @@ fn json_end(data: &[u8]) -> Result<usize, &'static str> {
                 b'"' => string = true,
                 b'{' | b'[' => { depth += 1; if depth > 64 { return Err("watch_json_depth_limit"); } }
                 b'}' | b']' => {
-                    depth = depth.checked_sub(1).ok_or("watch_literal_invalid")?;
+                    depth = depth.checked_sub(1).ok_or("watch_json_unbalanced")?;
                     if depth == 0 { return Ok(i+1); }
                 }
                 _ => {}
             }
         }
     }
-    Err("watch_literal_invalid")
+    Err("watch_json_unterminated")
+}
+
+// Consume only two unrelated display-setting calls. No expression is evaluated,
+// and no dynamic visitor/auth/config key is skipped. Names/expressions are fixed.
+fn viewport_call(tail: &[u8]) -> Option<&[u8]> {
+    for (key, expressions) in [
+        (b"initialBodyClientWidth".as_slice(), [b"document.body.clientWidth".as_slice(), b"window.innerWidth"]),
+        (b"initialBodyClientHeight".as_slice(), [b"document.body.clientHeight".as_slice(), b"window.innerHeight"]),
+    ] {
+        for quote in [b'\'',b'"'] {
+            if tail.first() != Some(&quote) { continue; }
+            let Some(after_key) = tail[1..].strip_prefix(key).and_then(|s| s.strip_prefix(&[quote])) else { continue };
+            let Some(value) = trim(after_key).strip_prefix(b",") else { continue };
+            for expression in expressions {
+                if let Some(after_value) = trim(value).strip_prefix(expression) {
+                    if let Some(after_close) = trim(after_value).strip_prefix(b")") {
+                        return Some(after_close);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+fn statement_end(after: &[u8], config: bool) -> Result<&[u8], &'static str> {
+    let after = trim(after);
+    if after.is_empty() { return Ok(after); } // legal end-of-script semicolon omission
+    after.strip_prefix(b";").ok_or(if config { "watch_config_terminator_invalid" } else { "watch_player_terminator_invalid" })
 }
 
 pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
@@ -183,10 +211,20 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
         } else if let Some(tail) = script.strip_prefix(b"ytInitialPlayerResponse =") {
             (trim(tail),false)
         } else { return Ok(()) };
+        if config && tail.first() != Some(&b'{') {
+            if let Some(after) = viewport_call(tail) {
+                script = statement_end(after,true)?;
+                continue;
+            }
+            return Err("watch_config_nonliteral_unsupported");
+        }
+        if !config && tail.first() != Some(&b'{') { return Err("watch_player_nonliteral_unsupported"); }
         let end = json_end(tail)?;
         let after = trim(&tail[end..]);
-        let suffix = if config { b");".as_slice() } else { b";".as_slice() };
-        let next = after.strip_prefix(suffix).ok_or("watch_literal_invalid")?;
+        let after = if config {
+            trim(after.strip_prefix(b")").ok_or("watch_config_closer_missing")?)
+        } else { after };
+        let next = statement_end(after,config)?;
         if config {
             let cfg: Config = serde_json::from_slice(&tail[..end]).map_err(|_| "watch_config_invalid")?;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
@@ -264,6 +302,51 @@ mod tests {
             "<script src='x'>ytcfg.set({\"VISITOR_DATA\":\"evil\"});</script>".into()] {
             let mut data = prefix.into_bytes(); data.extend(page(serde_json::json!({"VISITOR_DATA":"good"}),player()));
             assert_eq!(parse(&data,ID).unwrap().as_header(),"good");
+        }
+    }
+    #[test] fn viewport_key_value_calls_do_not_block_real_literal_config() {
+        for viewport in ["ytcfg.set('initialBodyClientWidth', document.body.clientWidth);",
+                         "ytcfg.set(\"initialBodyClientHeight\", window.innerHeight ) ;",
+                         "ytcfg.set('initialBodyClientHeight', document.body.clientHeight)"] {
+            let mut data = format!("<script>{viewport}</script>").into_bytes();
+            data.extend(page(serde_json::json!({"VISITOR_DATA":"good"}),player()));
+            assert_eq!(parse(&data,ID).unwrap().as_header(),"good");
+        }
+        let data = format!("<script>ytcfg.set('initialBodyClientWidth', document.body.clientWidth);ytcfg.set({{\"VISITOR_DATA\":\"good\"}});</script><script>var ytInitialPlayerResponse = {};</script>",player());
+        assert_eq!(parse(data.as_bytes(),ID).unwrap().as_header(),"good");
+    }
+    #[test] fn only_fixed_viewport_expressions_can_be_ignored() {
+        for script in ["ytcfg.set('VISITOR_DATA', arbitrary());", "ytcfg.set('LOGGED_IN', true);",
+                       "ytcfg.set('initialBodyClientWidth', steal());",
+                       "ytcfg.set('initialBodyClientWidth', document.body.clientWidth.valueOf());",
+                       "ytcfg.set('initialBodyClientWidth', window.innerWidth) + evil();"] {
+            let mut data = format!("<script>{script}</script>").into_bytes();
+            data.extend(page(serde_json::json!({"VISITOR_DATA":"good"}),player()));
+            assert!(parse(&data,ID).is_err());
+        }
+    }
+    #[test] fn whitespace_and_end_of_script_terminators_are_supported_without_expressions() {
+        for cfg in ["ytcfg.set({\"VISITOR_DATA\":\"good\"})", "ytcfg.set({\"VISITOR_DATA\":\"good\"} ) ; "] {
+            for suffix in [";", "", " \n"] {
+                let data = format!("<script>{cfg}</script><script>var ytInitialPlayerResponse = {}{suffix}</script>",player());
+                assert_eq!(parse(data.as_bytes(),ID).unwrap().as_header(),"good");
+            }
+        }
+    }
+    #[test] fn structural_errors_are_specific_and_never_echo_page_data() {
+        for (script,code) in [
+            ("ytcfg.set('PRIVATE_UNKNOWN', secret)","watch_config_nonliteral_unsupported"),
+            ("var ytInitialPlayerResponse = secret;","watch_player_nonliteral_unsupported"),
+            ("ytcfg.set({\"VISITOR_DATA\":\"secret\"};","watch_config_closer_missing"),
+            ("ytcfg.set({\"VISITOR_DATA\":\"secret\"}) + evil();","watch_config_terminator_invalid"),
+            ("var ytInitialPlayerResponse = {} + secret;","watch_player_terminator_invalid"),
+            ("ytcfg.set({\"VISITOR_DATA\":\"secret","watch_json_unterminated"),
+        ] {
+            let data = format!("<script>{script}</script>");
+            let err = parse(data.as_bytes(),ID).err().unwrap();
+            assert_eq!(err,code);
+            assert!(!err.contains("secret"));
+            assert!(!err.contains("PRIVATE"));
         }
     }
     #[test] fn malformed_literals_duplicate_keys_and_unsupported_wrappers_stop_safely() {

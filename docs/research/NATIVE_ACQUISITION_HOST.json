@@ -3,6 +3,19 @@
   "scope": "user_supplied_target_host_observations_not_a_live_probe",
   "video_id": "Jm7Satp7Zqk",
   "latest_native": {
+    "source_revision": "120c5fe",
+    "candidate": "aysha-direct-v4-watch-bootstrap",
+    "tests_passed": 21,
+    "release_build_passed": true,
+    "release_build_seconds": 18.45,
+    "status": "fail",
+    "code": "watch_literal_invalid",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 5764,
+    "production_ready": false
+  },
+  "previous_native": {
     "source_revision": "b2efd81",
     "candidate": "aysha-direct-v3-standard-context",
     "tests_passed": 11,
@@ -11,12 +24,6 @@
     "code": "player_bot_check",
     "peak_rss_kib": 4404,
     "production_ready": false
-  },
-  "previous_native": {
-    "candidate": "aysha-direct-v2-visionos",
-    "status": "fail",
-    "code": "player_bot_check",
-    "peak_rss_kib": 4404
   },
   "baseline_trace": {
     "source_revision": "93c7849",
@@ -34,10 +41,28 @@
   "stop_identical_native_trials": true,
   "limits": "Historical attempts, not simultaneous controlled comparison. Failed-request RSS is not successful extraction, playback or whole-server memory. Baseline markers do not prove selected-media client or absence of JS. Bootstrap cause/solution unproved.",
   "approved_experiment": {
-    "candidate": "aysha-direct-v4-watch-bootstrap",
+    "candidate": "aysha-direct-v4.1-watch-literals",
     "approval_recorded": true,
     "status": "awaiting_single_host_trial",
     "host_result_recorded": false,
-    "scope": "ephemeral_anonymous_watch_bootstrap_no_account_cookies_or_token_generation"
-  }
+    "scope": "same_approved_bootstrap_parser_only_correction_no_access_scope_change"
+  },
+  "historical_native": [
+    {
+      "candidate": "aysha-direct-v2-visionos",
+      "status": "fail",
+      "code": "player_bot_check",
+      "peak_rss_kib": 4404
+    },
+    {
+      "source_revision": "b2efd81",
+      "candidate": "aysha-direct-v3-standard-context",
+      "tests_passed": 11,
+      "release_build_passed": true,
+      "status": "fail",
+      "code": "player_bot_check",
+      "peak_rss_kib": 4404,
+      "production_ready": false
+    }
+  ]
 }
