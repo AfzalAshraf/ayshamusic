@@ -754,7 +754,7 @@ test('butterfly hearts use native-dialog layers and survive closing the intro or
 
 test('keyboard, secondary clicks and form editing do not launch butterflies', () => {
   const h = heartEffectsHarness();
-  h.context.heartPointerClick(h.event({ detail: 0 }));
+  h.context.heartPointerClick(h.event({ detail: 0, clientX: 0, clientY: 0 }));
   h.context.heartPointerClick(h.event({ button: 2 }));
   h.context.heartPointerClick(h.event({ target: { closest: () => ({}) } }));
   assert.equal(h.particles.length, 0);
@@ -814,4 +814,12 @@ test('butterfly CSS moves hearts upward and flaps the icon instead of revealing 
   assert.ok(source.includes('rotateY('));
   assert.ok(!source.includes('heart-constellation'));
   assert.ok(!source.includes('revealHeartField'));
+});
+
+
+test('embedded-preview coordinate clicks with detail zero still launch butterfly hearts', () => {
+  const h = heartEffectsHarness();
+  h.context.heartPointerClick(h.event({ detail: 0, clientX: 130, clientY: 220 }));
+  assert.equal(h.particles.length, 8);
+  assert.ok(h.particles.every(p => p.style.left === '130px' && p.style.top === '220px'));
 });

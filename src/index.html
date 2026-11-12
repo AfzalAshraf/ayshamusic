@@ -310,8 +310,9 @@ function spawnHeartParticle(x, y) {
 }
 function heartPointerClick(event) {
   // A single click listener handles mouse/touch taps without double pointerup bursts.
-  // Keyboard activation and form editing remain undecorated.
-  if (!event.detail || event.button !== 0 || !heartEffectsAllowed()) return;
+  // Embedded previews/automation can dispatch coordinate clicks with detail=0.
+  // Exclude coordinate-less keyboard activation, not valid positioned clicks.
+  if ((!event.detail && event.clientX === 0 && event.clientY === 0) || event.button !== 0 || !heartEffectsAllowed()) return;
   if (event.target.closest('input, textarea, select, [contenteditable]')) return;
   for (let i = 0; i < 8; i++) spawnHeartParticle(event.clientX, event.clientY);
 }

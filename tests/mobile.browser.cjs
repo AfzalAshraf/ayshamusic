@@ -17,6 +17,50 @@ const tracks = [
   { id: 'sample4', title: 'After the rain', artist: 'Late night favorites' },
 ].map(t => ({ ...t, url: 'https://www.youtube.com/watch?v=' + t.id, thumbnail: 'https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg' }));
 
+// Exercise the real UI-preview server, not fixture API responses, inside an iframe.
+async function checkInteractiveSandbox(context) {
+  const { createPreviewServer } = require('../scripts/preview_ui.cjs');
+  const server = createPreviewServer();
+  await new Promise(resolve => server.listen(0, '0.0.0.0', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    for (const mobile of [true, false]) {
+      const page = await context.newPage();
+      page.setDefaultTimeout(12000);
+      try {
+        await page.setViewportSize(mobile ? {width:390,height:844} : {width:1440,height:900});
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.route('http://arena-preview.test/', route => route.fulfill({ contentType: 'text/html', body: `<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style><iframe title="Interactive preview" sandbox="allow-scripts allow-same-origin" src="${origin}/"></iframe>` }));
+        await page.goto('http://arena-preview.test/');
+        const frame = page.frameLocator('iframe');
+        const title = frame.locator('#love-intro-title');
+        await frame.locator('#love-intro').waitFor({state:'visible'});
+        await frame.locator('[data-preview-motion]').last().filter({hasText:'Hearts ready'}).waitFor();
+        const missingAudio = await context.request.get(origin + '/api/search?q=test');
+        assert.equal(missingAudio.status(), 503, 'Preview must not fake a live audio backend');
+        if (mobile) await title.tap(); else await title.click();
+        assert.equal(await frame.locator('.heart-particle').count(), 8, 'Actual preview animates without the Rust backend');
+        await title.evaluate(() => clearHeartEffects());
+        await title.evaluate(el => { const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('click', {bubbles:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2})); });
+        assert.equal(await frame.locator('.heart-particle').count(), 8, 'Coordinate click works even when detail defaults to zero');
+        await title.evaluate(() => clearHeartEffects());
+        if (mobile) await frame.locator('.love-skip').tap(); else await frame.locator('.love-skip').click();
+        await frame.locator('#love-intro').waitFor({state:'hidden'});
+        await frame.locator('#heart-effects-page .heart-particle').first().waitFor({state:'visible'});
+        await frame.locator('#tab-home .page-heading').evaluate(() => clearHeartEffects());
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts off: Reduce Motion'}).waitFor();
+        if (mobile) await frame.locator('#tab-home .page-heading').tap(); else await frame.locator('#tab-home .page-heading').click();
+        assert.equal(await frame.locator('.heart-particle').count(), 0);
+        assert.deepEqual(errors, []);
+        console.log(`PASS actual UI-only preview in iframe (${mobile ? 'touch' : 'mouse'}): hearts work while backend returns503, detail0 works, motion status is truthful`);
+      } finally { await page.close(); }
+    }
+  } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+}
+
 let activeViewport = 'startup';
 (async () => {
   const { default: binary } = await import(pathToFileURL(path.join(modules, '@sparticuz/chromium/build/index.js')).href);
@@ -29,6 +73,7 @@ let activeViewport = 'startup';
       HTMLMediaElement.prototype.play = function() { window.mediaPlayAttempts++; return Promise.resolve(); };
       HTMLMediaElement.prototype.pause = function() {};
     });
+    await checkInteractiveSandbox(context);
     const page = await context.newPage();
     for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 412, height: 915 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
       activeViewport = `${viewport.width}x${viewport.height}`;
