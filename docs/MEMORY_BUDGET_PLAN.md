@@ -27,6 +27,19 @@ used only for opt-in diagnostic/test tooling as well as the separate cloud fallb
 its benchmark RSS is excluded from this report, not evidence of runtime compliance.
 Any requirement to remove development diagnostics too needs explicit scope agreement.
 
+## Latest failed-candidate measurement
+
+User's pinned candidate at source566a812 built and passed10tests after the lock fix,
+then failed all_aac_urls_missing (2AAC records, both empty;23formats total; no origin
+rejections). VmHWM25664KiB =26,279,936bytes, about26.3decimalMB. This is an unsuccessful
+standalone extraction peak, NOT successful media-read/decoding/streaming or full service
+memory. The reported compile/download activity is not server runtime RSS. Both tested
+AAC extraction candidates are now blocked for this workload; stop identical rebuilds.
+Do not introduce a15MB MemoryMax/OOM workaround or move helpers outside accounting.
+Next native architecture needs a feasibility/design gate before further integration;
+see latest checkpoint in RUST_EXTRACT_PROTOTYPE.md. No performance acceptance or
+whole-stack resource promise can be made from the current results.
+
 ## Historical 100 MB plan (not achieved)
 
 Status: 100 MB target not yet implemented/verified; concurrent-device architecture still awaits capacity/accounting/session decisions. The user has approved the first isolated audio-only Rust experiment, now implemented in `prototypes/rust-audio`; see [its build/test guide](RUST_AUDIO_PROTOTYPE.md). This does not switch production away from mpv/yt-dlp. This updates the earlier 20 MB target; it is not evidence that current playback fits within 100 MB.

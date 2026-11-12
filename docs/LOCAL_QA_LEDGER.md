@@ -650,3 +650,26 @@ Retrieved successful check annotation through GitHub API: idna_adapter1.2.1,
 boa_engine0.21.1, icu_normalizer2.0.1. This is regression evidence for the reported
 constraint shape, not a target-host build or live media proof. Host lock preserved;
 normal cargo test reconciles it, release can then use --locked. No new15MB/speed claim.
+
+
+## Target confirms lock repair; pinned extractor rejected for required AAC workload
+
+Active department: QA & Debugging. User host pulled566a812; normal Cargo resolution
+successfully selected adapter1.2.1/ICU-normalizer2.0.1/Boa0.21.1. Ten prototype testsPASS,
+release buildPASS (3m06s), then actual native probeFAILED all_aac_urls_missing, pinned
+PR62 candidate b390352a:23formats,2compatibleAAC,2empty URLs,0invalid/0origin rejection,
+0usable. VmHWM25664KiB (26,279,936bytes ~26.3decimalMB). Host confirms resolver repair,
+not extractor recovery. Client compatibility hypothesis did not recover this track;
+exact upstream/raw-response/parser cause remains undetermined. Other codecs/tracks
+not tested; no universalYouTube/DRM/engine conclusion. Prior published candidate also
+failed. Stop asking for identical builds/probes or another local guard tweak.
+
+Docs-only checkpoint: prominently mark native extraction guide BLOCKED, preserve
+repro/history, record latest memory measurement and propose a separate approved
+Product & Architecture feasibility review before further candidates/rewrites. No new
+code/dependencies/host commands/services/API/Vercel changes. Existing working5050/UI,
+Rodio and unrelated pyc deletion preserved. Whitespace checkPASS; no runtime tests
+rerun/claimed for these documentation-only changes. Latest compileCI evidence remains
+43262098027; user target evidence now supersedes pending-host lock status. No speed or
+15MB pass, no readiness increase: playback/extraction remains2/5 with live extraction
+blocked. No further host action needed until a concrete reviewed mechanism change.

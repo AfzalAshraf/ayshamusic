@@ -1,13 +1,16 @@
 # Native extraction prototype — benchmark before replacing yt-dlp
 
-Status: isolated experimental candidate, NOT production, live success/speed/memory
-NOT YET VERIFIED. The first step requested is native extraction; the existing
-Rodio audio experiment remains separate and unchanged. No service/tunnel/Vercel
-backend migration occurs. Only access content you are permitted to use.
+Status: **BLOCKED — both tested extraction candidates failed the required AAC probe
+on the user's Linux host. Do not promote or recommend another identical rebuild.**
+The lockfile migration is now host-verified; native AAC extraction is not working.
+No speedup or 10–15 MB compliance is demonstrated. Build/probe instructions below
+are retained for reproduction, not a recommended next action for this failure.
+The existing Rodio audio experiment remains separate and unchanged. No service,
+tunnel or Vercel backend migration occurs. Only access permitted content.
 
 ## Actual implementation
 
-Current candidate: `prototypes/rust-extract` pins upstream PR62 revision
+Retained failed candidate (for reproduction): `prototypes/rust-extract` pins upstream PR62 revision
 `b390352a5db4b57aa630e8dc7b427fb560feccd5` from `restalex/rusty_ytdl`, default
 features off, `rustls` only. The published crate0.7.4 candidate is rejected for the
 reported host/track (all compatible AAC URLs missing). See latest evidence below.
@@ -286,3 +289,49 @@ The initial verification assertion was too strict (exact Boa0.21.0), despite the
 prototype tests passing; corrected to compatible0.21.x. This does not pin all
 transitive dependencies or certify host media success. After cargo test updates the
 host lock normally, cargo build --release --locked can preserve that resolved graph.
+
+
+## Final host checkpoint: pinned candidate also fails — stop this retry sequence
+
+User reports source566a812: Cargo successfully reconciled adapter1.2.1/ICU-normalizer
+2.0.1/Boa0.21.1 without deleting the lock; ten testsPASS; release buildPASS (3m06s).
+The actual pinned native probe then FAILED:
+
+```json
+{"candidate":"rusty_ytdl-pr62-b390352a5db4b57aa630e8dc7b427fb560feccd5","code":"all_aac_urls_missing","format_counts":{"aac_candidates":2,"empty_urls":2,"formats_total":23,"invalid_urls":0,"rejected_origins":0,"usable_urls":0},"peak_rss_kib":25664,"production_ready":false,"status":"fail"}
+```
+
+The dependency fix is confirmed on target. The client-request compatibility hypothesis
+is insufficient to recover AAC for this host/track. Both compatible AAC URLs are empty;
+no security guard rejected them. VmHWM25664KiB =26,279,936bytes (~26.3decimalMB), already
+above15MB for this failed experiment alone. Compile time, downloaded crate sizes and
+build-process RAM are NOT playback runtime memory. No successful Rust timing/memory
+comparison exists. Do not optimize based on this failed path or promise a lower peak.
+
+This result does NOT establish the exact upstream reason (missing data in server
+response vs parsing/decipher/client behavior), availability of non-AAC URLs, a failure
+for all videos, DRM, or an unavoidable need for any particular runtime. Do not guess
+which of those occurred or remove the URL validator. No private/raw response dump or
+credentials should be collected. The agent sandbox cannot make live YouTube requests;
+CI fixtures/compilation cannot substitute for actual host success.
+
+### Next department/design gate
+
+Before implementing another candidate or large rewrite, seek approval for a scoped
+Product & Architecture extraction feasibility review. Keep working production intact.
+Define a small permitted/public track corpus, accepted codecs/output targets and
+resource-accounting boundary; do not hide workers or move extraction remotely to meet
+15MB. Evaluate dependency maintenance, licenses, embedded runtime/native-library needs,
+response-size limits and cancellation before selection. Prefer a bounded standalone
+proof of URL acquisition+media-read before full player integration or user rebuilds.
+If investigation can be done with a small read-only release probe, do that before
+asking for a multi-minute full build. Gate any new host probe on a concrete mechanism
+change and offline tests, not another diagnostic-message rename.
+
+For a bespoke native extractor, byte-bounded HTTP/JSON, measured JS/signature handling,
+format support and restriction failures need a maintainable implementation and tests;
+"no JS engine" is not an assumed viable design. A different codec may require changes
+to the audio prototype and invalidates the earlier AAC-only timing comparison. Search,
+related tracks, mobile playback and hardware controls remain separate acceptance gates.
+No next architecture is approved or implemented by this checkpoint. Rollback is not
+needed for production: only the isolated experiment/docs have changed throughout.
