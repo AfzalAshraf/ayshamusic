@@ -717,10 +717,10 @@ function heartEffectsHarness() {
 test('click/tap launches twelve small red butterflies from revealed tiles without network/storage/audio', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 12);
-  assert.equal(h.timers.size, 13);
+  assert.equal(h.particles.length, 16);
+  assert.equal(h.timers.size, 17);
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page' && p.innerHTML.includes('/icons.svg#heart')));
-  for (const p of h.particles) {
+  for (const p of h.particles.filter(p => p.className.includes('is-butterfly'))) {
     assert.equal(Number.parseFloat(p.style.left) % 20, 10);
     assert.equal(Number.parseFloat(p.style.top) % 20, 10);
     assert.ok(Math.abs(Number.parseFloat(p.style.left) - 90) <= 30);
@@ -733,7 +733,7 @@ test('click/tap launches twelve small red butterflies from revealed tiles withou
     assert.ok(parseFloat(p.style['--heart-size']) >= 12 && parseFloat(p.style['--heart-size']) < 16);
   }
   assert.equal(h.fields.length, 1);
-  assert.equal(new Set(h.particles.map(p => p.style.left + ',' + p.style.top)).size, 6, 'Butterflies lift from several revealed tiles');
+  assert.equal(new Set(h.particles.filter(p => p.className.includes('is-butterfly')).map(p => p.style.left + ',' + p.style.top)).size, 6, 'Butterflies lift from several revealed tiles');
   assert.equal(h.calls.length, 0);
   assert.equal(h.quoteStorage.size + h.storage.size, 0);
   assert.equal(h.element('audio-player').playCount, 0);
@@ -754,7 +754,7 @@ test('butterfly hearts use native-dialog layers and survive closing the intro or
   h.element('now-playing').open = false;
   h.element('now-playing').listeners.close();
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page'));
-  assert.equal(h.timers.size, 12);
+  assert.equal(h.timers.size, 16);
 });
 
 test('keyboard, secondary clicks and form editing do not launch butterflies', () => {
@@ -782,16 +782,16 @@ test('explicit always-on hearts ignore reduced motion but hidden pages still sto
   const h = heartEffectsHarness();
   h.preference.matches = true;
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 12);
-  assert.equal(h.timers.size, 13);
+  assert.equal(h.particles.length, 16);
+  assert.equal(h.timers.size, 17);
   h.preference.matches = false;
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 24);
+  assert.equal(h.particles.length, 32);
   h.context.document.hidden = true;
   h.listeners.visibilitychange.fn();
   assert.equal(h.timers.size, 0);
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 24);
+  assert.equal(h.particles.length, 32);
 });
 
 test('butterfly initialization is idempotent and invalid coordinates never create nodes', () => {
@@ -807,8 +807,8 @@ test('touch pointerout never cancels newly launched flights', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event({ pointerType: 'touch' }));
   h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
-  assert.equal(h.particles.filter(p => !p.removed).length, 12);
-  assert.equal(h.timers.size, 13);
+  assert.equal(h.particles.filter(p => !p.removed).length, 16);
+  assert.equal(h.timers.size, 17);
 });
 
 test('butterfly flight and red spotlight CSS coexist', () => {
@@ -825,8 +825,8 @@ test('butterfly flight and red spotlight CSS coexist', () => {
 test('embedded-preview coordinate clicks with detail zero still launch butterfly hearts', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event({ detail: 0, clientX: 130, clientY: 220 }));
-  assert.equal(h.particles.length, 12);
-  assert.ok(h.particles.every(p => Number.parseFloat(p.style.left) % 20 === 10 && Number.parseFloat(p.style.top) % 20 === 10));
+  assert.equal(h.particles.length, 16);
+  assert.ok(h.particles.filter(p => p.className.includes('is-butterfly')).every(p => Number.parseFloat(p.style.left) % 20 === 10 && Number.parseFloat(p.style.top) % 20 === 10));
 });
 
 test('hover reveals a stationary tile pattern with bounded butterflies and no growing field nodes', () => {
@@ -860,9 +860,9 @@ test('mouse exit fades reveal only; touch exit does not cancel flying hearts', (
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
   h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
-  assert.equal(h.timers.size, 13);
+  assert.equal(h.timers.size, 17);
   h.listeners.pointerout.fn({ pointerType: 'mouse', relatedTarget: null });
-  assert.equal(h.timers.size, 12);
+  assert.equal(h.timers.size, 16);
   assert.equal(h.fields[0].classList.contains('is-revealed'), false);
   assert.ok(h.particles.every(p => !p.removed));
 });
@@ -905,7 +905,7 @@ test('revealed tile hearts morph into small red butterflies with a bounded hover
   h.context.heartPointerClick(h.event());
   assert.ok(h.particles.filter(p => p.className.includes('hover-butterfly')).every(p => p.removed));
   const alive = h.particles.filter(p => !p.removed);
-  assert.equal(alive.length, 12);
+  assert.equal(alive.length, 16);
   assert.equal(alive.filter(p => p.className.includes('is-butterfly')).length, 12, 'Touch/click also includes red butterfly morphs');
 });
 
@@ -938,9 +938,34 @@ test('rapid fuller butterfly clicks retain the particle cap and do not accumulat
   for (let i = 0; i < 10; i++) h.context.heartPointerClick(h.event());
   const alive = h.particles.filter(p => !p.removed);
   assert.equal(alive.length, 32);
-  assert.ok(alive.every(p => p.className.includes('is-butterfly') && p.style['--heart-color'] === '#ed304b'));
+  assert.ok(alive.every(p => p.className.includes('is-butterfly') || p.className.includes('love-letter-particle')));
+  assert.equal(alive.filter(p => p.className.includes('love-letter-particle')).length, 8);
   assert.equal(h.fields.length, 1);
   assert.equal(h.timers.size, 33);
   h.context.clearHeartEffects();
   assert.equal(h.timers.size, 0);
+});
+
+test('every click adds exactly A Y S H in white with little local hearts alongside twelve butterflies', () => {
+  const h = heartEffectsHarness();
+  h.context.heartPointerClick(h.event());
+  const letters = h.particles.filter(p => p.className.includes('love-letter-particle'));
+  assert.equal(letters.length, 4);
+  assert.deepEqual(letters.map(p => p.innerHTML.match(/love-letter-glyph">([A-Z])</)[1]), ['A', 'Y', 'S', 'H']);
+  assert.ok(letters.every(p => p.style['--heart-color'] === '#fff' && p.innerHTML.includes('/icons.svg#heart')));
+  assert.equal(h.particles.filter(p => p.className.includes('is-butterfly')).length, 12);
+  h.context.clearHeartEffects();
+  assert.equal(h.timers.size, 0);
+  h.context.heartPointerMove(h.event());
+  assert.ok(h.particles.filter(p => !p.removed).every(p => !p.className.includes('love-letter-particle')), 'Letters belong to click/tap, not hover');
+});
+
+test('cute lettering font is embedded WOFF2 with its license, not a remote font dependency', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const data = source.match(/data:font\/woff2;base64,([A-Za-z0-9+/=]+)/);
+  assert.ok(data);
+  assert.equal(Buffer.from(data[1], 'base64').subarray(0,4).toString(), 'wOF2');
+  assert.ok(source.includes("font-family:'Short Stack',cursive"));
+  const license = fs.readFileSync(path.join(__dirname, '../docs/licenses/short-stack-OFL.txt'), 'utf8');
+  assert.ok(license.includes('SIL OPEN FONT LICENSE') && license.includes('Sorkin Type Co'));
 });

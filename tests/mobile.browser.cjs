@@ -51,10 +51,10 @@ async function checkInteractiveSandbox(context) {
         const missingAudio = await context.request.get(origin + '/api/search?q=test');
         assert.equal(missingAudio.status(), 503, 'Preview must not fake a live audio backend');
         if (mobile) await title.tap(); else await title.click();
-        assert.equal(await frame.locator('.heart-particle').count(), 12, 'Actual preview animates without the Rust backend');
+        assert.equal(await frame.locator('.heart-particle').count(), 16, 'Actual preview animates without the Rust backend');
         await title.evaluate(() => clearHeartEffects());
         await title.evaluate(el => { const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('click', {bubbles:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2})); });
-        assert.equal(await frame.locator('.heart-particle').count(), 12, 'Coordinate click works even when detail defaults to zero');
+        assert.equal(await frame.locator('.heart-particle').count(), 16, 'Coordinate click works even when detail defaults to zero');
         await title.evaluate(() => clearHeartEffects());
         if (mobile) await frame.locator('.love-skip').tap(); else await frame.locator('.love-skip').click();
         await frame.locator('#love-intro').waitFor({state:'hidden'});
@@ -63,7 +63,7 @@ async function checkInteractiveSandbox(context) {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts always on'}).waitFor();
         if (mobile) await frame.locator('#tab-home .page-heading').tap(); else await frame.locator('#tab-home .page-heading').click();
-        assert.equal(await frame.locator('.heart-particle').count(), 12);
+        assert.equal(await frame.locator('.heart-particle').count(), 16);
         const heart = frame.locator('.heart-particle').first();
         assert.equal(await heart.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
         assert.equal(await heart.locator('svg').last().evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
@@ -73,6 +73,9 @@ async function checkInteractiveSandbox(context) {
         assert.equal(await reveal.evaluate(el => getComputedStyle(el).transitionDuration), '0.12s');
         assert.equal(await reveal.evaluate(el => getComputedStyle(el).maskSize), '112px 104px');
         assert.equal(await frame.locator('.heart-burst.is-butterfly').count(), 12);
+        assert.deepEqual(await frame.locator('.love-letter-glyph').allTextContents(), ['A','Y','S','H']);
+        assert.equal(await frame.locator('.love-letter-particle').first().evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
+
 
         const before = await heart.boundingBox();
         await page.waitForTimeout(500);
@@ -147,17 +150,36 @@ let activeViewport = 'startup';
       assert.ok(await page.locator('#love-intro').evaluate(el => el.scrollWidth <= el.clientWidth), 'Love letter has no horizontal overflow');
       const skipBox = await page.locator('.love-skip').boundingBox();
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
+      assert.ok(await page.evaluate(async () => (await document.fonts.load('21px "Short Stack"', 'AYSH')).length === 1), 'Cute font loads locally inside the HTML');
       // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
       await page.locator('#love-intro-title').tap();
       {
-        assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 12);
-        assert.equal(await page.locator('#heart-effects-intro .heart-burst:not(.is-butterfly)').count(), 0, 'Every click particle is the same tiny red butterfly, not a larger heart');
-        assert.equal(await page.locator('#heart-effects-intro .is-butterfly').first().evaluate(el => getComputedStyle(el).color), 'rgb(237, 48, 75)');
-        assert.equal(await page.locator('#heart-effects-intro').evaluate(el => getComputedStyle(el).pointerEvents), 'none');
-        const butterfly = page.locator('#heart-effects-intro .heart-particle').first();
-        const liftOff = await butterfly.boundingBox();
-        assert.equal(await butterfly.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
-        assert.equal(await butterfly.locator('svg').last().evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
+        // Sample the short-lived burst in one round trip, without font-loading
+        // or many protocol calls consuming its animation lifetime.
+        const burst = await page.evaluate(() => {
+          const host = document.getElementById('heart-effects-intro');
+          const first = host.querySelector('.is-butterfly');
+          return { count:host.querySelectorAll('.heart-burst').length,
+            letters:[...host.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
+            hearts:host.querySelectorAll('.love-letter-heart use').length,
+            letterColor:getComputedStyle(host.querySelector('.love-letter-particle')).color,
+            normal:host.querySelectorAll('.heart-burst:not(.is-butterfly)').length,
+            color:getComputedStyle(first).color, pointer:getComputedStyle(host).pointerEvents,
+            flight:getComputedStyle(first).animationName,
+            flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
+            y:first.getBoundingClientRect().y };
+        });
+        assert.equal(burst.count, 12);
+        assert.deepEqual(burst.letters, ['A','Y','S','H']);
+        assert.equal(burst.hearts, 4);
+        assert.equal(burst.letterColor, 'rgb(255, 255, 255)');
+        assert.equal(burst.normal, 0);
+        assert.equal(burst.color, 'rgb(237, 48, 75)');
+        assert.equal(burst.pointer, 'none');
+        assert.equal(burst.flight, 'heart-flight');
+        assert.equal(burst.flutter, 'heart-flutter');
+        const butterfly = page.locator('#heart-effects-intro .is-butterfly').first();
+        const liftOff = {y:burst.y};
         // Touch browsers emit pointerout at finger release; the hearts must keep flying.
         await page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null })));
         await page.waitForTimeout(600);
@@ -422,14 +444,14 @@ let activeViewport = 'startup';
         await page.waitForTimeout(700);
         const flyingBox = await butterfly.boundingBox();
         assert.ok(flyingBox.y < startBox.y - 20, 'Desktop click launches upward butterfly flight');
-        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'desktop-butterfly-hearts.png') });
+        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'desktop-butterflies-white-letters.png') });
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
         await page.evaluate(() => { for (let i = 0; i < 100; i++) spawnHeartParticle(300, 200, true); });
         assert.equal(await page.locator('.heart-particle').count(), 32, 'Rapid activity stays bounded');
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
         await page.mouse.click(500, 150);
-        assert.equal(await page.locator('.heart-particle').count(), 12, 'User-requested always-on hearts survive Reduce Motion');
+        assert.equal(await page.locator('.heart-particle').count(), 16, 'User-requested always-on hearts survive Reduce Motion');
         assert.equal(await page.locator('.heart-particle').first().evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
       }
       assert.equal(await page.locator('#audio-player').evaluate(el => el.error), null, 'Fixture stream must be decodable; audio errors have dedicated unit coverage');
