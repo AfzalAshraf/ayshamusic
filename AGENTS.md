@@ -10,6 +10,7 @@ Preserve the approved Android-first Aysha design and local Rust/systemd producti
 
 - [Android frontend](skills/mobile-frontend/SKILL.md)
 - [SVG iconography](skills/icons/SKILL.md)
+- [QA and debugging](skills/qa-debugging/SKILL.md)
 - [Networking and self-hosting](skills/networking-self-hosting/SKILL.md)
 
 Use one active department per response. Ask about consequential ambiguities, verify changes, give evidence-based 0–5 ratings and append the build manifest/error ledger. Consult the latest entries in [the living ledger](docs/LOCAL_QA_LEDGER.md), not only its historical initial-state tables.

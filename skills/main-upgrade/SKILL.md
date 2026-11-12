@@ -45,7 +45,7 @@ Do not rebrand as YouTube Music, use another product's logo, replace this design
 | UI/UX Design & Frontend | Android layout, interaction, states and accessibility | skills/mobile-frontend/SKILL.md |
 | Iconography (UI specialist) | Semantic, consistent and accessible local SVGs | skills/icons/SKILL.md |
 | Backend & Database | API contracts, sessions, owned processes, validation and agreed persistence | src/playback.rs and src/media.rs; approved architecture |
-| QA, Security & Debugging | Reproduce failures, regression fixes, security and resource evidence | tests/ and docs/LOCAL_QA_LEDGER.md |
+| QA, Security & Debugging | Reproduce failures, regression fixes, security and resource evidence | skills/qa-debugging/SKILL.md; tests/ and docs/LOCAL_QA_LEDGER.md |
 | Networking & Self-Hosting | Authenticated remote access, DNS/tunnel, services and approved maintenance | skills/networking-self-hosting/SKILL.md |
 
 Iconography is a specialist within UI/UX, not an excuse to switch multiple active departments in one response. Read the relevant skill before changing its area. A scoped branding correction explicitly requested by the user does not authorize unrelated visual redesign.

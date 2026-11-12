@@ -99,3 +99,55 @@ The service is not a solution to that radio-level failure. Keep the JBL on nearb
 ## Resource and security limits
 
 The server remains bound to 0.0.0.0:5050 with its existing permissive API boundary. This is not an authenticated internet-facing service; network exposure must be approved and restricted separately. The user has replaced the earlier 20 MB target with a 100 MB concurrent-device maximum. No new cgroup ceiling has been applied: limiting the existing process tree without reducing/admitting work could kill playback. Confirm device count/accounting scope and follow MEMORY_BUDGET_PLAN.md before claiming the target is met. Measure the aggregate service cgroup as well as Rust and child processes separately during actual playback. Restart loses in-memory queue/history/likes; persistence has not been promised or implemented in this update.
+
+
+## One-command paste-ready health report
+
+Run as **afine**, not root, on the Linux host:
+
+```bash
+cd /home/afine/ayshamusic
+python3 scripts/check_health.py
+```
+
+The report is automatically printed to the terminal and saved to a unique
+`diagnostics/health-*.txt` file (owner-only mode 0600; directory ignored by Git).
+Review it, then copy from BEGIN AYSHA DEBUG REPORT through END AYSHA DEBUG REPORT
+into the conversation. Nothing is automatically uploaded or copied to a clipboard.
+The default probes are read-only apart from writing the report; no audio playback,
+service restart, pairing, credential inspection or external HTTP request is performed.
+All HTTP probes use fixed `127.0.0.1:5050`, ignore proxy variables, reject redirects
+and use timeouts. Commands disable paging and have timeouts. Raw subprocess logs,
+track metadata and addresses are not included in the report.
+
+For source regression checks as well:
+
+```bash
+python3 scripts/check_health.py --code-checks
+```
+
+This adds Python, Node and Rust tests (five-minute timeout per suite). Tests may
+write caches/build artifacts and fetch Cargo dependencies; avoid running these
+while measuring playback memory. It does not install/restart the production app.
+Use `--expect-bluetooth` only if testing host-speaker playback; otherwise a missing
+Bluetooth sink is a warning rather than a failure. Node and yt-dlp version probes
+use this documented host's confirmed executable paths.
+
+Exit/`RETURN_CODE`: **0** checked probes passed, **1** failure found, **2** warnings
+or incomplete checks, **3** reporter error (e.g. cannot save). CLI usage errors
+also exit 2 but show usage instead of a diagnostic report. To see the shell exit
+status, run `echo $?` immediately after the checker. Reports deliberately include
+an incomplete loaded-revision warning: file hashes do not prove the loaded process
+identity, so warning exit 2 can be expected even for a healthy service.
+
+The report uses stable check IDs. `MEMORYPEAK` above 104,857,600 bytes fails either
+100 MB interpretation; 100,000,001 through 104,857,600 bytes warns that the exact
+threshold needs agreement. These are observed service-cgroup readings, not an
+aggregate concurrent-load certificate. A historical peak does not identify the
+responsible operation. Lower current usage is not proof of compliance.
+
+For a failed code suite, rerun that suite directly for detailed diagnostics and
+review its output before sharing. No general journal or raw traceback is copied
+by the health reporter. Audible playback, stream extraction/decoding, autoplay,
+real-device behavior, reboot, isolation and remote authentication still require
+separate acceptance tests. The checker cannot detect every possible defect.
