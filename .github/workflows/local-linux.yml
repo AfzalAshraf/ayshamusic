@@ -84,3 +84,42 @@ jobs:
         with:
           name: rust-extract-lock
           path: prototypes/rust-extract/Cargo.lock
+
+  rust-direct-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test bounded direct-request prototype
+        run: cargo test --manifest-path prototypes/rust-direct/Cargo.toml
+      - name: Build bounded direct-request prototype
+        run: cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml
+      - name: Verify dependency graph excludes extractor and JS engines
+        run: |
+          cargo tree --locked --manifest-path prototypes/rust-direct/Cargo.toml > direct-dependencies.txt
+          if grep -E 'boa_|rusty_ytdl|rquickjs|quick-js' direct-dependencies.txt; then exit 1; fi
+          prototypes/rust-direct/target/release/aysha-direct-prototype --help
+          if prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid; then exit 1; fi
+      - name: Record public network compatibility observation (not target-host acceptance)
+        run: |
+          set +e
+          result=$(timeout --kill-after=2s 75s prototypes/rust-direct/target/release/aysha-direct-prototype --video-id Jm7Satp7Zqk 2>/dev/null)
+          code=$?
+          set -e
+          RESULT="$result" CODE="$code" python3 - <<'PY'
+          import json, os
+          try:
+              value = json.loads(os.environ['RESULT'])
+              allowed = ('status', 'candidate', 'code', 'bytes', 'itag', 'resolve_ms', 'first_byte_ms', 'total_ms', 'peak_rss_kib', 'production_ready')
+              report = {key: value[key] for key in allowed if key in value}
+          except (ValueError, TypeError):
+              report = {'status':'incomplete', 'code':'probe_timeout_or_invalid_output'}
+          report['process_exit'] = int(os.environ['CODE'])
+          # This is an observation, not a pass of live extraction. No promotion or fallback.
+          print('::notice title=Direct extraction compatibility observation::' + json.dumps(report))
+          PY
+      - name: Retain direct prototype dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-direct-lock
+          path: prototypes/rust-direct/Cargo.lock
