@@ -726,7 +726,7 @@ test('click/tap launches eight fluttering local hearts at the click without netw
     assert.ok(parseFloat(p.style['--heart-lift']) <= -180);
     assert.ok(parseFloat(p.style['--heart-life']) >= 2200 && parseFloat(p.style['--heart-life']) <= 2800);
     assert.ok(parseFloat(p.style['--heart-flap']) >= 150);
-    assert.ok(parseFloat(p.style['--heart-size']) >= 18);
+    assert.ok(parseFloat(p.style['--heart-size']) >= (p.className.includes('is-butterfly') ? 12 : 18));
   }
   assert.equal(h.fields.length, 1);
   assert.equal(h.calls.length, 0);
@@ -766,7 +766,7 @@ test('butterfly flights are capped and removed on animationend or fallback', () 
   for (let i = 0; i < 100; i++) h.context.spawnHeartParticle(12, 25);
   assert.equal(h.particles.filter(p => !p.removed).length, 32);
   assert.equal(h.timers.size, 32);
-  h.particles.at(-1).listeners.animationend();
+  h.particles.at(-1).listeners.animationend({target: h.particles.at(-1)});
   assert.equal(h.timers.size, 31);
   for (const callback of [...h.timers.values()]) callback();
   assert.equal(h.timers.size, 0);
@@ -830,7 +830,8 @@ test('hover reveals a stationary red tile pattern without spawning butterflies o
   h.context.Date = { now: () => now };
   h.context.heartPointerMove(h.event());
   assert.equal(h.fields.length, 1);
-  assert.equal(h.particles.length, 0);
+  assert.equal(h.particles.length, 2);
+  assert.ok(h.particles.every(p => p.className.includes('hover-butterfly')));
   const field = h.fields[0];
   assert.ok(field.innerHTML.includes('<pattern'));
   assert.ok(field.innerHTML.includes('width="100%" height="100%"'));
@@ -845,7 +846,7 @@ test('hover reveals a stationary red tile pattern without spawning butterflies o
   for (let i = 0; i < 100; i++) h.context.revealHeartField(i, i);
   assert.equal(field.innerHTML, original);
   assert.equal(h.fields.length, 1);
-  assert.equal(h.timers.size, 1);
+  assert.equal(h.timers.size, 3);
   for (const callback of [...h.timers.values()]) callback();
   assert.equal(field.classList.contains('is-revealed'), false);
 });
@@ -876,4 +877,52 @@ test('reveal fields are bounded to page/intro/player and ignore touch scrolling,
   h.listeners.visibilitychange.fn();
   assert.equal(h.timers.size, 0);
   assert.ok(h.fields.every(f => !f.classList.contains('is-revealed')));
+});
+
+test('revealed tile hearts morph into small red butterflies with a bounded hover launch rate', () => {
+  const h = heartEffectsHarness();
+  let now = 1000;
+  h.context.Date = { now: () => now };
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.particles.length, 2);
+  for (const p of h.particles) {
+    assert.ok(p.innerHTML.includes('heart-morph') && p.innerHTML.includes('/icons.svg#butterfly'));
+    assert.equal(p.style['--heart-color'], '#ed304b');
+    assert.ok(parseFloat(p.style['--heart-size']) >= 12 && parseFloat(p.style['--heart-size']) < 16);
+    assert.equal(Number.parseFloat(p.style.left) % 20, 10, 'Lift-off aligns to the revealed tile centres');
+  }
+  now += 239;
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.particles.length, 2);
+  now += 33;
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.particles.length, 4);
+  h.context.heartPointerClick(h.event());
+  assert.ok(h.particles.filter(p => p.className.includes('hover-butterfly')).every(p => p.removed));
+  const alive = h.particles.filter(p => !p.removed);
+  assert.equal(alive.length, 8);
+  assert.equal(alive.filter(p => p.className.includes('is-butterfly')).length, 2, 'Touch/click also includes red butterfly morphs');
+});
+
+test('child morph animation completion never prematurely removes a butterfly flight', () => {
+  const h = heartEffectsHarness();
+  h.context.spawnHeartParticle(30, 40, 'butterfly');
+  const p = h.particles[0];
+  p.listeners.animationend({target:{}});
+  assert.equal(p.removed, undefined);
+  assert.equal(h.timers.size, 1);
+  p.listeners.animationend({target:p});
+  assert.equal(p.removed, true);
+  assert.equal(h.timers.size, 0);
+});
+
+test('reveal uses a compact heart silhouette and denser little-heart tiles, not a circle', () => {
+  const h = heartEffectsHarness();
+  h.context.revealHeartField(50, 50);
+  assert.ok(h.fields[0].innerHTML.includes('width="20" height="20" patternUnits'));
+  assert.ok(h.fields[0].innerHTML.includes('width="8" height="8"'));
+  const source = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  assert.ok(source.includes('mask-size:112px 104px'));
+  assert.ok(source.includes("d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'"));
+  assert.ok(!source.includes('radial-gradient(circle var(--reveal-radius)'));
 });

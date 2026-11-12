@@ -46,17 +46,19 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 
 /* Decorative only: clipped, non-interactive and bounded in JS. */
 .heart-effects{position:fixed;inset:0;z-index:100;pointer-events:none!important;overflow:hidden;contain:strict;user-select:none}
-.heart-reveal{position:absolute;inset:0;pointer-events:none;opacity:0;color:#ed304b;transition:opacity .9s ease-out;--reveal-x:-1000px;--reveal-y:-1000px;--reveal-radius:clamp(95px,18vw,155px);-webkit-mask-image:radial-gradient(circle var(--reveal-radius) at var(--reveal-x) var(--reveal-y),#000 12%,transparent 100%);mask-image:radial-gradient(circle var(--reveal-radius) at var(--reveal-x) var(--reveal-y),#000 12%,transparent 100%)}
+.heart-reveal{position:absolute;inset:0;pointer-events:none;opacity:0;color:#ed304b;transition:opacity .9s ease-out;--reveal-x:-1000px;--reveal-y:-1000px;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'/%3E%3C/svg%3E");-webkit-mask-size:112px 104px;mask-size:112px 104px;-webkit-mask-position:calc(var(--reveal-x) - 56px) calc(var(--reveal-y) - 52px);mask-position:calc(var(--reveal-x) - 56px) calc(var(--reveal-y) - 52px);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .heart-reveal.is-revealed{opacity:.6;transition:opacity .12s ease-out}.heart-reveal svg{display:block;width:100%;height:100%;fill:currentColor;stroke:none}.love-intro .heart-reveal.is-revealed{opacity:.3}
 .heart-discovery{display:block;color:var(--sub);font-size:11px;margin:-12px 0 22px}.love-loading .heart-discovery{margin:8px 0 0;font-size:9px;color:#aaa;letter-spacing:.3px}
 .heart-particle{position:absolute;display:block;pointer-events:none!important;color:var(--heart-color);width:var(--heart-size);height:var(--heart-size);animation:heart-flight var(--heart-life) linear both;will-change:transform,opacity}
 .heart-particle .app-icon{display:block;width:100%;height:100%;fill:currentColor;stroke:currentColor;animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate;transform-origin:center}.love-intro .heart-particle{color:#fff}
+.heart-particle .heart-morph,.heart-particle .butterfly-morph{position:absolute;inset:0;display:block}.heart-morph{animation:heart-morph-out .35s ease-out both}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both}.heart-morph .app-icon{animation:none!important}.love-intro .heart-particle.is-butterfly{color:#ed304b}
+@keyframes heart-morph-out{to{opacity:0;transform:scale(.6)}}@keyframes butterfly-morph-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
 @keyframes heart-flutter{from{transform:perspective(90px) rotateY(-48deg) rotate(-9deg) scaleX(.6)}to{transform:perspective(90px) rotateY(35deg) rotate(9deg) scaleX(1)}}
 @keyframes heart-flight{0%{opacity:1;transform:translate(-50%,-50%) scale(.7)}20%{opacity:1;transform:translate(calc(-50% + var(--heart-x)*.3),calc(-50% + var(--heart-lift)*.2)) rotate(-12deg) scale(1)}45%{opacity:.95;transform:translate(calc(-50% + var(--heart-x)*.65 + var(--heart-sway)),calc(-50% + var(--heart-lift)*.45)) rotate(12deg) scale(.95)}75%{opacity:.7;transform:translate(calc(-50% + var(--heart-x)*.8 - var(--heart-sway)),calc(-50% + var(--heart-lift)*.75)) rotate(-9deg) scale(.8)}100%{opacity:0;transform:translate(calc(-50% + var(--heart-x)),calc(-50% + var(--heart-lift))) rotate(8deg) scale(.45)}}
 
 /* Explicit owner request: click/tap hearts stay animated even with Reduce Motion.
    All other UI motion continues to respect the browser preference. */
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-morph{animation:heart-morph-out .35s ease-out both!important}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
 </style>
@@ -75,7 +77,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <div id="love-intro-lines" class="love-lines" aria-live="polite" aria-atomic="true"><p>In the quiet, in the everyday,</p><p>my heart finds its way to you.</p></div>
       <p class="love-signature">With all my love, Afzal</p>
     </div>
-    <div class="love-loading"><span>Opening your little world of music</span><div class="love-loading-track" aria-hidden="true"><span id="love-intro-progress"></span></div><small id="love-intro-hint">A 15-second love note · skip whenever you like</small><span class="heart-discovery">Move to reveal red hearts · tap to make them fly</span></div>
+    <div class="love-loading"><span>Opening your little world of music</span><div class="love-loading-track" aria-hidden="true"><span id="love-intro-progress"></span></div><small id="love-intro-hint">A 15-second love note · skip whenever you like</small><span class="heart-discovery">Reveal a tiny heart · let red butterflies fly</span></div>
   </div>
 </dialog>
 
@@ -102,7 +104,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <div class="profile-mark" aria-label="Aysha's Music">AYSHA</div>
   </header>
   <main class="content-area" id="content-area">
-    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment. For you from my heart</span></h2><p class="heart-discovery">Move to reveal red hearts · tap or click to make them fly.</p>
+    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment. For you from my heart</span></h2><p class="heart-discovery">Reveal a tiny heart · let red butterflies fly.</p>
       <div class="now-playing-hero" id="hero-box">
         <div class="hero-art-box"><img class="hero-art" id="hero-art" alt="Current track artwork" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E"></div>
         <div class="hero-details">
@@ -267,6 +269,7 @@ const HEART_EFFECT_LIMIT = 32;
 const heartParticles = new Map();
 const heartFields = new Map();
 let lastHeartMove = -Infinity;
+let lastRevealFlight = -Infinity;
 let heartEffectsInitialized = false;
 function removeHeartParticle(particle) {
   if (!heartParticles.has(particle)) return;
@@ -276,6 +279,7 @@ function removeHeartParticle(particle) {
 }
 function clearHeartReveals() {
   lastHeartMove = -Infinity;
+  lastRevealFlight = -Infinity;
   for (const field of heartFields.values()) {
     if (field.timer !== null) clearTimeout(field.timer);
     field.timer = null;
@@ -309,7 +313,7 @@ function revealHeartField(x, y) {
     const element = document.createElement('div');
     const id = 'heart-tiles-' + heartFields.size;
     element.className = 'heart-reveal';
-    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><defs><pattern id="' + id + '" width="40" height="40" patternUnits="userSpaceOnUse"><use href="/icons.svg#heart" x="12" y="12" width="14" height="14"></use></pattern></defs><rect width="100%" height="100%" fill="url(#' + id + ')"></rect></svg>';
+    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><defs><pattern id="' + id + '" width="20" height="20" patternUnits="userSpaceOnUse"><use href="/icons.svg#heart" x="6" y="6" width="8" height="8"></use></pattern></defs><rect width="100%" height="100%" fill="url(#' + id + ')"></rect></svg>';
     host.appendChild(element);
     field = { element, timer: null };
     heartFields.set(host, field);
@@ -328,24 +332,33 @@ function heartPointerMove(event) {
   if (now - lastHeartMove < 32) return;
   lastHeartMove = now;
   revealHeartField(event.clientX, event.clientY);
+  if (now - lastRevealFlight >= 240) {
+    lastRevealFlight = now;
+    // Launch from actual tile centres inside the small heart-shaped reveal.
+    const tx = Math.round((event.clientX - 10) / 20) * 20 + 10;
+    const ty = Math.round((event.clientY - 10) / 20) * 20 + 10;
+    spawnHeartParticle(tx - 20, ty, 'hover-butterfly');
+    spawnHeartParticle(tx + 20, ty, 'hover-butterfly');
+  }
 }
-function spawnHeartParticle(x, y) {
+function spawnHeartParticle(x, y, variant = 'heart') {
   if (!heartEffectsAllowed() || !Number.isFinite(x) || !Number.isFinite(y)) return;
   while (heartParticles.size >= HEART_EFFECT_LIMIT) removeHeartParticle(heartParticles.keys().next().value);
   const particle = document.createElement('span');
-  particle.className = 'heart-particle heart-burst';
-  particle.innerHTML = icon('heart');
+  const butterfly = variant === 'butterfly' || variant === 'hover-butterfly';
+  particle.className = 'heart-particle ' + (variant === 'hover-butterfly' ? 'hover-butterfly' : 'heart-burst') + (butterfly ? ' is-butterfly' : '');
+  particle.innerHTML = butterfly ? '<span class="heart-morph">' + icon('heart') + '</span><span class="butterfly-morph">' + icon('butterfly') + '</span>' : icon('heart');
   particle.style.left = x + 'px';
   particle.style.top = y + 'px';
   const life = 2200 + Math.random() * 600;
-  particle.style.setProperty('--heart-size', (18 + Math.random() * 8) + 'px');
-  particle.style.setProperty('--heart-color', Math.random() < .5 ? '#ff6375' : '#f3a7c4');
+  particle.style.setProperty('--heart-size', (butterfly ? 12 + Math.random() * 4 : 18 + Math.random() * 8) + 'px');
+  particle.style.setProperty('--heart-color', butterfly ? '#ed304b' : (Math.random() < .5 ? '#ff6375' : '#f3a7c4'));
   particle.style.setProperty('--heart-life', life + 'ms');
   particle.style.setProperty('--heart-flap', (150 + Math.random() * 100) + 'ms');
   particle.style.setProperty('--heart-x', (Math.random() - .5) * 220 + 'px');
   particle.style.setProperty('--heart-lift', -(180 + Math.random() * 110) + 'px');
   particle.style.setProperty('--heart-sway', (Math.random() < .5 ? -1 : 1) * (12 + Math.random() * 14) + 'px');
-  particle.addEventListener('animationend', () => removeHeartParticle(particle), { once: true });
+  particle.addEventListener('animationend', event => { if (event.target === particle) removeHeartParticle(particle); });
   heartEffectHost().appendChild(particle);
   // Cleanup even if a modal closes or an animation is cancelled.
   heartParticles.set(particle, setTimeout(() => removeHeartParticle(particle), life + 150));
@@ -357,7 +370,8 @@ function heartPointerClick(event) {
   if ((!event.detail && event.clientX === 0 && event.clientY === 0) || event.button !== 0 || !heartEffectsAllowed()) return;
   if (event.target.closest('input, textarea, select, [contenteditable]')) return;
   revealHeartField(event.clientX, event.clientY);
-  for (let i = 0; i < 8; i++) spawnHeartParticle(event.clientX, event.clientY);
+  for (const particle of heartParticles.keys()) { if (particle.className.includes('hover-butterfly')) removeHeartParticle(particle); }
+  for (let i = 0; i < 8; i++) spawnHeartParticle(event.clientX, event.clientY, i < 2 ? 'butterfly' : 'heart');
 }
 function initializeHeartEffects() {
   if (heartEffectsInitialized || typeof document.addEventListener !== 'function') return;
