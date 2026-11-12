@@ -18,9 +18,35 @@ BINARY = ROOT / "prototypes/rust-extract/target/release/aysha-extract-prototype"
 PROBE = 65536
 
 
+def group_rss_kib(group, proc_root=Path("/proc")):
+    """Sample only our dedicated process group. RSS sums double-count shared pages."""
+    total, observed = 0, False
+    try:
+        paths = list(proc_root.iterdir())
+    except OSError:
+        return None
+    for path in paths:
+        if not path.name.isdigit():
+            continue
+        try:
+            # comm can contain spaces/parentheses; fields following the final ')' are fixed.
+            fields = (path / "stat").read_text().rsplit(")", 1)[1].split()
+            if int(fields[2]) != group:
+                continue
+            for line in (path / "status").read_text().splitlines():
+                if line.startswith("VmRSS:"):
+                    total += int(line.split()[1])
+                    observed = True
+        except (OSError, ValueError, IndexError):
+            continue  # Processes can exit during sampling.
+    return total if observed else None
+
+
 def execute(argv, binary_media=False, deadline=75):
     start = time.monotonic()
     proc = None
+    sampled_peak = None
+    result = {}
     try:
         proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL, start_new_session=True, cwd=ROOT)
@@ -29,7 +55,10 @@ def execute(argv, binary_media=False, deadline=75):
         with selectors.DefaultSelector() as selector:
             selector.register(proc.stdout, selectors.EVENT_READ)
             while time.monotonic() - start < deadline:
-                if not selector.select(timeout=0.2):
+                rss = group_rss_kib(proc.pid)
+                if rss is not None:
+                    sampled_peak = max(sampled_peak or 0, rss)
+                if not selector.select(timeout=0.02):
                     continue
                 chunk = os.read(proc.stdout.fileno(), min(4096, PROBE - len(data)))
                 if not chunk:
@@ -40,29 +69,39 @@ def execute(argv, binary_media=False, deadline=75):
                 if len(data) >= PROBE:
                     break
             else:
-                return {"status": "fail", "code": "deadline_exceeded"}
+                result = {"status": "fail", "code": "deadline_exceeded"}
+                return result
         total = (time.monotonic() - start) * 1000
         if binary_media:
             if len(data) != PROBE or data[4:8] != b"ftyp":
-                return {"status": "fail", "code": "short_or_non_mp4_probe"}
-            return {"status": "pass", "first_byte_ms": round(first, 2), "bytes": len(data),
-                    "total_ms": round(total, 2), "peak_rss_kib": None}
+                result = {"status": "fail", "code": "short_or_non_mp4_probe"}
+                return result
+            result = {"status": "pass", "first_byte_ms": round(first, 2), "bytes": len(data),
+                      "total_ms": round(total, 2), "peak_rss_kib": None}
+            return result
         rc = proc.wait(timeout=max(1, deadline - (time.monotonic() - start)))
-        result = json.loads(data)
+        payload = json.loads(data)
+        if not isinstance(payload, dict):
+            raise ValueError("invalid native metrics")
+        result = payload
         # Only known numerical fields and fixed codes; never echo arbitrary tool output.
         if rc or result.get("status") != "pass":
             code = result.get("code", "native_failure")
-            return {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure"}
+            result = {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure"}
+            return result
         allowed = ("resolve_ms", "first_byte_ms", "total_ms", "bytes", "itag", "peak_rss_kib")
         if result.get("bytes") != PROBE:
             raise ValueError("invalid native probe")
         metrics = {key: result.get(key) for key in allowed if result.get(key) is None or type(result.get(key)) in (int, float)}
         metrics["native_total_ms"] = metrics.get("total_ms")
         metrics["total_ms"] = round(total, 2)
-        return dict(metrics, status="pass")
+        result = dict(metrics, status="pass")
+        return result
     except (OSError, ValueError, subprocess.TimeoutExpired):
-        return {"status": "fail", "code": "tool_missing_invalid_output_or_timeout"}
+        result = {"status": "fail", "code": "tool_missing_invalid_output_or_timeout"}
+        return result
     finally:
+        result["sampled_group_peak_rss_kib"] = sampled_peak
         if proc is not None:
             # Kill descendants even after their leader exits; no production process is touched.
             try:
@@ -106,7 +145,7 @@ def main():
     report = {"utc": datetime.now(timezone.utc).isoformat(), "prototype_only": True,
               "workload": "same public track, audio-only AAC/MP4, 64KiB prefix; no playback",
               "results": results, "summary": summarize(results),
-              "limits": "No faster claim if failures; not identical itag verified. Native resolve/first-byte excludes process startup; compare total_ms for startup-inclusive 64KiB; native_total_ms is internal only. Native RSS is one process only, yt-dlp RSS not measured. Not aggregate memory/decoding/search/production certification. Upstream caches/IP/network may bias runs. No cookies/JS subprocess in native path; Python benchmark is not a server."}
+              "limits": "No faster claim if failures; not identical itag verified. Native resolve/first-byte excludes process startup; compare total_ms for startup-inclusive 64KiB; native_total_ms is internal only. peak_rss_kib is native-only HWM; sampled_group_peak_rss_kib samples each tool group incl. JS children, may miss spikes and double-count shared pages. Not aggregate memory/decoding/search/production certification. Upstream caches/IP/network may bias runs. No cookies/JS subprocess in native path; Python benchmark is not a server."}
     text = json.dumps(report, indent=2)
     directory = ROOT / "diagnostics"
     directory.mkdir(mode=0o700, exist_ok=True)

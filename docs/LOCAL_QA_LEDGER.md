@@ -503,3 +503,40 @@ Vercel project build/install commands updated through connector. Dashboard frame
 Source00126ba deployed through connector to existing project/team, target production. Deployment dpl_ccPdFjNDMbqBnPm8oZELhays7Aku returned READY/PROMOTED and assigned ayshamusic.vercel.app. Resolved deployment settings framework=null; build events confirm dependency-free static builder executed. Actual fetch_page of production root returned expected Aysha UI/preview label instead of FUNCTION_INVOCATION_FAILED; /api/status returned intended preview_only unavailable JSON. Raw HTTP status503 not exposed by page-extraction tool; route503 is verified in generated config, not claimed as independently measured remote status. Remote icons fetch extraction returned HTTP500 error; direct curl cannot establish status because sandbox egress/TLS fails. Local generated sprite tests pass, but remote icon status remains unverified. Connector deployment-files lookup returned file-tree404 and was not retried; use successful build evidence and page fetch without claiming file-tree permission coverage. No secret values were fetched.
 
 GitHub CI https://github.com/AfzalAshraf/ayshamusic/actions/runs/43247464888 all3jobs succeeded for00126ba: Rust regression/release, Python/Node/shell, native-audio prototype, existing nine browser cases and new two static-preview cases. Local75 Node/41 Python/two static browser checks passed. Linear AFZ-6 updated with implementation/deployment/evidence/limitations; remains open for secure backend phase. No new complete-device/audio/100MB pass. Production root incident repaired for the approved frontend-only scope; original local player remains unchanged. Follow-up documentation revision need not replace identical deployed static output.
+
+
+## Native extraction prototype: compile first, then live acceptance
+
+Active department: Playback & Extraction Prototypes (main-upgrade skill). User requests
+native Rust replacement experiment for yt-dlp, faster fetching evidence, and production
+progression for native audio after it works; asks about Vercel hosting. Added isolated
+prototypes/rust-extract using exact rusty_ytdl0.7.4 (rustls, defaults/search/live/ffmpeg
+off). Native embedded Boa JS, no Python/yt-dlp/mpv/Node invocation/fallback. Strict video
+ID, audio-only AAC/MP4, HTTPS googlevideo media allowlist/no redirects, prefix signature
+check,64KiB probe, optional exclusive64MiB file output with in-process failure cleanup,
+fixed redacted errors/JSON metrics, cooperative deadline. No integration/service changes.
+
+Added stdlib benchmark harness, sequential alternating runs, sameAAC/MP4 prefix workload,
+startup-inclusive timing, timeout/owned-group cleanup, private ignored reports and
+Linux process-group RSS samples for each candidate including baseline JS children.
+Sampling may miss peaks/double-count shared pages; no aggregate100MB acceptance. Exact
+itag equality unverified, no live speedup claim. Root UI/server/install/Vercel config
+and existing audio prototype unchanged; future worker/device/recovery gates documented
+in docs/RUST_EXTRACT_PROTOTYPE.md. User host not connected/modified by this work.
+
+Source27a0be8 CI43249516804 all4jobs PASS, including extractor5offline tests/release/CLI,
+existing audio fixture/null-output tests, root Rust/release/Python/Node and browser suites.
+New benchmark local48Python tests PASS after process-group sampling/malformed JSON tests.
+Rust unavailable locally; no new local Cargo run. CI lock artifact uploaded but retrieval
+failed at external artifact storage (EOF); no fake/pasted dependency lock. Root tracked
+pyc deletion remains unrelated/uncommitted. CI warns about existing checkout/upload
+Node20 action runtime migration and ubuntu-latest image migration; not build failures.
+
+Live extraction/media success, representative corpus, speed, aggregate memory, AAC
+file decode-to-hardware, JBL recovery and concurrent devices remain NOT VERIFIED.
+No authentication bypass/public backend/proxy/tunnel/migration or production promotion.
+Rating Playback/Extraction2/5: implemented and offline compile verified, upstream and
+hardware acceptance missing. Other department ratings unchanged. Next: run isolated
+benchmark on actual Linux host; if native extraction fails, route that failure to QA,
+not production integration. Clarify phone audio vs home Bluetooth and independent vs
+shared listener controls before connection architecture changes.

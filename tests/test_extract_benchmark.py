@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location("benchmark", Path(__file__).resolve().parents[1] / "scripts/benchmark_extract.py")
@@ -23,7 +24,8 @@ class BenchmarkTests(unittest.TestCase):
     def test_failure_and_untrusted_error_text_are_not_echoed(self):
         payload = json.dumps({"status": "fail", "code": "https://signed-secret-url"})
         row = benchmark.execute([sys.executable, "-c", "print(" + repr(payload) + "); raise SystemExit(1)"])
-        self.assertEqual(row, {"status": "fail", "code": "native_failure"})
+        self.assertEqual(row["status"], "fail")
+        self.assertEqual(row["code"], "native_failure")
 
     def test_binary_probe_checks_bytes_and_container(self):
         row = benchmark.execute([sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'\\0\\0\\0\\x20ftyp'+b'x'*(65536-8))"], binary_media=True)
@@ -37,6 +39,20 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(benchmark.execute(["/not-an-executable"])["status"], "fail")
         row = benchmark.execute([sys.executable, "-c", "import time; time.sleep(30)"], deadline=0.05)
         self.assertEqual(row["code"], "deadline_exceeded")
+
+    def test_group_rss_counts_only_owned_group_including_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for pid, group, rss in [(10, 10, 50), (11, 10, 75), (12, 20, 900)]:
+                path = root / str(pid)
+                path.mkdir()
+                (path / "stat").write_text(f"{pid} (test with ) spaces) S 1 {group} 0")
+                (path / "status").write_text(f"VmRSS: {rss} kB\n")
+            self.assertEqual(benchmark.group_rss_kib(10, root), 125)
+            self.assertIsNone(benchmark.group_rss_kib(99, root))
+
+    def test_non_object_json_fails_cleanly(self):
+        self.assertEqual(benchmark.execute([sys.executable, "-c", "print('[]')"])["status"], "fail")
 
     def test_summary_reports_failed_attempts_not_just_fast_successes(self):
         result = benchmark.summarize([{"tool": "rust", "status": "pass", "total_ms": 20},

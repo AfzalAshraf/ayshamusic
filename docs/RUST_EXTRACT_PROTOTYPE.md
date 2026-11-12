@@ -59,7 +59,9 @@ constraints match, exact itag/bitrate is NOT yet proven identical. Upstream cach
 IP/client behavior and network conditions affect results. Both tools disable proxy
 use here; benchmark ignores yt-dlp config/cache. Never compare failure speed to a
 successful download or claim whole-song speed from prefix latency. Rust peak RSS
-is just that one process; baseline aggregate RSS is NOT measured. Use the memory
+is just that one process; sampled_group_peak_rss_kib samples each dedicated tool group (including JS children)
+roughly every20ms plus /proc scan overhead; may miss transient peaks and double-count
+shared pages. It excludes the harness and is not service-cgroup accounting. Use the memory
 profiler separately and include subprocesses for real resource acceptance.
 
 ## Optional native extraction to existing audio prototype
@@ -119,3 +121,14 @@ that connection is still pending security/design approval, not unlocked by this 
 - https://vercel.com/docs/functions/runtimes — official runtimes and streaming limits.
 - https://vercel.com/docs/limits — current function duration/resource constraints;
   recheck before architecture commitments, not an unlimited daemon guarantee.
+
+## Verification outcome
+
+Source27a0be8: GitHub Actions run43249516804 all4jobs PASS: root Rust/Python/Node,
+browser regressions/static preview, existing audio codecs/null output, and new native
+extractor5offline tests/release build/strict CLI smoke. No live extraction from CI.
+Cargo unavailable in agent workspace; compile evidence is Linux CI, not local/host.
+Resolved lock artifact was uploaded by CI, but retrieving it here failed at the
+artifact-storage network boundary; transitive dependencies remain unlocked in source.
+A follow-up added tested Linux process-group RSS sampling and startup-inclusive
+comparison; local diagnostic suite48tests PASS. Live network benchmark remains pending.
