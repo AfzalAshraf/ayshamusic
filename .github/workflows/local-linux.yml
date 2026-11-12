@@ -113,7 +113,19 @@ jobs:
           assert value['status'] == 'fail' and value['code'] == 'invalid_arguments'
           PY
       # No automatic live requests: v2 host/CI stop condition was already met.
-      # V3 standard-context is a one-attempt target-host diagnostic, not a CI retry loop.
+      # V2/V3 are stopped. Approved V4 is one explicit target-host trial, not a CI live loop.
+      - name: Bootstrap CLI invalid input stays offline
+        run: |
+          set +e
+          result=$(prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid --watch-bootstrap)
+          code=$?
+          set -e
+          test "$code" -eq 2
+          RESULT="$result" python3 - <<'PY'
+          import json, os
+          value = json.loads(os.environ['RESULT'])
+          assert value['status'] == 'fail' and value['code'] == 'invalid_arguments'
+          PY
       - name: Retain direct prototype dependency lock
         uses: actions/upload-artifact@v4
         with:

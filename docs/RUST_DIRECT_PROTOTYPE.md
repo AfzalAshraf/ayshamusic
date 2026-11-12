@@ -356,3 +356,48 @@ cancellation. One host attempt only after tests/buildpass; repeatedrestriction s
 This changes source-access/sessioncontext scope and needs approval; no implementation
 or hostcommand for it is supplied yet. Even if approved and successful it is NOT
 whole-app Rust/15MB or proof that all provider access requirements can be supported.
+
+## Approved v4: bounded anonymous watch bootstrap
+
+User explicitly approved the bounded experiment via the scope choice. This supersedes
+only the approval-pending proposal above; v2/v3 remain stopped, not automatically retried.
+Opt-in flag `--watch-bootstrap` selects `aysha-direct-v4-watch-bootstrap`.
+No production integration and no automatic live CI requests.
+
+Flow: fixed-origin public watchGET -> conservative inert literalJSON extraction ->
+validate initialplayer playability/identity/nonlive -> same VISIONOS/Origin/UTC POST
+with the opaque anonymous value in `X-Goog-Visitor-Id` -> existing validatedAAC64KiBprobe.
+Header goes only to the fixed playerendpoint, not media. No value in JSON/logs/files.
+V4doesnot put visitorData in the requestbody; this matches the inspected upstream
+header-builder path, not a claim of fullrequestequivalence. UnknownJS/protocolhandling
+is deliberately unsupported. No externalhelpers/credentials/cookies/consentacceptance/
+POtoken/signaturegeneration/JS/proxy/redirect/clientrotation/persistentsession/fallback.
+
+New bootstrap.rs accepts literal yt cfg calls (literalname `ytcfg.set(...)`) and
+literal `var ytInitialPlayerResponse = {...};` or bareassignment at inline-scriptstart,
+or immediately after another acceptedliteral. Does not search arbitraryJS strings,
+comments/functions/templates or evaluatecode. Handles quote-awaretagend, rawtext and
+HTMLcomments/templates; excludes external/module/unknownattributedscriptmodes.
+This is a conservative HTML/JS subset, NOT a complete browserparser; unsupported
+wrappers/locale/markup can return missing/invalidcontext and stop. Staticpagepatterns
+cannot establish absence of every providerchallenge. Recognizedconsent/challengemarkers,
+initialplayerrestrictions/auth, ambiguous/differentvisitorvalues, duplicateplayerJSON,
+missingidentity/context, malformedJSON/headercharacters failclosed. No bypass/retry.
+
+Caps:2MiBwatchpayload/1MiBeachliteralJSON/64JSONnesting/4KiBacceptedvisitorvalue;
+1MiBplayerpayload/256formats/64KiBmedia. TypedSerde skipsunknownfields; JSONstrings
+can allocate up to the literalpayloadcap before visitorlengthvalidation. Reqwest/TLS
+internalbuffers are not a provenheapcap. Fullwatchresponse is dropped before player
+request; visitorobject dropped after playerread. Dropping is NOT securezeroization;
+requestheaders can have ownedcopies and transientTLS/HTTPbuffers. No persistence or
+cross-invocationreuse. Wholeasyncflow remains60s with20s/request+10sconnect limits;
+external75stimeout recommended. Timeout drops the future and ownedstate (offlinetest),
+not proof of all realnetwork teardownpaths. FailureJSON includes fixedstage init/watch/
+player/media; rawmetadata/reasons/headers/values neverechoed. No success inferred.
+
+Offlinefixtures cover opaquevalues, escaping/JSONstringboundaries, missing/conflicting/
+oversizeddata, identity/login/live/consent, inertHTML/JSstrings/comments/rawtext/template/
+attributecontent, malformed/duplicateJSON, explicitmodeCLI, exactheader/bodydelta,
+no leakage to mediaheaders, deadline cancellation and ownedstatedrop. CI verification
+must pass before the explicit hosttrial. Historical evidencegate remainsblocked until
+newactualhostevidence is supplied; approval/codebuild alone doesnotchange acceptance.

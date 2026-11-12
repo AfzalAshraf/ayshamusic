@@ -19,7 +19,7 @@ class SourceProfileTests(unittest.TestCase):
                 continue
             self.assertRegex(source, '"' + key + r'"\s*:\s*"' + value.replace('.', r'\.') + '"')
         # The offline reference describes legacy v2; v3 changes are opt-in.
-        self.assertIn('if profile == RequestProfile::StandardContext', source)
+        self.assertIn('if profile != RequestProfile::V2', source)
         self.assertIn('[flag, id] if flag == "--video-id"', source)
         self.assertIn('=> RequestProfile::V2', source)
 

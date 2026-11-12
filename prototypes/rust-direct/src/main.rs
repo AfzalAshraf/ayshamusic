@@ -1,11 +1,13 @@
 //! Bounded public-player feasibility probe. No downloader library, JS engine or subprocess.
 //! Does not solve signatures/tokens or bypass playability restrictions. Never production.
+mod bootstrap;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
+const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4-watch-bootstrap";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -81,11 +83,15 @@ fn aac(f: &Format) -> bool {
         && f.mime_type.split(';').next().is_some_and(|m| m.trim() == "audio/mp4")
         && f.mime_type.split(';').skip(1).any(|p| p.trim() == "codecs=\"mp4a.40.2\"")
 }
-fn select<'a>(player: &'a Player, id: &str) -> Result<&'a Format, &'static str> {
-    playability(player)?;
+fn identity(player: &Player, id: &str) -> Result<(), &'static str> {
     let details = player.video_details.as_ref().ok_or("video_identity_missing")?;
     if details.video_id != id { return Err("video_identity_mismatch"); }
     if details.is_live || details.is_live_content { return Err("live_unsupported"); }
+    Ok(())
+}
+fn select<'a>(player: &'a Player, id: &str) -> Result<&'a Format, &'static str> {
+    playability(player)?;
+    identity(player,id)?;
     let formats = &player.streaming_data.as_ref().ok_or("streams_missing")?.adaptive_formats;
     if formats.len() > 256 { return Err("format_limit"); }
     let candidates: Vec<_> = formats.iter().filter(|f| aac(f)).collect();
@@ -111,16 +117,17 @@ fn peak_kib() -> Option<u64> {
     })
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum RequestProfile { V2, StandardContext }
+enum RequestProfile { V2, StandardContext, WatchBootstrap }
 impl RequestProfile {
     fn identity(self) -> &'static str {
-        match self { Self::V2 => IDENTITY, Self::StandardContext => STANDARD_IDENTITY }
+        match self { Self::V2 => IDENTITY, Self::StandardContext => STANDARD_IDENTITY, Self::WatchBootstrap => BOOTSTRAP_IDENTITY }
     }
 }
 fn parse_args(args: &[String]) -> Result<(&str, RequestProfile), &'static str> {
     let profile = match args {
         [flag, id] if flag == "--video-id" && valid_id(id) => RequestProfile::V2,
         [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--standard-context" => RequestProfile::StandardContext,
+        [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--watch-bootstrap" => RequestProfile::WatchBootstrap,
         _ => return Err("invalid_arguments"),
     };
     Ok((&args[1], profile))
@@ -130,39 +137,68 @@ fn player_body(id: &str, profile: RequestProfile) -> serde_json::Value {
         "clientName":"VISIONOS", "clientVersion":VERSION, "deviceMake":"Apple",
         "deviceModel":"RealityDevice17,1", "userAgent":AGENT,
         "osName":"visionOS", "osVersion":"26.5.23O471", "hl":"en"}}, "videoId":id});
-    if profile == RequestProfile::StandardContext {
+    if profile != RequestProfile::V2 {
         body["context"]["client"]["timeZone"] = json!("UTC");
         body["context"]["client"]["utcOffsetMinutes"] = json!(0);
     }
     body
 }
-fn player_request(client: &Client, id: &str, profile: RequestProfile) -> reqwest::RequestBuilder {
+fn player_request(client: &Client, id: &str, profile: RequestProfile, visitor: Option<&bootstrap::Visitor>) -> reqwest::RequestBuilder {
     let request = client.post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
         .header("User-Agent", AGENT).header("X-Youtube-Client-Name", "101")
         .header("X-Youtube-Client-Version", VERSION);
-    let request = if profile == RequestProfile::StandardContext {
+    let request = if profile != RequestProfile::V2 {
         request.header("Origin", "https://www.youtube.com")
+    } else { request };
+    let request = if profile == RequestProfile::WatchBootstrap {
+        if let Some(visitor) = visitor { request.header("X-Goog-Visitor-Id", visitor.as_header()) }
+        else { request }
     } else { request };
     request.json(&player_body(id, profile))
 }
-async fn probe(id: &str, profile: RequestProfile) -> Result<serde_json::Value, &'static str> {
+async fn watch_visitor(client: &Client, id: &str) -> Result<bootstrap::Visitor, &'static str> {
+    let mut response = client.get(format!("https://www.youtube.com/watch?v={id}&hl=en"))
+        .header("User-Agent",AGENT).send().await.map_err(|_| "watch_request_failed")?;
+    if !response.status().is_success() { return Err("watch_http_failed"); }
+    let html = response.headers().get("content-type").and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(';').next()).is_some_and(|v| v.trim().eq_ignore_ascii_case("text/html"));
+    if !html { return Err("watch_content_type_rejected"); }
+    if response.content_length().is_some_and(|n| n > bootstrap::PAGE_MAX as u64) {
+        return Err("watch_size_limit");
+    }
+    let mut bytes = Vec::with_capacity(32768);
+    while let Some(chunk) = response.chunk().await.map_err(|_| "watch_read_failed")? {
+        if chunk.len() > bootstrap::PAGE_MAX.saturating_sub(bytes.len()) { return Err("watch_size_limit"); }
+        bytes.extend_from_slice(&chunk);
+    }
+    bootstrap::parse(&bytes,id)
+}
+async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
     let client = Client::builder().https_only(true).no_proxy()
         .redirect(reqwest::redirect::Policy::none()).connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")?;
-    // Public player request only; no auth, visitor tokens, cookies or restriction flags.
-    let mut response = player_request(&client, id, profile).send().await.map_err(|_| "player_request_failed")?;
+    // V4 alone reads anonymous context. Never loads or stores account cookies,
+    // creates PO tokens, follows redirects or responds to provider restrictions.
+    let visitor = if profile == RequestProfile::WatchBootstrap {
+        *stage = "watch";
+        Some(watch_visitor(&client,id).await?)
+    } else { None };
+    *stage = "player";
+    let mut response = player_request(&client, id, profile, visitor.as_ref()).send().await.map_err(|_| "player_request_failed")?;
     if !response.status().is_success() { return Err("player_http_failed"); }
     if response.content_length().is_some_and(|len| len > METADATA_MAX as u64) { return Err("metadata_size_limit"); }
     let mut bytes = Vec::with_capacity(32768);
     while let Some(chunk) = response.chunk().await.map_err(|_| "player_read_failed")? {
         append_bounded(&mut bytes, &chunk, METADATA_MAX)?;
     }
+    drop(visitor);
     let player: Player = serde_json::from_slice(&bytes).map_err(|_| "player_json_invalid")?;
     drop(bytes);
     let format = select(&player, id)?;
     let resolve_ms = started.elapsed().as_millis();
     // No redirects; selected URL is origin-validated and never printed.
+    *stage = "media";
     let mut media = client.get(&format.url).header("Range", "bytes=0-65535").send().await.map_err(|_| "media_request_failed")?;
     if !media.status().is_success() { return Err("media_http_failed"); }
     let mut count = 0;
@@ -182,11 +218,14 @@ async fn probe(id: &str, profile: RequestProfile) -> Result<serde_json::Value, &
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":started.elapsed().as_millis(),
         "peak_rss_kib":peak_kib(), "external_tools":false, "production_ready":false}))
 }
+async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'static str>>, limit: Duration) -> Result<T, &'static str> {
+    tokio::time::timeout(limit,future).await.map_err(|_| "deadline_exceeded")?
+}
 #[tokio::main(flavor="current_thread")]
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context]\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap]\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {
@@ -196,12 +235,13 @@ async fn main() {
             std::process::exit(2);
         }
     };
-    let result = tokio::time::timeout(Duration::from_secs(60), probe(id, profile)).await;
+    let mut stage = "init";
+    let result = within_deadline(probe(id, profile, &mut stage),Duration::from_secs(60)).await;
     match result {
-        Ok(Ok(metrics)) => println!("{metrics}"),
-        failure => {
-            let code = match failure { Ok(Err(code)) => code, _ => "deadline_exceeded" };
-            println!("{}",json!({"status":"fail", "candidate":profile.identity(), "code":code,
+        Ok(metrics) => println!("{metrics}"),
+        Err(code) => {
+            println!("{}",json!({"status":"fail", "candidate":profile.identity(), "code":code, "stage":stage,
+                "external_tools":false,
                 "peak_rss_kib":peak_kib(), "production_ready":false}));
             std::process::exit(1);
         }
@@ -231,8 +271,8 @@ mod tests {
     #[tokio::test(flavor="current_thread")] async fn standard_context_headers_change_only_origin() {
         // Build offline: never send or open a connection.
         let client = Client::builder().no_proxy().build().unwrap();
-        let old = player_request(&client,"Jm7Satp7Zqk",RequestProfile::V2).build().unwrap();
-        let mut changed = player_request(&client,"Jm7Satp7Zqk",RequestProfile::StandardContext).build().unwrap();
+        let old = player_request(&client,"Jm7Satp7Zqk",RequestProfile::V2,None).build().unwrap();
+        let mut changed = player_request(&client,"Jm7Satp7Zqk",RequestProfile::StandardContext,None).build().unwrap();
         assert_eq!(changed.headers_mut().remove("origin").unwrap(), "https://www.youtube.com");
         assert_eq!(old.headers(), changed.headers());
         assert_eq!(old.url(), changed.url());
@@ -252,6 +292,47 @@ mod tests {
             args(&["--video-id", "Jm7Satp7Zqk", "--standard-context", "--extra"])] {
             assert_eq!(parse_args(&value).err(), Some("invalid_arguments"));
         }
+    }
+    #[tokio::test(flavor="current_thread")] async fn bootstrap_only_adds_allowlisted_header_and_never_media_headers() {
+        let client = Client::builder().no_proxy().build().unwrap();
+        let page = br#"<script>ytcfg.set({"VISITOR_DATA":"fixture_visitor"});</script><script>var ytInitialPlayerResponse = {"playabilityStatus":{"status":"OK"},"videoDetails":{"videoId":"Jm7Satp7Zqk"}};</script>"#;
+        let visitor = bootstrap::parse(page,"Jm7Satp7Zqk").unwrap();
+        let v3 = player_request(&client,"Jm7Satp7Zqk",RequestProfile::StandardContext,None).build().unwrap();
+        let mut v4 = player_request(&client,"Jm7Satp7Zqk",RequestProfile::WatchBootstrap,Some(&visitor)).build().unwrap();
+        assert_eq!(v4.headers_mut().remove("X-Goog-Visitor-Id").unwrap(), "fixture_visitor");
+        assert_eq!(v3.headers(),v4.headers());
+        assert_eq!(v3.url(),v4.url());
+        assert_eq!(v3.body().unwrap().as_bytes(),v4.body().unwrap().as_bytes());
+        let legacy = player_request(&client,"Jm7Satp7Zqk",RequestProfile::V2,Some(&visitor)).build().unwrap();
+        assert!(legacy.headers().get("X-Goog-Visitor-Id").is_none());
+        // Media is built independently and must not inherit provider context/auth.
+        let media = client.get("https://x.googlevideo.com/a").header("Range","bytes=0-65535").build().unwrap();
+        for name in ["cookie","authorization","X-Goog-Visitor-Id","origin"] {
+            assert!(media.headers().get(name).is_none());
+        }
+    }
+    #[test] fn bootstrap_mode_cannot_be_combined_with_other_modes_or_values() {
+        let args = |items: &[&str]| items.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let valid = args(&["--video-id","Jm7Satp7Zqk","--watch-bootstrap"]);
+        assert_eq!(parse_args(&valid).unwrap().1.identity(), BOOTSTRAP_IDENTITY);
+        for items in [args(&["--video-id","Jm7Satp7Zqk","--standard-context","--watch-bootstrap"]),
+            args(&["--video-id","Jm7Satp7Zqk","--watch-bootstrap=private"]),
+            args(&["--video-id","invalid","--watch-bootstrap"])] {
+            assert_eq!(parse_args(&items).err(),Some("invalid_arguments"));
+        }
+    }
+    #[tokio::test(flavor="current_thread")] async fn deadline_cancels_and_drops_owned_inflight_state() {
+        use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+        struct Owned(Arc<AtomicBool>);
+        impl Drop for Owned { fn drop(&mut self) { self.0.store(true,Ordering::SeqCst); } }
+        let dropped = Arc::new(AtomicBool::new(false));
+        let owned = Owned(dropped.clone());
+        let future = async move {
+            let _owned = owned;
+            std::future::pending::<Result<(), &'static str>>().await
+        };
+        assert_eq!(within_deadline(future,Duration::from_millis(1)).await, Err("deadline_exceeded"));
+        assert!(dropped.load(Ordering::SeqCst));
     }
     #[test] fn ids_and_origins_fail_closed() {
         assert!(valid_id("Jm7Satp7Zqk")); assert!(!valid_id("--exec=evil"));
