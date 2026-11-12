@@ -791,3 +791,44 @@ baseline run in agent/target claimed. Documented command/conditional next steps 
 RUST_DIRECT_PROTOTYPE.md. Persisted user's response contract in AGENTS.md while
 retaining architecture/deployment approval gates. No new dependencies/Rust code/
 installer/UI/Vercel/service changes. Extraction2/5 still blocked; no15MB acceptance.
+
+## REA used for public-source investigation; successful host baseline and bounded stage trace
+
+Active department: QA & Debugging. User hostef5dd83baseline-only PASS at supplied
+host timestamp2026-11-12T17:32:21Z:65536AAC/MP4 bytes, firstbyte3437.45ms,total3657.58ms,
+sampledgrouppeak93296KiB (95,535,104bytes), Rust attempts0. No native comparison or
+whole-stack RAM acceptance. This establishes source availability via baseline at that
+attempt, not source-client equivalence or exact native rejection cause.
+
+User requests morluto/rea for Rust implementation investigation. Inspected official
+repo/docs/package/CLI: Node/MCP reverse-engineering toolkit, not Rust extractor/player.
+Actually installed pinnedrea-agents6.9.0 with lifecycle scripts disabled outside repo
+in isolatedagentrea-lab; npmoldNode22.22.3 emitted enginewarning, so installed separate
+npmnode-linux-x64 26.12.1 and explicitly ran verifiedsupportedNode, not changing global
+or userhostNode/MCP/agent config. No agent setup/global nativeproviders/target execution.
+Public yt-dlp/ejs source pinned d48c6303a5a6455a42ef9e0b445149cadea51279,10inputfiles,
+no test helpers/dependencies. REA static commandexit0:9parsedTS,0parsefailures,1895AST
+nodes,66findings,452semanticunknowns,0reconstructedmodules. Full1.85MBbundle/tools/source
+kept outside Git; compact hashed evidence docs/research/REA_EJS_AUDIT.json committed.
+Initial GitHub master lookups404/422 corrected to discoveredmain; no repeated failure.
+REA source package is MIT, inspectedEJS Unlicense; no EJS solver implementation copied.
+
+Source inspection: EJS parses/rewrites playerAST and uses Function to instantiate n/sig
+transforms. Static evidence does NOT show user's installedsolver revision/execution,
+solve bot/player-integrity rejection or establish viable15MBengine. Current baseline
+--js-runtimesnode configuration alone is not execution evidence. Native decoder/API/
+search/session obligations remain separate gates; REA not included in productionRAM.
+Detailed gated plan and reproduction docs/REA_NATIVE_EXTRACTION_PLAN.md.
+
+Concrete code: --trace-stages only with --baseline-only. Existing childverbosestderr
+is concurrently drained to avoid pipe deadlock, classified to known client/provider
+markers and booleans; raw output discarded/not printed/saved,256KiBclassificationcap,
+4KiBlinecap, oversizedlinesdrop, unknown runtime/client stringsnot retained. Missing
+markers are NOT proof of no execution; clientrequest marker not selectedformat proof.
+No raw HAR/packet/header/cookie/player challenge/account/token collection or upload.
+No native rebuild/retry/service/Rustdeps/UI/Vercel changes. Local61PythonPASS includes
+privacy/limits/chunking/concurrentstderr-flood/no-native-fallback/CLIflag tests;
+whitespacePASS. Sourcefba8f4e pushed; no target stage-trace run yet. Plan next: observe
+hostmarkers -> inspect missing native capabilities -> approve bounded native port
+experiment only when mechanism is justified -> successfulmedia/decode/hardware/whole
+budget gates. Extraction2/5 unchanged. Preserve unrelated trackedpyc deletion.

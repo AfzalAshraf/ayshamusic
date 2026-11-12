@@ -248,3 +248,9 @@ One run is a point-in-time diagnostic, not reliability/performance acceptance.
 No native extraction fix is claimed by this diagnostic addition. Keep production
 unchanged while source access remains unresolved. No new account/token request or
 provider bypass is approved by this plan.
+
+REA was actually used for a public-source static audit after the successful host
+baseline. See [REA_NATIVE_EXTRACTION_PLAN.md](REA_NATIVE_EXTRACTION_PLAN.md) for evidence,
+limitations and the new --baseline-only --trace-stages diagnostic. It does not rerun
+this failed native request, install REA on the host or claim signature transforms
+solve a bot check. No native source-acquisition fix has yet been demonstrated.
