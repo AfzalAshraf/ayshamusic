@@ -40,7 +40,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 .love-intro-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1100px}.love-intro-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b5b5b5}.love-skip{min-width:64px;min-height:44px;padding:10px 16px;border:1px solid #ffffff35;border-radius:24px;background:transparent;color:white;font-size:12px}.love-skip:focus-visible{outline-color:white}
 .love-letter{flex:1;width:100%;max-width:640px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 0 32px}.love-bubble{display:grid;place-items:center;width:76px;height:76px;border-radius:50%;border:1px solid #ffffff40;background:radial-gradient(circle at 30% 20%,#ffffff18,transparent 70%);box-shadow:0 0 55px #ffffff09;margin-bottom:24px;animation:love-breathe 4s ease-in-out infinite}.love-bubble svg{width:30px;height:30px;fill:white;stroke:white}.love-to{font-family:Georgia,serif;font-style:italic;font-size:16px;color:#bdbdbd;margin-bottom:12px}.love-letter h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(34px,7vw,64px);line-height:1.15;letter-spacing:-1.3px;margin-bottom:28px}.love-lines{min-height:6em;width:100%;font-family:Georgia,"Times New Roman",serif;font-size:clamp(18px,3.5vw,26px);line-height:1.8;overflow-wrap:anywhere}.love-lines p{display:block}.love-lines.love-line-enter{animation:love-rise .65s ease-out both}.love-signature{font-size:11px;color:#b5b5b5;letter-spacing:.8px;margin-top:20px}
 .love-loading{width:min(260px,100%);font-size:10px;color:#b5b5b5;letter-spacing:1px}.love-loading-track{height:1px;background:#ffffff25;margin:14px 0 12px;overflow:hidden}.love-loading-track span{display:block;height:100%;background:white;width:0;transition:width .2s linear}.love-loading small{font-size:9px;letter-spacing:.4px;color:#888}
-@keyframes love-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}@keyframes love-breathe{50%{transform:scale(1.05);box-shadow:0 0 65px #ffffff16}}
+@keyframes love-rise{from{transform:translateY(8px)}to{transform:translateY(0)}}@keyframes love-breathe{50%{transform:scale(1.05);box-shadow:0 0 65px #ffffff16}}
 @media(max-height:520px){.love-letter{padding:12px 0}.love-bubble{width:44px;height:44px;margin-bottom:8px}.love-bubble svg{width:22px;height:22px}.love-letter h2{font-size:30px;margin-bottom:12px}.love-to{margin-bottom:4px}.love-lines{font-size:17px;min-height:3.6em}.love-signature{margin-top:8px}}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -251,12 +251,15 @@ const LOVE_LETTER = [
   ['A little world, made just for you.', 'A song, a breath, a place to rest.'],
   ['Every note, a little love letter.', 'From my heart to yours, always.'],
 ];
+// Every pair gets five full seconds at full opacity, including its gentle entrance.
+const LOVE_VERSE_MS = 5000;
+const LOVE_INTRO_MS = LOVE_LETTER.length * LOVE_VERSE_MS;
 let loveIntroTimer = null;
 let loveIntroStarted = 0;
 let loveIntroVerse = -1;
 let loveIntroFocus = null;
 function renderLoveIntro(elapsed) {
-  const verse = Math.min(LOVE_LETTER.length - 1, Math.floor(Math.max(0, elapsed) / 5000));
+  const verse = Math.min(LOVE_LETTER.length - 1, Math.floor(Math.max(0, elapsed) / LOVE_VERSE_MS));
   if (verse !== loveIntroVerse) {
     loveIntroVerse = verse;
     const lines = document.getElementById('love-intro-lines');
@@ -266,7 +269,7 @@ function renderLoveIntro(elapsed) {
     void lines.offsetWidth;
     lines.classList.add('love-line-enter');
   }
-  document.getElementById('love-intro-progress').style.width = Math.min(100, Math.max(0, elapsed / 150)) + '%';
+  document.getElementById('love-intro-progress').style.width = Math.min(100, Math.max(0, elapsed / LOVE_INTRO_MS * 100)) + '%';
 }
 function finishLoveIntro() {
   if (loveIntroTimer !== null) clearInterval(loveIntroTimer);
@@ -289,7 +292,7 @@ function startLoveIntro() {
   dialog.addEventListener('close', finishLoveIntro);
   loveIntroTimer = setInterval(() => {
     const elapsed = Date.now() - loveIntroStarted;
-    if (elapsed >= 15000) finishLoveIntro();
+    if (elapsed >= LOVE_INTRO_MS) finishLoveIntro();
     else renderLoveIntro(elapsed);
   }, 200);
 }

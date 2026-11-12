@@ -70,6 +70,7 @@ const tracks = [
       await page.locator('#love-intro').waitFor({ state: 'visible' });
       assert.equal(await page.locator('#love-intro-title').textContent(), 'You are loved…');
       assert.equal(await page.locator('#love-intro-lines p').count(), 2);
+      assert.equal(await page.locator('#love-intro-lines').evaluate(el => getComputedStyle(el).opacity), '1', 'Letter is fully readable immediately, not fading through its five-second reading time');
       assert.equal(await page.locator('#love-intro').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(8, 8, 8)');
       assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 0, 'Love letter must not start audio');
       assert.ok(await page.locator('#love-intro').evaluate(el => el.scrollWidth <= el.clientWidth), 'Love letter has no horizontal overflow');
