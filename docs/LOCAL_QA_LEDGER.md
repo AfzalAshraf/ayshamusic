@@ -884,3 +884,13 @@ newinvalid-v3CLIcheckoffline. Do not rerun previouslyblockedv2. Hostcommandtests
 only isolateddirectpackage usingexistinglock, then oneboundedv3trial. Production5050/
 UI/Vercel/systemd/audio untouched. If samebotfailure: stopvariant, nextscopeis bootstrap
 review not repeatedbuild/clientroulette. IfPASSstill no decoding/playback/15MBclaim.
+
+Verification for sourcec7510758072263c3478a7522e6cb7ec740e8f0af:
+local68PythonPASS and gitdiffcheckPASS. CI43272722794 all5jobssuccess (mobilebrowser,
+audio,rootregressions,legacyextract,direct). Directjob131373100388 test/releasebuild/
+noJSdependencygraph/invalidopt-inCLI/artifactsteps allPASS. Sourcecontains11Rusttests
+(8retained+3requestdelta/CLI); detailedghlogdownloadfailed at externallyrestricted
+resultsreceiverhost (EOF), so stepstatus was verified viaGitHubrun/jobAPI instead of
+claiming complete loginspection. No livev3 request made. Cargo unavailableagentlocal;
+Rustverification isCI, not a localbuild or userhostsuccess. Targethost command and
+stopbranches inRUST_DIRECT_PROTOTYPE.md. Preserve unrelatedtrackedpycdeletion.

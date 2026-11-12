@@ -308,3 +308,8 @@ acceptance; do not install or attribute the success solely toOrigin/UTC.
 CI now performs offlineverification only for this package. Removed automaticlivev2
 requests on everypush because their agreedhost+CIstopcondition was already reached.
 No v3live request made inCI; the target-hosttrial above is opt-in and singleattempt.
+
+Verification: sourcec751075 CI43272722794 all5jobsPASS; isolateddirecttests/release/
+noJSdependencygraph/invalidopt-inCLIpassed. Local68PythonregressiontestsPASS. Agent
+has no localCargo; CIresults are not targethostacquisition/playback proof. V3live
+acceptance pending the explicit oneattempt command above.
