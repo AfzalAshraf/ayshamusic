@@ -107,7 +107,9 @@ pub fn metadata_only(data: &[u8], max: usize) -> Result<Cow<'_, [u8]>, &'static 
     scanner.whitespace();
     if scanner.pos != data.len() { return Err("watch_config_json_trailing_data"); }
     if scanner.replacements.is_empty() { return Ok(Cow::Borrowed(data)); }
-    let mut output = Vec::with_capacity(data.len());
+    // Reserve the configured output ceiling once; NaN -> null expansion must
+    // not cause geometric Vec capacity growth beyond that ceiling.
+    let mut output = Vec::with_capacity(max);
     let mut previous = 0;
     for range in scanner.replacements {
         let segment = &data[previous..range.start];

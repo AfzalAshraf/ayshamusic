@@ -228,3 +228,15 @@ strictFalsedecoderfixturecontrast (rawcontrols/NaNaccepted,hexescapes/trailingco
 rejected) isresearchonly, nothostrootcauseorpermissionforblanketleniency. See latest
 RUST_DIRECT_PROTOTYPE.mdcommand/failurebranches. Oldv4.2diagnosticnotrequestedagain.
 No newREAexecution/dependency/auth/persistence/provideraccessscope/productionchange.
+
+
+## Host v4.3 expected-value failure; conditional metadata compatibility, not JS execution
+
+Host127817ddebugPASS; expected_value atwatch/no player/media/10964KiBdebugHWM. Exacttoken
+unknown. UpstreamfixturechecksacceptNaN/Infinity/-Infinity,rejectundefined. V4.4inert
+scannerhandlesonlyexactconstantsindiscardedconfigmetadata, protectsvisitor/auth/context
+subtreesincludingescapedkeys, retainsstrictSerdevalidation/capsandnoJS. Unsupported
+JSvaluesnowfixedsubtypes. Extraownedbufferupto1MiBwhencompatibilityisused, no wholeRAM
+claim. Nextcommandwatch-inspectONLY, notbootstrap/playertrial. Seelatestdirectguide
+forprotected/nonfinite/unsupported/passbranches; no assumedhistoricalrootcause. No new
+REAexecution/deps/credentials/persistence/endpoint/provider-accessscope/productionchange.

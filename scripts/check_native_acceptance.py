@@ -8,6 +8,11 @@ import json
 from pathlib import Path
 
 EVIDENCE = Path(__file__).resolve().parents[1] / "docs/research/NATIVE_ACQUISITION_HOST.json"
+WATCH_ACTIONS = {
+    "aysha-direct-v4.2-config-diagnostic": "one_watch_only_config_diagnostic_no_player_or_media",
+    "aysha-direct-v4.3-syntax-diagnostic": "one_watch_only_syntax_subtype_diagnostic_no_player_or_media",
+    "aysha-direct-v4.4-metadata-guard": "one_guarded_metadata_watch_check_no_player_or_media",
+}
 
 
 def assess(evidence):
@@ -19,9 +24,8 @@ def assess(evidence):
                       and approved.get("candidate") in ("aysha-direct-v4-watch-bootstrap", "aysha-direct-v4.1-watch-literals")
                       and approved.get("status") == "awaiting_single_host_trial")
     diagnostic = evidence.get("pending_diagnostic", {})
-    watch_only_pending = (isinstance(diagnostic, dict) and
-                          diagnostic.get("candidate") in ("aysha-direct-v4.2-config-diagnostic", "aysha-direct-v4.3-syntax-diagnostic") and
-                          diagnostic.get("status") == "awaiting_one_watch_only_request")
+    watch_action = (WATCH_ACTIONS.get(diagnostic.get("candidate")) if isinstance(diagnostic, dict)
+                    and diagnostic.get("status") == "awaiting_one_watch_only_request" else None)
     return {
         "status": "pass" if prefix_pass else "blocked",
         "code": "historical_native_prefix_pass" if prefix_pass else "native_acquisition_not_demonstrated",
@@ -32,8 +36,7 @@ def assess(evidence):
         "memory_budget_accepted": False,
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
         "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
-                 ("one_watch_only_syntax_subtype_diagnostic_no_player_or_media" if diagnostic.get("candidate") == "aysha-direct-v4.3-syntax-diagnostic" else
-                  "one_watch_only_config_diagnostic_no_player_or_media") if watch_only_pending else
+                 watch_action if watch_action else
                  ("one_parser_corrected_v4_1_trial_after_offline_verification" if approved.get("candidate") == "aysha-direct-v4.1-watch-literals" else
                   "one_approved_v4_host_trial_after_offline_verification") if awaiting_trial else
                  "review_and_approve_next_probe_scope_before_any_new_native_trial"),

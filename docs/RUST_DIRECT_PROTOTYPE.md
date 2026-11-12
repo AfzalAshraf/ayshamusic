@@ -589,7 +589,7 @@ hostcause. DoNOTblanket-copyallleniency, executecode, repairdanglingstructures,
 coerceauthvaluesorignoreconflicts. Serdepublicerrormessagesreviewedviaofficial
 serde-rs/jsonsrc/error.rs; unrecognizedversionwordingreturnsfixedsyntax_other.
 
-### Terminal: DEBUG BUILD + ONE SYNTAX-SUBTYPE DIAGNOSTIC — no release/install/restart
+### Historical v4.3 subtype diagnostic — do not repeat unchanged
 
 ```bash
 cd /home/afine/ayshamusic &&
@@ -621,3 +621,71 @@ commausesKeyMustBeAString). Correctedfixedlabeltokey_or_trailing_comma; no accep
 relaxation. Source5bf6baf CI43279751721all5jobsPASS; directjob131397558119 tests/release/
 CLI/dependencychecksPASS.30Rusttestsinsource, local77PythonPASS. NativeCargoabsentagent,
 CIisnotlocal/hostproof. Newwatchonlyliveoutputpending; no v4.3requestmadehere.
+
+## Host v4.3 expected-value result; guarded metadata-only constant compatibility
+
+Host127817ddebugbuild1.08sPASS; stagewatch/watch_config_json_expected_value,
+player_requestedfalse/media_requestedfalse,10964KiB=11,227,136bytesdebugHWM,
+production_readyfalse. No exacttoken/fieldobserved. ItdoesnotproveNaN/Infinity,
+undefined, an expressionorbadframing caused thefailure. V4.3unchangedtrialstopped.
+
+Offlinepinnedupstream12ac9aca... LenientJSONDecoderstrictFalsefixturechecksaccept
+NaN,Infinity,-Infinity butrejectundefined. V4.4newconfig_numbers.rsimplementsa
+smallinertstructuralscanner, notJSengine. InconfigmetadataourtypedConfigdiscards,
+exactstandaloneNaN/Infinity/-InfinitybecomenullplaceholdersbeforestrictSerdevalidation.
+ThisisNOTnumericsemanticequivalence; onlydiscardedmetadataiseligibleandnoothercomponent
+receivesit. Allstringsremainunchanged, includingopaquestringsliterallycontainingNaN.
+AllotherJSONsyntax/knownfieldtypes/duplicatesstillvalidated, no danglingstructure repair.
+
+NeverconvertinsideVISITOR_DATA,LOGGED_IN,INNERTUBE_CONTEXToranydescendant; also
+visitorData/playabilityStatus/videoDetails/responseContext areprotectedwhereverfound.
+Escapedkeynamesdecodedstrictlybeforeprotectioncomparison. Nonfiniteunderprotectedkeys
+returnswatch_config_nonfinite_protected, notnullorfalse. Unknownidentifier/undefined/
+singlequote/template/comment-or-regex/expressiongetfixedwatch_config_js_* failures,
+no underlyingtoken/key/valueoutput, no expressionevaluation. Strictnumericvalidation
+staysSerde; non-exacttokenslikeInfinityPrivate/Infinity+1arenotconverted.
+
+Budgets:unchanged2MiBwatch/1MiBliteral/64JSONdepth/4KiBvisitor; new256maximumconstant
+replacementsand1MiBoutputlength/capacity. NoValuetree,borrowedoriginalJSONwhenunchanged.
+Changedmetadatarequiresanadditionalownedbufferupto1MiBplusboundedrangestorage/temporary
+keystrings. TLS/Serde/allocatoroverheadsnotwholeheapcapped; working15MBnotclaimed.
+No rawpage/visitor/accountdatafilesorlogs. No cookies/auth/POtoken/consentautomation/JS/
+persistence/proxy/redirect/clientrotation/fallback/productionchanges or newdeps.
+
+Newidentities: --watch-inspect -> aysha-direct-v4.4-metadata-guard, stillonlywatchGET;
+--watch-bootstrap internallyrenamedv4.4-guarded-bootstrapbutNOTrecommendedorautomatically
+runhere. Onlythewatch-onlycommandbelowisnext. Successfulwatchreportincludesfixedboolean
+metadata_nonfinite_ignored; iftrueanddiagnostic_pass, thispagecontainedeligibleconstants
+andwatchparsecompleted. If false, no normalizationoccurred. Eitherwayno player/media
+requestsarepermittedfromwatchinspect. Failureoutputsremainfixedstage/code only.
+
+7newRusttests->37total:exacttokens/strings/protectedescapedkeys/unsupportedJS/private
+errors/replacement+expansion+depthbounds/norepair/end-to-endvisitor+auth+duplicatechecks.
+Guardrejectsdiagnostic_passwithnormalizationflagasnativeacceptance. Python78PASS.
+
+### Terminal: DEBUG BUILD + ONE GUARDED WATCH-ONLY CHECK — no install/restart
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo build --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/debug/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --watch-inspect
+```
+
+Expecteddebugbuildthenonev4.4JSONwithrequestedfalse; no tests/releaseLTOcycleonhost
+neededafterofflineCIverification. Noproductionbinaryreplacementorlockupdate.
+
+- diagnostic_pass+metadata_nonfinite_ignoredtrue: guardedconstantswerepresentand
+  watchparseworked; doesNOTprovehistoricalrootcause, nativeacquisitionorwholebudget.
+- diagnostic_pass+false: currentpageparsedwithoutcompatibilitypath; nohistoricalcause
+  inference. Reviewbeforenextplayertrial. Donotrunbootstrapautomatically.
+- nonfinite_protected: stop; donotcoercevisitor/auth/contextvalues.
+- js_undefined/identifier/single_quote/template/comment_or_regex/expression: stop;
+  sourceframing/selectionreviewnext, noJSengine/auto-ignore/coercionoridenticalretry.
+- malformedJSON/unknownsyntax/oversize/replacementlimit: stop/sharefixedreport, no
+  rawcapture/capraise/closingdanglingstructuresbydefault. Restriction->stop.
+- build/lock/timeout: stop/sharenormaloutput,nolockdeletion/proddeps/retryloop.
+
+Thisisboundedcompatibilitycodeplusdiagnosticsbasedonupstreamsemanticsandsynthetic
+fixtures, NOT a confirmedfixforthehosttokenwhichwasnevercaptured.
