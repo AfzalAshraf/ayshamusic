@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
+const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -109,19 +110,48 @@ fn peak_kib() -> Option<u64> {
         line.strip_prefix("VmHWM:")?.split_whitespace().next()?.parse().ok()
     })
 }
-async fn probe(id: &str) -> Result<serde_json::Value, &'static str> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RequestProfile { V2, StandardContext }
+impl RequestProfile {
+    fn identity(self) -> &'static str {
+        match self { Self::V2 => IDENTITY, Self::StandardContext => STANDARD_IDENTITY }
+    }
+}
+fn parse_args(args: &[String]) -> Result<(&str, RequestProfile), &'static str> {
+    let profile = match args {
+        [flag, id] if flag == "--video-id" && valid_id(id) => RequestProfile::V2,
+        [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--standard-context" => RequestProfile::StandardContext,
+        _ => return Err("invalid_arguments"),
+    };
+    Ok((&args[1], profile))
+}
+fn player_body(id: &str, profile: RequestProfile) -> serde_json::Value {
+    let mut body = json!({"context":{"client":{
+        "clientName":"VISIONOS", "clientVersion":VERSION, "deviceMake":"Apple",
+        "deviceModel":"RealityDevice17,1", "userAgent":AGENT,
+        "osName":"visionOS", "osVersion":"26.5.23O471", "hl":"en"}}, "videoId":id});
+    if profile == RequestProfile::StandardContext {
+        body["context"]["client"]["timeZone"] = json!("UTC");
+        body["context"]["client"]["utcOffsetMinutes"] = json!(0);
+    }
+    body
+}
+fn player_request(client: &Client, id: &str, profile: RequestProfile) -> reqwest::RequestBuilder {
+    let request = client.post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
+        .header("User-Agent", AGENT).header("X-Youtube-Client-Name", "101")
+        .header("X-Youtube-Client-Version", VERSION);
+    let request = if profile == RequestProfile::StandardContext {
+        request.header("Origin", "https://www.youtube.com")
+    } else { request };
+    request.json(&player_body(id, profile))
+}
+async fn probe(id: &str, profile: RequestProfile) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
     let client = Client::builder().https_only(true).no_proxy()
         .redirect(reqwest::redirect::Policy::none()).connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")?;
     // Public player request only; no auth, visitor tokens, cookies or restriction flags.
-    let body = json!({"context":{"client":{
-        "clientName":"VISIONOS", "clientVersion":VERSION, "deviceMake":"Apple",
-        "deviceModel":"RealityDevice17,1", "userAgent":AGENT,
-        "osName":"visionOS", "osVersion":"26.5.23O471", "hl":"en"}}, "videoId":id});
-    let mut response = client.post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
-        .header("User-Agent", AGENT).header("X-Youtube-Client-Name", "101")
-        .header("X-Youtube-Client-Version", VERSION).json(&body).send().await.map_err(|_| "player_request_failed")?;
+    let mut response = player_request(&client, id, profile).send().await.map_err(|_| "player_request_failed")?;
     if !response.status().is_success() { return Err("player_http_failed"); }
     if response.content_length().is_some_and(|len| len > METADATA_MAX as u64) { return Err("metadata_size_limit"); }
     let mut bytes = Vec::with_capacity(32768);
@@ -148,7 +178,7 @@ async fn probe(id: &str) -> Result<serde_json::Value, &'static str> {
         if count == SAMPLE { break; }
     }
     if count != SAMPLE || !mp4(&prefix) { return Err("short_or_invalid_probe"); }
-    Ok(json!({"status":"pass", "candidate":IDENTITY, "bytes":count, "itag":format.itag,
+    Ok(json!({"status":"pass", "candidate":profile.identity(), "bytes":count, "itag":format.itag,
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":started.elapsed().as_millis(),
         "peak_rss_kib":peak_kib(), "external_tools":false, "production_ready":false}))
 }
@@ -156,19 +186,22 @@ async fn probe(id: &str) -> Result<serde_json::Value, &'static str> {
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID\nExperimental public AAC 64KiB probe only. No JS/signature/token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context]\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
-    if args.len() != 2 || args[0] != "--video-id" || !valid_id(&args[1]) {
-        println!("{}", json!({"status":"fail", "candidate":IDENTITY, "code":"invalid_arguments"}));
-        std::process::exit(2);
-    }
-    let result = tokio::time::timeout(Duration::from_secs(60), probe(&args[1])).await;
+    let (id, profile) = match parse_args(&args) {
+        Ok(value) => value,
+        Err(code) => {
+            println!("{}", json!({"status":"fail", "candidate":"invalid-cli", "code":code}));
+            std::process::exit(2);
+        }
+    };
+    let result = tokio::time::timeout(Duration::from_secs(60), probe(id, profile)).await;
     match result {
         Ok(Ok(metrics)) => println!("{metrics}"),
         failure => {
             let code = match failure { Ok(Err(code)) => code, _ => "deadline_exceeded" };
-            println!("{}",json!({"status":"fail", "candidate":IDENTITY, "code":code,
+            println!("{}",json!({"status":"fail", "candidate":profile.identity(), "code":code,
                 "peak_rss_kib":peak_kib(), "production_ready":false}));
             std::process::exit(1);
         }
@@ -183,6 +216,42 @@ mod tests {
     }
     fn format(url: &str, bitrate: u64) -> serde_json::Value {
         json!({"itag":140, "mimeType":"audio/mp4; codecs=\"mp4a.40.2\"", "bitrate":bitrate,"url":url})
+    }
+    #[test] fn standard_context_body_changes_only_two_fields() {
+        let old = player_body("Jm7Satp7Zqk", RequestProfile::V2);
+        let mut changed = player_body("Jm7Satp7Zqk", RequestProfile::StandardContext);
+        assert_eq!(changed["context"]["client"]["timeZone"], "UTC");
+        assert_eq!(changed["context"]["client"]["utcOffsetMinutes"], 0);
+        let client = changed["context"]["client"].as_object_mut().unwrap();
+        client.remove("timeZone"); client.remove("utcOffsetMinutes");
+        assert_eq!(old, changed);
+        assert_eq!(old.as_object().unwrap().len(), 2); // no auth/integrity/restriction fields
+        assert!(old["context"]["client"].get("visitorData").is_none());
+    }
+    #[tokio::test(flavor="current_thread")] async fn standard_context_headers_change_only_origin() {
+        // Build offline: never send or open a connection.
+        let client = Client::builder().no_proxy().build().unwrap();
+        let old = player_request(&client,"Jm7Satp7Zqk",RequestProfile::V2).build().unwrap();
+        let mut changed = player_request(&client,"Jm7Satp7Zqk",RequestProfile::StandardContext).build().unwrap();
+        assert_eq!(changed.headers_mut().remove("origin").unwrap(), "https://www.youtube.com");
+        assert_eq!(old.headers(), changed.headers());
+        assert_eq!(old.url(), changed.url());
+        assert_eq!(old.method(), changed.method());
+        assert!(old.headers().get("cookie").is_none());
+        assert!(changed.headers().get("authorization").is_none());
+    }
+    #[test] fn profiles_are_explicit_and_invalid_options_never_trigger_a_request() {
+        let args = |items: &[&str]| items.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let legacy = args(&["--video-id", "Jm7Satp7Zqk"]);
+        let standard = args(&["--video-id", "Jm7Satp7Zqk", "--standard-context"]);
+        assert_eq!(parse_args(&legacy).unwrap().1.identity(), IDENTITY);
+        assert_eq!(parse_args(&standard).unwrap().1.identity(), STANDARD_IDENTITY);
+        for value in [args(&[]), args(&["--standard-context"]),
+            args(&["--video-id", "invalid", "--standard-context"]),
+            args(&["--video-id", "Jm7Satp7Zqk", "--other"]),
+            args(&["--video-id", "Jm7Satp7Zqk", "--standard-context", "--extra"])] {
+            assert_eq!(parse_args(&value).err(), Some("invalid_arguments"));
+        }
     }
     #[test] fn ids_and_origins_fail_closed() {
         assert!(valid_id("Jm7Satp7Zqk")); assert!(!valid_id("--exec=evil"));

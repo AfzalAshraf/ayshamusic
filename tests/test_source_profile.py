@@ -18,8 +18,10 @@ class SourceProfileTests(unittest.TestCase):
             if key == "clientVersion":
                 continue
             self.assertRegex(source, '"' + key + r'"\s*:\s*"' + value.replace('.', r'\.') + '"')
-        self.assertNotIn('"Origin"', source)
-        self.assertNotIn('"timeZone"', source)
+        # The offline reference describes legacy v2; v3 changes are opt-in.
+        self.assertIn('if profile == RequestProfile::StandardContext', source)
+        self.assertIn('[flag, id] if flag == "--video-id"', source)
+        self.assertIn('=> RequestProfile::V2', source)
 
     def test_exact_client_fields_and_only_booleans_for_headers(self):
         client = dict(profile.NATIVE, timeZone="UTC", utcOffsetMinutes=0,

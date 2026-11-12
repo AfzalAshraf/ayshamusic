@@ -254,3 +254,57 @@ baseline. See [REA_NATIVE_EXTRACTION_PLAN.md](REA_NATIVE_EXTRACTION_PLAN.md) for
 limitations and the new --baseline-only --trace-stages diagnostic. It does not rerun
 this failed native request, install REA on the host or claim signature transforms
 solve a bot check. No native source-acquisition fix has yet been demonstrated.
+
+## Opt-in v3 standard-context experiment (not a bot-check fix)
+
+Host offline profile at731166c: CLI and imported package both2026.08.19; VISIONOS1.02,
+Apple/device/OS/UA/clientheader101 match nativev2. Generated defaultcontext adds
+UTCtimezone/offset and headerbuilder addsOrigin. Emptyofflineconfig has no visitor
+header and REQUIRE_JS_PLAYERfalse. Matchingversionstrings do not prove binaryidentity
+or capture the actual successful request. No network/native execution in that check.
+
+Concrete bounded variant: `--standard-context` selects identity
+`aysha-direct-v3-standard-context`. It adds ONLY `Origin: https://www.youtube.com`
+to the player POST and `context.client.timeZone="UTC"`, `utcOffsetMinutes=0` to its
+JSON. Without that flag, legacyv2 remains unchanged (and should not be retried).
+Unit tests compare built requests without sending: URL/method/all otherheaders and
+bodyfields match v2 after removing those additions. No dependency/client/format change,
+watchbootstrap/session/visitor/consent/auth/cookie/POtoken/restrictionflags/JS engine,
+media-header change, redirects, fallback, installation or production integration.
+
+This is one low-scope experiment justified by confirmed host defaultdifferences, not
+proof that thosefields caused earlierfailure. Not a one-variable causality test:
+threefields change together and upstream time/network/challenge state may change.
+Earlierv2 metrics are historical, not a simultaneous controlled comparison.
+
+### Terminal: BUILD + ONE NATIVE DIAGNOSTIC — no install/restart
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo test --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/release/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --standard-context
+```
+
+Keep the existinghostCargo.lock; no lock deletion, dependencyupdate or fullrootbuild.
+If --locked reports a missing/outdatedlock, stop and share the error; do not update
+productiondependencies as a workaround. BuildCPU/memory is not runtimeRAM accounting.
+Expected:11offlinetests and releasebuild, then one fixedJSON with candidatev3identity.
+PASSrequires65536MP4prefixbytes; production_readyremainsfalse. PeakRSSis this isolated
+process only, not the server+decoder/search/listenerbudget. There is no batch/reference
+request/retry or JS/yt-dlp fallback. Timeoutprocess exit124 may lackJSON; report that.
+Do not run this benchmark concurrently with another resource test.
+
+If player_bot_check/login/otherrestriction persists: stop this variant, retain failure,
+no repeated trial/flagroulette. Next missingcontext investigation is watchbootstrap
+versus standalonePOST, requiring explicit scope review before introducing anonymous
+visitor/sessionhandling. If signature_required_unsupported appears, we have reached
+a different stage; evaluate boundednative transformneeds rather than declare success.
+IfPASS: preserve evidence, then separately design media/decode/control/wholebudget
+acceptance; do not install or attribute the success solely toOrigin/UTC.
+
+CI now performs offlineverification only for this package. Removed automaticlivev2
+requests on everypush because their agreedhost+CIstopcondition was already reached.
+No v3live request made inCI; the target-hosttrial above is opt-in and singleattempt.

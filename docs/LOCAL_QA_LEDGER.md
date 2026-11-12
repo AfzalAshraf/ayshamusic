@@ -863,3 +863,24 @@ privacy/versionlimits/default-vs-wire distinction/connectionguard restoration/er
 and drift against currentnativev2source. Next hostcommand: version+offlineprofile only;
 missingpackage/APIchange routes packagingreview, not updateretry. Nativefix still
 unproved; extraction2/5unchanged.
+
+## Host offline profile confirms defaults; narrow opt-in native context experiment
+
+User host731166c offlineinspectionPASS: CLI/packageversions2026.08.19, expectedVISIONOS
+client/device/OS/UA/header101equalv2. UTCtimezone/offset missingv2; defaultOriginpresent
+but absentv2. No visitorheaderwithemptyofflineconfig; requiresJS/authfalse. No network
+or nativecode executed. Matchingversionlabels not exact executable/runtimeidentity;
+no actualwatch/sessionrequestcaptured and no bot-checkcauseproven.
+
+Justified code: opt-in --standard-context -> aysha-direct-v3-standard-context.
+Adds only playerOrigin and UTCtwofields;
+legacyv2default preserved. OfflineRusttests assert exactrequestbody/headerdelta, CLI
+strictness and distinctidentities; allrestriction/origin/size/formatchecks retained.
+No dependencies/clientprofile/session/auth/tokens/cookies/restrictionflags/watchpage/
+mediaheaders/JS/fallback changed. UpdatedPythonv2reference driftcheck for explicitopt-in.
+
+CI removes repeatedautomaticlivev2observations; tests/release/noJSgraph/CLIremain and
+newinvalid-v3CLIcheckoffline. Do not rerun previouslyblockedv2. Hostcommandtests/builds
+only isolateddirectpackage usingexistinglock, then oneboundedv3trial. Production5050/
+UI/Vercel/systemd/audio untouched. If samebotfailure: stopvariant, nextscopeis bootstrap
+review not repeatedbuild/clientroulette. IfPASSstill no decoding/playback/15MBclaim.

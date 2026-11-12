@@ -100,29 +100,20 @@ jobs:
           if grep -E 'boa_|rusty_ytdl|rquickjs|quick-js' direct-dependencies.txt; then exit 1; fi
           prototypes/rust-direct/target/release/aysha-direct-prototype --help
           if prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid; then exit 1; fi
-      - name: Record two public compatibility observations (not target-host acceptance)
+      - name: Strict opt-in context CLI smoke (offline only)
         run: |
-          for case in requested:Jm7Satp7Zqk reference:BaW_jenozKc; do
-            label=${case%%:*}
-            id=${case#*:}
-            set +e
-            result=$(timeout --kill-after=2s 75s prototypes/rust-direct/target/release/aysha-direct-prototype --video-id "$id" 2>/dev/null)
-            code=$?
-            set -e
-            RESULT="$result" CODE="$code" LABEL="$label" python3 - <<'PY'
+          set +e
+          result=$(prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid --standard-context)
+          code=$?
+          set -e
+          test "$code" -eq 2
+          RESULT="$result" python3 - <<'PY'
           import json, os
-          try:
-              value = json.loads(os.environ['RESULT'])
-              allowed = ('status', 'candidate', 'code', 'bytes', 'itag', 'resolve_ms', 'first_byte_ms', 'total_ms', 'peak_rss_kib', 'production_ready')
-              report = {key: value[key] for key in allowed if key in value}
-          except (ValueError, TypeError):
-              report = {'status':'incomplete', 'code':'probe_timeout_or_invalid_output'}
-          report['process_exit'] = int(os.environ['CODE'])
-          report['case'] = os.environ['LABEL']
-          # Upstream failure remains explicit; this records evidence, not a live acceptance pass.
-          print('::notice title=Direct extraction compatibility observation::' + json.dumps(report))
+          value = json.loads(os.environ['RESULT'])
+          assert value['status'] == 'fail' and value['code'] == 'invalid_arguments'
           PY
-          done
+      # No automatic live requests: v2 host/CI stop condition was already met.
+      # V3 standard-context is a one-attempt target-host diagnostic, not a CI retry loop.
       - name: Retain direct prototype dependency lock
         uses: actions/upload-artifact@v4
         with:
