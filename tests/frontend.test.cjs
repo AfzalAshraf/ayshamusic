@@ -972,3 +972,11 @@ test('cute lettering font is embedded WOFF2 with its license, not a remote font 
   const license = fs.readFileSync(path.join(__dirname, '../docs/licenses/delius-OFL.txt'), 'utf8');
   assert.ok(license.includes('SIL OPEN FONT LICENSE') && license.includes('Natalia Raices'));
 });
+
+
+test('decorative heart effects have no visible discovery instructions', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  assert.ok(!source.includes('Reveal a tiny heart'));
+  assert.ok(!source.includes('heart-discovery'));
+  assert.ok(source.includes('function heartPointerMove') && source.includes('function heartPointerClick'));
+});
