@@ -690,7 +690,7 @@ function heartEffectsHarness() {
   const h = harness();
   const timers = new Map();
   let timerId = 0;
-  const particles = [];
+  const nodes = [];
   const listeners = {};
   let preference;
   h.context.clearTimeout = id => timers.delete(id);
@@ -699,24 +699,27 @@ function heartEffectsHarness() {
   h.context.matchMedia = () => preference = { matches: false, addEventListener(name, fn) { this.change = fn; } };
   h.context.document.createElement = () => {
     const p = { style: { setProperty(name, value) { this[name] = value; } }, listeners: {},
+      classList: { values: new Set(), add(name) { this.values.add(name); }, remove(name) { this.values.delete(name); }, contains(name) { return this.values.has(name); } },
+      getBoundingClientRect() { return { left: 20, top: 30, width: 300, height: 300 }; },
       addEventListener(name, fn) { this.listeners[name] = fn; },
       remove() { this.removed = true; },
     };
-    particles.push(p);
+    nodes.push(p);
     return p;
   };
   for (const id of ['heart-effects-page', 'heart-effects-intro', 'heart-effects-player']) {
     h.element(id).appendChild = particle => { particle.host = id; };
   }
   h.context.initializeHeartEffects();
-  return { ...h, particles, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
+  return { ...h, get particles() { return nodes.filter(p => p.className.startsWith('heart-particle')); }, get fields() { return nodes.filter(p => p.className === 'heart-constellation'); }, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
 }
 
 test('heart taps burst eight local icons without network, storage or audio actions', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
   assert.equal(h.particles.length, 8);
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 9); // 8 transient particles + one bounded reveal timeout.
+  assert.equal(h.fields.length, 1);
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page' && p.innerHTML.includes('/icons.svg#heart')));
   assert.equal(h.particles[0].style.left, '90px');
   assert.equal(h.calls.length, 0);
@@ -736,7 +739,7 @@ test('heart effects use the visible native dialog layer instead of appearing beh
   assert.equal(h.particles[1].host, 'heart-effects-player');
 });
 
-test('heart trail is mouse-only, throttled and ignores dragging, editing and keyboard clicks', () => {
+test('heart reveal is mouse-only, throttled and ignores dragging, editing and keyboard clicks', () => {
   const h = heartEffectsHarness();
   let now = 1000;
   h.context.Date = { now: () => now };
@@ -747,10 +750,22 @@ test('heart trail is mouse-only, throttled and ignores dragging, editing and key
   assert.equal(h.particles.length, 0);
   h.context.heartPointerMove(h.event());
   h.context.heartPointerMove(h.event());
-  assert.equal(h.particles.length, 1);
-  now += 90;
-  h.context.heartPointerMove(h.event());
-  assert.equal(h.particles.length, 2);
+  assert.equal(h.particles.length, 0);
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.fields[0].style['--reveal-x'], '70px');
+  h.context.heartPointerMove(h.event({clientX: 120}));
+  assert.equal(h.fields[0].style['--reveal-x'], '70px');
+  now += 31;
+  h.context.heartPointerMove(h.event({clientX: 120}));
+  assert.equal(h.fields[0].style['--reveal-x'], '70px');
+  now += 1;
+  h.context.heartPointerMove(h.event({clientX: 120}));
+  assert.equal(h.fields[0].style['--reveal-x'], '100px');
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.particles.length, 0);
+  h.context.clearHeartEffects();
+  h.context.heartPointerMove(h.event({clientX: 160}));
+  assert.equal(h.fields[0].style['--reveal-x'], '140px', 'First move after clearing is never swallowed by the old throttle');
 });
 
 test('heart nodes and timers are capped and cleaned on animationend or fallback', () => {
@@ -789,4 +804,53 @@ test('heart initialization is idempotent and invalid coordinates never create no
   h.context.spawnHeartParticle(NaN, 10);
   h.context.spawnHeartParticle(10, Infinity);
   assert.equal(h.particles.length, 0);
+});
+
+test('stationary reveal has a deterministic bounded heart silhouette, not random particles', () => {
+  const h = heartEffectsHarness();
+  const markup = h.context.heartConstellationMarkup();
+  assert.equal(markup, h.context.heartConstellationMarkup());
+  assert.equal((markup.match(/<use /g) || []).length, 111);
+  assert.ok(markup.includes('viewBox="0 0 376 376"'));
+  const points = [...markup.matchAll(/x="(\d+)" y="(\d+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
+  for (const [x,y] of points) assert.ok(points.some(([mirrorX,mirrorY]) => mirrorX === 364-x && mirrorY === y), 'Heart field is symmetric');
+  h.context.revealHeartField(90, 100);
+  const field = h.fields[0];
+  assert.equal(field.host, 'heart-effects-page');
+  assert.equal(field.style['--reveal-x'], '70px');
+  assert.equal(field.style['--reveal-y'], '70px');
+  assert.equal(field.style['--reveal-radius'], '195px');
+  const original = field.innerHTML;
+  for (let i = 0; i < 100; i++) h.context.revealHeartField(i, i);
+  assert.equal(field.innerHTML, original);
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.timers.size, 1);
+  assert.equal(h.particles.length, 0);
+  for (const callback of [...h.timers.values()]) callback();
+  assert.equal(field.classList.contains('is-revealed'), false);
+});
+
+test('reveal fields are limited to three native contexts and clear with motion/visibility/exit', () => {
+  const h = heartEffectsHarness();
+  h.context.revealHeartField(80, 90);
+  h.element('now-playing').open = true;
+  h.context.revealHeartField(80, 90);
+  h.element('love-intro').open = true;
+  h.context.revealHeartField(80, 90);
+  assert.equal(h.fields.length, 3);
+  assert.equal(h.timers.size, 3);
+  h.listeners.pointerout.fn({ relatedTarget: {} });
+  assert.equal(h.timers.size, 3);
+  h.listeners.pointerout.fn({ relatedTarget: null });
+  assert.equal(h.timers.size, 0);
+  assert.ok(h.fields.every(f => !f.classList.contains('is-revealed')));
+  h.preference.matches = true;
+  h.context.revealHeartField(80, 90);
+  assert.equal(h.timers.size, 0);
+  h.preference.matches = false;
+  h.context.revealHeartField(80, 90);
+  h.context.document.hidden = true;
+  h.listeners.visibilitychange.fn();
+  assert.equal(h.timers.size, 0);
+  assert.ok(h.fields.every(f => !f.classList.contains('is-revealed')));
 });
