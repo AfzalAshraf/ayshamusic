@@ -4,9 +4,9 @@ use reqwest::{Client, Url};
 use serde::Deserialize;
 use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
-const IDENTITY: &str = "aysha-direct-v1-android-vr";
-const VERSION: &str = "1.65.10";
-const AGENT: &str = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
+const IDENTITY: &str = "aysha-direct-v2-visionos";
+const VERSION: &str = "1.02";
+const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
 const SAMPLE: usize = 65536;
 #[derive(Default, Deserialize)]
@@ -17,7 +17,32 @@ struct Player {
     video_details: Option<Details>,
 }
 #[derive(Deserialize)]
-struct Playability { status: String }
+struct Playability {
+    status: String,
+    #[serde(default)] reason: String,
+    #[serde(default)] messages: Vec<String>,
+}
+// Return fixed classifications only, never upstream reason/status/message strings.
+fn playability(player: &Player) -> Result<(), &'static str> {
+    let status = player.playability_status.as_ref().ok_or("player_status_missing")?;
+    if status.status == "OK" { return Ok(()); }
+    let bot_signal = |text: &str| {
+        let text = text.to_ascii_lowercase();
+        text.contains("not a bot") || text.contains("confirm you're not a bot")
+    };
+    if bot_signal(&status.reason) || status.messages.iter().any(|s| bot_signal(s)) {
+        return Err("player_bot_check");
+    }
+    Err(match status.status.as_str() {
+        "LOGIN_REQUIRED" => "player_login_required",
+        "AGE_CHECK_REQUIRED" | "AGE_VERIFICATION_REQUIRED" => "player_age_check_required",
+        "CONTENT_CHECK_REQUIRED" => "player_content_check_required",
+        "UNPLAYABLE" => "player_unplayable",
+        "LIVE_STREAM_OFFLINE" => "player_live_offline",
+        "ERROR" => "player_error",
+        _ => "player_status_unknown",
+    })
+}
 #[derive(Default, Deserialize)]
 #[serde(rename_all="camelCase")]
 struct Streams {
@@ -56,9 +81,7 @@ fn aac(f: &Format) -> bool {
         && f.mime_type.split(';').skip(1).any(|p| p.trim() == "codecs=\"mp4a.40.2\"")
 }
 fn select<'a>(player: &'a Player, id: &str) -> Result<&'a Format, &'static str> {
-    if player.playability_status.as_ref().map(|s| s.status.as_str()) != Some("OK") {
-        return Err("player_not_playable");
-    }
+    playability(player)?;
     let details = player.video_details.as_ref().ok_or("video_identity_missing")?;
     if details.video_id != id { return Err("video_identity_mismatch"); }
     if details.is_live || details.is_live_content { return Err("live_unsupported"); }
@@ -93,11 +116,11 @@ async fn probe(id: &str) -> Result<serde_json::Value, &'static str> {
         .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")?;
     // Public player request only; no auth, visitor tokens, cookies or restriction flags.
     let body = json!({"context":{"client":{
-        "clientName":"ANDROID_VR", "clientVersion":VERSION, "deviceMake":"Oculus",
-        "deviceModel":"Quest 3", "androidSdkVersion":32, "userAgent":AGENT,
-        "osName":"Android", "osVersion":"12L", "hl":"en"}}, "videoId":id});
+        "clientName":"VISIONOS", "clientVersion":VERSION, "deviceMake":"Apple",
+        "deviceModel":"RealityDevice17,1", "userAgent":AGENT,
+        "osName":"visionOS", "osVersion":"26.5.23O471", "hl":"en"}}, "videoId":id});
     let mut response = client.post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
-        .header("User-Agent", AGENT).header("X-Youtube-Client-Name", "28")
+        .header("User-Agent", AGENT).header("X-Youtube-Client-Name", "101")
         .header("X-Youtube-Client-Version", VERSION).json(&body).send().await.map_err(|_| "player_request_failed")?;
     if !response.status().is_success() { return Err("player_http_failed"); }
     if response.content_length().is_some_and(|len| len > METADATA_MAX as u64) { return Err("metadata_size_limit"); }
@@ -187,7 +210,7 @@ mod tests {
         player.video_details.as_mut().unwrap().is_live_content = true;
         assert_eq!(select(&player,"Jm7Satp7Zqk").err(),Some("live_unsupported"));
         player.playability_status.as_mut().unwrap().status = "LOGIN_REQUIRED".into();
-        assert_eq!(select(&player,"Jm7Satp7Zqk").err(),Some("player_not_playable"));
+        assert_eq!(select(&player,"Jm7Satp7Zqk").err(),Some("player_login_required"));
     }
     #[test] fn metadata_limits_and_container() {
         let mut bytes = Vec::new();
@@ -195,6 +218,30 @@ mod tests {
         assert_eq!(append_bounded(&mut bytes,b"5",4),Err("metadata_size_limit"));
         assert_eq!(bytes,b"1234");
         assert!(mp4(b"\0\0\0\x20ftyp")); assert!(!mp4(b"<html>bad"));
+    }
+    #[test] fn rejection_categories_are_fixed_and_never_echo_upstream_text() {
+        for (status, code) in [
+            ("LOGIN_REQUIRED", "player_login_required"),
+            ("UNPLAYABLE", "player_unplayable"), ("ERROR", "player_error"),
+            ("LIVE_STREAM_OFFLINE", "player_live_offline"),
+            ("AGE_CHECK_REQUIRED", "player_age_check_required"),
+            ("AGE_VERIFICATION_REQUIRED", "player_age_check_required"),
+            ("CONTENT_CHECK_REQUIRED", "player_content_check_required"),
+            ("private-arbitrary-status", "player_status_unknown"),
+        ] {
+            let player: Player = serde_json::from_value(json!({"playabilityStatus":{
+                "status":status, "reason":"https://private.example/?signed=secret"}})).unwrap();
+            assert_eq!(playability(&player), Err(code));
+        }
+        assert_eq!(playability(&Player::default()), Err("player_status_missing"));
+    }
+    #[test] fn bot_signal_is_distinguished_without_bypassing_login() {
+        let player: Player = serde_json::from_value(json!({"playabilityStatus":{
+            "status":"LOGIN_REQUIRED", "reason":"Sign in to confirm you’re not a bot"}})).unwrap();
+        assert_eq!(playability(&player), Err("player_bot_check"));
+        let player: Player = serde_json::from_value(json!({"playabilityStatus":{
+            "status":"ERROR", "messages":["Confirm you're not a bot", "private-content"]}})).unwrap();
+        assert_eq!(playability(&player), Err("player_bot_check"));
     }
     #[test] fn unrelated_or_too_many_formats_fail() {
         let mut f = format("https://x.googlevideo.com/a",128000); f["width"]=json!(1920);
