@@ -15,6 +15,8 @@ Preserve the approved Android-first Aysha design and local Rust/systemd producti
 
 Use one active department per response. Ask about consequential ambiguities, verify changes, give evidence-based 0–5 ratings and append the build manifest/error ledger. Consult the latest entries in [the living ledger](docs/LOCAL_QA_LEDGER.md), not only its historical initial-state tables.
 
+For user-supplied server output, always return: what passed/failed and what it proves; an actionable fix plan; the justified patch or bounded diagnostic code; an exact command labelled diagnostic/build/install; expected outcomes and the next branch if it fails. Do not invent a fix or repeat an unchanged failing build. Preserve working playback. This response contract does not waive approval for consequential architecture, source-access, authentication or deployment changes.
+
 ## Important file boundaries
 
 - Rust root page: `src/index.html`; embedded icons: `src/icons.svg`.

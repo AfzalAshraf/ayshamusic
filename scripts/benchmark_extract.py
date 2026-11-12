@@ -140,18 +140,21 @@ def summarize(results):
     return summary
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--video-id", required=True)
     parser.add_argument("--runs", type=int, default=3)
-    args = parser.parse_args()
+    parser.add_argument("--baseline-only", action="store_true",
+                        help="Diagnostic only: run existing yt-dlp, never build/run a native candidate")
+    args = parser.parse_args(argv)
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", args.video_id) or not 1 <= args.runs <= 5:
         parser.error("Use an 11-character video ID and 1-5 runs")
-    if not BINARY.is_file():
+    if not args.baseline_only and not BINARY.is_file():
         parser.error("Build the isolated Rust extractor release binary first")
     results = []
     for index in range(args.runs):
-        for tool in (("rust", "yt-dlp") if index % 2 == 0 else ("yt-dlp", "rust")):
+        tools = ("yt-dlp",) if args.baseline_only else (("rust", "yt-dlp") if index % 2 == 0 else ("yt-dlp", "rust"))
+        for tool in tools:
             print(f"Benchmark run {index + 1}/{args.runs}: {tool}; up to 75 seconds", flush=True)
             argv = [str(BINARY), "--video-id", args.video_id] if tool == "rust" else [
                 "yt-dlp", "--ignore-config", "--no-cache-dir", "--js-runtimes", "node:/usr/bin/node",
@@ -161,7 +164,11 @@ def main():
             row = dict(execute(argv, binary_media=tool == "yt-dlp"), tool=tool, run=index + 1)
             results.append(row)
     report = {"utc": datetime.now(timezone.utc).isoformat(), "prototype_only": True,
+              "mode": "baseline_only" if args.baseline_only else "legacy_comparison",
+              "native_executed": not args.baseline_only,
               "workload": "same public track, audio-only AAC/MP4, 64KiB prefix; no playback",
+              "interpretation": ("Baseline pass means unauthenticated AAC acquisition worked for this attempt; investigate missing native source-access capabilities, not a general outage. Baseline failure does not prove a general outage or explain the native bot check. No native performance comparison was run."
+                                 if args.baseline_only else "Compare successful equivalent workloads only."),
               "results": results, "summary": summarize(results),
               "limits": "No faster claim if failures; not identical itag verified. Native resolve/first-byte excludes process startup; compare total_ms for startup-inclusive 64KiB; native_total_ms is internal only. peak_rss_kib is native-only HWM; sampled_group_peak_rss_kib samples each tool group incl. JS children, may miss spikes and double-count shared pages. Not aggregate memory/decoding/search/production certification. Upstream caches/IP/network may bias runs. No cookies/JS subprocess in native path; Python benchmark is not a server."}
     text = json.dumps(report, indent=2)

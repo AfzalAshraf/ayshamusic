@@ -213,3 +213,38 @@ without this upstream dependency, explicitly approved owned/local audio or permi
 direct media URLs can be a separate test workload, not a replacement of the user's
 YouTube requirement or evidence that extraction was solved. No source/auth/backend
 architecture change is approved by this checkpoint. No installation is needed.
+
+## Next bounded diagnostic: existing public AAC baseline, no native retry
+
+After hostv2bot-check, establish whether the existing tool can currently read the
+same sample on that host, rather than assuming earlier2/3success still holds:
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+python3 scripts/benchmark_extract.py --baseline-only --video-id Jm7Satp7Zqk --runs 1
+```
+
+This is explicitly Python diagnostic tooling invoking existing yt-dlp/Node for the
+baseline, NOT a Rust server change or a native success claim. No compilation/native
+request/install/restart/production API calls. --ignore-config/no cookies/no proxy,
+no cache and same AAC/MP4 constraint as prior comparison; consequently not an exact
+reproduction of any custom production config. Reads64KiB, validates MP4 header, kills
+and reaps only its own process group;75sdeadline. Raw URLs/provider stderr discarded.
+Unique private mode0600 report under ignoreddiagnostics/, printed for manual review.
+Upstream ignoring Range may transfer extra network buffers; no full-song claim.
+One run is a point-in-time diagnostic, not reliability/performance acceptance.
+
+- PASS: public AAC sample is obtainable by the baseline on this host for this attempt.
+  Next inspect supported source-access/protocol capabilities missing from the native
+  implementation before selecting a concrete patch. Do not conclude the cloud/host
+  network is never challenged or that the exact native root cause is proven.
+- FAIL: do not repeat/build native candidates. Investigate the baseline failure layer
+  (tool/runtime, network, format availability or provider rejection) with a separate
+  bounded diagnostic; this alone does not prove a service-wide outage/bot cause.
+- Rust attempts0/native_executedfalse is intentional, not missing test coverage.
+  No successful native speed/memory comparison took place in baseline_only mode.
+
+No native extraction fix is claimed by this diagnostic addition. Keep production
+unchanged while source access remains unresolved. No new account/token request or
+provider bypass is approved by this plan.

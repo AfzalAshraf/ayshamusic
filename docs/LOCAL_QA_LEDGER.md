@@ -773,3 +773,21 @@ reproduction/history; update memory plan and this ledger. No dependencies/runtim
 service/installer/UI/Vercel changes. git whitespacePASS; no test rerun claimed for docs.
 Extraction readiness remains2/5 with source acquisition blocked. Preserve unrelated
 trackedpyc deletion. No new host command or installation needed for this checkpoint.
+
+## Actionable next step after bot-check: current baseline-only AAC diagnostic
+
+Active department: QA & Debugging. User asks what's next and requires a plan plus
+applicable patch/commands for server output. Added --baseline-only to existing bounded
+benchmark utility: no native binary prerequisite/execution, builds, service actions or
+repeated failing Rust request. Existing yt-dlp/Node point-in-time publicAAC64KiB probe,
+75sdeadline, rawstderr/URLs suppressed, owned-groupcleanup, private report preserved.
+Default legacy comparison behavior unchanged. Mode/native_executed/interpretation
+explicit, no native performance claim. Cannot infer production custom config equivalence
+(--ignore-config/no cookies), outage/auth cause from baseline failure, or reliability
+from one pass. Python remains opt-in diagnostic tooling, not production server/runtime.
+Three new offline tests cover absent-native/no-fallback invocation, failure status,
+private save and unsafeinput/runbounds; local52PythonPASS, whitespacePASS. No live
+baseline run in agent/target claimed. Documented command/conditional next steps in
+RUST_DIRECT_PROTOTYPE.md. Persisted user's response contract in AGENTS.md while
+retaining architecture/deployment approval gates. No new dependencies/Rust code/
+installer/UI/Vercel/service changes. Extraction2/5 still blocked; no15MB acceptance.

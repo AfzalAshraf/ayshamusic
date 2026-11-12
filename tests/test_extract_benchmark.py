@@ -1,10 +1,13 @@
 """Offline benchmark-harness tests, not live YouTube extraction acceptance."""
+import contextlib
+import io
 import importlib.util
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location("benchmark", Path(__file__).resolve().parents[1] / "scripts/benchmark_extract.py")
 benchmark = importlib.util.module_from_spec(spec)
@@ -12,6 +15,51 @@ spec.loader.exec_module(benchmark)
 
 
 class BenchmarkTests(unittest.TestCase):
+    def run_baseline(self, result):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(benchmark, "ROOT", Path(directory)), \
+                mock.patch.object(benchmark, "BINARY", Path(directory) / "missing-native"), \
+                mock.patch.object(benchmark, "execute", return_value=result) as execute, \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = benchmark.main(["--baseline-only", "--video-id", "Jm7Satp7Zqk", "--runs", "1"])
+            reports = list((Path(directory) / "diagnostics").glob("*.json"))
+            self.assertEqual(len(reports), 1)
+            report = json.loads(reports[0].read_text())
+            self.assertEqual(reports[0].stat().st_mode & 0o777, 0o600)
+            return code, report, execute.call_args_list
+
+    def test_baseline_only_needs_no_native_binary_and_never_runs_it(self):
+        code, report, calls = self.run_baseline({"status":"pass", "bytes":65536, "total_ms":100})
+        self.assertEqual(code, 0)
+        self.assertEqual(report["mode"], "baseline_only")
+        self.assertFalse(report["native_executed"])
+        self.assertEqual(report["summary"]["rust"]["attempts"], 0)
+        self.assertEqual(len(calls), 1)
+        argv = calls[0].args[0]
+        self.assertEqual(argv[0], "yt-dlp")
+        self.assertIn("--ignore-config", argv)
+        self.assertNotIn("--cookies", argv)
+        self.assertNotIn("--cookies-from-browser", argv)
+        self.assertEqual(argv[-2:], ["--", "https://www.youtube.com/watch?v=Jm7Satp7Zqk"])
+        self.assertTrue(calls[0].kwargs["binary_media"])
+
+    def test_baseline_failure_remains_failure_without_native_fallback(self):
+        code, report, calls = self.run_baseline({"status":"fail", "code":"short_or_non_mp4_probe"})
+        self.assertEqual(code, 1)
+        self.assertEqual(report["results"][0]["status"], "fail")
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(report["native_executed"])
+
+    def test_baseline_still_rejects_unsafe_ids_and_unbounded_run_counts(self):
+        for args in [
+            ["--video-id", "https://evil.test"],
+            ["--video-id", "Jm7Satp7Zqk", "--runs", "6"],
+        ]:
+            with contextlib.redirect_stderr(io.StringIO()), mock.patch.object(benchmark, "execute") as execute:
+                with self.assertRaises(SystemExit) as error:
+                    benchmark.main(["--baseline-only", *args])
+                self.assertEqual(error.exception.code, 2)
+                execute.assert_not_called()
+
     def test_native_metrics_are_allowlisted_and_startup_inclusive(self):
         payload = {"status": "pass", "bytes": 65536, "total_ms": 1, "resolve_ms": 1,
                    "first_byte_ms": 1, "url": "signed-secret-url", "peak_rss_kib": 12000}
