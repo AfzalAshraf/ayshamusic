@@ -12,13 +12,11 @@ const diagnostics = `<script>
   note.setAttribute('data-preview-motion', '');
   note.style.cssText = 'display:block;margin-top:8px;color:#ddd;font-size:10px;letter-spacing:0';
   document.querySelector('.love-loading').appendChild(note);
-  const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const update = () => {
-    const message = typeof heartPointerClick !== 'function' ? 'Heart script did not initialize' : motion.matches ? 'Hearts off: Reduce Motion is enabled on this browser' : 'Hearts ready — tap/click the page to make them fly';
+    const message = typeof heartPointerClick !== 'function' ? 'Heart script did not initialize' : 'Hearts always on — tap/click the page to make them fly';
     document.querySelectorAll('[data-preview-motion]').forEach(el => { el.textContent = message; });
   };
   update();
-  if (motion.addEventListener) motion.addEventListener('change', update);
 })();
 </script>`;
 function createPreviewServer() {

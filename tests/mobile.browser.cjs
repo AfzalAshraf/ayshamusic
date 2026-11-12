@@ -29,7 +29,7 @@ async function checkInteractiveSandbox(context) {
       page.setDefaultTimeout(12000);
       try {
         await page.setViewportSize(mobile ? {width:390,height:844} : {width:1440,height:900});
-        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
         await page.route('http://arena-preview.test/', route => route.fulfill({ contentType: 'text/html', body: `<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style><iframe title="Interactive preview" sandbox="allow-scripts allow-same-origin" src="${origin}/"></iframe>` }));
@@ -37,7 +37,7 @@ async function checkInteractiveSandbox(context) {
         const frame = page.frameLocator('iframe');
         const title = frame.locator('#love-intro-title');
         await frame.locator('#love-intro').waitFor({state:'visible'});
-        await frame.locator('[data-preview-motion]').last().filter({hasText:'Hearts ready'}).waitFor();
+        await frame.locator('[data-preview-motion]').last().filter({hasText:'Hearts always on'}).waitFor();
         const missingAudio = await context.request.get(origin + '/api/search?q=test');
         assert.equal(missingAudio.status(), 503, 'Preview must not fake a live audio backend');
         if (mobile) await title.tap(); else await title.click();
@@ -51,11 +51,17 @@ async function checkInteractiveSandbox(context) {
         await frame.locator('#heart-effects-page .heart-particle').first().waitFor({state:'visible'});
         await frame.locator('#tab-home .page-heading').evaluate(() => clearHeartEffects());
         await page.emulateMedia({ reducedMotion: 'reduce' });
-        await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts off: Reduce Motion'}).waitFor();
+        await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts always on'}).waitFor();
         if (mobile) await frame.locator('#tab-home .page-heading').tap(); else await frame.locator('#tab-home .page-heading').click();
-        assert.equal(await frame.locator('.heart-particle').count(), 0);
+        assert.equal(await frame.locator('.heart-particle').count(), 8);
+        const heart = frame.locator('.heart-particle').first();
+        assert.equal(await heart.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
+        assert.equal(await heart.locator('svg').evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
+        const before = await heart.boundingBox();
+        await page.waitForTimeout(500);
+        assert.ok((await heart.boundingBox()).y < before.y - 15, 'Actual preview flies under Reduce Motion');
         assert.deepEqual(errors, []);
-        console.log(`PASS actual UI-only preview in iframe (${mobile ? 'touch' : 'mouse'}): hearts work while backend returns503, detail0 works, motion status is truthful`);
+        console.log(`PASS actual UI-only preview in iframe (${mobile ? 'touch' : 'mouse'}): hearts work while backend returns503, detail0 works, hearts fly even with Reduce Motion`);
       } finally { await page.close(); }
     }
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
@@ -125,9 +131,7 @@ let activeViewport = 'startup';
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
       // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
       await page.locator('#love-intro-title').tap();
-      if (viewport.width === 360) {
-        assert.equal(await page.locator('.heart-particle').count(), 0, 'Reduced motion suppresses particles');
-      } else {
+      {
         assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 8);
         assert.equal(await page.locator('#heart-effects-intro .heart-particle').first().evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
         assert.equal(await page.locator('#heart-effects-intro').evaluate(el => getComputedStyle(el).pointerEvents), 'none');
@@ -315,7 +319,7 @@ let activeViewport = 'startup';
       await page.evaluate(() => clearHeartEffects());
       await page.locator('#full-favorite').click();
       await page.waitForFunction(() => document.getElementById('full-favorite').getAttribute('aria-pressed') === 'true');
-      if (viewport.width !== 360) assert.ok(await page.locator('#heart-effects-player .heart-particle').count() > 0, 'Favorite control still works through the decorative modal layer');
+      assert.ok(await page.locator('#heart-effects-player .heart-particle').count() > 0, 'Favorite control still works through the decorative modal layer');
       assert.equal(await page.locator('#heart-effects-player').getAttribute('aria-hidden'), 'true');
       assert.equal(await page.locator('#full-favorite').getAttribute('aria-label'), 'Remove from favorites');
       const heartBox = await page.locator('#full-favorite').boundingBox();
@@ -388,7 +392,8 @@ let activeViewport = 'startup';
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
         await page.mouse.click(500, 150);
-        assert.equal(await page.locator('.heart-particle').count(), 0);
+        assert.equal(await page.locator('.heart-particle').count(), 8, 'User-requested always-on hearts survive Reduce Motion');
+        assert.equal(await page.locator('.heart-particle').first().evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
       }
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);

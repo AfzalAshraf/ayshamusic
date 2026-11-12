@@ -692,11 +692,11 @@ function heartEffectsHarness() {
   let timerId = 0;
   const nodes = [];
   const listeners = {};
-  let preference;
+  const preference = { matches: false };
   h.context.clearTimeout = id => timers.delete(id);
   h.context.setTimeout = fn => { const id = ++timerId; timers.set(id, fn); return id; };
   h.context.document.addEventListener = (name, fn, options) => { listeners[name] = { fn, options }; };
-  h.context.matchMedia = () => preference = { matches: false, addEventListener(name, fn) { this.change = fn; } };
+  h.context.matchMedia = () => preference;
   h.context.document.createElement = () => {
     const p = { style: { setProperty(name, value) { this[name] = value; } }, listeners: {},
       classList: { values: new Set(), add(name) { this.values.add(name); }, remove(name) { this.values.delete(name); }, contains(name) { return this.values.has(name); } },
@@ -773,16 +773,15 @@ test('butterfly flights are capped and removed on animationend or fallback', () 
   assert.ok(h.particles.every(p => p.removed));
 });
 
-test('reduced motion and hidden pages suppress and clear all butterflies', () => {
+test('explicit always-on hearts ignore reduced motion but hidden pages still stop work', () => {
   const h = heartEffectsHarness();
-  h.context.heartPointerClick(h.event());
   h.preference.matches = true;
-  h.preference.change();
-  assert.equal(h.timers.size, 0);
   h.context.heartPointerClick(h.event());
   assert.equal(h.particles.length, 8);
+  assert.equal(h.timers.size, 8);
   h.preference.matches = false;
   h.context.heartPointerClick(h.event());
+  assert.equal(h.particles.length, 16);
   h.context.document.hidden = true;
   h.listeners.visibilitychange.fn();
   assert.equal(h.timers.size, 0);

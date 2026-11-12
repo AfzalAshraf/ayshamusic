@@ -47,14 +47,14 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 /* Decorative only: clipped, non-interactive and bounded in JS. */
 .heart-effects{position:fixed;inset:0;z-index:100;pointer-events:none!important;overflow:hidden;contain:strict;user-select:none}
 .heart-discovery{display:block;color:var(--sub);font-size:11px;margin:-12px 0 22px}.love-loading .heart-discovery{margin:8px 0 0;font-size:9px;color:#aaa;letter-spacing:.3px}
-@media(prefers-reduced-motion:reduce){.heart-discovery{display:none}}
 .heart-particle{position:absolute;display:block;pointer-events:none!important;color:var(--heart-color);width:var(--heart-size);height:var(--heart-size);animation:heart-flight var(--heart-life) linear both;will-change:transform,opacity}
 .heart-particle .app-icon{display:block;width:100%;height:100%;fill:currentColor;stroke:currentColor;animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate;transform-origin:center}.love-intro .heart-particle{color:#fff}
 @keyframes heart-flutter{from{transform:perspective(90px) rotateY(-48deg) rotate(-9deg) scaleX(.6)}to{transform:perspective(90px) rotateY(35deg) rotate(9deg) scaleX(1)}}
 @keyframes heart-flight{0%{opacity:1;transform:translate(-50%,-50%) scale(.7)}20%{opacity:1;transform:translate(calc(-50% + var(--heart-x)*.3),calc(-50% + var(--heart-lift)*.2)) rotate(-12deg) scale(1)}45%{opacity:.95;transform:translate(calc(-50% + var(--heart-x)*.65 + var(--heart-sway)),calc(-50% + var(--heart-lift)*.45)) rotate(12deg) scale(.95)}75%{opacity:.7;transform:translate(calc(-50% + var(--heart-x)*.8 - var(--heart-sway)),calc(-50% + var(--heart-lift)*.75)) rotate(-9deg) scale(.8)}100%{opacity:0;transform:translate(calc(-50% + var(--heart-x)),calc(-50% + var(--heart-lift))) rotate(8deg) scale(.45)}}
-@media(prefers-reduced-motion:reduce){.heart-effects{display:none}}
 
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Explicit owner request: click/tap hearts stay animated even with Reduce Motion.
+   All other UI motion continues to respect the browser preference. */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
 </style>
@@ -264,7 +264,6 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 const HEART_EFFECT_LIMIT = 32;
 const heartParticles = new Map();
 let heartEffectsInitialized = false;
-let heartMotionPreference = null;
 function removeHeartParticle(particle) {
   if (!heartParticles.has(particle)) return;
   clearTimeout(heartParticles.get(particle));
@@ -280,7 +279,7 @@ function relocateHeartEffects() {
   for (const particle of heartParticles.keys()) host.appendChild(particle);
 }
 function heartEffectsAllowed() {
-  return !document.hidden && !(heartMotionPreference && heartMotionPreference.matches);
+  return !document.hidden;
 }
 function heartEffectHost() {
   if (document.getElementById('love-intro').open) return document.getElementById('heart-effects-intro');
@@ -319,10 +318,6 @@ function heartPointerClick(event) {
 function initializeHeartEffects() {
   if (heartEffectsInitialized || typeof document.addEventListener !== 'function') return;
   heartEffectsInitialized = true;
-  if (typeof matchMedia === 'function') {
-    heartMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
-    if (heartMotionPreference.addEventListener) heartMotionPreference.addEventListener('change', clearHeartEffects);
-  }
   document.addEventListener('click', heartPointerClick, { passive: true, capture: true });
   // Touch pointers emit pointerout after a tap: never clear a flight on pointerout.
   for (const id of ['love-intro', 'now-playing']) document.getElementById(id).addEventListener('close', relocateHeartEffects);
