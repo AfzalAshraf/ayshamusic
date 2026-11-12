@@ -32,12 +32,38 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(min-width:600px) and (max-width:900px){.now-playing-hero{flex-direction:row;align-items:center}.hero-art-box{width:220px}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:360px){.content-area{padding-left:14px;padding-right:14px}.header{padding-left:10px;padding-right:10px;gap:6px}.hero-title{font-size:23px}.card-queue{display:none!important}.now-dialog{padding-left:20px;padding-right:20px}.page-heading{font-size:28px}}
 @media(max-height:520px) and (orientation:landscape){.now-dialog{height:100dvh;overflow:auto}.now-art{max-width:220px}.now-playing-hero{flex-direction:row}.hero-art-box{width:150px}.now-header{margin-bottom:16px}}
+
+/* A quiet, monochrome letter before the music. No media or network dependency. */
+.love-intro{position:fixed;inset:0;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;border:0;padding:0;background:#080808;color:#fafafa;overflow:auto;color-scheme:dark}
+.love-intro::backdrop{background:#080808}.love-intro-shell{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));text-align:center;isolation:isolate;position:relative}
+.love-intro-shell::before,.love-intro-shell::after{content:"";position:absolute;z-index:-1;border:1px solid #ffffff0c;border-radius:50%;width:min(85vw,620px);aspect-ratio:1;top:10%;pointer-events:none}.love-intro-shell::after{width:min(65vw,460px);top:20%}
+.love-intro-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1100px}.love-intro-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b5b5b5}.love-skip{min-width:64px;min-height:44px;padding:10px 16px;border:1px solid #ffffff35;border-radius:24px;background:transparent;color:white;font-size:12px}.love-skip:focus-visible{outline-color:white}
+.love-letter{flex:1;width:100%;max-width:640px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 0 32px}.love-bubble{display:grid;place-items:center;width:76px;height:76px;border-radius:50%;border:1px solid #ffffff40;background:radial-gradient(circle at 30% 20%,#ffffff18,transparent 70%);box-shadow:0 0 55px #ffffff09;margin-bottom:24px;animation:love-breathe 4s ease-in-out infinite}.love-bubble svg{width:30px;height:30px;fill:white;stroke:white}.love-to{font-family:Georgia,serif;font-style:italic;font-size:16px;color:#bdbdbd;margin-bottom:12px}.love-letter h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(34px,7vw,64px);line-height:1.15;letter-spacing:-1.3px;margin-bottom:28px}.love-lines{min-height:6em;width:100%;font-family:Georgia,"Times New Roman",serif;font-size:clamp(18px,3.5vw,26px);line-height:1.8;overflow-wrap:anywhere}.love-lines p{display:block}.love-lines.love-line-enter{animation:love-rise .65s ease-out both}.love-signature{font-size:11px;color:#b5b5b5;letter-spacing:.8px;margin-top:20px}
+.love-loading{width:min(260px,100%);font-size:10px;color:#b5b5b5;letter-spacing:1px}.love-loading-track{height:1px;background:#ffffff25;margin:14px 0 12px;overflow:hidden}.love-loading-track span{display:block;height:100%;background:white;width:0;transition:width .2s linear}.love-loading small{font-size:9px;letter-spacing:.4px;color:#888}
+@keyframes love-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}@keyframes love-breathe{50%{transform:scale(1.05);box-shadow:0 0 65px #ffffff16}}
+@media(max-height:520px){.love-letter{padding:12px 0}.love-bubble{width:44px;height:44px;margin-bottom:8px}.love-bubble svg{width:22px;height:22px}.love-letter h2{font-size:30px;margin-bottom:12px}.love-to{margin-bottom:4px}.love-lines{font-size:17px;min-height:3.6em}.love-signature{margin-top:8px}}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
 </style>
 </head>
 <body>
+
+<dialog id="love-intro" class="love-intro" aria-labelledby="love-intro-title" aria-describedby="love-intro-hint">
+  <div class="love-intro-shell">
+    <div class="love-intro-top"><span class="love-intro-label">A little letter, just for you</span><button type="button" class="love-skip" onclick="finishLoveIntro()" autofocus>Skip</button></div>
+    <div class="love-letter">
+      <div class="love-bubble" aria-hidden="true"><svg class="app-icon" viewBox="0 0 24 24"><use href="/icons.svg#heart"></use></svg></div>
+      <p class="love-to">My dearest Aysha,</p>
+      <h2 id="love-intro-title">You are loved…</h2>
+      <div id="love-intro-lines" class="love-lines" aria-live="polite" aria-atomic="true"><p>In the quiet, in the everyday,</p><p>my heart finds its way to you.</p></div>
+      <p class="love-signature">With all my love, Afzal</p>
+    </div>
+    <div class="love-loading"><span>Opening your little world of music</span><div class="love-loading-track" aria-hidden="true"><span id="love-intro-progress"></span></div><small id="love-intro-hint">A 15-second love note · skip whenever you like</small></div>
+  </div>
+</dialog>
+
 <div class="sidebar">
   <div class="brand" onclick="switchTab('home')">
     <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#heart"></use></svg>
@@ -218,6 +244,58 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   </section>
 <div class="app-message" id="app-message" role="status" aria-live="polite"></div>
 <script>
+
+// The opening is a letter, not a simulated backend-loading percentage.
+const LOVE_LETTER = [
+  ['In the quiet, in the everyday,', 'my heart finds its way to you.'],
+  ['A little world, made just for you.', 'A song, a breath, a place to rest.'],
+  ['Every note, a little love letter.', 'From my heart to yours, always.'],
+];
+let loveIntroTimer = null;
+let loveIntroStarted = 0;
+let loveIntroVerse = -1;
+let loveIntroFocus = null;
+function renderLoveIntro(elapsed) {
+  const verse = Math.min(LOVE_LETTER.length - 1, Math.floor(Math.max(0, elapsed) / 5000));
+  if (verse !== loveIntroVerse) {
+    loveIntroVerse = verse;
+    const lines = document.getElementById('love-intro-lines');
+    // The letter is a fixed internal text inventory, never track/user HTML.
+    lines.innerHTML = LOVE_LETTER[verse].map(line => '<p>' + line + '</p>').join('');
+    lines.classList.remove('love-line-enter');
+    void lines.offsetWidth;
+    lines.classList.add('love-line-enter');
+  }
+  document.getElementById('love-intro-progress').style.width = Math.min(100, Math.max(0, elapsed / 150)) + '%';
+}
+function finishLoveIntro() {
+  if (loveIntroTimer !== null) clearInterval(loveIntroTimer);
+  loveIntroTimer = null;
+  const dialog = document.getElementById('love-intro');
+  if (dialog.open) dialog.close();
+  if (loveIntroFocus && typeof loveIntroFocus.focus === 'function') loveIntroFocus.focus({ preventScroll: true });
+  loveIntroFocus = null;
+}
+function startLoveIntro() {
+  const dialog = document.getElementById('love-intro');
+  // Older browsers/disabled JS fail open to the player, never a blocking overlay.
+  if (typeof dialog.showModal !== 'function' || dialog.open) return;
+  loveIntroFocus = document.activeElement;
+  loveIntroVerse = -1;
+  loveIntroStarted = Date.now();
+  renderLoveIntro(0);
+  try { dialog.showModal(); } catch (_) { return; }
+  dialog.addEventListener('cancel', finishLoveIntro);
+  dialog.addEventListener('close', finishLoveIntro);
+  loveIntroTimer = setInterval(() => {
+    const elapsed = Date.now() - loveIntroStarted;
+    if (elapsed >= 15000) finishLoveIntro();
+    else renderLoveIntro(elapsed);
+  }, 200);
+}
+startLoveIntro();
+
+
 let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
 let durationSec = 0;
 

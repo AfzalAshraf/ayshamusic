@@ -65,7 +65,33 @@ const tracks = [
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
       });
       if (page.url().startsWith('https://aysha.test/')) await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
+      await page.emulateMedia({ reducedMotion: viewport.width === 360 ? 'reduce' : 'no-preference' });
       await page.goto('https://aysha.test/');
+      await page.locator('#love-intro').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('#love-intro-title').textContent(), 'You are loved…');
+      assert.equal(await page.locator('#love-intro-lines p').count(), 2);
+      assert.equal(await page.locator('#love-intro').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(8, 8, 8)');
+      assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 0, 'Love letter must not start audio');
+      assert.ok(await page.locator('#love-intro').evaluate(el => el.scrollWidth <= el.clientWidth), 'Love letter has no horizontal overflow');
+      const skipBox = await page.locator('.love-skip').boundingBox();
+      assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
+      if (viewport.width === 390) {
+        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-love-letter.png') });
+        await page.waitForFunction(() => document.getElementById('love-intro-lines').textContent.includes('A little world'));
+        assert.equal(await page.locator('#love-intro-lines p').count(), 2);
+        await page.waitForFunction(() => document.getElementById('love-intro-lines').textContent.includes('Every note'));
+        await page.locator('#love-intro').waitFor({ state: 'hidden', timeout: 17000 });
+        assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 0, 'Automatic reveal must not autoplay');
+      } else if (viewport.width === 360) {
+        assert.equal(await page.locator('.love-bubble').evaluate(el => getComputedStyle(el).animationName), 'none');
+        assert.equal(await page.locator('#love-intro-lines').evaluate(el => getComputedStyle(el).animationName), 'none');
+        await page.keyboard.press('Escape');
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
+      } else {
+        await page.locator('.love-skip').click();
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
+      }
+
       await page.locator('#quick-picks .song-card').first().waitFor();
       assert.equal((await page.locator('.footer').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
       assert.equal((await page.locator('#tab-home .page-heading').innerText()).replace(/\s+/g, ' ').trim(), 'Your music. Your kind of moment. For you from my heart');
@@ -106,6 +132,8 @@ const tracks = [
       await page.locator('#quote-more').click();
       if (viewport.width === 390) {
         await page.reload();
+        await page.locator('.love-skip').click();
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
         await page.locator('#tab-quotes.active').waitFor();
         assert.equal(await page.locator('#quote-saved-count').textContent(), '1');
         assert.ok(await page.locator('#quote-personalize').isChecked());
@@ -169,6 +197,8 @@ const tracks = [
         await page.locator('.now-footer button').click();
         await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Play');
         await page.reload();
+        await page.locator('.love-skip').click();
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
         await page.locator('#quick-picks .song-card').first().waitFor();
         assert.equal(await page.locator('#hero-title').textContent(), tracks[0].title);
         assert.equal(await page.locator('#hero-toggle').getAttribute('aria-label'), 'Play');
@@ -180,6 +210,8 @@ const tracks = [
         assert.equal(playRegistrations.length, 4, 'Reloaded Play starts the selected track again');
         // Also reload while the server still advertises browser playback.
         await page.reload();
+        await page.locator('.love-skip').click();
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
         await page.locator('#quick-picks .song-card').first().waitFor();
         await page.evaluate(() => pollStatus());
         assert.equal(await page.locator('#hero-toggle').getAttribute('aria-label'), 'Play');
@@ -237,6 +269,8 @@ const tracks = [
       await page.getByRole('button', { name: 'Home', exact: true }).click();
       if (viewport.width === 390) {
         await page.reload();
+        await page.locator('.love-skip').click();
+        await page.locator('#love-intro').waitFor({ state: 'hidden' });
         await page.locator('#quick-picks .song-card').first().waitFor();
       }
       await page.locator('#quick-picks .song-card').first().click();

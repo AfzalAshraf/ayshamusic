@@ -616,3 +616,72 @@ test('deleting ratings leaves quote preferences and music selection alone', asyn
   assert.equal(h.storage.get('aysha.selection.v1'), music);
   assert.equal(h.context.askForSongRating(track), true);
 });
+
+function introHarness() {
+  const h = harness();
+  let now = 1000;
+  let tick;
+  let cleared = 0;
+  let focused = 0;
+  h.context.Date = { now: () => now };
+  h.context.setInterval = fn => { tick = fn; return 123; };
+  h.context.clearInterval = id => { assert.equal(id, 123); cleared++; };
+  h.context.document.activeElement = { focus() { focused++; } };
+  const dialog = h.element('love-intro');
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  return { ...h, advance(ms) { now += ms; tick(); }, cleared: () => cleared, focused: () => focused };
+}
+
+test('love-letter opening presents three two-line verses for five seconds each and reveals at 15s', () => {
+  const h = introHarness();
+  h.context.startLoveIntro();
+  assert.equal(h.element('love-intro').open, true);
+  assert.match(h.element('love-intro-lines').innerHTML, /In the quiet/);
+  assert.equal((h.element('love-intro-lines').innerHTML.match(/<p>/g) || []).length, 2);
+  assert.equal(h.element('love-intro-progress').style.width, '0%');
+  h.advance(4999);
+  assert.match(h.element('love-intro-lines').innerHTML, /In the quiet/);
+  h.advance(1);
+  assert.match(h.element('love-intro-lines').innerHTML, /A little world/);
+  h.advance(5000);
+  assert.match(h.element('love-intro-lines').innerHTML, /Every note/);
+  h.advance(4999);
+  assert.equal(h.element('love-intro').open, true);
+  h.advance(1);
+  assert.equal(h.element('love-intro').open, false);
+  assert.equal(h.cleared(), 1);
+  assert.equal(h.focused(), 1);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.element('audio-player').playCount, 0);
+  assert.equal(h.quoteStorage.size, 0);
+  assert.equal(h.storage.size, 0);
+});
+
+test('Skip/Escape clean up letter timers and never resume the intro from a stale tick', () => {
+  const h = introHarness();
+  h.context.startLoveIntro();
+  h.element('love-intro').listeners.cancel();
+  assert.equal(h.element('love-intro').open, false);
+  assert.equal(h.cleared(), 1);
+  h.context.finishLoveIntro();
+  assert.equal(h.cleared(), 1);
+  assert.equal(h.focused(), 1);
+});
+
+test('throttled background opening closes on return instead of delaying all verses', () => {
+  const h = introHarness();
+  h.context.startLoveIntro();
+  h.advance(60000);
+  assert.equal(h.element('love-intro').open, false);
+  assert.equal(h.cleared(), 1);
+});
+
+test('unsupported native dialog leaves the normal player usable without a timer', () => {
+  const h = harness();
+  let timers = 0;
+  h.context.setInterval = () => timers++;
+  h.context.startLoveIntro();
+  assert.equal(timers, 0);
+  assert.notEqual(h.element('love-intro').open, true);
+});
