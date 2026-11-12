@@ -123,3 +123,8 @@ Latesthostv4bootstrapat120c5fe:21tests/releasePASS, thenstagewatch/watch_literal
 5764KiB (5,902,336bytes). No playerPOST/mediaGET reached. ThisisfailedwatchparserRAM,
 notworkingextraction/wholebudget. Parseronlyv4.1correctionhaspassedofflineCI; runtime
 memory/successunproved. Samepayload/deadlineboundsretained, noRAMtargetraised.
+
+Hostv4.1at5dd69ff:25tests/releasePASS, stagewatch/watch_config_invalid,6016KiB
+(6,160,384bytes) failedconfigdecodebeforeplayer/media. V4.2nextiswatch-onlydiagnostic,
+notacquisition; hostdebugbuildRSSmustnotbecomparedasreleasebudgetproof. All-Rustworking
+sourceaccess/decoder/server10–15MBbudgetremainunproved. No capchange/hiddenhelper/OOMfix.

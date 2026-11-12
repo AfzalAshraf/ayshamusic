@@ -999,3 +999,45 @@ Playerrestriction->stop/nocookie/account/token/proxyworkaround. Newformat/mediae
 isstageevidenceonly. PASSstillprefixonly, notRustfullserver/playback/10–15MB. Production
 5050/UI/Vercel/systemd/audio/dependencies/stopped5051untouched. Extraction2/5unchanged;
 unrelatedtrackedpycdeletionpreserved.
+
+## V4.1host reaches configdecodebutfails; typedwatch-onlydiagnosticverified
+
+Host5dd69ff:25/25RusttestsPASS/release18.60sPASS. Candidatev4.1 statusfail/stagewatch/
+codewatch_config_invalid/external_toolsfalse/peak_rss_kib6016/production_readyfalse.
+6016KiB=6,160,384bytesfailedbootstrap. LocatedcandidateconfigobjectbutSerdeConfig
+rejected; no playerPOST/mediaGET reached. Not evidenceofv4.1providerplayerrejection,
+not completewatchparseorworkinglowRAMextraction. Exactsyntax/type/duplicatecauseunknown;
+do notdeclareviewportfixconfirmedhostcauseorloosenfieldsblindly.
+
+Sourcea6410e5: new--watch-inspectselectsaysha-direct-v4.2-config-diagnostic, separate
+watch-onlyfunctionwithoutplayer_request/probe/medialogiccalls. OnefixedoriginwatchGET
+andexistingbounds/privacy/restriction/identitychecks; neverdownstreamrequests evenif
+parsesucceeds. Successstatusdiagnostic_pass withwatch_parser_onlytrue, player/media
+requestedfalse, native_acquisition_demonstratedfalse/production_readyfalse. Fixed
+failurestage/code/requestedbooleans; norawpage/visitor/header/errorpositions/keys/values.
+
+ConfigdecodefirstIgnoredAnysyntaxpass(noValuetree), thenexistingtypedfieldswithstatic
+errortags; separatesJSONsyntax/incomplete/knownrootduplicates/visitor/login/context/
+clienttypes. Context/clientexplicitobjectornullguard preventsSerdearray-as-struct
+coercion. No duplicatefirst/lastacceptance, loginboolean/stringcoercion or missing/
+invalidvisitor/authskip. UnderlyingerrorstringsonlytemporarilyclassifiedinRAMagainst
+fixedprefixes, neverprinted/logged/saved; originalrawserdeexceptionnotrequestedfromhost.
+Bothpasseswithinunchanged1MiBliteral/64depth/2MiBpagebounds; no newdeps/authscope/
+persistence/cookies/JS/POtoken/endpoint/client/fallback/productionchanges.
+
+3additionalRusttests->28total (classification/privatefixturefields, null/missing/auth
+stillblocked, modeisolation/diagnosticpassnotacquisition/no-valueleak). AddedofflineCI
+invalidwatchinspectCLI; updatedgatehostevidence tofailedv4.1, historicalsv2/v3/v4retained.
+Guardrejectsdiagnostic_pass; pendingnextactionwatch-onlydiagnosticnotmediaretry.
+Local76PythonPASS/diffcheckPASS. CI43277710672sourcea6410e5all5jobsPASS; directjob
+131390456088test/release/noJSgraph/strictCLI/bootstrap+watchinspectinvalidCLIallPASS.
+AgentCargoabsent: CIverificationnotlocalbuild/hostsuccess. No livewatchinspectrequest
+madehere. Hostnextcommandisdebugbuild+onewatch-onlyinvocation, NOTreleasebuildorold
+--watch-bootstrap. DebugRSS/timingsarenotcomparabletorelease/wholebudgetacceptance.
+
+Nextbranches: fixedJSONsyntax->framingreview; duplicate->conflictsemanticsreview,
+neverdisableauth/duplicates; type->knownfieldschemafixtures,nocoercionbyguess;
+restriction->stop; diagnostic_pass->watchonly,reviewbeforenewplayertrial. Build/lock/
+timeout->stop/sharenormaloutput,nolockdeletion/retryloop. Userneednotcaptureprivate
+pages/headers/cookies/visitor/debugtrace. Production5050/UI/Vercel/systemd/audio/
+deps/stopped5051unchanged. Extraction2/5unchanged; preserveunrelatedtrackedpycdeletion.

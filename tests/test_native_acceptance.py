@@ -7,11 +7,11 @@ from scripts import check_native_acceptance as gate
 
 
 class NativeAcceptanceTests(unittest.TestCase):
-    def test_host_v4_failure_is_blocked_despite_build_and_low_rss(self):
+    def test_host_v4_1_failure_is_blocked_despite_build_and_low_rss(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         result = gate.assess(evidence)
-        self.assertEqual(evidence['latest_native']['tests_passed'], 21)
-        self.assertEqual(evidence['latest_native']['peak_rss_kib'], 5764)
+        self.assertEqual(evidence['latest_native']['tests_passed'], 25)
+        self.assertEqual(evidence['latest_native']['peak_rss_kib'], 6016)
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['native_prefix_gate_passed'])
         self.assertFalse(result['memory_budget_accepted'])
@@ -51,10 +51,17 @@ class NativeAcceptanceTests(unittest.TestCase):
     def test_v4_parser_failure_never_counts_as_player_or_media_attempt_success(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         self.assertEqual(evidence['latest_native']['stage'], 'watch')
-        self.assertEqual(evidence['latest_native']['code'], 'watch_literal_invalid')
+        self.assertEqual(evidence['latest_native']['code'], 'watch_config_invalid')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'one_parser_corrected_v4_1_trial_after_offline_verification')
+        self.assertEqual(result['next'], 'one_watch_only_config_diagnostic_no_player_or_media')
+
+    def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
+        result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
+                            'player_requested':False,'media_requested':False,'external_tools':False}})
+        self.assertEqual(result['status'], 'blocked')
+        self.assertFalse(result['native_prefix_gate_passed'])
+        self.assertFalse(result['whole_stack_ready'])
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:

@@ -2,7 +2,8 @@
 
 Status: **BLOCKED: v2 failed on host+CI; opt-in v3 also returned player_bot_check
 on the actual Linux host. V4 stopped in the watch parser with watch_literal_invalid.
-No native media bytes obtained; v2/v3 and the original v4 are stopped.**
+V4.1 then stopped at watch_config_invalid, also before playerPOST.
+No native media bytes obtained; v2/v3/v4/v4.1 trials are stopped.**
 Compilation/offline tests pass, but source acquisition is not resolved. The build
 commands below are retained for reproduction, NOT the recommended next action.
 No working production replacement or 15 MB claim.
@@ -475,7 +476,7 @@ terminators and specificprivateerrors. Existing21safety/regressionchecksretained
 After offlineCIverification, ONE changed-parser hosttrial is justified, not an
 identicalv4retry or a newauth/source-accessscope. No automaticliveCIrequests.
 
-**Terminal: BUILD + ONE PARSER-CORRECTED NATIVE DIAGNOSTIC — no install/restart**
+**Historical v4.1 trial — do not rerun after the recorded config failure**
 
 ```bash
 cd /home/afine/ayshamusic &&
@@ -497,3 +498,68 @@ normaloutput, no loop. Historicalofflineacceptanceguardremainsblocked.
 V4.1 verification: source1259612 CI43276287654 all5jobsPASS, directjob131385433323
 Rusttests/release/dependency/CLI checksPASS. Sourcehas25Rusttests, local75PythonPASS.
 No livev4.1acquisitiontested; onehosttrialaboveisnext, notaproductiondeployment.
+
+## Host v4.1 config failure: typed diagnostics, not another guessed acquisition fix
+
+Host5dd69ff:25/25testsPASS/release18.60sPASS; stagewatch/watch_config_invalid,
+external_toolsfalse, peak6016KiB=6,160,384bytes, production_readyfalse. Readerlocated
+a candidateJSONobject but typedConfigdeserializationrejected it. No playerPOST/mediaGET
+reached. Differentcode does NOT prove the earlier viewportfix was the actualrootcause,
+or that wholepage/anonymouscontextparsecompleted. Exactsyntax/type/duplicatecauseunknown.
+
+New --watch-inspect selects aysha-direct-v4.2-config-diagnostic. It uses a separate watch-onlyfunction
+that has no calls to player_request/probe/medialogic. It performs one boundedfixedorigin
+watchGET and the sameprivacy/restriction/identity/JSON checks, thenreturns. Evenif
+parsepasses, it neverrequestsplayer/media. No visitor/header/pagevaluesemitted orsaved.
+Theexisting--watch-bootstrap pathisnotthenextrecommendedcommand.
+
+Theconfigreader nowvalidatesJSONsyntaxwithSerdeIgnoredAny first (noValueallocationtree)
+and distinguishesfixedsyntax/incomplete/duplicate/fieldshape failures. Context/client
+mustbeobjectornull, neverarraysimplicitlydecodedasRuststructsequences. No typecoercion,
+duplicateacceptance or auth/visitorcheckrelaxation. Knownfieldwrappers replaceinternal
+typeerrorswithstatictags; rooterrorsareclassifiedagainstfixedprefixes. Underlyingerror
+stringsareonlytemporarilyexaminedinRAM, neveroutput/logged/saved; no sourcepositions or
+arbitrarykeys/values inJSONreport. Bothpassesremaininside1MiBliteral/64depth/2MiBpagecaps.
+
+Watchonlysuccessreports statusdiagnostic_pass/watch_parser_onlytrue/player_requestedfalse/
+media_requestedfalse/native_acquisition_demonstratedfalse/production_readyfalse. Failure
+reportsfixedstage/code and requestedbooleans. Nativeacceptanceguard rejectsdiagnostic_pass.
+Thisisdiagnosticcode, not a provenproviderfix or nativeacquisitionattempt.
+
+ThreeadditionalRusttests ->28total: type/duplicate/syntaxclassificationwithprivatefixture
+values, null/missing/authstillblocked, strictseparatemode/privatewatchonlysummary.
+OfflineCIinvalid--watch-inspectCLIsmokeretained. No newdependencies/endpoint/authscope/
+payloadlimits/persistence/cookies/JS/tokens/fallback/productionchanges.
+
+### Terminal: DEBUG BUILD + ONE WATCH-ONLY DIAGNOSTIC — no release/install/restart
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo test --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+cargo build --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/debug/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --watch-inspect
+```
+
+DebugbuildavoidsanotherreleaseLTOcycle; itsRSS/timingisnotcomparabletoearlierrelease
+measurementsorbudgetacceptance. Existinglockpreserved;no productionbinaryreplacement.
+Expected28tests/debugbuildthenonefixedJSON.
+
+- watch_config_json_syntax/incomplete: reviewliteralframing/parseragainstsyntheticfixtures;
+  donotraisecaps/executeJS/collectrawpages.
+- watch_config_duplicate_*: reviewconflictingfieldsemantics, donotautomaticallytake
+  first/lastvaluesordisabletheduplicate/authsafetycheck.
+- watch_config_*_type or client_schema: reviewtheknownfieldtypes; nocoercion/ignored
+  authdatabasedonaguess.
+- Anyrestriction/login/consent: stop,noretry/workaround. Anyotherfixedparsererror: stop
+  andsharereport. Build/lockfailureortimeout: stop/sharenormaloutput,nolockdeletion.
+- diagnostic_pass: watchparserworkedonly; itdoesNOTmeannativeaudioobtained. Review
+  evidencebeforerecommendinganotherlivebootstrap/playertrial.
+
+Donotrunbothmodes;donotfollowthiswiththeoldmediaprobeautomatically. No rawpage/header/
+visitor/accountvalues/debugtrace requested. Production/UI/Vercelunchanged.
+
+Diagnosticverification: sourcea6410e5 CI43277710672 all5jobsPASS, directjob131390456088
+Rusttests/release/dependency/invalidCLIchecksPASS.28Rusttestsinsource, local76PythonPASS.
+No livewatchinspectrunhere; hostdiagnosticresultpending. No bot-checkfixclaimed.

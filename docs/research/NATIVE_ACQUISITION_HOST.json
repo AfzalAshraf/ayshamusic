@@ -3,6 +3,19 @@
   "scope": "user_supplied_target_host_observations_not_a_live_probe",
   "video_id": "Jm7Satp7Zqk",
   "latest_native": {
+    "source_revision": "5dd69ff",
+    "candidate": "aysha-direct-v4.1-watch-literals",
+    "tests_passed": 25,
+    "release_build_passed": true,
+    "release_build_seconds": 18.6,
+    "status": "fail",
+    "code": "watch_config_invalid",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 6016,
+    "production_ready": false
+  },
+  "previous_native": {
     "source_revision": "120c5fe",
     "candidate": "aysha-direct-v4-watch-bootstrap",
     "tests_passed": 21,
@@ -13,16 +26,6 @@
     "stage": "watch",
     "external_tools": false,
     "peak_rss_kib": 5764,
-    "production_ready": false
-  },
-  "previous_native": {
-    "source_revision": "b2efd81",
-    "candidate": "aysha-direct-v3-standard-context",
-    "tests_passed": 11,
-    "release_build_passed": true,
-    "status": "fail",
-    "code": "player_bot_check",
-    "peak_rss_kib": 4404,
     "production_ready": false
   },
   "baseline_trace": {
@@ -43,8 +46,8 @@
   "approved_experiment": {
     "candidate": "aysha-direct-v4.1-watch-literals",
     "approval_recorded": true,
-    "status": "awaiting_single_host_trial",
-    "host_result_recorded": false,
+    "status": "stopped_watch_parser_failure",
+    "host_result_recorded": true,
     "scope": "same_approved_bootstrap_parser_only_correction_no_access_scope_change"
   },
   "historical_native": [
@@ -63,6 +66,25 @@
       "code": "player_bot_check",
       "peak_rss_kib": 4404,
       "production_ready": false
+    },
+    {
+      "source_revision": "120c5fe",
+      "candidate": "aysha-direct-v4-watch-bootstrap",
+      "tests_passed": 21,
+      "release_build_passed": true,
+      "release_build_seconds": 18.45,
+      "status": "fail",
+      "code": "watch_literal_invalid",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 5764,
+      "production_ready": false
     }
-  ]
+  ],
+  "pending_diagnostic": {
+    "candidate": "aysha-direct-v4.2-config-diagnostic",
+    "status": "awaiting_one_watch_only_request",
+    "scope": "same_approved_anonymous_watch_get_only_no_player_media",
+    "external_tools": false
+  }
 }

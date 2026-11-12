@@ -206,3 +206,14 @@ correctionandspecificfixederrorsimplementedasv4.1withoutsource-accessscopeexpans
 SeeRUST_DIRECT_PROTOTYPE.md latestsection for onechangedtrial/stopbranches. No newREA
 execution, JSengine, fallback, auth, consentautomation, persistenttracking or production
 change. PureRustfullservice/10–15MBstillunproved.
+
+
+## V4.1hostconfigdecodefailed; watch-onlystructuraldiagnosticnext
+
+Host5dd69ff25tests/releasePASS; stagewatch/watch_config_invalid/6016KiBfailedbootstrap,
+no playerPOST/mediaGET. Do not infer exactfieldcauseorjustaddmoreparserexceptions.
+Newseparate--watch-inspect/v4.2diagnosticdistinguishesJSONsyntax/incomplete, knownfield
+typesandduplicateswithfixedcodes; evenonparsesuccessneverrequestsplayer/media.
+SameapprovedfixedwatchGET/privacy/restrictionbounds, no new access/auth/persistence
+scope. SeeRUST_DIRECT_PROTOTYPE.md latestdebugbuild+singlewatchonlycommand. No newREA
+execution/runtimeintegrationorclaimofnativeextraction, providerfixor15MBcompliance.
