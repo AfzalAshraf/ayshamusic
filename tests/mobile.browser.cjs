@@ -76,6 +76,20 @@ const tracks = [
       assert.ok(await page.locator('#love-intro').evaluate(el => el.scrollWidth <= el.clientWidth), 'Love letter has no horizontal overflow');
       const skipBox = await page.locator('.love-skip').boundingBox();
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
+      // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
+      await page.locator('#love-intro-title').tap();
+      if (viewport.width === 360) {
+        assert.equal(await page.locator('.heart-particle').count(), 0, 'Reduced motion suppresses particles');
+      } else {
+        assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 8);
+        assert.equal(await page.locator('#heart-effects-intro .heart-particle').first().evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
+        assert.equal(await page.locator('#heart-effects-intro').evaluate(el => getComputedStyle(el).pointerEvents), 'none');
+        if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) {
+          fs.mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true });
+          await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-love-hearts.png') });
+        }
+        await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
+      }
       if (viewport.width === 390) {
         if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-love-letter.png') });
         await page.waitForFunction(() => document.getElementById('love-intro-lines').textContent.includes('A little world'));
@@ -238,8 +252,11 @@ const tracks = [
       const sourceBeforeFavorite = await page.locator('#audio-player').getAttribute('src');
       const playsBeforeFavorite = await page.evaluate(() => window.mediaPlayAttempts);
       await page.locator('#open-player').click();
+      await page.evaluate(() => clearHeartEffects());
       await page.locator('#full-favorite').click();
       await page.waitForFunction(() => document.getElementById('full-favorite').getAttribute('aria-pressed') === 'true');
+      if (viewport.width !== 360) assert.ok(await page.locator('#heart-effects-player .heart-particle').count() > 0, 'Favorite control still works through the decorative modal layer');
+      assert.equal(await page.locator('#heart-effects-player').getAttribute('aria-hidden'), 'true');
       assert.equal(await page.locator('#full-favorite').getAttribute('aria-label'), 'Remove from favorites');
       const heartBox = await page.locator('#full-favorite').boundingBox();
       assert.ok(heartBox.width >= 44 && heartBox.height >= 44);
@@ -295,6 +312,18 @@ const tracks = [
       await page.getByRole('button', { name: 'Library', exact: true }).click();
       await page.waitForFunction(() => document.getElementById('song-ratings-count').textContent === '1');
       await page.locator('#full-history .card-heart[data-track-id="sample1"]').waitFor({ state: 'detached' });
+      if (viewport.width === 1440) {
+        await page.evaluate(() => clearHeartEffects());
+        await page.mouse.move(500, 150);
+        assert.ok(await page.locator('#heart-effects-page .heart-particle').count() > 0, 'Mouse leaves a small trail');
+        await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
+        await page.evaluate(() => { for (let i = 0; i < 100; i++) spawnHeartParticle(300, 200, true); });
+        assert.equal(await page.locator('.heart-particle').count(), 32, 'Rapid activity stays bounded');
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
+        await page.mouse.click(500, 150);
+        assert.equal(await page.locator('.heart-particle').count(), 0);
+      }
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);
 

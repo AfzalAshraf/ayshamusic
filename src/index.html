@@ -43,14 +43,25 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @keyframes love-rise{from{transform:translateY(8px)}to{transform:translateY(0)}}@keyframes love-breathe{50%{transform:scale(1.05);box-shadow:0 0 65px #ffffff16}}
 @media(max-height:520px){.love-letter{padding:12px 0}.love-bubble{width:44px;height:44px;margin-bottom:8px}.love-bubble svg{width:22px;height:22px}.love-letter h2{font-size:30px;margin-bottom:12px}.love-to{margin-bottom:4px}.love-lines{font-size:17px;min-height:3.6em}.love-signature{margin-top:8px}}
 
+
+/* Decorative only: clipped, non-interactive and bounded in JS. */
+.heart-effects{position:fixed;inset:0;z-index:100;pointer-events:none!important;overflow:hidden;contain:strict;user-select:none}
+.heart-particle{position:absolute;display:block;pointer-events:none!important;color:var(--heart-color);width:var(--heart-size);height:var(--heart-size);animation:heart-trail 1s ease-out forwards;will-change:transform,opacity}
+.heart-particle .app-icon{display:block;width:100%;height:100%;fill:currentColor;stroke:currentColor}.love-intro .heart-particle{color:#fff}.heart-particle.heart-burst{animation-name:heart-scatter;animation-timing-function:linear}
+@keyframes heart-trail{from{opacity:.7;transform:translate(-50%,-50%) scale(.8)}to{opacity:0;transform:translate(calc(-50% + var(--heart-x)),calc(-50% - 65px)) scale(.3)}}
+@keyframes heart-scatter{0%{opacity:.85;transform:translate(-50%,-50%) scale(.5)}45%{opacity:.7;transform:translate(calc(-50% + var(--heart-mid-x)),calc(-50% + var(--heart-mid-y))) scale(1)}100%{opacity:0;transform:translate(calc(-50% + var(--heart-x)),calc(-50% + var(--heart-y))) scale(.35)}}
+@media(prefers-reduced-motion:reduce){.heart-effects{display:none}}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
 </style>
 </head>
 <body>
+<div id="heart-effects-page" class="heart-effects" aria-hidden="true"></div>
 
 <dialog id="love-intro" class="love-intro" aria-labelledby="love-intro-title" aria-describedby="love-intro-hint">
+  <div id="heart-effects-intro" class="heart-effects" aria-hidden="true"></div>
   <div class="love-intro-shell">
     <div class="love-intro-top"><span class="love-intro-label">A little letter, just for you</span><button type="button" class="love-skip" onclick="finishLoveIntro()" autofocus>Skip</button></div>
     <div class="love-letter">
@@ -207,6 +218,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 </div>
 
 <dialog class="now-dialog" id="now-playing" aria-labelledby="full-title">
+  <div id="heart-effects-player" class="heart-effects" aria-hidden="true"></div>
   <div class="now-header">
     <button class="ctrl-btn" onclick="closeNowPlaying()" aria-label="Close now playing"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#chevron-down"></use></svg></button>
     <p>NOW PLAYING<strong id="full-output">This device</strong></p>
@@ -244,6 +256,79 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   </section>
 <div class="app-message" id="app-message" role="status" aria-live="polite"></div>
 <script>
+
+
+// Ephemeral pointer decoration only. No storage, telemetry, fetch or audio work.
+const HEART_EFFECT_LIMIT = 32;
+const heartParticles = new Map();
+let heartEffectsInitialized = false;
+let heartMotionPreference = null;
+let lastHeartMove = -Infinity;
+function removeHeartParticle(particle) {
+  if (!heartParticles.has(particle)) return;
+  clearTimeout(heartParticles.get(particle));
+  heartParticles.delete(particle);
+  particle.remove();
+}
+function clearHeartEffects() {
+  for (const particle of heartParticles.keys()) removeHeartParticle(particle);
+}
+function heartEffectsAllowed() {
+  return !document.hidden && !(heartMotionPreference && heartMotionPreference.matches);
+}
+function heartEffectHost() {
+  if (document.getElementById('love-intro').open) return document.getElementById('heart-effects-intro');
+  if (document.getElementById('now-playing').open) return document.getElementById('heart-effects-player');
+  return document.getElementById('heart-effects-page');
+}
+function spawnHeartParticle(x, y, burst = false) {
+  if (!heartEffectsAllowed() || !Number.isFinite(x) || !Number.isFinite(y)) return;
+  while (heartParticles.size >= HEART_EFFECT_LIMIT) removeHeartParticle(heartParticles.keys().next().value);
+  const particle = document.createElement('span');
+  particle.className = 'heart-particle' + (burst ? ' heart-burst' : '');
+  particle.innerHTML = icon('heart');
+  particle.style.left = x + 'px';
+  particle.style.top = y + 'px';
+  particle.style.setProperty('--heart-size', (burst ? 12 + Math.random() * 6 : 10) + 'px');
+  particle.style.setProperty('--heart-color', Math.random() < .5 ? '#ff6375' : '#f3a7c4');
+  const dx = (Math.random() - .5) * (burst ? 130 : 32);
+  const apex = -25 - Math.random() * 55;
+  particle.style.setProperty('--heart-mid-x', dx * .6 + 'px');
+  particle.style.setProperty('--heart-mid-y', apex + 'px');
+  particle.style.setProperty('--heart-x', dx + 'px');
+  particle.style.setProperty('--heart-y', apex + 65 + 'px');
+  particle.addEventListener('animationend', () => removeHeartParticle(particle), { once: true });
+  heartEffectHost().appendChild(particle);
+  // Fallback also cleans up when its modal closes or animations are interrupted.
+  heartParticles.set(particle, setTimeout(() => removeHeartParticle(particle), 1100));
+}
+function heartPointerMove(event) {
+  if (event.pointerType !== 'mouse' || event.buttons || event.isPrimary === false || !heartEffectsAllowed()) return;
+  if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+  const now = Date.now();
+  if (now - lastHeartMove < 90) return;
+  lastHeartMove = now;
+  spawnHeartParticle(event.clientX, event.clientY);
+}
+function heartPointerClick(event) {
+  // A single click listener handles mouse/touch taps without double pointerup bursts.
+  // Keyboard activation and form editing remain undecorated.
+  if (!event.detail || event.button !== 0 || !heartEffectsAllowed()) return;
+  if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+  for (let i = 0; i < 8; i++) spawnHeartParticle(event.clientX, event.clientY, true);
+}
+function initializeHeartEffects() {
+  if (heartEffectsInitialized || typeof document.addEventListener !== 'function') return;
+  heartEffectsInitialized = true;
+  if (typeof matchMedia === 'function') {
+    heartMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+    if (heartMotionPreference.addEventListener) heartMotionPreference.addEventListener('change', clearHeartEffects);
+  }
+  document.addEventListener('pointermove', heartPointerMove, { passive: true });
+  document.addEventListener('click', heartPointerClick, { passive: true, capture: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearHeartEffects(); });
+}
+initializeHeartEffects();
 
 // The opening is a letter, not a simulated backend-loading percentage.
 const LOVE_LETTER = [

@@ -685,3 +685,108 @@ test('unsupported native dialog leaves the normal player usable without a timer'
   assert.equal(timers, 0);
   assert.notEqual(h.element('love-intro').open, true);
 });
+
+function heartEffectsHarness() {
+  const h = harness();
+  const timers = new Map();
+  let timerId = 0;
+  const particles = [];
+  const listeners = {};
+  let preference;
+  h.context.clearTimeout = id => timers.delete(id);
+  h.context.setTimeout = fn => { const id = ++timerId; timers.set(id, fn); return id; };
+  h.context.document.addEventListener = (name, fn, options) => { listeners[name] = { fn, options }; };
+  h.context.matchMedia = () => preference = { matches: false, addEventListener(name, fn) { this.change = fn; } };
+  h.context.document.createElement = () => {
+    const p = { style: { setProperty(name, value) { this[name] = value; } }, listeners: {},
+      addEventListener(name, fn) { this.listeners[name] = fn; },
+      remove() { this.removed = true; },
+    };
+    particles.push(p);
+    return p;
+  };
+  for (const id of ['heart-effects-page', 'heart-effects-intro', 'heart-effects-player']) {
+    h.element(id).appendChild = particle => { particle.host = id; };
+  }
+  h.context.initializeHeartEffects();
+  return { ...h, particles, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
+}
+
+test('heart taps burst eight local icons without network, storage or audio actions', () => {
+  const h = heartEffectsHarness();
+  h.context.heartPointerClick(h.event());
+  assert.equal(h.particles.length, 8);
+  assert.equal(h.timers.size, 8);
+  assert.ok(h.particles.every(p => p.host === 'heart-effects-page' && p.innerHTML.includes('/icons.svg#heart')));
+  assert.equal(h.particles[0].style.left, '90px');
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.quoteStorage.size + h.storage.size, 0);
+  assert.equal(h.element('audio-player').playCount, 0);
+  assert.equal(h.listeners.click.options.passive, true);
+});
+
+test('heart effects use the visible native dialog layer instead of appearing behind it', () => {
+  const h = heartEffectsHarness();
+  h.element('love-intro').open = true;
+  h.context.spawnHeartParticle(10, 20);
+  assert.equal(h.particles[0].host, 'heart-effects-intro');
+  h.element('love-intro').open = false;
+  h.element('now-playing').open = true;
+  h.context.spawnHeartParticle(10, 20);
+  assert.equal(h.particles[1].host, 'heart-effects-player');
+});
+
+test('heart trail is mouse-only, throttled and ignores dragging, editing and keyboard clicks', () => {
+  const h = heartEffectsHarness();
+  let now = 1000;
+  h.context.Date = { now: () => now };
+  for (const extra of [{ pointerType: 'touch' }, { pointerType: 'pen' }, { buttons: 1 }, { isPrimary: false }]) h.context.heartPointerMove(h.event(extra));
+  h.context.heartPointerClick(h.event({ detail: 0 }));
+  h.context.heartPointerClick(h.event({ button: 2 }));
+  h.context.heartPointerClick(h.event({ target: { closest: () => ({}) } }));
+  assert.equal(h.particles.length, 0);
+  h.context.heartPointerMove(h.event());
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.particles.length, 1);
+  now += 90;
+  h.context.heartPointerMove(h.event());
+  assert.equal(h.particles.length, 2);
+});
+
+test('heart nodes and timers are capped and cleaned on animationend or fallback', () => {
+  const h = heartEffectsHarness();
+  for (let i = 0; i < 100; i++) h.context.spawnHeartParticle(12, 25, true);
+  assert.equal(h.particles.filter(p => !p.removed).length, 32);
+  assert.equal(h.timers.size, 32);
+  h.particles.at(-1).listeners.animationend();
+  assert.equal(h.timers.size, 31);
+  for (const callback of [...h.timers.values()]) callback();
+  assert.equal(h.timers.size, 0);
+  assert.ok(h.particles.every(p => p.removed));
+});
+
+test('reduced motion and hidden pages suppress and clear all heart effects immediately', () => {
+  const h = heartEffectsHarness();
+  h.context.spawnHeartParticle(10, 20);
+  h.preference.matches = true;
+  h.preference.change();
+  assert.equal(h.timers.size, 0);
+  h.context.heartPointerClick(h.event());
+  assert.equal(h.particles.length, 1);
+  h.preference.matches = false;
+  h.context.spawnHeartParticle(10, 20);
+  h.context.document.hidden = true;
+  h.listeners.visibilitychange.fn();
+  assert.equal(h.timers.size, 0);
+  h.context.spawnHeartParticle(10, 20);
+  assert.equal(h.particles.length, 2);
+});
+
+test('heart initialization is idempotent and invalid coordinates never create nodes', () => {
+  const h = heartEffectsHarness();
+  h.context.document.addEventListener = () => { throw new Error('Duplicate listener'); };
+  h.context.initializeHeartEffects();
+  h.context.spawnHeartParticle(NaN, 10);
+  h.context.spawnHeartParticle(10, Infinity);
+  assert.equal(h.particles.length, 0);
+});
