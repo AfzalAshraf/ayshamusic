@@ -832,3 +832,34 @@ whitespacePASS. Sourcefba8f4e pushed; no target stage-trace run yet. Plan next: 
 hostmarkers -> inspect missing native capabilities -> approve bounded native port
 experiment only when mechanism is justified -> successfulmedia/decode/hardware/whole
 budget gates. Extraction2/5 unchanged. Preserve unrelated trackedpyc deletion.
+
+## Host traced baseline PASS; do not add a JS engine on configuration evidence
+
+User supplied93c7849 trace result: hosttimestamp2026-11-12T17:39:58.809904Z,65536bytesAAC
+PASS,first4028.85ms,total4242.01ms,sampledgrouppeak98672KiB=101,040,128bytes; oneattempt,
+Rust0. VISIONOS+webpage requestmarkers; no recognizedjscmarker/challengemarker; no
+classificationtruncation. Does not prove no JS executed, selectedformatclient, exact
+requestbody or botfailurecause. Not a matched-memory/latency comparison. No rerun asked.
+
+Reviewed pinned publicyt-dlpsource12ac9aca79671420724227aca37bc888c604a6f8: nativev2
+lacks generatedUTC/timezone and Origin; upstream also bootstraps watch/visitorcontext.
+Gaps do not prove causation and are not permission to introduce session/auth handling.
+Do not integrateREA/Boa/Node, requestcookies or call this a bot-checkfix.
+
+Concrete boundedoffline diagnostic scripts/inspect_source_profile.py: installedPython
+package defaultcontext/headergenerator only, emptyconfig, noextract/init/JS/POtoken/
+page calls, no cookies/config supplied; no cache/plugins/auto-init. Python socket
+connections and downloader.urlopen guarded; not a hostileimport sandbox. Known fields
+only, sanitizedversion/labels, equality/presencebooleans for headers, fixederrors,
+no rawmetadata/headers/sessionvalues or fileupload/storage. CLI/Pythonmodule versions
+need comparison; standaloneCLI/venv import mismatch returnsfixederror not pipinstall.
+
+Agent checked against an isolatedpublicsource checkout of12ac9aca...: success,profile
+and UA/header101 matchv2; UTC/timezone/Origin gap confirmed; REQUIRE_JS_PLAYERfalse.
+Source versionmodule says2026.08.19, NOT user's installedversion. No network during
+profilecomparison; initialsource fetchedGitHub for research. Native untouched; no new
+liveprobe/build/dependencies/service/UI/Vercel changes. Offlineunitcoverage added for
+privacy/versionlimits/default-vs-wire distinction/connectionguard restoration/errors
+and drift against currentnativev2source. Next hostcommand: version+offlineprofile only;
+missingpackage/APIchange routes packagingreview, not updateretry. Nativefix still
+unproved; extraction2/5unchanged.

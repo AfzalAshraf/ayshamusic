@@ -119,3 +119,60 @@ now fails, retain failure: do not run a loop or automatically fall back to anoth
 Only diagnostic/analysis changes are implemented here. This plan is not blanket approval
 for new authentication, licensing, provider-access, hosting, persistence or session
 architecture. No whole-app Rust-only or15MB compliance is claimed.
+
+## Host stage result and next offline comparison
+
+User supplied traced run at host-reported2026-11-12T17:39:58.809904Z:
+AAC65536bytesPASS, first4028.85ms,total4242.01ms, sampledgrouppeak98672KiB
+(101,040,128bytes). VISIONOS request marker, webpage request marker, no recognized
+JSprovider/challenge marker, classification not truncated. Nativeexecutedfalse.
+This narrows investigation toward request construction/bootstrap, NOT an immediate
+JS-engine port. It does not prove no JS executed or which client supplied media.
+The host timestamps are preserved as supplied, not asserted as the agent's wallclock.
+No performance comparison to the earlier non-traced attempt is valid.
+
+Public source reference _base.py at12ac9aca79671420724227aca37bc888c604a6f8:
+_extract_context sets timeZoneUTC and utcOffsetMinutes0; generate_api_headers
+sets Origin and may include visitor data. _video.py constructs a richer player
+query and obtains visitor data from watch/config/player metadata. Nativev2 lacks
+Origin/timezone and has no watch bootstrap. These are observed implementation gaps,
+NOT proven bot-check causes. Some upstream context flags/session/auth behavior need
+separate review; do not mechanically copy everything or add session/auth handling.
+No signature/POtoken/provider-restriction solution is inferred from this comparison.
+
+New scripts/inspect_source_profile.py uses the INSTALLED Python package's default
+profile helpers only: no initialize/extract/webpage/JS/provider calls, no cookies or
+config supplied, cache disabled, plugin search disabled, socketconnect/connect_ex/
+create_connection and downloader.urlopen guarded. This is trusted installed-package
+inspection, NOT a malicious-Python-code sandbox. Auto-init disabled avoids downloader
+initialization; it does not prove all possible third-party import code is inert.
+No package installation, update, logging, cache, report file, private values or API
+request capture. Only known profile fields, equality/presence booleans and bounded
+package version printed. Private API differences fail with fixed errors, not traces.
+Synthetic empty config deliberately cannot describe actual host watch-session state.
+
+Verified offline against public source commit12ac9aca... in isolatedlab (not installed
+into production/project Python): profile1.02/device/OS/UA/header101 match nativev2;
+UTC/timezone fields and Origin differ. REQUIRE_JS_PLAYERfalse. This source tree's
+version module reads2026.08.19; commit identity, not that static release label, pins
+this research. It is not evidence of user's installed package or CLI identity.
+
+### Terminal: OFFLINE DIAGNOSTIC ONLY — no network probe, Rust build or restart
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+timeout 10s yt-dlp --ignore-config --version &&
+timeout 15s python3 scripts/inspect_source_profile.py
+```
+
+Expected: public CLI version then fixed-field JSON comparing installed Python defaults.
+Compare package_version with CLI version; even a match isn't binary/source identity.
+If package missing/incompatible: do not pip install/upgrade production; share fixed
+error and CLI version, then resolve interpreter/package packaging. Exit124 = timeout;
+do not loop. Matching profiles with only known Origin/timezone gaps does not establish
+those gaps cause rejection: next request must investigate justified public bootstrap
+context or a narrowly controlled native change, not repeat identical builds. Any
+visitor/session handling needs explicit scope review before implementation. Different
+profile defaults call for a minimal version-supported profile review first. Keep
+production and stopped5051 untouched. All-Rust/15MB remains unproved.
