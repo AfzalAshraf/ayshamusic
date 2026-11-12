@@ -1,7 +1,8 @@
 # Bounded native direct-player experiment
 
 Status: **BLOCKED: v2 failed on host+CI; opt-in v3 also returned player_bot_check
-on the actual Linux host. Stop both variants; no native media bytes obtained.**
+on the actual Linux host. V4 stopped in the watch parser with watch_literal_invalid.
+No native media bytes obtained; v2/v3 and the original v4 are stopped.**
 Compilation/offline tests pass, but source acquisition is not resolved. The build
 commands below are retained for reproduction, NOT the recommended next action.
 No working production replacement or 15 MB claim.
@@ -409,7 +410,7 @@ noJSdependencygraph/strictCLI+invalidbootstrapCLI allpassed. Sourcehas21Rusttest
 (11retained+7bootstrapfixtures+3mode/header/cancellationtests). No agentlocalCargo;
 verification isCI, not localRustbuild/targethostsuccess. No livev4attempt made here.
 
-**Terminal: BUILD + ONE APPROVED NATIVE DIAGNOSTIC — no install/restart**
+**Historical original-v4 trial — do not rerun the unchanged parser**
 
 ```bash
 cd /home/afine/ayshamusic &&
@@ -440,3 +441,59 @@ pagecontent, visitorvalues, cookies, signedURLs, HTTPtraces or debuglogs.
 
 Offlinehistoricalevidenceguardstillreturnsblocked until actualnativehostsuccessis
 recorded; its nextactionnowreflectstheapprovedv4scope, not a freshapprovalrequest.
+
+## Host v4 parser failure and v4.1 targeted correction
+
+Host120c5fe:21/21testsPASS/release18.45sPASS. Candidatev4 failed stagewatch with
+watch_literal_invalid, external_toolsfalse, VmHWM5764KiB=5,902,336bytes. No playerPOST
+or mediaGET followed that error (watch_visitor returnsErr before those calls). This
+is a localparser/protocolsubset failure, NOT evidence the bootstrap-enabledplayer
+request itself received a botcheck. Actualfailingliteralunknown: no rawpagewas logged.
+
+Research found a concrete parserbug using a publicarchivedHTMLblob fromp-ai-org/p-web:
+inline script begins `ytcfg.set('initialBodyClientWidth', document.body.clientWidth);`.
+The original reader sees ytcfg.set then demands `{`, so aborts on this unrelated
+twoargumentshape. Sourceblobidentity/fixedsyntax/limits: research/WATCH_LITERAL_SYNTAX_AUDIT.json.
+This is historicalthirdpartyHTML, NOT thehostresponse or currentprovidercontract.
+Do not declare it the confirmedhostcause. No rawarchive or opaquevaluescommitted.
+
+V4.1 `aysha-direct-v4.1-watch-literals` keeps the --watch-bootstrap flag/networkflow/
+cap/restriction/identity/header/privacybounds unchanged. It consumes ONLY fixed
+initialBodyClientWidth/initialBodyClientHeight setters with exact matching
+document.body.clientWidth/Height or window.innerWidth/Height propertyexpressions.
+These expressions are NEVER evaluated; theirvalues are neitherread norused.
+Arbitrarydynamicvisitor/auth/key/expressionsstillstop. Allowswhitespacebetween closing
+parenthesis/semicolon and missingsemicolononlyatendofscript. Does NOT accept expression
+continuations, executeJS, skiparbitrarydynamicconfig or loosenJSONvalidation.
+
+Splits the formergenericerror into fixedcodes for config/playernonliteral, missing
+configcloser, config/playerterminator, JSONobjectexpected/unbalanced/unterminated.
+No page/key/value/snippet inerrors. Fournewsyntheticfixturetests (25Rusttotal) cover
+viewportforms/chainedliteral, maliciousdynamiccalls/visitoroverrides, whitespace/EOF
+terminators and specificprivateerrors. Existing21safety/regressionchecksretained.
+
+After offlineCIverification, ONE changed-parser hosttrial is justified, not an
+identicalv4retry or a newauth/source-accessscope. No automaticliveCIrequests.
+
+**Terminal: BUILD + ONE PARSER-CORRECTED NATIVE DIAGNOSTIC — no install/restart**
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo test --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/release/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --watch-bootstrap
+```
+
+Expected25tests/buildthenonecandidatev4.1JSON. No newdeps/lockreset/productionchanges.
+If watchfails again, stop/sharefixedcode+stage; nowdistinguishesunsupportedconfig
+from literaltermination/JSON failure. Do not repeatunchangedtrial, capture rawpages or
+raisebounds bydefault. If playerrestriction: stop/no account/token/proxyworkaround.
+Ifmedia/formatfailure: newstageevidenceonly. PASSrequires65536bytes and stillnot
+playback/search/codec/control/wholebudgetacceptance. Buildfailureortimeout: stop/share
+normaloutput, no loop. Historicalofflineacceptanceguardremainsblocked.
+
+V4.1 verification: source1259612 CI43276287654 all5jobsPASS, directjob131385433323
+Rusttests/release/dependency/CLI checksPASS. Sourcehas25Rusttests, local75PythonPASS.
+No livev4.1acquisitiontested; onehosttrialaboveisnext, notaproductiondeployment.

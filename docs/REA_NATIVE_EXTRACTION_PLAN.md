@@ -194,3 +194,15 @@ visitorheaderonly, no credentials/cookies/persistence/JS/POtoken/fallback and no
 productionwiring. SeeRUST_DIRECT_PROTOTYPE.md for exactbounds/subset/command/stops.
 CI43274748320 over7d0890c: all5jobsPASS inclnativefixtures/build/CLI. No livev4probe.
 REA remainsresearchonly, no dependency/runtime integration or new REA execution.
+
+
+## V4 host stopped at local parser; v4.1 changes literal compatibility only
+
+Host120c5fe21tests/releasePASS; stagewatch/watch_literal_invalid/5764KiBfail. No
+playerPOST/mediaGET reached, so no bootstrap-enabledplayeraccessclaim eitherway.
+PublicarchivedHTMLconfirms theoldreader rejects anunrelatedtwoargumentviewportsetter;
+not proof ofexacthostcause. Syntheticfixtures/narrowskip/whitespace+EOFtermination
+correctionandspecificfixederrorsimplementedasv4.1withoutsource-accessscopeexpansion.
+SeeRUST_DIRECT_PROTOTYPE.md latestsection for onechangedtrial/stopbranches. No newREA
+execution, JSengine, fallback, auth, consentautomation, persistenttracking or production
+change. PureRustfullservice/10–15MBstillunproved.

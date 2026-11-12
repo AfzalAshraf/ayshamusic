@@ -118,3 +118,8 @@ processgroupRSS; not cgroup/wholeappbudgetproof. Stopidenticalnativevariants. Th
 offlinegate scripts/check_native_acceptance.py explicitlykeepsRAM/productionfalse
 and rejects buildsuccess/baselinepass as substitutesfornativebytes. Anonymouswatch
 bootstrap remains a scopeproposal requiringapproval, not a demonstrated memoryfix.
+
+Latesthostv4bootstrapat120c5fe:21tests/releasePASS, thenstagewatch/watch_literal_invalid,
+5764KiB (5,902,336bytes). No playerPOST/mediaGET reached. ThisisfailedwatchparserRAM,
+notworkingextraction/wholebudget. Parseronlyv4.1correctionhaspassedofflineCI; runtime
+memory/successunproved. Samepayload/deadlineboundsretained, noRAMtargetraised.

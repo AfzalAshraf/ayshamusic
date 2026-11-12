@@ -1,0 +1,18 @@
+{
+  "kind": "public_archived_html_shape_not_user_host_page",
+  "repository": "https://github.com/p-ai-org/p-web",
+  "path": "webscraping-o/htmlfiles/youtube.txt",
+  "git_blob_sha": "c9b17c81855981ed898636ced2ba57c3a85a6eba",
+  "blob_api": "https://api.github.com/repos/p-ai-org/p-web/git/blobs/c9b17c81855981ed898636ced2ba57c3a85a6eba",
+  "archived_input_bytes": 156931,
+  "verified_fixed_syntax": "ytcfg.set('initialBodyClientWidth', document.body.clientWidth);",
+  "verified_at_inline_script_start": true,
+  "old_reader_behavior": "matches ytcfg.set but expects JSON object; would stop with watch_literal_invalid before player POST",
+  "patch_scope": "ignore only fixed viewport setter names and exact width/height property expressions, never evaluate them; accept whitespace and semicolon omission only at script EOF; split fixed structural error codes",
+  "limits": [
+    "Archived third-party HTML is untrusted inert research input, not authoritative current provider documentation.",
+    "This proves a parser compatibility gap, not the actual syntax of the user's failed watch response or its exact root cause.",
+    "Only fixed public syntax and blob identity are recorded; no raw HTML, visitor/session/cookie/account data is included.",
+    "The new unit fixtures are synthetic and do not copy or execute the archived page."
+  ]
+}

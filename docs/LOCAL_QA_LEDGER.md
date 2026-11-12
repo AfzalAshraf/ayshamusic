@@ -960,3 +960,42 @@ cookies. Ifplayer/mediafailsnewstageevidenceonly. IfPASSstillprefixonly, planact
 codec/output/controls/search/recovery/wholebudgetacceptancebeforeproduction. Historical
 v2/v3remainstopped. Production5050/UI/Vercel/systemd/dependencies/stopped5051unchanged;
 unrelatedtrackedpycdeletionpreserved. Extraction2/5untilnativeacquisitionproven.
+
+## Host v4 stops locally before player POST; narrow literal-parser correction verified
+
+Host120c5fe:21/21RusttestsPASS/release18.45sPASS. Candidateaysha-direct-v4-watch-bootstrap
+fails stagewatch/codewatch_literal_invalid/external_toolsfalse/peak_rss_kib5764/
+production_readyfalse. 5764KiB=5,902,336bytesfailedbootstrap only. Fromcontrolflow,
+watch_visitor returnedErrbeforeplayerPOST/mediaGET. Not anotherobservedv4playerbotcheck
+and not acquisition/decoding/wholebudgetevidence. Originalv4stopped; noliveloop.
+
+Source review oldjson_end demandsobject and parserrequires exact ); or ; suffix. Public
+GitHubsearch forfixedviewportsetter found archivedp-ai-org/p-web webscraping-o/htmlfiles/
+youtube.txt blobc9b17c81855981ed898636ced2ba57c3a85a6eba. Blobfetched as inertresearchoutside
+repo; inspectedonly fixedknownsyntax. Verifiedinline-scriptstartcontains
+`ytcfg.set('initialBodyClientWidth', document.body.clientWidth);` (156931bytesarchive).
+Thisconcreteshape wouldtriggeroldwatch_literal_invalid. ThirdpartyhistoricalinputNOT
+userpageorcurrentprovidercontract; exacthostcauseunknown. Minimalfixedsyntax/blobid/
+limitscommittedinWATCH_LITERAL_SYNTAX_AUDIT.json; norawHTML/opaquevaluescopied/executed.
+
+Patch1259612v4.1identityaysha-direct-v4.1-watch-literals, same--watch-bootstrapflag:
+ignoresONLYwidth/heightviewportsetterswithfixedpropertyexpressions; no evaluation,
+noarbitrarykey/visitor/auth/dynamicexpressionskip. Adds whitespacebetweencloserand
+semicolon, legalmissingsemicolononlyatendofscript. Expressionsafterliteralstillfail.
+Splitsfixednonliteral/configcloser/terminator/unterminated/unbalancedJSONerrors, never
+rawsyntax/key/value. Allpreviouscaps/restriction/identity/auth/privacyboundsretained,
+no newdeps/endpoints/credentials/cookies/consent/token/JS/fallback/persistence. Same
+approvedscope, targetedparsercorrectionnot unchangedretryornewautharchitecture.
+
+FournewRustfixturetests->25total. AddedPythonhostevidencegate regression->75totalPASS.
+CI43276287654source1259612 all5jobsPASS; directjob131385433323tests/release/noJSgraph/
+strictCLI+invalidbootstrapCLI allPASS. AgentCargoabsent; CIisnotlocal/targethostproof.
+DiffcheckPASS; nov4.1liveattemptmade. Suppliedlatesthostevidenceupdatedtofailedv4,
+v2/v3historicalsretained; gateblocked/nextactiononecorrectedtrial, notnativeacceptance.
+
+Next exactbuild+one75sboundedhosttrial inRUST_DIRECT_PROTOTYPE.md. Watchstructuralfailure
+->stop/sharefixedstage/codeforreview,norawpagecapture/capincrease/identicalretry.
+Playerrestriction->stop/nocookie/account/token/proxyworkaround. Newformat/mediaerror
+isstageevidenceonly. PASSstillprefixonly, notRustfullserver/playback/10–15MB. Production
+5050/UI/Vercel/systemd/audio/dependencies/stopped5051untouched. Extraction2/5unchanged;
+unrelatedtrackedpycdeletionpreserved.
