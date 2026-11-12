@@ -27,6 +27,15 @@ used only for opt-in diagnostic/test tooling as well as the separate cloud fallb
 its benchmark RSS is excluded from this report, not evidence of runtime compliance.
 Any requirement to remove development diagnostics too needs explicit scope agreement.
 
+## Target-host direct request: low failed-request RSS is not acceptance
+
+The lightweight v2direct prototype now also returnedplayer_bot_check on the actual
+Linux host (412d4c7), eight tests/releasePASS, VmHWM4404KiB =4,509,696bytes. No playable
+sample was obtained. This confirms a source-access rejection for that request, not
+successful extraction/playback within15MB. Stop identical retries; resolve approved
+source-access design before media integration. Production remains unchanged and its
+full process/cgroup budget is not represented by this isolated failed-request RSS.
+
 ## Latest failed-candidate measurement
 
 User's pinned candidate at source566a812 built and passed10tests after the lock fix,

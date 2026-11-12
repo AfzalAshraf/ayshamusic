@@ -1,6 +1,10 @@
 # Bounded native direct-player experiment
 
-Status: isolated new mechanism; NOT a working production replacement or 15 MB claim.
+Status: **BLOCKED on actual Linux host and CI: v2 returns player_bot_check for the
+requested track. Stop identical rebuilds/probes; no native media bytes obtained.**
+Compilation/offline tests pass, but source acquisition is not resolved. The build
+commands below are retained for reproduction, NOT the recommended next action.
+No working production replacement or 15 MB claim.
 The old rusty_ytdl/Boa candidates remain failed for the required host/track. This
 experiment does not erase that evidence or add a hidden fallback. Production5050,
 UI/Vercel, root dependencies, installer and Rodio remain unchanged.
@@ -183,3 +187,29 @@ current unauthenticated/native scope is blocked. Do not hide an external downloa
 or move extraction to another host to claim Rust-only15MB compliance. Keep production
 working and report need for a supported/authorized source-access design. If it succeeds,
 verify actual decode/audio and representative resource workload before integration.
+
+
+## Target-host v2 outcome: bot-check blocker confirmed
+
+User's home-host output at412d4c7: eight testsPASS; release buildPASS (52.86s); native
+v2 resultplayer_bot_check, VmHWM4404KiB (4,509,696bytes, about4.51decimalMB), fail,
+production_readyfalse. This confirms the classifier found an explicit bot-check text
+signal in that response; it does not prove the exact challenge mechanism, why this
+connection is challenged or that every provider client/account/track is blocked.
+There was no media URL/sample success, no native decode/audio, and no working15MB
+acceptance. Build dependency/download volume is distinct from runtime RSS.
+
+This satisfies the agreed stop condition: do not request another identical compile,
+rotate profiles/IPs, disable security, hide an external downloader or move extraction
+outside memory accounting to claim success. No credentials/raw cookies/tokens should
+be pasted into chat. Existing production stays on its current helpers, unchanged.
+
+The next design gate is source access, not Rust compilation. Evaluate a provider-
+supported/authorized access path and its playback/redistribution constraints before
+further YouTube integration; do not assume an API supplies raw audio. If YouTube is
+mandatory, keep the currently working production path while native access feasibility
+is unresolved; it does not meet Rust-only/15MB. For proving native decode/playback
+without this upstream dependency, explicitly approved owned/local audio or permitted
+direct media URLs can be a separate test workload, not a replacement of the user's
+YouTube requirement or evidence that extraction was solved. No source/auth/backend
+architecture change is approved by this checkpoint. No installation is needed.

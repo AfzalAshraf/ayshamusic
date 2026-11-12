@@ -752,3 +752,24 @@ or external fallback added. Documentation command remains prototype-only, not se
 install. No localCargo/live home request. Extraction readiness remains2/5. Transient
 doc-generation shell/Python quoting error made no changes and was corrected before
 successful whitespace check; no source/runtime build failure remains within CI scope.
+
+
+## Target-host direct v2 confirms bot-check stop condition
+
+Active department: QA & Debugging. User's host412d4c7 compiled the actual separate
+rust-direct package:8/8testsPASS, releasePASS52.86s, resultaysha-direct-v2-visionos/
+player_bot_check, VmHWM4404KiB =4,509,696bytes, production_readyfalse/statusfail.
+Host and CI now both show an explicit bot-check text signal on the requested track;
+exact provider challenge/cause and universal track/client behavior remain unknown.
+No media acquired, no native decode/audibility or15MBfull-stack acceptance. Honor
+stop condition: no identical compile/probe, profile roulette, origin weakening,
+external fallback, account/token collection or worker relocation. Running production
+still uses helpers and is unchanged. Future source-access/authorization/provider
+playback design needs approval; owned/local/permitted direct audio is only a separately
+approved native-decoder test, not a claimed YouTube solution.
+
+Docs-only update: mark direct guideBLOCKED with latest host evidence and preserve
+reproduction/history; update memory plan and this ledger. No dependencies/runtime/
+service/installer/UI/Vercel changes. git whitespacePASS; no test rerun claimed for docs.
+Extraction readiness remains2/5 with source acquisition blocked. Preserve unrelated
+trackedpyc deletion. No new host command or installation needed for this checkpoint.
