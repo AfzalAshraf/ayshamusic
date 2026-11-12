@@ -8,6 +8,7 @@ use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
 const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4.1-watch-literals";
+const INSPECT_IDENTITY: &str = "aysha-direct-v4.2-config-diagnostic";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -117,10 +118,10 @@ fn peak_kib() -> Option<u64> {
     })
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum RequestProfile { V2, StandardContext, WatchBootstrap }
+enum RequestProfile { V2, StandardContext, WatchBootstrap, WatchInspect }
 impl RequestProfile {
     fn identity(self) -> &'static str {
-        match self { Self::V2 => IDENTITY, Self::StandardContext => STANDARD_IDENTITY, Self::WatchBootstrap => BOOTSTRAP_IDENTITY }
+        match self { Self::V2 => IDENTITY, Self::StandardContext => STANDARD_IDENTITY, Self::WatchBootstrap => BOOTSTRAP_IDENTITY, Self::WatchInspect => INSPECT_IDENTITY }
     }
 }
 fn parse_args(args: &[String]) -> Result<(&str, RequestProfile), &'static str> {
@@ -128,6 +129,7 @@ fn parse_args(args: &[String]) -> Result<(&str, RequestProfile), &'static str> {
         [flag, id] if flag == "--video-id" && valid_id(id) => RequestProfile::V2,
         [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--standard-context" => RequestProfile::StandardContext,
         [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--watch-bootstrap" => RequestProfile::WatchBootstrap,
+        [flag, id, opt] if flag == "--video-id" && valid_id(id) && opt == "--watch-inspect" => RequestProfile::WatchInspect,
         _ => return Err("invalid_arguments"),
     };
     Ok((&args[1], profile))
@@ -173,11 +175,29 @@ async fn watch_visitor(client: &Client, id: &str) -> Result<bootstrap::Visitor, 
     }
     bootstrap::parse(&bytes,id)
 }
+fn http_client() -> Result<Client, &'static str> {
+    Client::builder().https_only(true).no_proxy()
+        .redirect(reqwest::redirect::Policy::none()).connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")
+}
+fn watch_summary(visitor: bootstrap::Visitor, started: Instant) -> serde_json::Value {
+    drop(visitor);
+    json!({"status":"diagnostic_pass", "candidate":INSPECT_IDENTITY, "stage":"watch",
+        "watch_parser_only":true, "player_requested":false, "media_requested":false,
+        "native_acquisition_demonstrated":false, "production_ready":false, "external_tools":false,
+        "total_ms":started.elapsed().as_millis(), "peak_rss_kib":peak_kib()})
+}
+// Separate watch-only branch: it has no call to player_request/probe/media logic.
+async fn inspect_watch(id: &str, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
+    let started = Instant::now();
+    let client = http_client()?;
+    *stage = "watch";
+    let visitor = watch_visitor(&client,id).await?;
+    Ok(watch_summary(visitor,started))
+}
 async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
-    let client = Client::builder().https_only(true).no_proxy()
-        .redirect(reqwest::redirect::Policy::none()).connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(20)).build().map_err(|_| "client_init_failed")?;
+    let client = http_client()?;
     // V4 alone reads anonymous context. Never loads or stores account cookies,
     // creates PO tokens, follows redirects or responds to provider restrictions.
     let visitor = if profile == RequestProfile::WatchBootstrap {
@@ -225,7 +245,7 @@ async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap]\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v4.2 watch/parser diagnostic ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {
@@ -236,12 +256,17 @@ async fn main() {
         }
     };
     let mut stage = "init";
-    let result = within_deadline(probe(id, profile, &mut stage),Duration::from_secs(60)).await;
+    let result = if profile == RequestProfile::WatchInspect {
+        within_deadline(inspect_watch(id,&mut stage),Duration::from_secs(60)).await
+    } else {
+        within_deadline(probe(id, profile, &mut stage),Duration::from_secs(60)).await
+    };
     match result {
         Ok(metrics) => println!("{metrics}"),
         Err(code) => {
             println!("{}",json!({"status":"fail", "candidate":profile.identity(), "code":code, "stage":stage,
-                "external_tools":false,
+                "external_tools":false, "watch_parser_only":profile == RequestProfile::WatchInspect,
+                "player_requested":stage == "player" || stage == "media", "media_requested":stage == "media",
                 "peak_rss_kib":peak_kib(), "production_ready":false}));
             std::process::exit(1);
         }
@@ -333,6 +358,20 @@ mod tests {
         };
         assert_eq!(within_deadline(future,Duration::from_millis(1)).await, Err("deadline_exceeded"));
         assert!(dropped.load(Ordering::SeqCst));
+    }
+    #[test] fn watch_inspect_is_separate_strict_and_never_acquisition_success() {
+        let args: Vec<String> = ["--video-id","Jm7Satp7Zqk","--watch-inspect"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(parse_args(&args).unwrap().1, RequestProfile::WatchInspect);
+        let mut combined = args.clone(); combined.push("--watch-bootstrap".into());
+        assert_eq!(parse_args(&combined).err(),Some("invalid_arguments"));
+        let page = br#"<script>ytcfg.set({"VISITOR_DATA":"PRIVATE_CONTEXT"});</script><script>var ytInitialPlayerResponse = {"playabilityStatus":{"status":"OK"},"videoDetails":{"videoId":"Jm7Satp7Zqk"}};</script>"#;
+        let visitor = bootstrap::parse(page,"Jm7Satp7Zqk").unwrap();
+        let report = watch_summary(visitor,Instant::now());
+        assert_eq!(report["status"],"diagnostic_pass");
+        assert_eq!(report["player_requested"],false);
+        assert_eq!(report["media_requested"],false);
+        assert_eq!(report["native_acquisition_demonstrated"],false);
+        assert!(!report.to_string().contains("PRIVATE_CONTEXT"));
     }
     #[test] fn ids_and_origins_fail_closed() {
         assert!(valid_id("Jm7Satp7Zqk")); assert!(!valid_id("--exec=evil"));

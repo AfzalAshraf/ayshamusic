@@ -1,7 +1,7 @@
 //! Conservative inert watch-page reader, not an HTML/JavaScript interpreter.
 //! Accepts only literal JSON assignments at the beginning of inline script text.
 //! Unsupported wrappers/markup fail closed. No raw values implement Debug or Display.
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer, de::{Error as _, IgnoredAny}};
 #[cfg(test)]
 use serde_json::Value;
 
@@ -15,14 +15,14 @@ impl Visitor {
 }
 #[derive(Default, Deserialize)]
 struct Config {
-    #[serde(rename="VISITOR_DATA")] visitor: Option<String>,
-    #[serde(rename="INNERTUBE_CONTEXT")] context: Option<Context>,
-    #[serde(rename="LOGGED_IN")] logged_in: Option<bool>,
+    #[serde(rename="VISITOR_DATA", default, deserialize_with="visitor_field")] visitor: Option<String>,
+    #[serde(rename="INNERTUBE_CONTEXT", default, deserialize_with="context_field")] context: Option<Context>,
+    #[serde(rename="LOGGED_IN", default, deserialize_with="login_field")] logged_in: Option<bool>,
 }
 #[derive(Deserialize)]
-struct Context { client: Option<ConfigClient> }
+struct Context { #[serde(default, deserialize_with="client_field")] client: Option<ConfigClient> }
 #[derive(Deserialize)]
-struct ConfigClient { #[serde(rename="visitorData")] visitor: Option<String> }
+struct ConfigClient { #[serde(rename="visitorData", default, deserialize_with="client_visitor_field")] visitor: Option<String> }
 #[derive(Deserialize)]
 #[serde(rename_all="camelCase")]
 struct InitialPlayer {
@@ -32,6 +32,76 @@ struct InitialPlayer {
 }
 #[derive(Deserialize)]
 struct ResponseContext { #[serde(rename="visitorData")] visitor: Option<String> }
+
+// Classify schema failures with static tags before any underlying exception reaches
+// the CLI. No raw error/value/line/snippet is printed. Syntax is checked separately
+// with IgnoredAny so these field wrappers cannot turn invalid JSON into valid data.
+struct MapOnly<T>(std::marker::PhantomData<T>);
+impl<'de,T: Deserialize<'de>> serde::de::Visitor<'de> for MapOnly<T> {
+    type Value = T;
+    fn expecting(&self,f: &mut std::fmt::Formatter) -> std::fmt::Result { f.write_str("object") }
+    fn visit_map<A: serde::de::MapAccess<'de>>(self,map: A) -> Result<T,A::Error> {
+        T::deserialize(serde::de::value::MapAccessDeserializer::new(map))
+    }
+}
+struct ObjectOrNull<T>(std::marker::PhantomData<T>);
+impl<'de,T: Deserialize<'de>> serde::de::Visitor<'de> for ObjectOrNull<T> {
+    type Value = Option<T>;
+    fn expecting(&self,f: &mut std::fmt::Formatter) -> std::fmt::Result { f.write_str("object or null") }
+    fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value,E> { Ok(None) }
+    fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value,E> { Ok(None) }
+    fn visit_some<D: Deserializer<'de>>(self,d: D) -> Result<Self::Value,D::Error> {
+        d.deserialize_map(MapOnly::<T>(std::marker::PhantomData)).map(Some)
+    }
+}
+fn object_option<'de,D: Deserializer<'de>,T: Deserialize<'de>>(d: D) -> Result<Option<T>,D::Error> {
+    d.deserialize_option(ObjectOrNull::<T>(std::marker::PhantomData))
+}
+fn visitor_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<String>,D::Error> {
+    Option::<String>::deserialize(d).map_err(|_| D::Error::custom("cfg_visitor_shape"))
+}
+fn login_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<bool>,D::Error> {
+    Option::<bool>::deserialize(d).map_err(|_| D::Error::custom("cfg_login_shape"))
+}
+fn client_visitor_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<String>,D::Error> {
+    Option::<String>::deserialize(d).map_err(|_| D::Error::custom("cfg_client_visitor_shape"))
+}
+fn client_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<ConfigClient>,D::Error> {
+    object_option::<D,ConfigClient>(d).map_err(|e| {
+        if e.to_string().starts_with("cfg_client_visitor_shape") { e }
+        else { D::Error::custom("cfg_client_shape") }
+    })
+}
+fn context_field<'de,D: Deserializer<'de>>(d: D) -> Result<Option<Context>,D::Error> {
+    object_option::<D,Context>(d).map_err(|e| {
+        if e.to_string().starts_with("cfg_client_") { e }
+        else { D::Error::custom("cfg_context_shape") }
+    })
+}
+fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
+    // No full Value tree or new dependencies. Both passes stay within JSON_MAX.
+    serde_json::from_slice::<IgnoredAny>(data).map_err(|e| match e.classify() {
+        serde_json::error::Category::Syntax => "watch_config_json_syntax",
+        serde_json::error::Category::Eof => "watch_config_json_incomplete",
+        _ => "watch_config_json_invalid",
+    })?;
+    serde_json::from_slice::<Config>(data).map_err(|e| {
+        let detail = e.to_string(); // classification only; never emit underlying text
+        for (prefix, code) in [
+            ("cfg_visitor_shape", "watch_config_visitor_type"),
+            ("cfg_login_shape", "watch_config_login_type"),
+            ("cfg_context_shape", "watch_config_context_type"),
+            ("cfg_client_shape", "watch_config_client_schema"),
+            ("cfg_client_visitor_shape", "watch_config_client_visitor_type"),
+            ("duplicate field `VISITOR_DATA`", "watch_config_duplicate_visitor"),
+            ("duplicate field `INNERTUBE_CONTEXT`", "watch_config_duplicate_context"),
+            ("duplicate field `LOGGED_IN`", "watch_config_duplicate_login"),
+        ] {
+            if detail.starts_with(prefix) { return code; }
+        }
+        "watch_config_schema_unsupported"
+    })
+}
 
 fn remember(found: &mut Option<String>, value: Option<String>) -> Result<(), &'static str> {
     if let Some(value) = value {
@@ -226,7 +296,7 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
         } else { after };
         let next = statement_end(after,config)?;
         if config {
-            let cfg: Config = serde_json::from_slice(&tail[..end]).map_err(|_| "watch_config_invalid")?;
+            let cfg = decode_config(&tail[..end])?;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
             remember(visitor,cfg.visitor)?;
             remember(visitor,cfg.context.and_then(|c| c.client).and_then(|c| c.visitor))?;
@@ -348,6 +418,30 @@ mod tests {
             assert!(!err.contains("secret"));
             assert!(!err.contains("PRIVATE"));
         }
+    }
+    #[test] fn config_diagnostics_classify_types_without_values_or_coercion() {
+        for (data,code) in [
+            (r#"{"VISITOR_DATA":123}"#,"watch_config_visitor_type"),
+            (r#"{"LOGGED_IN":"PRIVATE_AUTH"}"#,"watch_config_login_type"),
+            (r#"{"INNERTUBE_CONTEXT":[]}"#,"watch_config_context_type"),
+            (r#"{"INNERTUBE_CONTEXT":{"client":false}}"#,"watch_config_client_schema"),
+            (r#"{"INNERTUBE_CONTEXT":{"client":{"visitorData":["PRIVATE"]}}}"#,"watch_config_client_visitor_type"),
+            (r#"{"VISITOR_DATA":"a","VISITOR_DATA":"b"}"#,"watch_config_duplicate_visitor"),
+            (r#"{"INNERTUBE_CONTEXT":{},"INNERTUBE_CONTEXT":{}}"#,"watch_config_duplicate_context"),
+            (r#"{"LOGGED_IN":false,"LOGGED_IN":true}"#,"watch_config_duplicate_login"),
+            (r#"{"VISITOR_DATA":undefined}"#,"watch_config_json_syntax"),
+            (r#"{"VISITOR_DATA":"PRIVATE""#,"watch_config_json_incomplete"),
+        ] {
+            let error = decode_config(data.as_bytes()).err().unwrap();
+            assert_eq!(error,code);
+            assert!(!error.contains("PRIVATE"));
+        }
+    }
+    #[test] fn null_and_missing_still_do_not_bypass_visitor_or_auth_checks() {
+        assert!(decode_config(br#"{"VISITOR_DATA":null,"LOGGED_IN":null,"INNERTUBE_CONTEXT":null}"#).is_ok());
+        let data = page(serde_json::json!({"VISITOR_DATA":null}),player());
+        assert_eq!(parse(&data,ID).err(),Some("watch_visitor_missing"));
+        assert_eq!(parse(&page(serde_json::json!({"LOGGED_IN":true}),player()),ID).err(),Some("watch_authenticated_unsupported"));
     }
     #[test] fn malformed_literals_duplicate_keys_and_unsupported_wrappers_stop_safely() {
         for script in [b"ytcfg.set({\"VISITOR_DATA\":\"a\",\"VISITOR_DATA\":\"b\"});".as_slice(),
