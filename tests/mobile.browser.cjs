@@ -48,13 +48,14 @@ async function checkInteractiveSandbox(context) {
         const title = frame.locator('#love-intro-title');
         await frame.locator('#love-intro').waitFor({state:'visible'});
         await frame.locator('[data-preview-motion]').last().filter({hasText:'Hearts always on'}).waitFor();
+        assert.equal(await title.evaluate(async () => (await document.fonts.load('18px "Delius"', 'AYSHA')).length), 1);
         const missingAudio = await context.request.get(origin + '/api/search?q=test');
         assert.equal(missingAudio.status(), 503, 'Preview must not fake a live audio backend');
         if (mobile) await title.tap(); else await title.click();
-        assert.equal(await frame.locator('.heart-particle').count(), 16, 'Actual preview animates without the Rust backend');
+        assert.equal(await frame.locator('.heart-particle').count(), 17, 'Actual preview animates without the Rust backend');
         await title.evaluate(() => clearHeartEffects());
         await title.evaluate(el => { const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('click', {bubbles:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2})); });
-        assert.equal(await frame.locator('.heart-particle').count(), 16, 'Coordinate click works even when detail defaults to zero');
+        assert.equal(await frame.locator('.heart-particle').count(), 17, 'Coordinate click works even when detail defaults to zero');
         await title.evaluate(() => clearHeartEffects());
         if (mobile) await frame.locator('.love-skip').tap(); else await frame.locator('.love-skip').click();
         await frame.locator('#love-intro').waitFor({state:'hidden'});
@@ -63,21 +64,34 @@ async function checkInteractiveSandbox(context) {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await frame.locator('[data-preview-motion]').first().filter({hasText:'Hearts always on'}).waitFor();
         if (mobile) await frame.locator('#tab-home .page-heading').tap(); else await frame.locator('#tab-home .page-heading').click();
-        assert.equal(await frame.locator('.heart-particle').count(), 16);
+        const sample = await frame.locator('#tab-home').evaluate(() => {
+          const first = document.querySelector('.heart-particle');
+          const reveal = document.querySelector('#heart-effects-page .heart-reveal');
+          const letter = document.querySelector('.love-letter-particle');
+          return { count:document.querySelectorAll('.heart-particle').length,
+            flight:getComputedStyle(first).animationName,
+            flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
+            color:getComputedStyle(reveal).color, mask:getComputedStyle(reveal).maskImage,
+            transition:getComputedStyle(reveal).transitionDuration, size:getComputedStyle(reveal).maskSize,
+            butterflies:document.querySelectorAll('.heart-burst.is-butterfly').length,
+            letters:[...document.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
+            letterColor:getComputedStyle(letter).color, fontSize:getComputedStyle(letter).fontSize,
+            fontFamily:getComputedStyle(letter).fontFamily, y:first.getBoundingClientRect().y };
+        });
+        assert.equal(sample.count, 17);
+        assert.equal(sample.flight, 'heart-flight');
+        assert.equal(sample.flutter, 'heart-flutter');
+        assert.equal(sample.color, 'rgb(237, 48, 75)');
+        assert.ok(sample.mask.includes('data:image/svg+xml'));
+        assert.equal(sample.transition, '0.12s');
+        assert.equal(sample.size, '112px 104px');
+        assert.equal(sample.butterflies, 12);
+        assert.deepEqual(sample.letters, ['A','Y','S','H','A']);
+        assert.equal(sample.letterColor, 'rgb(255, 255, 255)');
+        assert.equal(sample.fontSize, '18px');
+        assert.ok(sample.fontFamily.includes('Delius'));
         const heart = frame.locator('.heart-particle').first();
-        assert.equal(await heart.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
-        assert.equal(await heart.locator('svg').last().evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
-        const reveal = frame.locator('#heart-effects-page .heart-reveal');
-        assert.equal(await reveal.evaluate(el => getComputedStyle(el).color), 'rgb(237, 48, 75)');
-        assert.ok(await reveal.evaluate(el => getComputedStyle(el).maskImage.includes('data:image/svg+xml')));
-        assert.equal(await reveal.evaluate(el => getComputedStyle(el).transitionDuration), '0.12s');
-        assert.equal(await reveal.evaluate(el => getComputedStyle(el).maskSize), '112px 104px');
-        assert.equal(await frame.locator('.heart-burst.is-butterfly').count(), 12);
-        assert.deepEqual(await frame.locator('.love-letter-glyph').allTextContents(), ['A','Y','S','H']);
-        assert.equal(await frame.locator('.love-letter-particle').first().evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
-
-
-        const before = await heart.boundingBox();
+        const before = { y:sample.y };
         await page.waitForTimeout(500);
         assert.ok((await heart.boundingBox()).y < before.y - 15, 'Actual preview flies under Reduce Motion');
         assert.deepEqual(errors, []);
@@ -150,7 +164,7 @@ let activeViewport = 'startup';
       assert.ok(await page.locator('#love-intro').evaluate(el => el.scrollWidth <= el.clientWidth), 'Love letter has no horizontal overflow');
       const skipBox = await page.locator('.love-skip').boundingBox();
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
-      assert.ok(await page.evaluate(async () => (await document.fonts.load('21px "Short Stack"', 'AYSH')).length === 1), 'Cute font loads locally inside the HTML');
+      assert.ok(await page.evaluate(async () => (await document.fonts.load('18px "Delius"', 'AYSHA')).length === 1), 'Cute font loads locally inside the HTML');
       // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
       await page.locator('#love-intro-title').tap();
       {
@@ -170,8 +184,8 @@ let activeViewport = 'startup';
             y:first.getBoundingClientRect().y };
         });
         assert.equal(burst.count, 12);
-        assert.deepEqual(burst.letters, ['A','Y','S','H']);
-        assert.equal(burst.hearts, 4);
+        assert.deepEqual(burst.letters, ['A','Y','S','H','A']);
+        assert.equal(burst.hearts, 5);
         assert.equal(burst.letterColor, 'rgb(255, 255, 255)');
         assert.equal(burst.normal, 0);
         assert.equal(burst.color, 'rgb(237, 48, 75)');
@@ -451,7 +465,7 @@ let activeViewport = 'startup';
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
         await page.mouse.click(500, 150);
-        assert.equal(await page.locator('.heart-particle').count(), 16, 'User-requested always-on hearts survive Reduce Motion');
+        assert.equal(await page.locator('.heart-particle').count(), 17, 'User-requested always-on hearts survive Reduce Motion');
         assert.equal(await page.locator('.heart-particle').first().evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
       }
       assert.equal(await page.locator('#audio-player').evaluate(el => el.error), null, 'Fixture stream must be decodable; audio errors have dedicated unit coverage');
