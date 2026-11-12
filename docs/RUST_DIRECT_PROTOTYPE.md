@@ -689,3 +689,7 @@ neededafterofflineCIverification. Noproductionbinaryreplacementorlockupdate.
 
 Thisisboundedcompatibilitycodeplusdiagnosticsbasedonupstreamsemanticsandsynthetic
 fixtures, NOT a confirmedfixforthehosttokenwhichwasnevercaptured.
+
+V4.4 verification: final sourceac89e91 CI43281856036 all5jobsPASS; directjob131404914772
+37-test suite/release/dependency/CLI checksPASS. Local78Python testsPASS/diffcheckPASS.
+No agent-localCargo or livev4.4probe; one hostwatch-onlytrial above remains pending.

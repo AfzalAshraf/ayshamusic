@@ -1085,3 +1085,57 @@ error->stop/review,noidenticalretry/capraise/JSevaluation/rawpagecollection. Res
 timeout->stop/sharenormaloutput,nolockdeletion/productionupdate. Nativeextraction2/5;
 no sourceacquisitionor10–15MBclaim. Production5050/UI/Vercel/systemd/audio/deps/stopped
 5051unchanged; preserveunrelatedtrackedpycdeletion.
+
+## Host v4.3 expected-value failure; guarded discarded-metadata compatibility verified
+
+Active department: QA & Debugging. User host127817d debug build1.08s PASS;
+watch-onlyv4.3 failed watch_config_json_expected_value at stagewatch, player/media
+requestedfalse, external_toolsfalse, production_readyfalse, VmHWM10964KiB
+(11,227,136bytes). Exact token/path unknown. Not evidence of working acquisition,
+not a schema failure, and not comparable to release or whole-stack memory acceptance.
+Keep latest diagnostic separate from latest acquisition attempt (v4.1) in evidence.
+
+Offline pinned upstream12ac9aca... LenientJSONDecoder strictFalse accepts NaN,
+Infinity,-Infinity; rejects undefined. This justifies a narrowly guarded compatibility
+experiment, not a claim those constants caused the user's failure. New config_numbers.rs
+is an inert bounded scanner, never JS evaluation. It substitutes null only for exact
+non-finite constants in metadata Config discards; it does not claim numerical
+semantic equivalence. Protected VISITOR_DATA/LOGGED_IN/INNERTUBE_CONTEXT and descendants,
+visitorData/playabilityStatus/videoDetails/responseContext never converted; escaped
+keys decoded before protection. Protected non-finite -> fixed failure. Strings unchanged.
+Unknown JS values get fixed undefined/identifier/single_quote/template/comment_or_regex/
+expression errors. Strict Serde validation and all duplicate/type/auth/restriction/
+identity checks retained; no arbitrary ignored JS, coerced headers or repaired framing.
+
+Unchanged2MiB watch/1MiB literal/64depth/4KiB accepted visitor bounds. New max256
+replacements, owned output reserved to configured1MiB ceiling to avoid geometric Vec
+capacity growth. Unchanged JSON borrowed, no Value tree; changed input needs extra
+owned buffer and bounded range storage/key allocations. Not a whole-heap15MB guarantee.
+No new dependencies, HTTP endpoints, credentials/cookies/consent automation/PO token/
+JS/proxy/redirect/persistence/fallback/production changes. No raw data output/storage.
+
+New watch-only identity aysha-direct-v4.4-metadata-guard, same --watch-inspect flag;
+only one bounded public watch GET, never player/media even on parser success. Success
+reports fixed metadata_nonfinite_ignored boolean; diagnostic_pass never acquisition.
+Bootstrap identity renamedv4.4-guarded-bootstrap to reflect changed parser but not
+recommended or automatically run. Host should use watch-only command, not bootstrap.
+7new Rust tests ->37total, covering exact constants, unchanged strings, protected/
+escaped fields, unsupported JS/private errors, depth/replacement/expansion caps,
+no repair, visitor/auth/duplicate integration. Local78Python PASS and diffcheck PASS.
+
+Source18cd4d4 CI43281228106 all5jobs PASS; after allocation-cap refinement, final source
+ac89e91 CI43281856036 all5jobs PASS. Directjob131404914772 tests/release/noJS graph/
+CLI smoke allPASS. Agent localCargo absent; Rust verification isCI, no actual host
+v4.4 attempt or provider success claimed. No automatic live CI requests. Updated
+historical evidence/guard rejects metadata-normalized diagnostic_pass as media/RAM
+acceptance. Existing stopped v2/v3/v4/v4.1/v4.2/v4.3 trials not repeated unchanged.
+
+Next: one debug build + watch-inspect command in latest RUST_DIRECT_PROTOTYPE.md.
+If diagnostic_pass+metadata flagtrue, eligible constants present and current watch
+parse completed, not historical root-cause proof or source acquisition. If false,
+current parse worked without normalization. Either case review before player trial.
+Protected nonfinite/unsupported JS/malformed/limit -> stop/share fixed JSON, no blind
+coercion/JS/raw capture/cap increase/identical retry. Restriction -> stop, no workaround.
+Build/lock/timeout -> share normal output, no lock deletion or production update.
+Production5050/UI/Vercel/systemd/audio/deps/stopped5051 unchanged; extraction2/5 and
+10–15MB whole-server acceptance still unproved. Preserve unrelated trackedpyc deletion.

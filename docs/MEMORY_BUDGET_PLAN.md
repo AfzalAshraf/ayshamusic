@@ -133,3 +133,10 @@ Hostv4.2syntaxdiagnosticat1bae4b4:28tests/debugbuildPASS, stagewatch/
 watch_config_json_syntax,player/mediarequestedfalse,10848KiB=11,108,352bytesdebugHWM.
 Do not count asreleaseperformance, successfulmedia/decoderorwhole10–15MBbudget.
 V4.3fixedsyntaxsubtypecodehaspassedCI; not anacquisitionorRAMfix, no newhelpers/caps.
+
+Hostv4.3at127817ddebugbuildPASS: stagewatch/expected_value, no player/media,10964KiB
+(11,227,136bytes) failed diagnosticHWM. V4.4discarded-metadata compatibilityadds atmost
+1MiB owned output buffer plus bounded scanner bookkeeping when used; no full Value
+objecttree or externalhelper. Input/output logicalcaps are not wholeheap accounting.
+All-Rust source acquisition/playback/search/fullserver10–15MB acceptance unproved;
+debug failed-parserRSS cannot certify it. FinalofflineCIpassed; runtime resultpending.
