@@ -11,6 +11,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -198,13 +199,92 @@ def save_report(text):
     return Path(name)
 
 
+def cgroup_snapshot(group, proc_root=Path("/proc")):
+    """Read cgroup-v2 totals plus allowlisted process RSS; no args/URLs/names leak."""
+    values = {}
+    for name in ("memory.current", "memory.peak", "memory.swap.current"):
+        raw = (group / name).read_text().strip()
+        if not raw.isdigit():
+            raise ValueError("invalid memory counter")
+        values[name] = int(raw)
+    stats = dict(line.split() for line in (group / "memory.stat").read_text().splitlines())
+    for key in ("anon", "file", "kernel"):
+        raw = stats.get(key, "")
+        values[key] = int(raw) if raw.isdigit() else None
+    # Parent memory totals include descendants. Bound enumeration and disclose gaps.
+    pids = set()
+    incomplete = False
+    for index, (folder, dirs, _) in enumerate(os.walk(group)):
+        dirs.sort()
+        if index >= 64:
+            incomplete = True
+            break
+        try:
+            raw = (Path(folder) / "cgroup.procs").read_text().split()
+            pids.update(int(pid) for pid in raw if pid.isdigit())
+        except OSError:
+            incomplete = True
+        if len(pids) > 256:
+            incomplete = True
+            break
+    buckets = {}
+    for pid in sorted(pids)[:256]:
+        try:
+            comm = (proc_root / str(pid) / "comm").read_text().strip()
+            label = comm if comm in {"music-server", "yt-dlp", "python3", "node", "mpv", "ffmpeg"} else "other"
+            status = (proc_root / str(pid) / "status").read_text()
+            match = re.search(r"^VmRSS:\s+(\d+) kB$", status, re.MULTILINE)
+            if not match:
+                incomplete = True
+                continue
+            count, rss = buckets.get(label, (0, 0))
+            buckets[label] = (count + 1, rss + int(match[1]) * 1024)
+        except OSError:
+            incomplete = True  # Processes may finish between these reads.
+    return values, buckets, incomplete or not buckets
+
+
+def profile_memory(report, samples, cgroup_root=Path("/sys/fs/cgroup")):
+    rc, out = command(["systemctl", "--no-pager", "show", SERVICE, "-p", "ControlGroup", "--value"])
+    relative = out.strip()
+    base = cgroup_root.resolve()
+    group = (base / relative.lstrip("/")).resolve()
+    if rc or not relative.startswith("/") or group == base or base not in group.parents:
+        report.add("WARN", "MEMORY_PROFILE", "service cgroup unavailable/invalid; no sampling performed")
+        return
+    report.add("WARN", "MEMORY_SCOPE", "service cgroup only; outside helpers excluded. RSS buckets can double-count shared pages; do not sum with cgroup totals. No counters reset.")
+    report.add("PASS", "MEMORY_WINDOW", "start_utc=" + datetime.now(timezone.utc).isoformat() + f"; requested_samples={samples}; spacing_seconds=2")
+    for index in range(samples):
+        try:
+            values, buckets, incomplete = cgroup_snapshot(group)
+            level, detail = memory_result(str(values["memory.current"]))
+            counters = "; ".join(f"{key}={value if value is not None else 'unknown'}" for key, value in values.items())
+            report.add(level, f"MEM_SAMPLE_{index + 1:02d}", counters + "; " + detail)
+            peak_level, peak_detail = memory_result(str(values["memory.peak"]))
+            report.add(peak_level, f"MEM_PEAK_{index + 1:02d}", peak_detail)
+            processes = "; ".join(f"{key}:count={count},rss_bytes={rss}" for key, (count, rss) in sorted(buckets.items()))
+            report.add("WARN" if incomplete else "PASS", f"MEM_PROCS_{index + 1:02d}",
+                       (processes or "no readable processes") + ("; incomplete/racing process reads" if incomplete else "; non-atomic RSS observations"))
+        except (OSError, ValueError):
+            report.add("WARN", "MEMORY_PROFILE", "cgroup counters unavailable/invalid; sample skipped")
+        if index + 1 < samples:
+            time.sleep(2)
+    report.add("WARN", "MEMORY_PROFILE_LIMIT", "sampled observations may miss transient peaks; historical cgroup peak retained; cause not automatically established")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--code-checks", action="store_true", help="also run Python/Node/Rust tests, up to 5 minutes each; may fetch dependencies")
     parser.add_argument("--expect-bluetooth", action="store_true", help="treat missing Bluetooth sink as failure")
+    parser.add_argument("--memory-samples", type=int, default=0, metavar="N", help="1-30 service-cgroup samples spaced 2 seconds apart; no builds")
     args = parser.parse_args()
+    if not 0 <= args.memory_samples <= 30 or (args.memory_samples and args.code_checks):
+        parser.error("memory samples must be 0-30 and cannot be combined with --code-checks")
     try:
         report = collect(args.code_checks, args.expect_bluetooth)
+        if args.memory_samples:
+            print("Sampling memory; keep normal playback running. No test builds will run.", flush=True)
+            profile_memory(report, args.memory_samples)
         text = report.render()
         saved = save_report(text)
     except Exception:

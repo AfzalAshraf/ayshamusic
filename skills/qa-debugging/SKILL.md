@@ -33,3 +33,15 @@ Stable IDs identify the failing layer: SERVICE/RESTARTS, MEMORYCURRENT/MEMORYPEA
 6. Propose the smallest reproducible fix, obtain architecture approval if boundaries change, add regression coverage, rerun affected checks, then record remaining NOT RUN gates. Never promise the checker detects all possible code defects.
 
 See [local service/report instructions](../../docs/LOCAL_SERVICE.md). End with the build manifest and error/risk ledger. Ratings rise only on acceptance evidence, not installation of this checker.
+
+## Memory-failure follow-up
+
+Use `python3 scripts/check_health.py --memory-samples 30` during ordinary playback
+and one listener-controlled song change. Never combine with code builds; the CLI
+rejects `--code-checks` in this mode. Obtain device count and approximate song-change
+time alongside the packet. Inspect anon/file/kernel/swap and cgroup process buckets,
+without summing RSS with cgroup totals or discarding cache. Nested process enumeration
+is bounded and flags incomplete reads. Historical peak is retained, external helpers
+remain unaccounted, and sampling is not proof of a transient maximum. Track this
+work in Linear AFZ-5; close only after cause, approved fix and real workload acceptance,
+not merely adding the profiler. See docs/READINESS_ROADMAP.md for tracking boundaries.

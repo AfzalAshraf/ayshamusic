@@ -135,6 +135,67 @@ class HealthTests(unittest.TestCase):
             self.assertEqual(len(files), 1)
             self.assertIn(files[0].read_text(), output.getvalue())
 
+    def make_cgroup(self, root):
+        group = root / "system.slice/aysha-music.service"
+        group.mkdir(parents=True)
+        for key, value in {"memory.current": "98164736", "memory.peak": "119746560",
+                           "memory.swap.current": "0", "memory.stat": "anon 12000000\nfile 80000000\nkernel 6164736\n",
+                           "cgroup.procs": "101 102"}.items():
+            (group / key).write_text(value)
+        return group
+
+    def test_cgroup_breakdown_and_private_process_buckets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            group = self.make_cgroup(root)
+            proc = root / "proc"
+            for pid, name in ((101, "music-server"), (102, "private-process-name")):
+                folder = proc / str(pid)
+                folder.mkdir(parents=True)
+                (folder / "comm").write_text(name)
+                (folder / "status").write_text("VmRSS:   1024 kB\n")
+            values, buckets, incomplete = health.cgroup_snapshot(group, proc)
+            self.assertEqual(values["file"], 80000000)
+            self.assertEqual(buckets["other"], (1, 1048576))
+            self.assertEqual(buckets["music-server"], (1, 1048576))
+            self.assertNotIn("private-process-name", str(buckets))
+            self.assertFalse(incomplete)
+            # Nested cgroup processes are included, not just root cgroup.procs.
+            child = group / "child"
+            child.mkdir()
+            (child / "cgroup.procs").write_text("999")
+            self.assertTrue(health.cgroup_snapshot(group, proc)[2])
+
+    def test_memory_sampler_retains_peak_and_saves_samples(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            group = self.make_cgroup(root)
+            report = health.Report()
+            with patch.object(health, "command", return_value=(0, "/system.slice/aysha-music.service")), patch.object(health.time, "sleep") as sleep:
+                health.profile_memory(report, 2, root)
+            text = report.render()
+            self.assertIn("[FAIL] MEM_PEAK_01", text)
+            self.assertIn("MEM_SAMPLE_02", text)
+            self.assertIn("file=80000000", text)
+            self.assertEqual((group / "memory.peak").read_text(), "119746560")
+            sleep.assert_called_once_with(2)
+
+    def test_memory_sampler_rejects_invalid_cgroup_and_missing_counters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for response in ("/", "/../../etc", "relative", "/missing"):
+                with self.subTest(response=response), patch.object(health, "command", return_value=(0, response)):
+                    report = health.Report()
+                    health.profile_memory(report, 1, root)
+                    self.assertIn("[WARN] MEMORY_PROFILE", report.render())
+                    self.assertNotIn("MEM_SAMPLE_", report.render())
+
+    def test_code_checks_cannot_run_during_memory_profile(self):
+        with patch.object(sys, "argv", ["check_health.py", "--code-checks", "--memory-samples", "2"]), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                health.main()
+            self.assertEqual(error.exception.code, 2)
+
     def test_save_failure_is_reporter_error(self):
         with patch.object(health, "collect", return_value=health.Report()), patch.object(health, "save_report", side_effect=OSError("secret")), patch.object(sys, "argv", ["check_health.py"]):
             output = io.StringIO()

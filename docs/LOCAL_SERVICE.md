@@ -151,3 +151,31 @@ review its output before sharing. No general journal or raw traceback is copied
 by the health reporter. Audible playback, stream extraction/decoding, autoplay,
 real-device behavior, reboot, isolation and remote authentication still require
 separate acceptance tests. The checker cannot detect every possible defect.
+
+### Attribute a high memory reading before optimizing
+
+With one ordinary song playing, run:
+
+```bash
+python3 scripts/check_health.py --memory-samples 30
+```
+
+This records 30 snapshots spaced two seconds apart (about one minute, plus initial
+probes). Change song once during the sampling window and report the approximate
+time and number of listening devices. Do not run builds/tests simultaneously.
+Cannot be combined with `--code-checks`. It does not start music or reset counters.
+
+Each snapshot includes service-cgroup-v2 current/peak/swap and memory.stat
+anonymous/file/kernel values in bytes, plus allowlisted process counts/RSS
+(including nested service cgroups). Missing/unreadable counters or process races
+are warnings. Process enumeration is capped at 64 cgroups/256 processes and flags
+incomplete observations. Unknown process names are grouped as `other`; no PID,
+arguments, song URLs, Bluetooth addresses or full cgroup paths are printed.
+
+Cgroup totals and process RSS are **different accounting views**. Do not add them
+together or assume RSS proves a total peak; shared pages can be double counted.
+Helpers outside the service cgroup are excluded, and sampled values may miss
+short spikes. `memory.peak` remains historical, not the peak of just this window.
+File/page cache remains part of the reported budget, not an exemption. These
+observations can narrow the cause but do not automatically identify it or prove
+multi-device memory compliance. No memory limits or service settings are changed.
