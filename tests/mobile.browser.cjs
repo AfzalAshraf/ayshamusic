@@ -17,6 +17,16 @@ const tracks = [
   { id: 'sample4', title: 'After the rain', artist: 'Late night favorites' },
 ].map(t => ({ ...t, url: 'https://www.youtube.com/watch?v=' + t.id, thumbnail: 'https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg' }));
 
+// Valid silent media for fixture-only source loading. play() remains stubbed below.
+// A JSON /api/stream response caused asynchronous decoder errors during UI tests.
+const silentWave = Buffer.alloc(44 + 16000);
+silentWave.write('RIFF', 0); silentWave.writeUInt32LE(silentWave.length - 8, 4);
+silentWave.write('WAVEfmt ', 8); silentWave.writeUInt32LE(16, 16);
+silentWave.writeUInt16LE(1, 20); silentWave.writeUInt16LE(1, 22);
+silentWave.writeUInt32LE(8000, 24); silentWave.writeUInt32LE(16000, 28);
+silentWave.writeUInt16LE(2, 32); silentWave.writeUInt16LE(16, 34);
+silentWave.write('data', 36); silentWave.writeUInt32LE(16000, 40);
+
 // Exercise the real UI-preview server, not fixture API responses, inside an iframe.
 async function checkInteractiveSandbox(context) {
   const { createPreviewServer } = require('../scripts/preview_ui.cjs');
@@ -106,6 +116,7 @@ let activeViewport = 'startup';
         }
         if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: html });
         if (url.pathname === '/icons.svg') return route.fulfill({ contentType: 'image/svg+xml', body: icons });
+        if (url.pathname === '/api/stream') return route.fulfill({ contentType: 'audio/wav', body: silentWave });
         let data;
         if (url.pathname === '/api/play') { playRegistrations.push(url.search); serverTrack = tracks[0]; data = { status: 'playing', mode: 'browser' }; }
         else if (url.pathname === '/api/stop') { serverTrack = null; data = { status: 'stopped' }; }
@@ -421,6 +432,7 @@ let activeViewport = 'startup';
         assert.equal(await page.locator('.heart-particle').count(), 8, 'User-requested always-on hearts survive Reduce Motion');
         assert.equal(await page.locator('.heart-particle').first().evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
       }
+      assert.equal(await page.locator('#audio-player').evaluate(el => el.error), null, 'Fixture stream must be decodable; audio errors have dedicated unit coverage');
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);
 
