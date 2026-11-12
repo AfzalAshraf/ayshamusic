@@ -82,9 +82,25 @@
     }
   ],
   "pending_diagnostic": {
-    "candidate": "aysha-direct-v4.2-config-diagnostic",
+    "candidate": "aysha-direct-v4.3-syntax-diagnostic",
     "status": "awaiting_one_watch_only_request",
-    "scope": "same_approved_anonymous_watch_get_only_no_player_media",
+    "scope": "same_approved_anonymous_watch_get_only_fixed_syntax_subtype_no_player_media",
     "external_tools": false
+  },
+  "latest_diagnostic": {
+    "source_revision": "1bae4b4",
+    "candidate": "aysha-direct-v4.2-config-diagnostic",
+    "tests_passed": 28,
+    "build_profile": "debug",
+    "debug_build_passed": true,
+    "status": "fail",
+    "code": "watch_config_json_syntax",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 10848,
+    "watch_parser_only": true,
+    "player_requested": false,
+    "media_requested": false,
+    "production_ready": false
   }
 }

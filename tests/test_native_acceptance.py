@@ -54,7 +54,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(evidence['latest_native']['code'], 'watch_config_invalid')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'one_watch_only_config_diagnostic_no_player_or_media')
+        self.assertEqual(result['next'], 'one_watch_only_syntax_subtype_diagnostic_no_player_or_media')
 
     def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
         result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
@@ -62,6 +62,15 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['native_prefix_gate_passed'])
         self.assertFalse(result['whole_stack_ready'])
+
+    def test_host_syntax_diagnostic_is_recorded_separately_without_media_claim(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        diagnostic = evidence['latest_diagnostic']
+        self.assertEqual(diagnostic['code'], 'watch_config_json_syntax')
+        self.assertEqual(diagnostic['build_profile'], 'debug')
+        self.assertFalse(diagnostic['player_requested'])
+        self.assertFalse(diagnostic['media_requested'])
+        self.assertEqual(gate.assess(evidence)['status'], 'blocked')
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:

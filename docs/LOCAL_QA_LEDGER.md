@@ -1041,3 +1041,47 @@ restriction->stop; diagnostic_pass->watchonly,reviewbeforenewplayertrial. Build/
 timeout->stop/sharenormaloutput,nolockdeletion/retryloop. Userneednotcaptureprivate
 pages/headers/cookies/visitor/debugtrace. Production5050/UI/Vercel/systemd/audio/
 deps/stopped5051unchanged. Extraction2/5unchanged; preserveunrelatedtrackedpycdeletion.
+
+## Host v4.2 syntax classification; v4.3 fixed subtypes, no input repair
+
+Host1bae4b4:28RusttestsPASS/debugbuild1.77sPASS. Candidatev4.2failsstagewatch/
+watch_config_json_syntax,watch_parser_onlytrue,player_requestedfalse,media_requestedfalse,
+external_toolsfalse,production_readyfalse,VmHWM10848KiB=11,108,352bytes. Thisisstrict
+SerdeSyntaxcategory, NOT schema/type/duplicatefailureorexactsyntaxcause. Debugfailed
+watchRSSnotrelease/workload/wholebudgetacceptance. Noliteralrawinputstoredorrequested.
+
+Priorclassificationstilltoocoarse; implementcomprehensivefixedsubtypesratherthan
+speculativeJSONrepair. V4.3identityaysha-direct-v4.3-syntax-diagnostic, same--watch-inspect
+separateoneGETbranchwithnodownstreamrequests. MatchesknownSerdeerrorprefixesfor
+escape/Unicode/surrogate/hex/rawcontrol/key-or-trailingcomma/expectedvalue/keyword/
+colon/array/objectseparator/quote/trailingcomma/trailingdata/number/range/depth/EOF;
+unknownwordingreturnsfixedsyntax_other. Underlyingerrorstringneveremitted/saved/logged,
+no sourcepositions/rawsnippet/key/value/visitor/header/cookie. No changesinaccepted
+JSON/type/auth/duplicate/identity/consent/restriction/payload/deadline/networkpolicy;
+no JS/normalization/closingdanglingstructures/opaquevaluecoercion/dependencychange.
+
+Publicsource12ac9aca... common.py_parse_json callsLenientJSONDecoderstrictFalse.
+Offlinefixturecontrastacceptedrawstringcontrols/NaN,rejectedJShexescapes/trailingcomma.
+Thisisresearchnotproofeitherfeaturecausedhostfailure. OfficialSerdeJSONsrc/error.rs/
+read.rs/de.rsreviewedforstaticmessages/ignoredvaluebehavior, not copyingimplementation.
+2additionalRusttests->30total: actualsyntaxerrors/privatefixture/no positions and
+continuedinvalidJSONrejectionevenwithvalidvisitor. gateevidencekeepslatestacquisition
+v4.1separatefromlatestdiagnosticv4.2;diagnosticpassnevermediaacceptance.Local77PythonPASS.
+
+Initialsourcea7b5b03 CI43278875314faileddirectteststep; logsredirecttoAzure/results
+hostsnotallowedinagentnetwork, so detailedlogfetchEOF. Addedboundedofflinecargo-test
+annotation077b739; CI43279618797stillfailureandinitial7000chartailtruncatedbyGitHubAPI.
+Reviewedserdeignore_valuesource: objecttrailingcomma emitsKeyMustBeAStringratherthan
+TrailingComma. Correctedtestandlabeltogroupkey-or-trailingcomma, reducedannotationtail
+2500chars. No hostretry requestedwhileCIfailing. Source5bf6baf CI43279751721all5jobsPASS;
+directjob131397558119test/release/noJSgraph/strictinvalidCLIforbootstrap+inspectPASS.
+30Rusttestsinsource; agentlocalCargoabsent, CIverificationnottargethostsuccess.
+
+Nextonechangedwatch-onlydiagnosticcommandinRUST_DIRECT_PROTOTYPE.md, debugbuildonly
+(no needrepeatfulltest/releaseLTOcyclealreadycoveredinCI). Outputv4.3specificfixedcode;
+thenconstructmatchingofflinefixturebeforerecommendinganynormalization. Parser/unknown
+error->stop/review,noidenticalretry/capraise/JSevaluation/rawpagecollection. Restriction
+->stop/noaccount/token/proxyworkaround. diagnostic_pass->watchonlynotmedia. Build/lock/
+timeout->stop/sharenormaloutput,nolockdeletion/productionupdate. Nativeextraction2/5;
+no sourceacquisitionor10–15MBclaim. Production5050/UI/Vercel/systemd/audio/deps/stopped
+5051unchanged; preserveunrelatedtrackedpycdeletion.

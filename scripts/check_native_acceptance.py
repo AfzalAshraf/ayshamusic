@@ -20,7 +20,7 @@ def assess(evidence):
                       and approved.get("status") == "awaiting_single_host_trial")
     diagnostic = evidence.get("pending_diagnostic", {})
     watch_only_pending = (isinstance(diagnostic, dict) and
-                          diagnostic.get("candidate") == "aysha-direct-v4.2-config-diagnostic" and
+                          diagnostic.get("candidate") in ("aysha-direct-v4.2-config-diagnostic", "aysha-direct-v4.3-syntax-diagnostic") and
                           diagnostic.get("status") == "awaiting_one_watch_only_request")
     return {
         "status": "pass" if prefix_pass else "blocked",
@@ -32,7 +32,8 @@ def assess(evidence):
         "memory_budget_accepted": False,
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
         "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
-                 "one_watch_only_config_diagnostic_no_player_or_media" if watch_only_pending else
+                 ("one_watch_only_syntax_subtype_diagnostic_no_player_or_media" if diagnostic.get("candidate") == "aysha-direct-v4.3-syntax-diagnostic" else
+                  "one_watch_only_config_diagnostic_no_player_or_media") if watch_only_pending else
                  ("one_parser_corrected_v4_1_trial_after_offline_verification" if approved.get("candidate") == "aysha-direct-v4.1-watch-literals" else
                   "one_approved_v4_host_trial_after_offline_verification") if awaiting_trial else
                  "review_and_approve_next_probe_scope_before_any_new_native_trial"),

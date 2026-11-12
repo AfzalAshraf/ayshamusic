@@ -531,7 +531,7 @@ values, null/missing/authstillblocked, strictseparatemode/privatewatchonlysummar
 OfflineCIinvalid--watch-inspectCLIsmokeretained. No newdependencies/endpoint/authscope/
 payloadlimits/persistence/cookies/JS/tokens/fallback/productionchanges.
 
-### Terminal: DEBUG BUILD + ONE WATCH-ONLY DIAGNOSTIC — no release/install/restart
+### Historical v4.2 diagnostic — do not repeat its coarse classification
 
 ```bash
 cd /home/afine/ayshamusic &&
@@ -563,3 +563,61 @@ visitor/accountvalues/debugtrace requested. Production/UI/Vercelunchanged.
 Diagnosticverification: sourcea6410e5 CI43277710672 all5jobsPASS, directjob131390456088
 Rusttests/release/dependency/invalidCLIchecksPASS.28Rusttestsinsource, local76PythonPASS.
 No livewatchinspectrunhere; hostdiagnosticresultpending. No bot-checkfixclaimed.
+
+## Host v4.2 strict-syntax rejection; no type-based fix yet
+
+Host1bae4b4:28tests/debugbuildPASS, watchonlyv4.2watch_config_json_syntax,10848KiB
+VmHWM=11,108,352bytes. stagewatch/player_requestedfalse/media_requestedfalse,
+production_readyfalse. ThisisSerde'ssyntaxcategory, notidentifiedfieldmismatch,
+notexactsyntaxcause, andnotfullwatchparseoracquisition. DebugRSSnotcomparableto
+release/provenwholebudget. No originalpagestored; donotaskuserforsensitiveliterals.
+
+Ourpreviousclassifierwasstilltoocoarse: errorsneedcompletefixedsubtypesbefore
+normalization. V4.3--watch-inspectidentityaysha-direct-v4.3-syntax-diagnostic
+addsstaticerror-prefixmappingforinvalidescape/Unicode/surrogate/hex/rawcontrol/
+unquotedkey/expectedvalue/keyword/colon/array/objectseparator/quote/trailingcomma/
+trailingdata/invalidnumber/range/parserdepth/incomplete/unknownsyntax. No rawexception,
+inputkey/value/page/visitor/header/errorpositionortraceprintedorsaved.
+Adds2Rusttests->30total coveringrepresentativeactualSerdeerrors/privateinput/
+positionsuppression and continuedrejectionevenwithotherwisevalidknownfields.
+Parsingpolicyunchanged: NOTaJSONrepair/JSengine/authrelaxation/accessfix. No newdeps.
+
+Upstreamsource12ac9aca... extractor/common.py_parse_json usesLenientJSONDecoder
+withstrictFalse. OfflinepublicsourcefixturesverifiedrawcontrolsandNaNaccepted;
+\xescapesandtrailingcommasrejected. Thisshowspossibleparserpolicygaps, NOT actual
+hostcause. DoNOTblanket-copyallleniency, executecode, repairdanglingstructures,
+coerceauthvaluesorignoreconflicts. Serdepublicerrormessagesreviewedviaofficial
+serde-rs/jsonsrc/error.rs; unrecognizedversionwordingreturnsfixedsyntax_other.
+
+### Terminal: DEBUG BUILD + ONE SYNTAX-SUBTYPE DIAGNOSTIC — no release/install/restart
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo build --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/debug/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --watch-inspect
+```
+
+Unit/regressioncoverageisverifiedinCI; nodependencychange, sothishostcommandomits
+anotherfulltest/releasecycle. Oneapplication-levelpublicwatchGET; no downstream
+player/mediarequestevenifparsepasses. Strictsamebounds/restriction/privacychecks.
+ExpectedfixedJSONv4.3withspecificcodeandrequestedfalse.
+
+- raw_control/number-relatedcode: buildprecisesyntheticfixtureandreviewminimal
+  semantics-preservingcompatibilityonlythen, notautomaticinputrepair.
+- invalid_escape/keyword/unquoted_key/othernon-JSON: inspectliteralframing/selection
+  policyoffline; noarbitraryJSevaluationorignoringauth/visitorchecks.
+- separators/trailingdata/quote/incomplete: framingreview, notcapincreaseorclosing
+  invalidstructuresautomatically.
+- unicode/surrogate/hex: reviewencodingwithsyntheticfixtures; noopaqueheadercoercion.
+- other/unknowncode: stopandreviewclasstype,donotrepeattogetdifferentnetworkcontent.
+- diagnostic_pass: watchonlysuccess,notacquisition; reviewbeforenewplayertrial.
+- restriction/login/consent: stop,noretry/workaround. Build/lock/timeout: stop/share
+  normaloutput, no lockdeletion/update/release/retryloop. No rawdatarequested.
+
+V4.3 verification: initialCIcaughtanincorrecttestexpectation (IgnoredAnyobjecttrailing
+commausesKeyMustBeAString). Correctedfixedlabeltokey_or_trailing_comma; no acceptedJSON
+relaxation. Source5bf6baf CI43279751721all5jobsPASS; directjob131397558119 tests/release/
+CLI/dependencychecksPASS.30Rusttestsinsource, local77PythonPASS. NativeCargoabsentagent,
+CIisnotlocal/hostproof. Newwatchonlyliveoutputpending; no v4.3requestmadehere.

@@ -217,3 +217,14 @@ typesandduplicateswithfixedcodes; evenonparsesuccessneverrequestsplayer/media.
 SameapprovedfixedwatchGET/privacy/restrictionbounds, no new access/auth/persistence
 scope. SeeRUST_DIRECT_PROTOTYPE.md latestdebugbuild+singlewatchonlycommand. No newREA
 execution/runtimeintegrationorclaimofnativeextraction, providerfixor15MBcompliance.
+
+
+## Host v4.2 identifies strict JSON syntax category, not schema mismatch
+
+Host1bae4b4:28tests/debugPASS; watch_config_json_syntax, no player/media,10848KiBdebug
+HWMnotproductionbudget. Existingdiagnostictoo coarse; nextv4.3samewatch-onlymode
+reportscomprehensivefixedsyntaxsubtypes, no repair/evaluation/rawdata. Upstream
+strictFalsedecoderfixturecontrast (rawcontrols/NaNaccepted,hexescapes/trailingcommas
+rejected) isresearchonly, nothostrootcauseorpermissionforblanketleniency. See latest
+RUST_DIRECT_PROTOTYPE.mdcommand/failurebranches. Oldv4.2diagnosticnotrequestedagain.
+No newREAexecution/dependency/auth/persistence/provideraccessscope/productionchange.

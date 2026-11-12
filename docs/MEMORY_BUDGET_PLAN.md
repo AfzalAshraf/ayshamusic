@@ -128,3 +128,8 @@ Hostv4.1at5dd69ff:25tests/releasePASS, stagewatch/watch_config_invalid,6016KiB
 (6,160,384bytes) failedconfigdecodebeforeplayer/media. V4.2nextiswatch-onlydiagnostic,
 notacquisition; hostdebugbuildRSSmustnotbecomparedasreleasebudgetproof. All-Rustworking
 sourceaccess/decoder/server10–15MBbudgetremainunproved. No capchange/hiddenhelper/OOMfix.
+
+Hostv4.2syntaxdiagnosticat1bae4b4:28tests/debugbuildPASS, stagewatch/
+watch_config_json_syntax,player/mediarequestedfalse,10848KiB=11,108,352bytesdebugHWM.
+Do not count asreleaseperformance, successfulmedia/decoderorwhole10–15MBbudget.
+V4.3fixedsyntaxsubtypecodehaspassedCI; not anacquisitionorRAMfix, no newhelpers/caps.
