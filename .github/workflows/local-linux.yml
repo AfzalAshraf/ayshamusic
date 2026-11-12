@@ -64,10 +64,15 @@ jobs:
 
   rust-extract-prototype:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Recreate the reported existing-lock ICU conflict
+        run: bash tests/rust_extract_dependency_upgrade.sh seed
       - name: Test isolated native extraction candidate (offline tests)
         run: cargo test --manifest-path prototypes/rust-extract/Cargo.toml
+      - name: Verify the existing-lock dependency migration
+        run: bash tests/rust_extract_dependency_upgrade.sh verify
       - name: Build isolated extraction candidate
         run: cargo build --release --manifest-path prototypes/rust-extract/Cargo.toml
       - name: Strict CLI smoke without upstream network
