@@ -17,6 +17,7 @@ const tracks = [
   { id: 'sample4', title: 'After the rain', artist: 'Late night favorites' },
 ].map(t => ({ ...t, url: 'https://www.youtube.com/watch?v=' + t.id, thumbnail: 'https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg' }));
 
+let activeViewport = 'startup';
 (async () => {
   const { default: binary } = await import(pathToFileURL(path.join(modules, '@sparticuz/chromium/build/index.js')).href);
   const browser = await chromium.launch({ executablePath: await binary.executablePath(), args: binary.args, headless: true });
@@ -30,6 +31,7 @@ const tracks = [
     });
     const page = await context.newPage();
     for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 412, height: 915 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
+      activeViewport = `${viewport.width}x${viewport.height}`;
       await page.setViewportSize(viewport);
       page.removeAllListeners('pageerror');
       await page.unroute('**/*');
@@ -349,4 +351,10 @@ const tracks = [
 
     }
   } finally { await browser.close(); }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch(error => {
+  console.error(error);
+  // API annotations remain available when hosted raw-log downloads cannot be reached.
+  const diagnostic = `Viewport ${activeViewport}: ${error.stack || error}`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  if (process.env.CI) console.error('::error title=Browser regression::' + diagnostic);
+  process.exitCode = 1;
+});
