@@ -10,7 +10,7 @@ Made with ❤️ for Aysha — with love, from Afzal
 
 The production server is Rust: `src/main.rs` (API), `src/media.rs` (audio proxy) and `src/playback.rs` (queue/history). The embedded interface is `src/index.html`; web browsers still run HTML/CSS/JavaScript. The current Rust server invokes **yt-dlp/Node and mpv**; these have not been replaced with native Rust implementations.
 
-The Stop/Play and same-tab refresh-recovery changes are implemented. An opt-in [native Rust local-audio prototype](docs/RUST_AUDIO_PROTOTYPE.md) is now available as a separate Cargo package; it does not run mpv or change the production service. A guaranteed 100 MB concurrent-device build, isolated device sessions, a production replacement for extraction/playback helpers and verified iPhone audio are **not complete**. Pulling the current branch does not install those planned features.
+The Stop/Play and same-tab refresh-recovery changes are implemented. The bottom-navigation Quotes tab now offers 24 local comforting messages, categories, saved quotes and optional on-device personalization from explicit choices only. An opt-in [native Rust local-audio prototype](docs/RUST_AUDIO_PROTOTYPE.md) is now available as a separate Cargo package; it does not run mpv or change the production service. A guaranteed 100 MB concurrent-device build, isolated device sessions, a production replacement for extraction/playback helpers and verified iPhone audio are **not complete**. Pulling the current branch does not install those planned features.
 
 For compile-only commands, installation paths and host update verification, see [the local build/update guide](docs/LOCAL_SERVICE.md).
 

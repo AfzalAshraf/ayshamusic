@@ -1,6 +1,6 @@
 # A little comfort — optional feature proposal
 
-Status: awaiting approval; not implemented in the player. Current work fixes playback first, following the main upgrade skill's QA-before-features rule.
+Status: the user explicitly requested a Quotes tab in the bottom navigation. A first version is now implemented in src/index.html, preserving the approved player. The original proposal below remains context; implementation details and limits are recorded here and in MOBILE_UI.md.
 
 ## Purpose
 
@@ -44,3 +44,16 @@ Confirm the opt-in, explicit-likes-only approach before the UI department implem
 4. Corrupt/missing/unavailable storage does not break the music player.
 5. Copy remains supportive and non-coercive; no cure/safety/affection guarantee or mental-health inference.
 6. The approved baseline, exact dedication and resource constraints remain intact.
+
+
+## Implemented first version
+
+- Fifth navigation item: Quotes, between Library and Bluetooth (desktop sidebar uses the same item).
+- Separate “A little comfort” page with 24 original messages, categories Love/Rest/Kindness/Courage, For you, Saved, Next and save/unsave.
+- No timer, view/dwell/mood tracking, autoplay, message notifications or remote quote API. Browsing is stateless with respect to persistent storage until an explicit save/setting action.
+- Personalization is off by default, controlled by a labeled checkbox. When on, the For you mix weights explicit saved categories and More like this actions, retaining variety and avoiding immediate repeats. Turning it off stops all preference weighting. It does not infer feelings or promise a cure/attachment/safety outcome.
+- A bounded dedicated browser-local record, aysha.comfort.v1, stores only version, saved IDs, bounded category counts and opt-in. Saved/setting choices can survive reload; corrupt/unavailable storage falls back to in-memory behavior. Reset removes this record without touching the music selection. Same browser/profile users can see its local choices; no cross-device sync or account storage is provided.
+- Quotes can be skipped by choosing another tab; there is no hide-navigation setting in this first version because the user explicitly requested the visible bottom tab. Details collapse the preference controls. No other navigation is removed.
+- The music element/source is shared and untouched, Back/Forward supports the tab, and direct #quotes reload works without search/audio APIs. Sandbox UI preview can show Quotes while its live audio backend remains unavailable.
+
+Automated evidence: 33 frontend tests and seven Chromium viewports, including five navigation targets at >=44px, local categories/saves/reset, opt-in/reload behavior, weighted-selection response, malformed/denied storage and no audio restart on tab use. Actual Android/iPhone accessibility/hardware/music acceptance remains a separate gate.

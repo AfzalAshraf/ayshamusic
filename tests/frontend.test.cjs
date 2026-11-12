@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const script = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8').split('<script>')[1].split('</script>')[0];
 
-function harness(connected = false, storage = new Map()) {
+function harness(connected = false, storage = new Map(), quoteStorage = new Map()) {
   const calls = [];
   const elements = new Map();
   const element = id => {
@@ -29,6 +29,11 @@ function harness(connected = false, storage = new Map()) {
       getItem(key) { return storage.get(key) || null; },
       setItem(key, value) { storage.set(key, value); },
     },
+    localStorage: {
+      getItem(key) { return quoteStorage.get(key) || null; },
+      setItem(key, value) { quoteStorage.set(key, value); },
+      removeItem(key) { quoteStorage.delete(key); },
+    },
     setInterval() {}, setTimeout() {},
     fetch: async (url, opts) => {
       calls.push({ url, opts });
@@ -37,7 +42,7 @@ function harness(connected = false, storage = new Map()) {
   });
   // Disable only the page's initial network load; keep all production functions intact.
   vm.runInContext(script.replace("initializeNavigation();", ''), context);
-  return { context, calls, element, storage };
+  return { context, calls, element, storage, quoteStorage };
 }
 
 const track = { id: 'abc', title: 'Song & title', artist: 'Artist', url: 'https://www.youtube.com/watch?v=abc' };
@@ -312,4 +317,119 @@ test('invalid saved selection schema is ignored without breaking the empty playe
     assert.equal(h.element('full-artist').textContent, 'Choose a song from Home or Explore.');
     assert.equal(h.element('audio-player').playCount, 0);
   }
+});
+
+
+test('Quotes browsing is local, untailored by default, and writes no viewing data', () => {
+  const h = harness();
+  h.context.initializeQuotes();
+  assert.equal(h.element('quote-personalize').checked, false);
+  assert.equal(h.element('quote-more').disabled, true);
+  assert.match(h.element('quote-text').textContent, /earn tenderness/);
+  const first = h.element('quote-text').textContent;
+  h.context.nextQuote(() => 0);
+  assert.notEqual(h.element('quote-text').textContent, first);
+  h.context.filterQuotes('rest');
+  assert.equal(h.element('quote-category-label').textContent, 'Rest');
+  assert.equal(h.quoteStorage.size, 0);
+  assert.equal(h.calls.length, 0);
+});
+
+test('saved quotes survive reload, can be unsaved, and have an honest empty state', () => {
+  const h = harness();
+  h.context.initializeQuotes();
+  h.context.toggleQuoteSave();
+  assert.equal(h.element('quote-save').attributes['aria-pressed'], 'true');
+  const refreshed = harness(false, new Map(), h.quoteStorage);
+  refreshed.context.initializeQuotes();
+  assert.equal(refreshed.element('quote-saved-count').textContent, 1);
+  refreshed.context.filterQuotes('saved');
+  assert.equal(refreshed.element('quote-save-label').textContent, 'Saved');
+  refreshed.context.toggleQuoteSave();
+  assert.equal(refreshed.element('quote-saved-count').textContent, 0);
+  assert.equal(refreshed.element('quote-next').disabled, true);
+  assert.match(refreshed.element('quote-text').textContent, /Save a message/);
+});
+
+test('explicit opt-in alone enables preference weighting and turning it off stops it', () => {
+  const h = harness();
+  h.context.initializeQuotes();
+  h.context.toggleQuoteSave();
+  const weight = () => vm.runInContext('quoteWeight(comfortQuotes[0])', h.context);
+  assert.equal(weight(), 1);
+  h.context.moreQuotesLikeThis();
+  assert.equal(weight(), 1);
+  h.context.setQuotePersonalization(true);
+  assert.equal(weight(), 3);
+  h.context.moreQuotesLikeThis();
+  assert.equal(weight(), 4);
+  h.context.setQuotePersonalization(false);
+  assert.equal(weight(), 1);
+  assert.equal(h.element('quote-more').disabled, true);
+  const saved = JSON.parse(h.quoteStorage.get('aysha.comfort.v1'));
+  assert.deepEqual(Object.keys(saved).sort(), ['more', 'personalize', 'saved', 'version']);
+});
+
+test('weighted selection responds to explicit choices while retaining variety', () => {
+  const h = harness();
+  h.context.initializeQuotes();
+  h.context.toggleQuoteSave();
+  const countLove = enabled => {
+    h.context.setQuotePersonalization(enabled);
+    let count = 0;
+    for (let n = 0; n < 200; n++) {
+      vm.runInContext("quoteState.currentId = 'rest-1'; quoteState.category = 'all'", h.context);
+      h.context.nextQuote(() => (n + 0.5) / 200);
+      if (h.element('quote-category-label').textContent === 'Love') count++;
+    }
+    return count;
+  };
+  const baseline = countLove(false);
+  const tailored = countLove(true);
+  assert.ok(tailored > baseline, `${tailored} must exceed ${baseline}`);
+  assert.ok(tailored < 200, 'Other categories remain in the mix');
+});
+
+test('quote reset deletes the dedicated record without touching music selection', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  const music = h.storage.get('aysha.selection.v1');
+  const playCalls = h.calls.length;
+  h.context.initializeQuotes();
+  h.context.toggleQuoteSave();
+  h.context.setQuotePersonalization(true);
+  h.context.resetQuotePreferences();
+  assert.equal(h.quoteStorage.has('aysha.comfort.v1'), false);
+  assert.equal(h.element('quote-personalize').checked, false);
+  assert.equal(h.element('quote-saved-count').textContent, 0);
+  assert.equal(h.storage.get('aysha.selection.v1'), music);
+  assert.equal(h.calls.length, playCalls);
+  assert.equal(h.element('audio-player').paused, false);
+});
+
+test('malformed or unavailable quote storage never breaks navigation or in-memory choices', () => {
+  for (const quoteStorage of [new Map([['aysha.comfort.v1', '{bad']]), {
+    get() { throw Error('Denied'); }, set() { throw Error('Full'); }, delete() { throw Error('Denied'); },
+  }]) {
+    const h = harness(false, new Map(), quoteStorage);
+    h.context.initializeQuotes();
+    h.context.filterQuotes('courage');
+    h.context.toggleQuoteSave();
+    h.context.setQuotePersonalization(true);
+    h.context.moreQuotesLikeThis();
+    assert.equal(h.element('quote-category-label').textContent, 'Courage');
+    h.context.resetQuotePreferences();
+    assert.equal(h.element('quote-saved-count').textContent, 0);
+    assert.equal(h.element('quote-personalize').checked, false);
+  }
+});
+
+test('quote storage filters unknown IDs and unbounded preference values', () => {
+  const data = { version: 1, saved: ['love-1', 'love-1', '<script>'], personalize: 'true', more: { love: 999, rest: 3, unknown: 4 } };
+  const h = harness(false, new Map(), new Map([['aysha.comfort.v1', JSON.stringify(data)]]));
+  h.context.initializeQuotes();
+  assert.equal(h.element('quote-saved-count').textContent, 1);
+  assert.equal(h.element('quote-personalize').checked, false);
+  assert.equal(vm.runInContext('quoteState.more.love || 0', h.context), 0);
+  assert.equal(vm.runInContext('quoteState.more.rest', h.context), 3);
 });

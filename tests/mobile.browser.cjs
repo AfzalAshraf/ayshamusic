@@ -55,7 +55,7 @@ const tracks = [
         else data = { status: 'failed', error: 'Read-only UI test fixture' };
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
       });
-      if (page.url().startsWith('https://aysha.test/')) await page.evaluate(() => sessionStorage.clear());
+      if (page.url().startsWith('https://aysha.test/')) await page.evaluate(() => { sessionStorage.clear(); localStorage.clear(); });
       await page.goto('https://aysha.test/');
       await page.locator('#quick-picks .song-card').first().waitFor();
       assert.equal((await page.locator('.footer').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
@@ -66,6 +66,50 @@ const tracks = [
         fs.mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true });
         await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-home.png') });
       }
+      // The fifth navigation item remains touchable on narrow phones.
+      for (const name of ['Home', 'Explore', 'Library', 'Quotes', 'Bluetooth']) {
+        const box = await page.getByRole('button', { name, exact: true }).boundingBox();
+        assert.ok(box && box.width >= 44 && box.height >= 44, `${name} target at ${viewport.width}`);
+        assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `${name} stays within viewport`);
+      }
+      await page.getByRole('button', { name: 'Quotes', exact: true }).click();
+      assert.ok(await page.locator('#tab-quotes').isVisible());
+      assert.equal(await page.locator('#nav-quotes').getAttribute('aria-current'), 'page');
+      assert.equal(await page.evaluate(() => localStorage.getItem('aysha.comfort.v1')), null, 'Browsing must not write preference data');
+      const firstQuote = await page.locator('#quote-text').textContent();
+      await page.locator('#quote-next').click();
+      assert.notEqual(await page.locator('#quote-text').textContent(), firstQuote);
+      await page.getByRole('button', { name: 'Rest', exact: true }).click();
+      assert.equal(await page.locator('#quote-category-label').textContent(), 'Rest');
+      await page.locator('#quote-save').click();
+      assert.equal(await page.locator('#quote-save').getAttribute('aria-pressed'), 'true');
+      await page.locator('[data-quote-category="saved"]').click();
+      assert.equal(await page.locator('#quote-saved-count').textContent(), '1');
+      if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-quotes.png') });
+      await page.locator('.quote-settings summary').click();
+      assert.ok(!(await page.locator('#quote-personalize').isChecked()));
+      await page.locator('#quote-personalize').check();
+      await page.locator('#quote-more').click();
+      if (viewport.width === 390) {
+        await page.reload();
+        await page.locator('#tab-quotes.active').waitFor();
+        assert.equal(await page.locator('#quote-saved-count').textContent(), '1');
+        assert.ok(await page.locator('#quote-personalize').isChecked());
+        await page.locator('.quote-settings summary').click();
+      }
+      await page.locator('.quote-reset').click();
+      assert.equal(await page.locator('#quote-saved-count').textContent(), '0');
+      assert.ok(!(await page.locator('#quote-personalize').isChecked()));
+      assert.equal(await page.evaluate(() => localStorage.getItem('aysha.comfort.v1')), null);
+      await page.locator('[data-quote-category="saved"]').click();
+      assert.ok(await page.locator('#quote-next').isDisabled());
+      assert.match(await page.locator('#quote-text').textContent(), /Save a message/);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Quotes must not overflow');
+      await page.goBack();
+      assert.ok(await page.locator('#tab-home').isVisible(), 'Back from Quotes returns Home');
+      await page.goForward();
+      assert.ok(await page.locator('#tab-quotes').isVisible(), 'Forward restores Quotes');
+      await page.goBack();
       await page.getByRole('button', { name: 'Explore', exact: true }).click();
       await page.locator('#explore-cards .song-card').first().waitFor();
       assert.equal(await page.locator('#explore-title').textContent(), 'Jazz');
@@ -129,6 +173,15 @@ const tracks = [
         await page.locator('#hero-toggle').click();
         await page.waitForFunction(() => window.mediaPlayAttempts === 1);
         assert.equal(playRegistrations.length, 5);
+        const sourceBeforeQuotes = await page.locator('#audio-player').getAttribute('src');
+        await page.getByRole('button', { name: 'Quotes', exact: true }).click();
+        await page.locator('#quote-next').click();
+        await page.locator('#quote-save').click();
+        assert.equal(playRegistrations.length, 5, 'Quotes never registers/restarts music');
+        assert.equal(await page.evaluate(() => window.mediaPlayAttempts), 1);
+        assert.equal(await page.locator('#audio-player').getAttribute('src'), sourceBeforeQuotes);
+        await page.getByRole('button', { name: 'Home', exact: true }).click();
+
 
       }
       assert.deepEqual(errors, [], 'No uncaught page errors');
