@@ -82,20 +82,27 @@ let activeViewport = 'startup';
       await page.locator('#love-intro-title').tap();
       if (viewport.width === 360) {
         assert.equal(await page.locator('.heart-particle').count(), 0, 'Reduced motion suppresses particles');
-        assert.equal(await page.locator('.heart-constellation').count(), 0, 'Reduced motion does not build the reveal field');
       } else {
         assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 8);
-        assert.equal(await page.locator('#heart-effects-intro .heart-constellation use').count(), 111);
-        assert.ok(await page.locator('#heart-effects-intro .heart-constellation').evaluate(el => el.classList.contains('is-revealed') && getComputedStyle(el).maskImage.includes('radial-gradient')));
         assert.equal(await page.locator('#heart-effects-intro .heart-particle').first().evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
         assert.equal(await page.locator('#heart-effects-intro').evaluate(el => getComputedStyle(el).pointerEvents), 'none');
+        const butterfly = page.locator('#heart-effects-intro .heart-particle').first();
+        const liftOff = await butterfly.boundingBox();
+        assert.equal(await butterfly.evaluate(el => getComputedStyle(el).animationName), 'heart-flight');
+        assert.equal(await butterfly.locator('svg').evaluate(el => getComputedStyle(el).animationName), 'heart-flutter');
+        // Touch browsers emit pointerout at finger release; the hearts must keep flying.
+        await page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null })));
+        await page.waitForTimeout(600);
+        assert.equal(await page.locator('#heart-effects-intro .heart-burst').count(), 8);
+        const inFlight = await butterfly.boundingBox();
+        assert.ok(inFlight.y < liftOff.y - 15, 'Tap heart visibly lifts and flies upward, not a stationary reveal');
+
         if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) {
           fs.mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true });
           await page.waitForTimeout(180);
           await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-love-hearts.png') });
         }
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#heart-effects-intro .heart-constellation')).opacity === '0');
       }
       if (viewport.width === 390) {
         if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-love-letter.png') });
@@ -112,6 +119,7 @@ let activeViewport = 'startup';
       } else {
         await page.locator('.love-skip').click();
         await page.locator('#love-intro').waitFor({ state: 'hidden' });
+        await page.waitForFunction(() => document.querySelectorAll('#heart-effects-page .heart-burst').length === 8);
       }
 
       await page.locator('#quick-picks .song-card').first().waitFor();
@@ -321,28 +329,19 @@ let activeViewport = 'startup';
       await page.locator('#full-history .card-heart[data-track-id="sample1"]').waitFor({ state: 'detached' });
       if (viewport.width === 1440) {
         await page.evaluate(() => clearHeartEffects());
-        await page.mouse.move(720, 450);
-        const field = page.locator('#heart-effects-page .heart-constellation');
-        await page.waitForFunction(() => document.querySelector('#heart-effects-page .heart-constellation.is-revealed'));
-        assert.equal(await field.locator('use').count(), 111);
-        assert.equal(await page.locator('.heart-particle').count(), 0, 'Hover reveals existing hearts instead of spawning a trail');
-        const fixedBox = await field.boundingBox();
-        const fixedMarkup = await field.innerHTML();
-        const firstMaskX = await field.evaluate(el => el.style.getPropertyValue('--reveal-x'));
-        await page.waitForTimeout(100);
-        await page.mouse.move(770, 470);
-        await page.waitForTimeout(180);
-        assert.deepEqual(await field.boundingBox(), fixedBox, 'The big heart stays stationary');
-        assert.equal(await field.innerHTML(), fixedMarkup, 'No hearts are spawned or rearranged on hover');
-        assert.notEqual(await field.evaluate(el => el.style.getPropertyValue('--reveal-x')), firstMaskX);
-        assert.ok(await field.evaluate(el => parseFloat(getComputedStyle(el).opacity) > .4));
-        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'desktop-heart-reveal.png') });
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#heart-effects-page .heart-constellation')).opacity === '0');
+        await page.mouse.click(720, 650);
+        assert.equal(await page.locator('#heart-effects-page .heart-burst').count(), 8);
+        const butterfly = page.locator('#heart-effects-page .heart-particle').first();
+        const startBox = await butterfly.boundingBox();
+        await page.waitForTimeout(700);
+        const flyingBox = await butterfly.boundingBox();
+        assert.ok(flyingBox.y < startBox.y - 20, 'Desktop click launches upward butterfly flight');
+        if (process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'desktop-butterfly-hearts.png') });
+        await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
         await page.evaluate(() => { for (let i = 0; i < 100; i++) spawnHeartParticle(300, 200, true); });
         assert.equal(await page.locator('.heart-particle').count(), 32, 'Rapid activity stays bounded');
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.waitForFunction(() => document.querySelectorAll('.heart-particle').length === 0);
-        assert.equal(await field.evaluate(el => el.classList.contains('is-revealed')), false);
         await page.mouse.click(500, 150);
         assert.equal(await page.locator('.heart-particle').count(), 0);
       }
