@@ -1,5 +1,5 @@
 // Interactive sandbox preview, not a replacement for the production Rust/audio server.
-// Run: PORT=5051 node scripts/preview_ui.cjs
+// Run: node scripts/preview_ui.cjs (port 5050 by default)
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -42,7 +42,7 @@ function createPreviewServer() {
 if (require.main === module) {
   const server = createPreviewServer();
   server.on('error', error => { console.error(error); process.exitCode = 1; });
-  const port = Number(process.env.PORT || 5051);
+  const port = Number(process.env.PORT || 5050);
   server.listen(port, '0.0.0.0', () => console.log(`Interactive Aysha UI on 0.0.0.0:${port}; hearts work locally, live audio backend unavailable.`));
 }
 module.exports = { createPreviewServer };
