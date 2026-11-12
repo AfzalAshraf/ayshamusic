@@ -30,11 +30,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn("signed-secret", str(row))
 
     def test_format_counts_are_allowlisted_on_failure(self):
-        payload = {"status":"fail", "code":"all_aac_urls_missing", "format_counts":{
+        payload = {"status":"fail", "candidate":"rusty_ytdl-0.7.4", "code":"all_aac_urls_missing", "format_counts":{
             "aac_candidates":2, "empty_urls":2, "url":"signed-secret",
             "formats_total":-1, "invalid_urls":True, "usable_urls":"signed-secret"}}
         row = benchmark.execute([sys.executable, "-c", "print(" + repr(json.dumps(payload)) + "); raise SystemExit(1)"])
         self.assertEqual(row["format_counts"], {"aac_candidates":2, "empty_urls":2})
+        self.assertEqual(row["candidate"], "rusty_ytdl-0.7.4")
         self.assertNotIn("signed-secret", str(row))
 
     def test_binary_probe_checks_bytes_and_container(self):

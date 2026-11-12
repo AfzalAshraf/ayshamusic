@@ -96,13 +96,16 @@ def execute(argv, binary_media=False, deadline=75):
             raise ValueError("invalid native metrics")
         result = payload
         counts = safe_format_counts(payload)
+        candidate = payload.get("candidate")
+        if candidate not in ("rusty_ytdl-0.7.4", "rusty_ytdl-pr62-b390352a5db4b57aa630e8dc7b427fb560feccd5"):
+            candidate = None
         # Only known numerical fields and fixed codes; never echo arbitrary tool output.
         if rc or result.get("status") != "pass":
             code = result.get("code", "native_failure")
             peak = result.get("peak_rss_kib")
             result = {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure",
                       "peak_rss_kib": peak if type(peak) is int and peak >= 0 else None,
-                      "format_counts": counts}
+                      "format_counts": counts, "candidate": candidate}
             return result
         allowed = ("resolve_ms", "first_byte_ms", "total_ms", "bytes", "itag", "peak_rss_kib")
         if result.get("bytes") != PROBE:
@@ -110,7 +113,7 @@ def execute(argv, binary_media=False, deadline=75):
         metrics = {key: result.get(key) for key in allowed if result.get(key) is None or type(result.get(key)) in (int, float)}
         metrics["native_total_ms"] = metrics.get("total_ms")
         metrics["total_ms"] = round(total, 2)
-        result = dict(metrics, status="pass", format_counts=counts)
+        result = dict(metrics, status="pass", format_counts=counts, candidate=candidate)
         return result
     except (OSError, ValueError, subprocess.TimeoutExpired):
         result = {"status": "fail", "code": "tool_missing_invalid_output_or_timeout"}

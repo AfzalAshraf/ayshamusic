@@ -4,6 +4,7 @@ mod selection;
 use rusty_ytdl::{reqwest, RequestOptions, Video, VideoOptions};
 use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf, time::{Duration, Instant}};
 use serde_json::json;
+const CANDIDATE: &str = "rusty_ytdl-pr62-b390352a5db4b57aa630e8dc7b427fb560feccd5";
 const PROBE: usize = 65536;
 const MAX_FILE: usize = 64 * 1024 * 1024;
 const HELP: &str = "aysha-extract-prototype --video-id ID [--output NEW_FILE.m4a]\nDefault: resolve audio-only AAC/MP4 and validate/read 64 KiB; discard bytes.\nOptional output: exclusive new file, maximum 64 MiB, removed on failure.\nOnly public non-live permitted content; 60s cooperative timeout. No credentials/fallback.\nSigned URLs and raw upstream errors are never printed. Not a production yt-dlp replacement.";
@@ -93,7 +94,7 @@ async fn extract(options: Options) -> Result<serde_json::Value, Failure> {
         out.file.sync_all().map_err(|_| "output_sync_failed")?;
         out.complete = true;
     }
-    Ok(json!({"status":"pass", "candidate":"rusty_ytdl-0.7.4", "mode":if output.is_some(){"file"}else{"probe"},
+    Ok(json!({"status":"pass", "candidate":CANDIDATE, "mode":if output.is_some(){"file"}else{"probe"},
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":start.elapsed().as_millis(),
         "bytes":bytes, "itag":format.itag, "mime":"audio/mp4", "peak_rss_kib":memory_kib(),
         "format_counts":selected.counts, "external_tools":false, "production_ready":false}))
@@ -110,7 +111,7 @@ async fn main() {
         Ok(Ok(metrics)) => println!("{metrics}"),
         error => {
             let failure = match error { Ok(Err(failure)) => failure, _ => "deadline_exceeded".into() };
-            println!("{}", json!({"status":"fail","code":failure.code,"format_counts":failure.format_counts,
+            println!("{}", json!({"status":"fail","candidate":CANDIDATE,"code":failure.code,"format_counts":failure.format_counts,
                 "peak_rss_kib":memory_kib(),"production_ready":false}));
             std::process::exit(1);
         }
