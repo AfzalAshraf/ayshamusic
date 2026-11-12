@@ -22,10 +22,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn("signed-secret", str(row))
 
     def test_failure_and_untrusted_error_text_are_not_echoed(self):
-        payload = json.dumps({"status": "fail", "code": "https://signed-secret-url"})
+        payload = json.dumps({"status": "fail", "code": "https://signed-secret-url", "peak_rss_kib": 26000})
         row = benchmark.execute([sys.executable, "-c", "print(" + repr(payload) + "); raise SystemExit(1)"])
         self.assertEqual(row["status"], "fail")
         self.assertEqual(row["code"], "native_failure")
+        self.assertEqual(row["peak_rss_kib"], 26000)
+        self.assertNotIn("signed-secret", str(row))
 
     def test_binary_probe_checks_bytes_and_container(self):
         row = benchmark.execute([sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'\\0\\0\\0\\x20ftyp'+b'x'*(65536-8))"], binary_media=True)
@@ -34,6 +36,8 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIsNone(row["peak_rss_kib"])
         row = benchmark.execute([sys.executable, "-c", "print('not audio')"], binary_media=True)
         self.assertEqual(row["status"], "fail")
+        self.assertLess(row["bytes"], 65536)
+        self.assertFalse(row["mp4_header"])
 
     def test_missing_binary_and_timeout_return_failure(self):
         self.assertEqual(benchmark.execute(["/not-an-executable"])["status"], "fail")

@@ -74,7 +74,9 @@ def execute(argv, binary_media=False, deadline=75):
         total = (time.monotonic() - start) * 1000
         if binary_media:
             if len(data) != PROBE or data[4:8] != b"ftyp":
-                result = {"status": "fail", "code": "short_or_non_mp4_probe"}
+                result = {"status": "fail", "code": "short_or_non_mp4_probe",
+                          "bytes": len(data), "mp4_header": data[4:8] == b"ftyp",
+                          "exit_code": proc.poll()}
                 return result
             result = {"status": "pass", "first_byte_ms": round(first, 2), "bytes": len(data),
                       "total_ms": round(total, 2), "peak_rss_kib": None}
@@ -87,7 +89,9 @@ def execute(argv, binary_media=False, deadline=75):
         # Only known numerical fields and fixed codes; never echo arbitrary tool output.
         if rc or result.get("status") != "pass":
             code = result.get("code", "native_failure")
-            result = {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure"}
+            peak = result.get("peak_rss_kib")
+            result = {"status": "fail", "code": code if re.fullmatch(r"[a-z_]{1,60}", str(code)) else "native_failure",
+                      "peak_rss_kib": peak if type(peak) is int and peak >= 0 else None}
             return result
         allowed = ("resolve_ms", "first_byte_ms", "total_ms", "bytes", "itag", "peak_rss_kib")
         if result.get("bytes") != PROBE:

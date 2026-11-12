@@ -1,4 +1,5 @@
 //! Experimental native extractor. No production integration, cookies or subprocess fallback.
+mod media_origin;
 use rusty_ytdl::{reqwest, RequestOptions, Video, VideoFormat, VideoOptions};
 use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf, time::{Duration, Instant}};
 use serde_json::json;
@@ -24,11 +25,6 @@ fn parse(args: impl IntoIterator<Item=String>) -> Result<Option<Options>, &'stat
     let id = id.ok_or("missing_id")?;
     if !valid_id(&id) { return Err("invalid_id"); }
     Ok(Some(Options { id, output }))
-}
-fn allowed_media(value: &str) -> bool {
-    let Ok(url) = reqwest::Url::parse(value) else { return false };
-    url.scheme() == "https" && url.username().is_empty() && url.password().is_none()
-        && url.port().is_none() && url.host_str().is_some_and(|h| h.ends_with(".googlevideo.com"))
 }
 fn compatible(format: &VideoFormat) -> bool {
     format.has_audio && !format.has_video && !format.is_live && !format.is_hls && !format.is_dash_mpd
@@ -64,7 +60,7 @@ async fn extract(options: Options) -> Result<serde_json::Value, &'static str> {
     // Candidate handles YouTube signatures with an embedded Rust JS engine, not Node.
     let info = video.get_info().await.map_err(|_| "extraction_failed")?;
     let format = info.formats.iter().filter(|f| compatible(f)).max_by_key(|f| f.bitrate).ok_or("aac_mp4_unavailable")?;
-    if !allowed_media(&format.url) { return Err("media_origin_rejected"); }
+    media_origin::validate(&format.url)?;
     let resolve_ms = start.elapsed().as_millis();
     let mut request = client.get(&format.url);
     if options.output.is_none() { request = request.header("Range", "bytes=0-65535"); }
@@ -127,10 +123,6 @@ mod tests {
         assert!(parse(["--video-id","bad"].map(String::from)).is_err());
         assert!(parse(["--unknown"].map(String::from)).is_err());
         assert!(parse(["--video-id","Jm7Satp7Zqk","--video-id","Jm7Satp7Zqk"].map(String::from)).is_err());
-    }
-    #[test] fn media_hosts_fail_closed() {
-        assert!(allowed_media("https://rr1---sn-test.googlevideo.com/videoplayback?test=1"));
-        for value in ["http://x.googlevideo.com/", "https://googlevideo.com.evil.test/", "https://127.0.0.1/", "https://u@x.googlevideo.com/", "https://x.googlevideo.com:444/"] { assert!(!allowed_media(value)); }
     }
     #[test] fn validates_mp4_prefix() { assert!(mp4(b"\0\0\0\x20ftypM4A ")); assert!(!mp4(b"<html>error")); }
     #[test] fn output_guard_cleans_only_its_own_file() {

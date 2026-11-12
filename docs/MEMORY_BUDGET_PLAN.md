@@ -1,4 +1,33 @@
-# 100 MB concurrent-playback budget — approval and verification plan
+# Memory budget — Rust-only target and verification plan
+
+## Latest user requirement: 10–15 MB and Rust server responsibilities
+
+The user now requests every server responsibility in Rust and a 10–15 MB memory
+target, replacing 100 MB as the desired optimization goal. Neither target has been
+demonstrated. The sections below retain the previous 100 MB proposal as history,
+not the current acceptance ceiling. Clarify decimal MB vs MiB, whole service cgroup
+vs process RSS, tunnel/shared audio inclusion, and supported listener workload
+before claiming compliance. Do not reinterpret the target as Rust HTTP-only memory
+while hiding extraction/audio in another process or remote service. No hard cap
+is installed: an OOM kill would not count as working playback.
+
+User-supplied first native-extraction benchmark: Rust0/3 successful probes; sampled
+process-group peaks22320–25752 KiB (about22.9–26.4 decimal MB). Even failed attempts
+exceed the proposed15 MB ceiling for this candidate alone. yt-dlp2/3 successes,
+82976–89872 KiB sampled peaks; successful prefix median3265.42ms. This is neither
+a fair successful-path memory comparison nor a whole-stack measurement. Replacing
+Python with Rust does not automatically bound TLS/HTTP/JSON/JS-engine/decoder buffers.
+
+Current direction: keep production Rust; diagnose the failed candidate first; then
+measure allocations and bounded buffering before selecting/rewriting components.
+The production server must eventually remove yt-dlp/Node/mpv if the Rust-only scope
+is accepted and proven, not merely rename their launcher. Browser HTML/CSS/JS and
+OS audio drivers are not server responsibilities being rewritten. Python is currently
+used only for opt-in diagnostic/test tooling as well as the separate cloud fallback;
+its benchmark RSS is excluded from this report, not evidence of runtime compliance.
+Any requirement to remove development diagnostics too needs explicit scope agreement.
+
+## Historical 100 MB plan (not achieved)
 
 Status: 100 MB target not yet implemented/verified; concurrent-device architecture still awaits capacity/accounting/session decisions. The user has approved the first isolated audio-only Rust experiment, now implemented in `prototypes/rust-audio`; see [its build/test guide](RUST_AUDIO_PROTOTYPE.md). This does not switch production away from mpv/yt-dlp. This updates the earlier 20 MB target; it is not evidence that current playback fits within 100 MB.
 

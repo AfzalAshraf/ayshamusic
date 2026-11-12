@@ -540,3 +540,27 @@ hardware acceptance missing. Other department ratings unchanged. Next: run isola
 benchmark on actual Linux host; if native extraction fails, route that failure to QA,
 not production integration. Clarify phone audio vs home Bluetooth and independent vs
 shared listener controls before connection architecture changes.
+
+
+## Native target-host failure and revised 10–15 MB direction
+
+Active department: QA & Debugging. User supplied Linux build/test evidence5/5PASS and
+release compile, then native0/3 media_origin_rejected; yt-dlp2/3 prefix success with
+median3265.42ms, one short_or_non_mp4_probe. Rust sampled peaks22320–25752KiB vs
+baseline82976–89872KiB; no successful-path speed or memory advantage demonstrated.
+Report host timestamp2026-11-12T15:45:05Z, not claimed agent wall time. User now asks
+all server items Rust and10–15MB. Updated memory plan with latest goal, preserving
+historical100MB plan; scope/listener/audio-output accounting still needs agreement.
+No15MB cap, OOM enforcement, hidden helper relocation or production rewrite applied.
+
+Source shows original origin guard conflated empty/malformed URLs and origin failures.
+Added modular fixed-code validation with offline tests; allowlist unchanged, signed
+URLs never printed, no redirects/fallback/alternative formats. Dependency tag source
+can produce empty URLs; actual host reason still unknown until fixed code reported.
+Benchmark preserves native HWM on failure and reports only baseline failure byte
+count/header boolean/observed optional exit code; raw data/errors remain suppressed.
+Local48Python tests and git whitespace checkPASS. Latest cf61bea all4CIjobsPASS before
+this change; new Rust module verification pending CI, no localCargo/host execution.
+Production Rust5050, UI, Vercel and Rodio prototype untouched. Preserve unrelated pyc
+deletion. Playback/extraction rating remains2/5, not increased by a failed host test.
+Next: CI then one native probe; investigate that failure before any performance rewrite.

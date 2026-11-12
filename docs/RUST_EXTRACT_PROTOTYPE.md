@@ -132,3 +132,40 @@ Resolved lock artifact was uploaded by CI, but retrieving it here failed at the
 artifact-storage network boundary; transitive dependencies remain unlocked in source.
 A follow-up added tested Linux process-group RSS sampling and startup-inclusive
 comparison; local diagnostic suite48tests PASS. Live network benchmark remains pending.
+
+
+## First target-host report: failed native extraction, diagnosis required
+
+User reports all5offline tests and release build passed on /home/afine host.
+Supplied report timestamp2026-11-12T15:45:05.519136Z is retained as host evidence,
+not the agent's clock. Native0/3: media_origin_rejected, sampled RSS25752/25476/22320KiB.
+yt-dlp2/3: successful prefix3658.98/2871.86ms, median3265.42ms; failed run reported
+short_or_non_mp4_probe. Baseline sampled RSS82976/89788/89872KiB. No speedup claim;
+low memory for unsuccessful extraction cannot establish a working replacement.
+
+The previous guard collapsed empty, malformed, wrong-scheme/credentials/port/host URLs
+into media_origin_rejected. Therefore the report does NOT prove an untrusted hostname,
+DNS/network failure or working signature extraction. Updated fixed reason codes
+separate media_url_missing, media_url_invalid, media_scheme_rejected,
+media_credentials_rejected, media_port_rejected, media_host_missing and
+media_host_rejected. Same allowlist, no redirects, no metadata/signed URL logging.
+No fallback format/tool added to disguise failure. Inspected upstream v0.7.4 utils.rs
+parse_video_formats/set_download_url/decipher: formats can be returned with empty URLs;
+this is a source-based possibility, NOT established host root cause.
+
+Benchmark now retains native HWM on failure and adds byte count/header-presence/optional
+observed exit code for baseline failures (no upstream bytes/error text). These classify
+failure layers only; the failed baseline run is still undiagnosed. Run one isolated
+native probe after the new offline tests pass to obtain the precise fixed code:
+
+```bash
+cargo test --manifest-path prototypes/rust-extract/Cargo.toml &&
+cargo build --release --manifest-path prototypes/rust-extract/Cargo.toml &&
+timeout --kill-after=2s 75s \
+  ./prototypes/rust-extract/target/release/aysha-extract-prototype \
+  --video-id Jm7Satp7Zqk
+```
+
+The user now wants all server duties in Rust and10–15MB; see MEMORY_BUDGET_PLAN.md
+for the updated target and unresolved accounting/workload. Native failed RSS alone
+already exceeds15MB. Do not promote or remove production helpers yet.
