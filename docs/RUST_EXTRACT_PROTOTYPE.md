@@ -249,3 +249,40 @@ Recovery: this experiment only changes the isolated prototype's dependency/sourc
 Do not install/promote it. The root server, installed service, Vercel preview and
 Rust audio prototype remain unchanged; no production rollback needed. Earlier
 published-candidate source/evidence is retained in Git history at1729086.
+
+## Existing-lock resolver failure (not an extraction result)
+
+User's ace6189 update failed during Cargo resolution, before tests/build/media access:
+Boa0.21 requires icu_normalizer~2.0.0, while locked idna_adapter1.2.2 requires
+icu_normalizer^2.2 (host locked2.4.0). Cargo's minimal lock update kept the incompatible
+adapter. The clean-checkout CI pass did not cover this upgrade path. Source verification:
+https://github.com/hsivonen/idna_adapter/blob/v1.2.2/Cargo.toml requires ICU2.2;
+https://github.com/hsivonen/idna_adapter/blob/v1.2.1/Cargo.toml permits ICU2.x.
+
+Added an explicit idna_adapter=1.2.1 compatibility constraint only to the isolated
+prototype manifest. It is a resolver constraint on an existing transitive dependency,
+not another runtime worker. Cargo can reconcile the existing host lock in place,
+selecting Boa-compatible ICU2.0.x. Do not delete/edit the lock or run a broad cargo
+update, change the production manifest, or modify registry caches to work around this.
+This is a temporary compatibility pin; review it when Boa/upstream updates. It does
+not assert an older dependency is security-audited or that extraction now works.
+
+CI now seeds a clean checkout with the reported conflicting constraint shape using
+url2.5.8/idna_adapter1.2.2/ICU>=2.2, then runs the actual prototype tests against that
+lock and verifies adapter1.2.1/Boa0.21/ICU-normalizer2.0.x. The seed helper refuses to
+overwrite an existing lock and is CI-only. Do NOT run its seed mode on the user host.
+It reconstructs the resolver conflict, not the user's entire private lockfile.
+
+After this migration is verified in CI, the normal git-pull/cargo-test/cargo-build
+sequence above is still sufficient. Existing host lock files are preserved and
+updated normally by Cargo; no separate cleanup/install command is necessary. The
+successful build, if obtained, still needs the one native media probe; this resolver
+repair provides no live-compatibility, speed or memory acceptance.
+
+Migration verification completed: source4359933, CI43262098027 all4jobsPASS, including
+seeded conflicting lock -> actual10prototype tests -> graph/locked-metadata check ->
+release/CLI. Actual successful CI annotation: adapter1.2.1, Boa0.21.1, normalizer2.0.1.
+The initial verification assertion was too strict (exact Boa0.21.0), despite the
+prototype tests passing; corrected to compatible0.21.x. This does not pin all
+transitive dependencies or certify host media success. After cargo test updates the
+host lock normally, cargo build --release --locked can preserve that resolved graph.

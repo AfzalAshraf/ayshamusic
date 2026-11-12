@@ -622,3 +622,31 @@ Verification outcome: c227d8a CI43259772140 all4jobsPASS; pinned candidate ten o
 tests, release build and strictCLI smoke passed with new dependency APIs/features.
 Existing server/audio/browser checks also passed. No agent/CI live YouTube probe;
 compatibility fix still needs one actual-host test. No faster/lower-RSS/15MB claim.
+
+## Existing host lock conflict: IDNA/ICU versus new Boa dependency
+
+Active department: QA & Debugging. User's ace6189 host update failed BEFORE compilation:
+Boa0.21 requires icu_normalizer~2.0 while locked idna_adapter1.2.2 requires ICU^2.2,
+locked normalizer2.4.0. This is not a new extraction failure. Prior clean CI did not
+cover this existing-lock migration. Verified adapter upstream manifests1.2.2 versus
+1.2.1; pinned existing transitive adapter exactly1.2.1 only in isolated prototype.
+No host lock deletion/broad update/production dependency changes. Added CI-only
+resolver upgrade fixture with seeded url2.5.8/adapter1.2.2/ICU>=2.2, followed by real
+prototype tests then exact compatible dependency checks and locked metadata validation.
+Helper refuses to overwrite preexisting lock, temp fixture cleaned; do not run seed
+on target host. This reproduces relevant constraint shape, not the full target lock.
+Local49PythonPASS/shell syntaxPASS/whitespacePASS; no localCargo available. Source016b431
+pushed; migration CI pending at this entry. No new live extraction or15MB evidence,
+no readiness increase; root5050/UI/Vercel/Rodio and unrelated pyc deletion preserved.
+
+Verification history: first migration CI43261671566 (016b431) seeded conflict and
+passed the ten actual prototype tests, but the new verification step failed because
+it expected exact Boa0.21.0 instead of permitting compatible0.21 patch releases.
+Direct CI log retrieval failed at the artifact host network boundary (EOF); did not
+retry or claim its traceback was read. Updated check to0.21.x and added diagnostic
+annotations. Final4359933 CI43262098027 all4jobsPASS: seeded-lock migration, ten native
+tests, resolved-graph/locked-metadata check, release/CLI, root/audio/browser suites.
+Retrieved successful check annotation through GitHub API: idna_adapter1.2.1,
+boa_engine0.21.1, icu_normalizer2.0.1. This is regression evidence for the reported
+constraint shape, not a target-host build or live media proof. Host lock preserved;
+normal cargo test reconciles it, release can then use --locked. No new15MB/speed claim.
