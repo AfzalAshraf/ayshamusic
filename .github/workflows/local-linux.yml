@@ -91,7 +91,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test bounded direct-request prototype
-        run: cargo test --manifest-path prototypes/rust-direct/Cargo.toml
+        run: |
+          set +e
+          cargo test --manifest-path prototypes/rust-direct/Cargo.toml > "$RUNNER_TEMP/direct-tests.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/direct-tests.log"
+          if test "$code" -ne 0; then
+            TEST_LOG="$RUNNER_TEMP/direct-tests.log" python3 - <<'PY'
+          import os
+          from pathlib import Path
+          # Offline fixture/compiler output only, never real provider data.
+          text = Path(os.environ['TEST_LOG']).read_text(errors='replace')[-7000:]
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print('::error title=Direct prototype offline test failure::' + text)
+          PY
+          fi
+          exit "$code"
       - name: Build bounded direct-request prototype
         run: cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml
       - name: Verify dependency graph excludes extractor and JS engines
