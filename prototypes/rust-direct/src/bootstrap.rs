@@ -9,6 +9,20 @@ pub const PAGE_MAX: usize = 2 * 1024 * 1024;
 const JSON_MAX: usize = 1024 * 1024;
 const VISITOR_MAX: usize = 4096;
 
+// Fixed counts/booleans only: never page fragments, keys, values, offsets or hashes.
+#[derive(Default, serde::Serialize)]
+pub struct Observation {
+    inline_scripts: usize,
+    skipped_script_attributes: usize,
+    ignored_script_tails: usize,
+    config_objects: usize,
+    wrapped_config_blocks: usize,
+    initial_players: usize,
+    config_visitor_present: bool,
+    context_visitor_present: bool,
+    player_visitor_present: bool,
+}
+
 pub struct Visitor { value: String, metadata_nonfinite_ignored: bool, literal_syntax_normalized: bool }
 impl Visitor {
     pub fn as_header(&self) -> &str { &self.value }
@@ -213,12 +227,14 @@ fn json_end(data: &[u8]) -> Result<usize, &'static str> {
     super::literal_data::frame_end(data,JSON_MAX)
 }
 
-// Consume only two unrelated display-setting calls. No expression is evaluated,
+// Consume only allowlisted unrelated display-setting calls. No expression is evaluated,
 // and no dynamic visitor/auth/config key is skipped. Names/expressions are fixed.
 fn viewport_call(tail: &[u8]) -> Option<&[u8]> {
     for (key, expressions) in [
         (b"initialBodyClientWidth".as_slice(), [b"document.body.clientWidth".as_slice(), b"window.innerWidth"]),
         (b"initialBodyClientHeight".as_slice(), [b"document.body.clientHeight".as_slice(), b"window.innerHeight"]),
+        (b"initialInnerWidth".as_slice(), [b"window.innerWidth".as_slice(), b"window.innerWidth"]),
+        (b"initialInnerHeight".as_slice(), [b"window.innerHeight".as_slice(), b"window.innerHeight"]),
     ] {
         for quote in [b'\'',b'"'] {
             if tail.first() != Some(&quote) { continue; }
@@ -241,7 +257,11 @@ fn statement_end(after: &[u8], config: bool) -> Result<&[u8], &'static str> {
     after.strip_prefix(b";").ok_or(if config { "watch_config_terminator_invalid" } else { "watch_player_terminator_invalid" })
 }
 
+#[cfg(test)]
 pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
+    parse_observed(page,id,&mut Observation::default())
+}
+pub fn parse_observed(page: &[u8], id: &str, observation: &mut Observation) -> Result<Visitor, &'static str> {
     if page.len() > PAGE_MAX { return Err("watch_size_limit"); }
     // Deliberately conservative challenge/consent detection, not a general detector.
     // False positives stop the probe; no consent automation or challenge response.
@@ -280,8 +300,10 @@ pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
         let close = raw_close(rest,name).ok_or("watch_markup_unsupported")?;
         let script = &rest[..close];
         rest = &rest[close..];
-        if !eq(name,b"script") || template_depth != 0 || !attributes_safe(attrs) { continue; }
-        parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored,&mut literal_syntax_normalized)?;
+        if !eq(name,b"script") || template_depth != 0 { continue; }
+        if !attributes_safe(attrs) { observation.skipped_script_attributes += 1; continue; }
+        observation.inline_scripts += 1;
+        parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored,&mut literal_syntax_normalized,observation)?;
     }
     if !initial_seen { return Err("watch_player_missing"); }
     visitor.map(|value| Visitor { value, metadata_nonfinite_ignored, literal_syntax_normalized }).ok_or("watch_visitor_missing")
@@ -304,16 +326,83 @@ fn player_start(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
     let Some(rest)=word(data,b"ytInitialPlayerResponse") else { return Ok(None) };
     Ok(super::literal_data::trivia(rest)?.strip_prefix(b"="))
 }
-fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool, metadata_nonfinite_ignored: &mut bool, literal_syntax_normalized: &mut bool) -> Result<(), &'static str> {
+// Match fixed scaffold tokens, never search arbitrary JS or interpret expressions.
+// Identifier boundaries matter: functionX/window.ytplayerExtra are not matches.
+fn scaffold<'a>(mut data: &'a [u8], pattern: &str) -> Result<Option<&'a [u8]>, &'static str> {
+    for token in pattern.split_ascii_whitespace() {
+        data=super::literal_data::trivia(data)?;
+        let next=if token.as_bytes()[0].is_ascii_alphabetic() || token.starts_with('_') {
+            word(data,token.as_bytes())
+        } else { data.strip_prefix(token.as_bytes()) };
+        let Some(rest)=next else { return Ok(None) }; data=rest;
+    }
+    Ok(Some(data))
+}
+fn wrapper_open(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
+    let Some(body)=scaffold(script,"( function ( ) {")? else { return Ok(None) };
+    // Only a straight-line data prefix, optionally preceded by the exact known
+    // player namespace reset. Never descend into branches/named/async functions.
+    let body=super::literal_data::trivia(body)?;
+    if let Some(rest)=scaffold(body,"window . ytplayer = { } ;")? {
+        return Ok(Some(rest));
+    }
+    if config_start(body)?.is_some() { return Ok(Some(body)); }
+    Ok(None)
+}
+fn wrapper_close(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
+    for pattern in ["} ) ( )", "} ( ) )"] {
+        if let Some(rest)=scaffold(script,pattern)? {
+            return statement_end(rest,true).map(Some).map_err(|_| "watch_config_wrapper_terminator_invalid");
+        }
+    }
+    Ok(None)
+}
+// The archive's localization helper is accepted only as this entire fixed scaffold
+// followed by one static object and its call terminator. It is NOT run. Unknown
+// suffixes, including later auth/config mutations inside the wrapper, fail closed.
+fn localization_message(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
+    let pattern="var setMessage = function ( msg ) { if ( window . yt && yt . setMsg ) yt . setMsg ( msg ) ; else { window . ytcfg = window . ytcfg || { } ; ytcfg . msgs = msg } } ; setMessage (";
+    let Some(tail)=scaffold(script,pattern)? else { return Ok(None) };
+    let tail=super::literal_data::trivia(tail)?;
+    let end=json_end(tail)?;
+    let normalized=super::literal_data::player(&tail[..end],JSON_MAX)?;
+    serde_json::from_slice::<IgnoredAny>(&normalized.json).map_err(|_| "watch_messages_invalid")?;
+    let rest=super::literal_data::trivia(&tail[end..])?.strip_prefix(b")").ok_or("watch_messages_closer_missing")?;
+    Ok(Some(statement_end(rest,true)?))
+}
+fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool, metadata_nonfinite_ignored: &mut bool, literal_syntax_normalized: &mut bool, observation: &mut Observation) -> Result<(), &'static str> {
+    let mut wrapper = None;
+    let mut messages_seen = false;
     // Intentionally don't search inside arbitrary JS (strings/comments/functions).
     // Only recognized literals at script start or after another accepted literal.
     loop {
         script = super::literal_data::trivia(script)?;
+        if let Some(before) = wrapper {
+            if let Some(next)=wrapper_close(script)? {
+                if observation.config_objects == before { return Err("watch_config_wrapper_empty"); }
+                observation.wrapped_config_blocks += 1;
+                wrapper=None; script=next; continue;
+            }
+            if !messages_seen && observation.config_objects > before {
+                if let Some(next)=localization_message(script)? {
+                    messages_seen=true; script=next; continue;
+                }
+            }
+        }
+        if let Some(body)=wrapper_open(script)? {
+            if wrapper.is_some() { return Err("watch_config_wrapper_nested"); }
+            wrapper=Some(observation.config_objects); messages_seen=false; script=body; continue;
+        }
         let (tail, config) = if let Some(tail)=config_start(script)? {
             (super::literal_data::trivia(tail)?,true)
         } else if let Some(tail)=player_start(script)? {
             (super::literal_data::trivia(tail)?,false)
-        } else { return Ok(()) };
+        } else {
+            if wrapper.is_some() { return Err("watch_config_wrapper_unsupported"); }
+            if !script.is_empty() { observation.ignored_script_tails += 1; }
+            return Ok(());
+        };
+        if wrapper.is_some() && !config { return Err("watch_config_wrapper_unsupported"); }
         if config && tail.first() != Some(&b'{') {
             if let Some(after) = viewport_call(tail) {
                 script = statement_end(after,true)?;
@@ -333,8 +422,12 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
             *metadata_nonfinite_ignored |= cfg.metadata_nonfinite_ignored;
             *literal_syntax_normalized |= cfg.literal_syntax_normalized;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
+            observation.config_objects += 1;
+            observation.config_visitor_present |= cfg.visitor.is_some();
+            let context_visitor=cfg.context.and_then(|c| c.client).and_then(|c| c.visitor);
+            observation.context_visitor_present |= context_visitor.is_some();
             remember(visitor,cfg.visitor)?;
-            remember(visitor,cfg.context.and_then(|c| c.client).and_then(|c| c.visitor))?;
+            remember(visitor,context_visitor)?;
         } else {
             if *initial_seen { return Err("watch_player_ambiguous"); }
             let normalized = super::literal_data::player(&tail[..end],JSON_MAX)?;
@@ -346,7 +439,10 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
                 video_details: pr.video_details, streaming_data: None };
             super::playability(&player)?;
             super::identity(&player,id)?;
-            remember(visitor,pr.response_context.and_then(|r| r.visitor))?;
+            let response_visitor=pr.response_context.and_then(|r| r.visitor);
+            observation.player_visitor_present |= response_visitor.is_some();
+            remember(visitor,response_visitor)?;
+            observation.initial_players += 1;
             *initial_seen = true;
         }
         script = next;
@@ -543,4 +639,105 @@ mod tests {
         }
         assert_eq!(parse(b"<script>(() => {ytcfg.set({});})();</script>",ID).err(),Some("watch_player_missing"));
     }
+    fn with_script(script: &str) -> Vec<u8> {
+        format!("<script>{script}</script><script>var ytInitialPlayerResponse={};</script>",player()).into_bytes()
+    }
+    #[test] fn archive_shaped_synthetic_wrapper_is_read_without_evaluating_scaffold() {
+        let data=include_bytes!("../fixtures/static-wrapper.html");
+        let mut observed=Observation::default();
+        let visitor=parse_observed(data,ID,&mut observed).unwrap();
+        assert_eq!(visitor.as_header(),"fixture_opaque_NEVER_PRINT");
+        assert!(visitor.literal_syntax_normalized()); assert!(visitor.metadata_nonfinite_ignored());
+        let report=serde_json::to_value(observed).unwrap();
+        assert_eq!(report["inline_scripts"],3); assert_eq!(report["config_objects"],1);
+        assert_eq!(report["wrapped_config_blocks"],1); assert_eq!(report["initial_players"],1);
+        assert_eq!(report["ignored_script_tails"],2);
+        assert_eq!(report["config_visitor_present"],true); assert_eq!(report["context_visitor_present"],true);
+        for private in ["fixture_opaque_NEVER_PRINT","Hello","DOWNLOAD","must_not_execute"] {
+            assert!(!report.to_string().contains(private));
+        }
+    }
+    #[test] fn complete_parameterless_wrappers_allow_trivia_and_both_invocation_forms() {
+        for script in ["(function(){ytcfg.set({VISITOR_DATA:'opaque'});})();",
+            "( /* a */ function /* b */ ( ) { window . ytplayer = { } ; ytcfg . set ({VISITOR_DATA:'opaque'}); } ( ) ) ;",
+            "(function(){ytcfg.set({VISITOR_DATA:'opaque'});ytcfg.set({LOGGED_IN:false});})();"] {
+            assert_eq!(parse(&with_script(script),ID).unwrap().as_header(),"opaque");
+        }
+    }
+    #[test] fn uninvoked_partial_nested_or_effectful_wrappers_never_supply_context() {
+        for script in ["(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});});",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});}",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});}).call(window);",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});}).bind(window)();",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});return;})();",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});evil();})();",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});(function(){ytcfg.set({});})();})();",
+            "(function(){window.ytplayer={};})();",
+            "(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});ytcfg.set('LOGGED_IN',getLogin());})();"] {
+            let error=parse(&with_script(script),ID).err().unwrap();
+            assert!(!error.contains("PRIVATE"));
+        }
+    }
+    #[test] fn wrappers_never_downgrade_login_duplicate_conflict_or_restriction_checks() {
+        for (cfg,error) in [("{VISITOR_DATA:'opaque',LOGGED_IN:true}","watch_authenticated_unsupported"),
+            ("{VISITOR_DATA:'opaque',LOGGED_IN:'false'}","watch_config_login_type"),
+            ("{VISITOR_DATA:'one',VISITOR_DATA:'two'}","watch_config_duplicate_visitor"),
+            ("{VISITOR_DATA:'one',INNERTUBE_CONTEXT:{client:{visitorData:'two'}}}","watch_visitor_ambiguous"),
+            (r#"{VISITOR_DATA:'bad\r\nvalue'}"#,"watch_visitor_invalid")] {
+            let script=format!("(function(){{window.ytplayer={{}};ytcfg.set({cfg});}})();");
+            assert_eq!(parse(&with_script(&script),ID).err(),Some(error));
+        }
+        let data=with_script("(function(){ytcfg.set({VISITOR_DATA:'x'});ytcfg.set({LOGGED_IN:true});})();");
+        assert_eq!(parse(&data,ID).err(),Some("watch_authenticated_unsupported"));
+        let data=include_bytes!("../fixtures/static-wrapper.html");
+        let restricted=String::from_utf8_lossy(data).replace("status:'OK'","status:'LOGIN_REQUIRED'");
+        assert_eq!(parse(restricted.as_bytes(),ID).err(),Some("player_login_required"));
+    }
+    #[test] fn no_search_in_named_conditional_async_arrow_or_quoted_functions() {
+        for script in ["(function named(){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "(function(arg){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "(async function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "(()=>{ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "(function(){if(false){ytcfg.set({VISITOR_DATA:'PRIVATE'});}})();",
+            "(function(){throw 1;ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "var text=\"(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();\";",
+            "/* (function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});})(); */"] {
+            assert_eq!(parse(&with_script(script),ID).err(),Some("watch_visitor_missing"));
+        }
+    }
+    #[test] fn unknown_or_dynamic_message_helper_is_not_silently_skipped() {
+        let data=String::from_utf8_lossy(include_bytes!("../fixtures/static-wrapper.html"));
+        for changed in [data.replace("ytcfg.msgs=msg","ytcfg.LOGGED_IN=true"),
+            data.replace("setMessage({","setMessage(getMessages(),{"),
+            data.replace("\"HELLO\":\"Hello\"","\"HELLO\":secret()"),
+            data.replace("setMessage({","setMessage(`template`,{")] {
+            assert!(parse(changed.as_bytes(),ID).is_err());
+        }
+    }
+    #[test] fn missing_visitor_observations_distinguish_absent_data_from_skipped_scaffold() {
+        let mut observed=Observation::default();
+        let absent=with_script("(function(){ytcfg.set({LOGGED_IN:false});})();");
+        assert_eq!(parse_observed(&absent,ID,&mut observed).err(),Some("watch_visitor_missing"));
+        assert_eq!(observed.config_objects,1); assert_eq!(observed.wrapped_config_blocks,1);
+        assert_eq!(observed.initial_players,1); assert!(!observed.config_visitor_present);
+        let mut observed=Observation::default();
+        let unsupported=with_script("if(false){ytcfg.set({VISITOR_DATA:'PRIVATE'});}");
+        assert_eq!(parse_observed(&unsupported,ID,&mut observed).err(),Some("watch_visitor_missing"));
+        assert_eq!(observed.config_objects,0); assert_eq!(observed.ignored_script_tails,1);
+        assert!(!serde_json::to_string(&observed).unwrap().contains("PRIVATE"));
+    }
+    #[test] fn inert_or_external_wrappers_are_not_visitor_sources_and_attributes_are_counted() {
+        for container in ["<template><script>{}</script></template>","<textarea><script>{}</script></textarea>",
+            "<script src='external.js'>{}</script>","<script type='application/json'>{}</script>"] {
+            let data=container.replace("{}","(function(){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();");
+            let mut data=data.into_bytes(); data.extend_from_slice(&with_script(""));
+            assert_eq!(parse(&data,ID).err(),Some("watch_visitor_missing"));
+        }
+        let mut data=b"<script src='PRIVATE.js'>ignored</script>".to_vec();data.extend_from_slice(&with_script(""));
+        let mut observed=Observation::default();
+        assert_eq!(parse_observed(&data,ID,&mut observed).err(),Some("watch_visitor_missing"));
+        assert_eq!(observed.skipped_script_attributes,1);
+        assert!(!serde_json::to_string(&observed).unwrap().contains("PRIVATE"));
+    }
+
 }

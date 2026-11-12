@@ -8,8 +8,8 @@ use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
-const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v5-data-literals";
-const INSPECT_IDENTITY: &str = "aysha-direct-v5-watch-inspect";
+const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v5.1-static-wrapper";
+const INSPECT_IDENTITY: &str = "aysha-direct-v5.1-watch-observation";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -163,7 +163,7 @@ fn player_request(client: &Client, id: &str, profile: RequestProfile, visitor: O
     } else { request };
     request.json(&player_body(id, profile))
 }
-async fn watch_visitor(client: &Client, id: &str) -> Result<bootstrap::Visitor, &'static str> {
+async fn watch_visitor(client: &Client, id: &str, observation: &mut bootstrap::Observation) -> Result<bootstrap::Visitor, &'static str> {
     let mut response = client.get(format!("https://www.youtube.com/watch?v={id}&hl=en"))
         .header("User-Agent",AGENT).send().await.map_err(|_| "watch_request_failed")?;
     if !response.status().is_success() { return Err("watch_http_failed"); }
@@ -178,7 +178,7 @@ async fn watch_visitor(client: &Client, id: &str) -> Result<bootstrap::Visitor, 
         if chunk.len() > bootstrap::PAGE_MAX.saturating_sub(bytes.len()) { return Err("watch_size_limit"); }
         bytes.extend_from_slice(&chunk);
     }
-    bootstrap::parse(&bytes,id)
+    bootstrap::parse_observed(&bytes,id,observation)
 }
 fn http_client() -> Result<Client, &'static str> {
     Client::builder().https_only(true).no_proxy()
@@ -196,21 +196,23 @@ fn watch_summary(visitor: bootstrap::Visitor, started: Instant) -> serde_json::V
         "total_ms":started.elapsed().as_millis(), "peak_rss_kib":peak_kib()})
 }
 // Separate watch-only branch: it has no call to player_request/probe/media logic.
-async fn inspect_watch(id: &str, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
+async fn inspect_watch(id: &str, stage: &mut &'static str, observation: &mut bootstrap::Observation) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
     let client = http_client()?;
     *stage = "watch";
-    let visitor = watch_visitor(&client,id).await?;
-    Ok(watch_summary(visitor,started))
+    let visitor = watch_visitor(&client,id,observation).await?;
+    let mut summary=watch_summary(visitor,started);
+    summary["watch_observation"]=json!(observation);
+    Ok(summary)
 }
-async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> Result<serde_json::Value, &'static str> {
+async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str, observation: &mut bootstrap::Observation) -> Result<serde_json::Value, &'static str> {
     let started = Instant::now();
     let client = http_client()?;
     // The explicit watch-bootstrap mode alone reads anonymous context. Never loads or stores account cookies,
     // creates PO tokens, follows redirects or responds to provider restrictions.
     let visitor = if profile == RequestProfile::WatchBootstrap {
         *stage = "watch";
-        Some(watch_visitor(&client,id).await?)
+        Some(watch_visitor(&client,id,observation).await?)
     } else { None };
     let metadata_nonfinite_ignored = visitor.as_ref().is_some_and(|v| v.metadata_nonfinite_ignored());
     let literal_syntax_normalized = visitor.as_ref().is_some_and(|v| v.literal_syntax_normalized());
@@ -247,7 +249,8 @@ async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> R
     Ok(json!({"status":"pass", "candidate":profile.identity(), "bytes":count, "itag":format.itag,
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":started.elapsed().as_millis(),
         "peak_rss_kib":peak_kib(), "external_tools":false, "production_ready":false,
-        "literal_syntax_normalized":literal_syntax_normalized,"metadata_nonfinite_ignored":metadata_nonfinite_ignored}))
+        "literal_syntax_normalized":literal_syntax_normalized,"metadata_nonfinite_ignored":metadata_nonfinite_ignored,
+        "watch_observation":observation}))
 }
 async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'static str>>, limit: Duration) -> Result<T, &'static str> {
     tokio::time::timeout(limit,future).await.map_err(|_| "deadline_exceeded")?
@@ -256,7 +259,7 @@ async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v5 data-literal check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v5 static data/anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v5.1 static watch check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v5.1 static data/anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {
@@ -267,10 +270,11 @@ async fn main() {
         }
     };
     let mut stage = "init";
+    let mut observation = bootstrap::Observation::default();
     let result = if profile == RequestProfile::WatchInspect {
-        within_deadline(inspect_watch(id,&mut stage),Duration::from_secs(60)).await
+        within_deadline(inspect_watch(id,&mut stage,&mut observation),Duration::from_secs(60)).await
     } else {
-        within_deadline(probe(id, profile, &mut stage),Duration::from_secs(60)).await
+        within_deadline(probe(id, profile, &mut stage,&mut observation),Duration::from_secs(60)).await
     };
     match result {
         Ok(metrics) => println!("{metrics}"),
@@ -278,7 +282,7 @@ async fn main() {
             println!("{}",json!({"status":"fail", "candidate":profile.identity(), "code":code, "stage":stage,
                 "external_tools":false, "watch_parser_only":profile == RequestProfile::WatchInspect,
                 "player_requested":stage == "player" || stage == "media", "media_requested":stage == "media",
-                "peak_rss_kib":peak_kib(), "production_ready":false}));
+                "peak_rss_kib":peak_kib(), "production_ready":false, "watch_observation":observation}));
             std::process::exit(1);
         }
     }
@@ -414,6 +418,23 @@ mod tests {
             let error=bootstrap::parse(html.as_bytes(),"Jm7Satp7Zqk").err().unwrap();
             assert_eq!(error,expected); assert!(!error.contains("PRIVATE"));
         }
+    }
+    #[tokio::test(flavor="current_thread")] async fn fixture_wrapper_pipeline_keeps_visitor_private_and_request_origin_fixed() {
+        let mut observed=bootstrap::Observation::default();
+        let visitor=bootstrap::parse_observed(include_bytes!("../fixtures/static-wrapper.html"),"Jm7Satp7Zqk",&mut observed).unwrap();
+        let request=player_request(&http_client().unwrap(),"Jm7Satp7Zqk",RequestProfile::WatchBootstrap,Some(&visitor)).build().unwrap();
+        assert_eq!(request.url().as_str(),"https://www.youtube.com/youtubei/v1/player?prettyPrint=false");
+        assert_eq!(request.headers()["X-Goog-Visitor-Id"],"fixture_opaque_NEVER_PRINT");
+        assert!(request.headers().get("authorization").is_none()); assert!(request.headers().get("cookie").is_none());
+        let body=request.body().unwrap().as_bytes().unwrap();
+        assert!(!String::from_utf8_lossy(body).contains("fixture_opaque_NEVER_PRINT"));
+        let payload=fixture(json!([format("https://x.googlevideo.com/audio",128000)]));
+        assert_eq!(select(&payload,"Jm7Satp7Zqk").unwrap().itag,140);
+        validate_sample(65536,b"\0\0\0\x20ftyp").unwrap();
+        let mut summary=watch_summary(visitor,Instant::now());summary["watch_observation"]=json!(observed);
+        assert_eq!(summary["watch_observation"]["wrapped_config_blocks"],1);
+        assert_eq!(summary["native_acquisition_demonstrated"],false);
+        assert!(!summary.to_string().contains("fixture_opaque_NEVER_PRINT"));
     }
     #[test] fn ids_and_origins_fail_closed() {
         assert!(valid_id("Jm7Satp7Zqk")); assert!(!valid_id("--exec=evil"));
