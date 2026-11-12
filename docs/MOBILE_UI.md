@@ -177,3 +177,9 @@ The local sprite now contains19 symbols with the new project-owned butterfly. Ch
 ## Single sandbox preview port
 
 Use only port5050 for the interactive sandbox UI. The duplicate5051 debug preview was stopped at the user's request; it was the same source, not a separate feature build. The helper now defaults to5050, serving all current compact heart-shaped reveals, red butterfly morphs and click/tap flights. Historical entries mentioning two running ports describe earlier verification, not the current preview setup.
+
+## Fuller clicks: same tiny red butterflies, no larger hearts
+
+User asks clicks to release more of the same cute butterflies from revealed hearts. Click/tap now emits12 red12–16px heart-to-butterfly morphs (previously2 butterflies+6 larger hearts). Lift-off comes from6 nearby20px tile centres inside/around the compact reveal, instead of all particles sharing the pointer coordinate. Hover stays2 per240ms. Pre-click hover particles are removed to avoid duplicate bursts. The existing112x104 heart mask, always-on behavior, cleanup and max32 concurrent particles remain unchanged. Only5050 preview remains active;5051 is not restarted.
+
+Verification:66 frontend cases,17 Python checks and nine browser checks pass locally. Tests require12 all-red butterfly morphs (zero larger heart particles),6 tile-centre origin positions, preserved touch/mouse/iframe/no-backend/Reduce Motion flight behavior and rapid-click32-particle cap with one reveal timeout. Inspected mobile-love-hearts.png for the red butterflies. No dependency/API/audio/storage change; physical-device acceptance still pending.

@@ -363,6 +363,13 @@ function spawnHeartParticle(x, y, variant = 'heart') {
   // Cleanup even if a modal closes or an animation is cancelled.
   heartParticles.set(particle, setTimeout(() => removeHeartParticle(particle), life + 150));
 }
+function heartTileOrigins(x, y) {
+  const tx = Math.round((x - 10) / 20) * 20 + 10;
+  const ty = Math.round((y - 10) / 20) * 20 + 10;
+  // Nearby revealed tile centres, not a burst of larger hearts at one point.
+  return [[-20, 0], [20, 0], [0, 0], [-20, -20], [20, -20], [0, 20]]
+    .map(([dx, dy]) => ({ x: tx + dx, y: ty + dy }));
+}
 function heartPointerClick(event) {
   // A single click listener handles mouse/touch taps without double pointerup bursts.
   // Embedded previews/automation can dispatch coordinate clicks with detail=0.
@@ -371,7 +378,11 @@ function heartPointerClick(event) {
   if (event.target.closest('input, textarea, select, [contenteditable]')) return;
   revealHeartField(event.clientX, event.clientY);
   for (const particle of heartParticles.keys()) { if (particle.className.includes('hover-butterfly')) removeHeartParticle(particle); }
-  for (let i = 0; i < 8; i++) spawnHeartParticle(event.clientX, event.clientY, i < 2 ? 'butterfly' : 'heart');
+  const origins = heartTileOrigins(event.clientX, event.clientY);
+  for (let i = 0; i < 12; i++) {
+    const origin = origins[i % origins.length];
+    spawnHeartParticle(origin.x, origin.y, 'butterfly');
+  }
 }
 function initializeHeartEffects() {
   if (heartEffectsInitialized || typeof document.addEventListener !== 'function') return;

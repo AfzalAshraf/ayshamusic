@@ -714,21 +714,26 @@ function heartEffectsHarness() {
   return { ...h, get particles() { return nodes.filter(p => p.className.startsWith('heart-particle')); }, get fields() { return nodes.filter(p => p.className === 'heart-reveal'); }, timers, listeners, preference, event: (extra = {}) => ({ clientX: 90, clientY: 100, detail: 1, button: 0, pointerType: 'mouse', buttons: 0, target: { closest: () => null }, ...extra }) };
 }
 
-test('click/tap launches eight fluttering local hearts at the click without network/storage/audio', () => {
+test('click/tap launches twelve small red butterflies from revealed tiles without network/storage/audio', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 8);
-  assert.equal(h.timers.size, 9);
+  assert.equal(h.particles.length, 12);
+  assert.equal(h.timers.size, 13);
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page' && p.innerHTML.includes('/icons.svg#heart')));
   for (const p of h.particles) {
-    assert.equal(p.style.left, '90px');
-    assert.equal(p.style.top, '100px');
+    assert.equal(Number.parseFloat(p.style.left) % 20, 10);
+    assert.equal(Number.parseFloat(p.style.top) % 20, 10);
+    assert.ok(Math.abs(Number.parseFloat(p.style.left) - 90) <= 30);
+    assert.ok(Math.abs(Number.parseFloat(p.style.top) - 100) <= 30);
+    assert.ok(p.className.includes('is-butterfly'));
+    assert.equal(p.style['--heart-color'], '#ed304b');
     assert.ok(parseFloat(p.style['--heart-lift']) <= -180);
     assert.ok(parseFloat(p.style['--heart-life']) >= 2200 && parseFloat(p.style['--heart-life']) <= 2800);
     assert.ok(parseFloat(p.style['--heart-flap']) >= 150);
-    assert.ok(parseFloat(p.style['--heart-size']) >= (p.className.includes('is-butterfly') ? 12 : 18));
+    assert.ok(parseFloat(p.style['--heart-size']) >= 12 && parseFloat(p.style['--heart-size']) < 16);
   }
   assert.equal(h.fields.length, 1);
+  assert.equal(new Set(h.particles.map(p => p.style.left + ',' + p.style.top)).size, 6, 'Butterflies lift from several revealed tiles');
   assert.equal(h.calls.length, 0);
   assert.equal(h.quoteStorage.size + h.storage.size, 0);
   assert.equal(h.element('audio-player').playCount, 0);
@@ -749,7 +754,7 @@ test('butterfly hearts use native-dialog layers and survive closing the intro or
   h.element('now-playing').open = false;
   h.element('now-playing').listeners.close();
   assert.ok(h.particles.every(p => p.host === 'heart-effects-page'));
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 12);
 });
 
 test('keyboard, secondary clicks and form editing do not launch butterflies', () => {
@@ -777,16 +782,16 @@ test('explicit always-on hearts ignore reduced motion but hidden pages still sto
   const h = heartEffectsHarness();
   h.preference.matches = true;
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 8);
-  assert.equal(h.timers.size, 9);
+  assert.equal(h.particles.length, 12);
+  assert.equal(h.timers.size, 13);
   h.preference.matches = false;
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 16);
+  assert.equal(h.particles.length, 24);
   h.context.document.hidden = true;
   h.listeners.visibilitychange.fn();
   assert.equal(h.timers.size, 0);
   h.context.heartPointerClick(h.event());
-  assert.equal(h.particles.length, 16);
+  assert.equal(h.particles.length, 24);
 });
 
 test('butterfly initialization is idempotent and invalid coordinates never create nodes', () => {
@@ -802,8 +807,8 @@ test('touch pointerout never cancels newly launched flights', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event({ pointerType: 'touch' }));
   h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
-  assert.equal(h.particles.filter(p => !p.removed).length, 8);
-  assert.equal(h.timers.size, 9);
+  assert.equal(h.particles.filter(p => !p.removed).length, 12);
+  assert.equal(h.timers.size, 13);
 });
 
 test('butterfly flight and red spotlight CSS coexist', () => {
@@ -820,11 +825,11 @@ test('butterfly flight and red spotlight CSS coexist', () => {
 test('embedded-preview coordinate clicks with detail zero still launch butterfly hearts', () => {
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event({ detail: 0, clientX: 130, clientY: 220 }));
-  assert.equal(h.particles.length, 8);
-  assert.ok(h.particles.every(p => p.style.left === '130px' && p.style.top === '220px'));
+  assert.equal(h.particles.length, 12);
+  assert.ok(h.particles.every(p => Number.parseFloat(p.style.left) % 20 === 10 && Number.parseFloat(p.style.top) % 20 === 10));
 });
 
-test('hover reveals a stationary red tile pattern without spawning butterflies or growing nodes', () => {
+test('hover reveals a stationary tile pattern with bounded butterflies and no growing field nodes', () => {
   const h = heartEffectsHarness();
   let now = 1000;
   h.context.Date = { now: () => now };
@@ -855,9 +860,9 @@ test('mouse exit fades reveal only; touch exit does not cancel flying hearts', (
   const h = heartEffectsHarness();
   h.context.heartPointerClick(h.event());
   h.listeners.pointerout.fn({ pointerType: 'touch', relatedTarget: null });
-  assert.equal(h.timers.size, 9);
+  assert.equal(h.timers.size, 13);
   h.listeners.pointerout.fn({ pointerType: 'mouse', relatedTarget: null });
-  assert.equal(h.timers.size, 8);
+  assert.equal(h.timers.size, 12);
   assert.equal(h.fields[0].classList.contains('is-revealed'), false);
   assert.ok(h.particles.every(p => !p.removed));
 });
@@ -900,8 +905,8 @@ test('revealed tile hearts morph into small red butterflies with a bounded hover
   h.context.heartPointerClick(h.event());
   assert.ok(h.particles.filter(p => p.className.includes('hover-butterfly')).every(p => p.removed));
   const alive = h.particles.filter(p => !p.removed);
-  assert.equal(alive.length, 8);
-  assert.equal(alive.filter(p => p.className.includes('is-butterfly')).length, 2, 'Touch/click also includes red butterfly morphs');
+  assert.equal(alive.length, 12);
+  assert.equal(alive.filter(p => p.className.includes('is-butterfly')).length, 12, 'Touch/click also includes red butterfly morphs');
 });
 
 test('child morph animation completion never prematurely removes a butterfly flight', () => {
@@ -925,4 +930,17 @@ test('reveal uses a compact heart silhouette and denser little-heart tiles, not 
   assert.ok(source.includes('mask-size:112px 104px'));
   assert.ok(source.includes("d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'"));
   assert.ok(!source.includes('radial-gradient(circle var(--reveal-radius)'));
+});
+
+
+test('rapid fuller butterfly clicks retain the particle cap and do not accumulate reveal timers', () => {
+  const h = heartEffectsHarness();
+  for (let i = 0; i < 10; i++) h.context.heartPointerClick(h.event());
+  const alive = h.particles.filter(p => !p.removed);
+  assert.equal(alive.length, 32);
+  assert.ok(alive.every(p => p.className.includes('is-butterfly') && p.style['--heart-color'] === '#ed304b'));
+  assert.equal(h.fields.length, 1);
+  assert.equal(h.timers.size, 33);
+  h.context.clearHeartEffects();
+  assert.equal(h.timers.size, 0);
 });
