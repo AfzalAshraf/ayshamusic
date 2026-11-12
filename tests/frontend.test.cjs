@@ -12,6 +12,13 @@ function harness(connected = false, storage = new Map(), quoteStorage = new Map(
     if (!elements.has(id)) elements.set(id, {
       style: {}, value: 80, textContent: '', innerHTML: '', src: '', volume: 0.8,
       listeners: {}, attributes: {},
+      classList: {
+        values: new Set(),
+        contains(name) { return this.values.has(name); },
+        add(name) { this.values.add(name); },
+        remove(name) { this.values.delete(name); },
+        toggle(name, force) { if (force === undefined) force = !this.values.has(name); if (force) this.values.add(name); else this.values.delete(name); return force; },
+      },
       currentTime: 0, paused: true, playCount: 0,
       pause() { this.paused = true; },
       load() { this.currentTime = 0; },
@@ -432,4 +439,180 @@ test('quote storage filters unknown IDs and unbounded preference values', () => 
   assert.equal(h.element('quote-personalize').checked, false);
   assert.equal(vm.runInContext('quoteState.more.love || 0', h.context), 0);
   assert.equal(vm.runInContext('quoteState.more.rest', h.context), 3);
+});
+
+test('full-player favorite is disabled without a selection and makes no request', async () => {
+  const h = harness();
+  h.context.syncNowPlaying();
+  assert.equal(h.element('full-favorite').disabled, true);
+  await h.context.toggleCurrentFavorite();
+  assert.equal(h.calls.length, 0);
+});
+
+test('full-player heart uses existing favorites endpoints, updates state and preserves audio', async () => {
+  const h = harness();
+  h.context.renderGrid = () => {};
+  await h.context.playSong(track);
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({ url, opts });
+    return { ok: true, json: async () => url === '/api/liked' ? [] : { status: 'ok' } };
+  };
+  const source = h.element('audio-player').src;
+  const playCount = h.element('audio-player').playCount;
+  await h.context.toggleCurrentFavorite();
+  const like = h.calls.find(c => c.url === '/api/like');
+  assert.equal(JSON.parse(like.opts.body).id, track.id);
+  assert.equal(typeof JSON.parse(like.opts.body).thumbnail, 'string');
+  assert.equal(h.element('full-favorite').attributes['aria-pressed'], 'true');
+  assert.equal(h.element('full-favorite').attributes['aria-label'], 'Remove from favorites');
+  assert.ok(h.element('full-favorite').classList.contains('liked'));
+  await h.context.toggleCurrentFavorite();
+  assert.ok(h.calls.some(c => c.url === '/api/unlike'));
+  assert.equal(h.element('full-favorite').attributes['aria-pressed'], 'false');
+  assert.equal(h.element('audio-player').src, source);
+  assert.equal(h.element('audio-player').playCount, playCount);
+});
+
+test('favorite failures stay unselected and report an error instead of false success', async () => {
+  const h = harness();
+  h.context.renderGrid = () => {};
+  await h.context.playSong(track);
+  h.context.fetch = async url => ({ ok: true, json: async () => url === '/api/liked' ? [] : { status: 'failed', error: 'Offline' } });
+  await h.context.toggleCurrentFavorite();
+  assert.equal(h.element('full-favorite').attributes['aria-pressed'], 'false');
+  assert.equal(h.element('full-favorite').disabled, false);
+  assert.match(h.element('full-action-status').textContent, /Offline/);
+});
+
+test('favorite requests are single flight and pending changes do not like the next track', async () => {
+  const h = harness();
+  h.context.renderGrid = () => {};
+  await h.context.playSong(track);
+  h.context.fetch = async () => ({ ok: true, json: async () => [] });
+  await h.context.refreshFavorites();
+  let finish;
+  let writes = 0;
+  h.context.fetch = () => { writes++; return new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => ({ status: 'liked' }) }); }); };
+  const first = h.context.toggleCurrentFavorite();
+  assert.equal(h.element('full-favorite').disabled, true);
+  await h.context.toggleCurrentFavorite();
+  assert.equal(writes, 1);
+  vm.runInContext("state.current_track = { id: 'next', title: 'Next track' };", h.context);
+  h.context.syncNowPlaying();
+  finish();
+  await first;
+  assert.equal(h.element('full-favorite').attributes['aria-pressed'], 'false');
+  assert.equal(vm.runInContext("state.liked[0].id", h.context), track.id);
+});
+
+test('favorites loaded from server update the full-player heart', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  h.context.fetch = async () => ({ ok: true, json: async () => [track] });
+  await h.context.refreshFavorites();
+  assert.equal(h.element('full-favorite').attributes['aria-pressed'], 'true');
+});
+
+test('natural end asks about the completed song and continues autoplay without waiting', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  let advances = 0;
+  h.context.nextTrack = () => { advances++; vm.runInContext("state.current_track = {id:'next', title:'Next song'}", h.context); };
+  h.element('audio-player').listeners.ended();
+  assert.equal(advances, 1);
+  assert.equal(h.element('song-rating').hidden, false);
+  assert.equal(h.element('song-rating-title').textContent, track.title);
+  h.context.rateCompletedSong(4);
+  const stored = JSON.parse(h.quoteStorage.get('aysha.song-ratings.v1'));
+  assert.deepEqual(stored.entries, [{ id: track.id, title: track.title, rating: 4 }]);
+  assert.equal(h.element('song-rating').hidden, true);
+  assert.match(h.element('song-ratings-list').innerHTML, /4\/5/);
+});
+
+test('rated songs skip prompts after reload; dismissing alone does not rate a song', () => {
+  const h = harness();
+  assert.equal(h.context.askForSongRating(track), true);
+  h.context.dismissSongRating();
+  assert.equal(h.quoteStorage.size, 0);
+  assert.equal(h.context.askForSongRating(track), true);
+  h.context.rateCompletedSong(5);
+  const refreshed = harness(false, new Map(), h.quoteStorage);
+  assert.equal(refreshed.context.askForSongRating(track), false);
+  assert.equal(vm.runInContext('songRatings.pending', refreshed.context), null);
+});
+
+test('stop, skip and invalid ratings do not save ratings or prompt', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  await h.context.stopPlay();
+  h.element('audio-player').listeners.ended();
+  assert.equal(vm.runInContext('songRatings.pending', h.context), null);
+  await h.context.nextTrack();
+  assert.equal(h.quoteStorage.has('aysha.song-ratings.v1'), false);
+  h.context.askForSongRating(track);
+  for (const rating of [0, 6, 2.5, '5', NaN]) h.context.rateCompletedSong(rating);
+  assert.equal(h.quoteStorage.has('aysha.song-ratings.v1'), false);
+});
+
+test('rating prompt remains accessible inside the modal and returns outside when closed', () => {
+  const h = harness();
+  h.context.askForSongRating(track);
+  h.element('now-playing').open = true;
+  h.context.renderRatingPrompt();
+  assert.equal(h.element('song-rating').hidden, true);
+  assert.equal(h.element('full-song-rating').hidden, false);
+  h.element('now-playing').open = false;
+  h.element('now-playing').listeners.close();
+  assert.equal(h.element('song-rating').hidden, false);
+});
+
+test('unavailable rating storage works for this page and reports failed persistence honestly', () => {
+  const store = { get() { throw Error('Denied'); }, set() { throw Error('Full'); }, delete() { throw Error('Denied'); } };
+  const h = harness(false, new Map(), store);
+  h.context.askForSongRating(track);
+  h.context.rateCompletedSong(3);
+  assert.equal(h.context.askForSongRating(track), false);
+  assert.match(h.element('full-action-status').textContent, /page only/);
+  h.context.clearSongRatings();
+  assert.match(h.element('full-action-status').textContent, /may return/);
+});
+
+test('malformed rating data is bounded, sanitized and rendered as text', () => {
+  const data = { version: 1, entries: [
+    { id: 'abc', title: '<script>bad</script>', rating: 4 },
+    { id: 'abc', title: 'duplicate', rating: 5 },
+    { id: 'bad', title: 'Bad score', rating: 99 },
+  ] };
+  const h = harness(false, new Map(), new Map([['aysha.song-ratings.v1', JSON.stringify(data)]]));
+  h.context.renderSongRatings();
+  assert.equal(h.element('song-ratings-count').textContent, 1);
+  assert.ok(h.element('song-ratings-list').innerHTML.includes('&lt;script&gt;'));
+  assert.ok(!h.element('song-ratings-list').innerHTML.includes('<script>'));
+});
+
+test('rating capacity keeps existing ratings instead of evicting them and asking again', () => {
+  const h = harness();
+  h.context.initializeSongRatings();
+  vm.runInContext("songRatings.entries = Array.from({length:1000}, (_,i) => ({id:'song-'+i,title:'Song '+i,rating:4}));", h.context);
+  h.context.askForSongRating(track);
+  h.context.rateCompletedSong(5);
+  assert.equal(vm.runInContext('songRatings.entries.length', h.context), 1000);
+  assert.equal(h.context.askForSongRating({ id: 'song-0', title: 'Song 0' }), false);
+  assert.match(h.element('full-action-status').textContent, /1,000 ratings/);
+});
+
+test('deleting ratings leaves quote preferences and music selection alone', async () => {
+  const h = harness();
+  await h.context.playSong(track);
+  h.context.initializeQuotes();
+  h.context.toggleQuoteSave();
+  const quoteChoices = h.quoteStorage.get('aysha.comfort.v1');
+  const music = h.storage.get('aysha.selection.v1');
+  h.context.askForSongRating(track);
+  h.context.rateCompletedSong(2);
+  h.context.clearSongRatings();
+  assert.equal(h.quoteStorage.has('aysha.song-ratings.v1'), false);
+  assert.equal(h.quoteStorage.get('aysha.comfort.v1'), quoteChoices);
+  assert.equal(h.storage.get('aysha.selection.v1'), music);
+  assert.equal(h.context.askForSongRating(track), true);
 });

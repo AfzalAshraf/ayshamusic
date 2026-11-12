@@ -36,6 +36,7 @@ const tracks = [
       const errors = [];
       const playRegistrations = [];
       let serverTrack = null;
+      let likedTracks = tracks.slice(1);
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
@@ -48,7 +49,15 @@ const tracks = [
         let data;
         if (url.pathname === '/api/play') { playRegistrations.push(url.search); serverTrack = tracks[0]; data = { status: 'playing', mode: 'browser' }; }
         else if (url.pathname === '/api/stop') { serverTrack = null; data = { status: 'stopped' }; }
-        else if (url.pathname === '/api/search' || url.pathname === '/api/liked') data = tracks;
+        else if (url.pathname === '/api/search') data = tracks;
+        else if (url.pathname === '/api/liked') data = likedTracks;
+        else if (url.pathname === '/api/like' || url.pathname === '/api/unlike') {
+          const track = route.request().postDataJSON();
+          likedTracks = likedTracks.filter(t => t.id !== track.id);
+          if (url.pathname === '/api/like') likedTracks.push(track);
+          data = { status: 'ok' };
+        }
+        else if (url.pathname === '/api/next') { serverTrack = tracks[1]; data = { status: 'playing', mode: 'browser', track: tracks[1] }; }
         else if (url.pathname === '/api/queue') data = [];
         else if (url.pathname === '/api/status') data = { current_track: serverTrack, is_playing: !!serverTrack, volume: 0.8, queue_len: 0 };
         else if (url.pathname === '/api/bt/status') data = { connected: false, device: 'JBL Flip Essential', mac: '04:CB:88:92:43:60' };
@@ -91,7 +100,7 @@ const tracks = [
       await page.locator('[data-quote-category="saved"]').click();
       assert.equal(await page.locator('#quote-saved-count').textContent(), '1');
       if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-quotes.png') });
-      await page.locator('.quote-settings summary').click();
+      await page.locator('#tab-quotes .quote-settings summary').click();
       assert.ok(!(await page.locator('#quote-personalize').isChecked()));
       await page.locator('#quote-personalize').check();
       await page.locator('#quote-more').click();
@@ -100,9 +109,9 @@ const tracks = [
         await page.locator('#tab-quotes.active').waitFor();
         assert.equal(await page.locator('#quote-saved-count').textContent(), '1');
         assert.ok(await page.locator('#quote-personalize').isChecked());
-        await page.locator('.quote-settings summary').click();
+        await page.locator('#tab-quotes .quote-settings summary').click();
       }
-      await page.locator('.quote-reset').click();
+      await page.locator('#tab-quotes .quote-reset').click();
       assert.equal(await page.locator('#quote-saved-count').textContent(), '0');
       assert.ok(!(await page.locator('#quote-personalize').isChecked()));
       assert.equal(await page.evaluate(() => localStorage.getItem('aysha.comfort.v1')), null);
@@ -189,6 +198,68 @@ const tracks = [
 
 
       }
+      // Real controls with fixture endpoints; media output is still stubbed.
+      await page.getByRole('button', { name: 'Home', exact: true }).click();
+      await page.locator('#quick-picks .song-card').first().click();
+      await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
+      const sourceBeforeFavorite = await page.locator('#audio-player').getAttribute('src');
+      const playsBeforeFavorite = await page.evaluate(() => window.mediaPlayAttempts);
+      await page.locator('#open-player').click();
+      await page.locator('#full-favorite').click();
+      await page.waitForFunction(() => document.getElementById('full-favorite').getAttribute('aria-pressed') === 'true');
+      assert.equal(await page.locator('#full-favorite').getAttribute('aria-label'), 'Remove from favorites');
+      const heartBox = await page.locator('#full-favorite').boundingBox();
+      assert.ok(heartBox.width >= 44 && heartBox.height >= 44);
+      const playBox = await page.locator('#full-play-toggle').boundingBox();
+      assert.ok(Math.abs(playBox.x + playBox.width / 2 - viewport.width / 2) < 2, 'Play stays centered with the heart added');
+      assert.equal(await page.locator('#audio-player').getAttribute('src'), sourceBeforeFavorite);
+      assert.equal(await page.evaluate(() => window.mediaPlayAttempts), playsBeforeFavorite);
+      assert.ok(await page.locator('#now-playing').evaluate(el => el.scrollWidth <= el.clientWidth));
+      if (viewport.width === 390 && process.env.UI_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-favorite.png') });
+      // End first track: prompt stays about sample1 while autoplay selects sample2.
+      await page.evaluate(() => document.getElementById('audio-player').dispatchEvent(new Event('ended')));
+      await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample2'));
+      assert.ok(await page.locator('#full-song-rating').isVisible());
+      assert.equal(await page.locator('#full-song-rating-title').textContent(), tracks[0].title);
+      assert.equal(await page.locator('#full-title').textContent(), tracks[1].title);
+      const rateButton = page.locator('#full-song-rating').getByRole('button', { name: 'Rate 4 out of 5', exact: true });
+      const rateBox = await rateButton.boundingBox();
+      assert.ok(rateBox.width >= 44 && rateBox.height >= 44);
+      assert.ok(rateBox.y >= 0 && rateBox.y + rateBox.height <= viewport.height, 'Rating choices are immediately within the visible player viewport');
+      await rateButton.click();
+      assert.ok(await page.locator('#full-song-rating').isHidden());
+      await page.keyboard.press('Escape');
+      await page.locator('#now-playing').waitFor({ state: 'hidden' });
+      await page.getByRole('button', { name: 'Library', exact: true }).click();
+      await page.locator('#full-history .card-heart[data-track-id="sample1"]').waitFor();
+      assert.equal(await page.locator('#song-ratings-count').textContent(), '1');
+      assert.match(await page.locator('#song-ratings-list').textContent(), /4\/5/);
+      await page.getByRole('button', { name: 'Home', exact: true }).click();
+      if (viewport.width === 390) {
+        await page.reload();
+        await page.locator('#quick-picks .song-card').first().waitFor();
+      }
+      await page.locator('#quick-picks .song-card').first().click();
+      await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
+      await page.locator('#open-player').click();
+      assert.equal(await page.locator('#full-favorite').getAttribute('aria-pressed'), 'true');
+      assert.match(await page.locator('#full-song-score').textContent(), /4\/5/);
+      await page.locator('#full-favorite').click();
+      await page.waitForFunction(() => document.getElementById('full-favorite').getAttribute('aria-pressed') === 'false');
+      await page.keyboard.press('Escape');
+      await page.locator('#now-playing').waitFor({ state: 'hidden' });
+      await page.evaluate(() => document.getElementById('audio-player').dispatchEvent(new Event('ended')));
+      await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample2'));
+      assert.ok(await page.locator('#song-rating').isHidden(), 'Already-rated song skips prompt, including after reload');
+      assert.ok(await page.locator('#full-song-rating').isHidden());
+      await page.evaluate(() => document.getElementById('audio-player').dispatchEvent(new Event('ended')));
+      await page.locator('#song-rating').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('#song-rating-title').textContent(), tracks[1].title);
+      assert.ok(await page.locator('#song-rating').evaluate(el => el.scrollWidth <= el.clientWidth));
+      await page.locator('#song-rating').getByRole('button', { name: 'Not now', exact: true }).click();
+      await page.getByRole('button', { name: 'Library', exact: true }).click();
+      await page.waitForFunction(() => document.getElementById('song-ratings-count').textContent === '1');
+      await page.locator('#full-history .card-heart[data-track-id="sample1"]').waitFor({ state: 'detached' });
       assert.deepEqual(errors, [], 'No uncaught page errors');
       console.log(`PASS Chromium ${viewport.width}x${viewport.height}: no viewport overflow, visible navigation, search, Back/Forward and dialog history`);
 
