@@ -9,10 +9,11 @@ pub const PAGE_MAX: usize = 2 * 1024 * 1024;
 const JSON_MAX: usize = 1024 * 1024;
 const VISITOR_MAX: usize = 4096;
 
-pub struct Visitor { value: String, metadata_nonfinite_ignored: bool }
+pub struct Visitor { value: String, metadata_nonfinite_ignored: bool, literal_syntax_normalized: bool }
 impl Visitor {
     pub fn as_header(&self) -> &str { &self.value }
     pub fn metadata_nonfinite_ignored(&self) -> bool { self.metadata_nonfinite_ignored }
+    pub fn literal_syntax_normalized(&self) -> bool { self.literal_syntax_normalized }
 }
 #[derive(Default, Deserialize)]
 struct Config {
@@ -20,6 +21,7 @@ struct Config {
     #[serde(rename="INNERTUBE_CONTEXT", default, deserialize_with="context_field")] context: Option<Context>,
     #[serde(rename="LOGGED_IN", default, deserialize_with="login_field")] logged_in: Option<bool>,
     #[serde(skip)] metadata_nonfinite_ignored: bool,
+    #[serde(skip)] literal_syntax_normalized: bool,
 }
 #[derive(Deserialize)]
 struct Context { #[serde(default, deserialize_with="client_field")] client: Option<ConfigClient> }
@@ -111,9 +113,10 @@ fn config_syntax_code(error: &serde_json::Error) -> &'static str {
 fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
     // Python's JSON decoder accepts these constants. Replace them ONLY in
     // metadata our typed Config discards; never in visitor/auth/context subtrees.
-    let normalized = super::config_numbers::metadata_only(data,JSON_MAX)?;
-    let metadata_nonfinite_ignored = matches!(normalized,std::borrow::Cow::Owned(_));
-    let data = normalized.as_ref();
+    let normalized = super::literal_data::config(data,JSON_MAX)?;
+    let metadata_nonfinite_ignored = normalized.nonfinite_ignored;
+    let literal_syntax_normalized = normalized.syntax_normalized;
+    let data = normalized.json.as_ref();
     // No full Value tree or new dependencies. Both passes stay within JSON_MAX.
     serde_json::from_slice::<IgnoredAny>(data).map_err(|e| config_syntax_code(&e))?;
     let mut config = serde_json::from_slice::<Config>(data).map_err(|e| {
@@ -133,6 +136,7 @@ fn decode_config(data: &[u8]) -> Result<Config, &'static str> {
         "watch_config_schema_unsupported"
     })?;
     config.metadata_nonfinite_ignored = metadata_nonfinite_ignored;
+    config.literal_syntax_normalized = literal_syntax_normalized;
     Ok(config)
 }
 
@@ -206,29 +210,7 @@ fn raw_close(data: &[u8], name: &[u8]) -> Option<usize> {
     None
 }
 fn json_end(data: &[u8]) -> Result<usize, &'static str> {
-    if data.first() != Some(&b'{') { return Err("watch_json_object_expected"); }
-    let mut depth = 0usize;
-    let mut string = false;
-    let mut escaped = false;
-    for (i, &b) in data.iter().take(JSON_MAX+1).enumerate() {
-        if i == JSON_MAX { return Err("watch_json_size_limit"); }
-        if string {
-            if escaped { escaped = false; }
-            else if b == b'\\' { escaped = true; }
-            else if b == b'"' { string = false; }
-        } else {
-            match b {
-                b'"' => string = true,
-                b'{' | b'[' => { depth += 1; if depth > 64 { return Err("watch_json_depth_limit"); } }
-                b'}' | b']' => {
-                    depth = depth.checked_sub(1).ok_or("watch_json_unbalanced")?;
-                    if depth == 0 { return Ok(i+1); }
-                }
-                _ => {}
-            }
-        }
-    }
-    Err("watch_json_unterminated")
+    super::literal_data::frame_end(data,JSON_MAX)
 }
 
 // Consume only two unrelated display-setting calls. No expression is evaluated,
@@ -254,7 +236,7 @@ fn viewport_call(tail: &[u8]) -> Option<&[u8]> {
     None
 }
 fn statement_end(after: &[u8], config: bool) -> Result<&[u8], &'static str> {
-    let after = trim(after);
+    let after = super::literal_data::trivia(after)?;
     if after.is_empty() { return Ok(after); } // legal end-of-script semicolon omission
     after.strip_prefix(b";").ok_or(if config { "watch_config_terminator_invalid" } else { "watch_player_terminator_invalid" })
 }
@@ -269,6 +251,7 @@ pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
     let mut visitor = None;
     let mut initial_seen = false;
     let mut metadata_nonfinite_ignored = false;
+    let mut literal_syntax_normalized = false;
     let mut template_depth = 0usize;
     let mut rest = page;
     while let Some(start) = rest.iter().position(|b| *b == b'<') {
@@ -298,22 +281,38 @@ pub fn parse(page: &[u8], id: &str) -> Result<Visitor, &'static str> {
         let script = &rest[..close];
         rest = &rest[close..];
         if !eq(name,b"script") || template_depth != 0 || !attributes_safe(attrs) { continue; }
-        parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored)?;
+        parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored,&mut literal_syntax_normalized)?;
     }
     if !initial_seen { return Err("watch_player_missing"); }
-    visitor.map(|value| Visitor { value, metadata_nonfinite_ignored }).ok_or("watch_visitor_missing")
+    visitor.map(|value| Visitor { value, metadata_nonfinite_ignored, literal_syntax_normalized }).ok_or("watch_visitor_missing")
 }
-fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool, metadata_nonfinite_ignored: &mut bool) -> Result<(), &'static str> {
+fn word<'a>(data: &'a [u8], token: &[u8]) -> Option<&'a [u8]> {
+    let rest=data.strip_prefix(token)?;
+    if rest.first().is_some_and(|b| b.is_ascii_alphanumeric() || matches!(b,b'_'|b'$')) { None } else { Some(rest) }
+}
+fn config_start(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
+    let Some(rest)=word(script,b"ytcfg") else { return Ok(None) };
+    let Some(rest)=super::literal_data::trivia(rest)?.strip_prefix(b".") else { return Ok(None) };
+    let Some(rest)=word(super::literal_data::trivia(rest)?,b"set") else { return Ok(None) };
+    Ok(super::literal_data::trivia(rest)?.strip_prefix(b"("))
+}
+fn player_start(script: &[u8]) -> Result<Option<&[u8]>, &'static str> {
+    let mut data=script;
+    for declaration in [b"var".as_slice(),b"let",b"const"] {
+        if let Some(rest)=word(data,declaration) { data=super::literal_data::trivia(rest)?; break; }
+    }
+    let Some(rest)=word(data,b"ytInitialPlayerResponse") else { return Ok(None) };
+    Ok(super::literal_data::trivia(rest)?.strip_prefix(b"="))
+}
+fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initial_seen: &mut bool, metadata_nonfinite_ignored: &mut bool, literal_syntax_normalized: &mut bool) -> Result<(), &'static str> {
     // Intentionally don't search inside arbitrary JS (strings/comments/functions).
     // Only recognized literals at script start or after another accepted literal.
     loop {
-        script = trim(script);
-        let (tail, config) = if let Some(tail) = script.strip_prefix(b"ytcfg.set(") {
-            (trim(tail),true)
-        } else if let Some(tail) = script.strip_prefix(b"var ytInitialPlayerResponse =") {
-            (trim(tail),false)
-        } else if let Some(tail) = script.strip_prefix(b"ytInitialPlayerResponse =") {
-            (trim(tail),false)
+        script = super::literal_data::trivia(script)?;
+        let (tail, config) = if let Some(tail)=config_start(script)? {
+            (super::literal_data::trivia(tail)?,true)
+        } else if let Some(tail)=player_start(script)? {
+            (super::literal_data::trivia(tail)?,false)
         } else { return Ok(()) };
         if config && tail.first() != Some(&b'{') {
             if let Some(after) = viewport_call(tail) {
@@ -324,7 +323,7 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
         }
         if !config && tail.first() != Some(&b'{') { return Err("watch_player_nonliteral_unsupported"); }
         let end = json_end(tail)?;
-        let after = trim(&tail[end..]);
+        let after = super::literal_data::trivia(&tail[end..])?;
         let after = if config {
             trim(after.strip_prefix(b")").ok_or("watch_config_closer_missing")?)
         } else { after };
@@ -332,12 +331,15 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
         if config {
             let cfg = decode_config(&tail[..end])?;
             *metadata_nonfinite_ignored |= cfg.metadata_nonfinite_ignored;
+            *literal_syntax_normalized |= cfg.literal_syntax_normalized;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
             remember(visitor,cfg.visitor)?;
             remember(visitor,cfg.context.and_then(|c| c.client).and_then(|c| c.visitor))?;
         } else {
             if *initial_seen { return Err("watch_player_ambiguous"); }
-            let pr: InitialPlayer = serde_json::from_slice(&tail[..end]).map_err(|_| "watch_player_invalid")?;
+            let normalized = super::literal_data::player(&tail[..end],JSON_MAX)?;
+            *literal_syntax_normalized |= normalized.syntax_normalized;
+            let pr: InitialPlayer = serde_json::from_slice(&normalized.json).map_err(|_| "watch_player_invalid")?;
             // Do not carry watch-page formats into the media path, and honor its
             // playability restrictions before making a second provider request.
             let player = super::Player { playability_status: pr.playability_status,
@@ -465,7 +467,7 @@ mod tests {
             (r#"{"INNERTUBE_CONTEXT":{},"INNERTUBE_CONTEXT":{}}"#,"watch_config_duplicate_context"),
             (r#"{"LOGGED_IN":false,"LOGGED_IN":true}"#,"watch_config_duplicate_login"),
             (r#"{"VISITOR_DATA":undefined}"#,"watch_config_js_undefined"),
-            (r#"{"VISITOR_DATA":"PRIVATE""#,"watch_config_json_incomplete"),
+            (r#"{"VISITOR_DATA":"PRIVATE""#,"watch_json_unterminated"),
         ] {
             let error = decode_config(data.as_bytes()).err().unwrap();
             assert_eq!(error,code);
@@ -502,9 +504,9 @@ mod tests {
             assert!(!code.contains("column"));
         }
     }
-    #[test] fn invalid_json_is_not_repaired_even_when_known_fields_are_valid() {
-        for bad in [r#"{"VISITOR_DATA":"good","IGNORED":"\x41"}"#,
-                    r#"{"VISITOR_DATA":"good",}"#,r#"{"VISITOR_DATA":"good","IGNORED":undefined}"#] {
+    #[test] fn expressions_and_invalid_escapes_are_not_repaired_even_with_valid_known_fields() {
+        for bad in [r#"{"VISITOR_DATA":"good","IGNORED":"\xGG"}"#,
+                    r#"{"VISITOR_DATA":"good","IGNORED":secret()}"#,r#"{"VISITOR_DATA":"good","IGNORED":undefined}"#] {
             let data = format!("<script>ytcfg.set({bad});</script><script>var ytInitialPlayerResponse = {};</script>",player());
             assert!(parse(data.as_bytes(),ID).is_err());
         }
@@ -519,6 +521,19 @@ mod tests {
         assert_eq!(decode_config(br#"{"LOGGED_IN":NaN}"#).err(),Some("watch_config_nonfinite_protected"));
         assert_eq!(decode_config(br#"{"VISITOR_DATA":"a","VISITOR_DATA":"b","IGNORED":Infinity}"#).err(),Some("watch_config_duplicate_visitor"));
         assert_eq!(parse(&page(serde_json::json!({"LOGGED_IN":true,"VISITOR_DATA":"x"}),player()),ID).err(),Some("watch_authenticated_unsupported"));
+    }
+    #[test] fn full_single_quoted_page_and_statement_spacing_preserve_restrictions() {
+        let data=br#"<html><script nonce="x">/* harmless */ ytcfg . set ( {'VISITOR_DATA':'opaque_123',LOGGED_IN:false,info:'braces } [ and \' escape',} ) ;</script><script>const ytInitialPlayerResponse={playabilityStatus:{status:'OK'},videoDetails:{videoId:'Jm7Satp7Zqk'},};</script></html>"#;
+        let visitor=parse(data,ID).unwrap();
+        assert_eq!(visitor.as_header(),"opaque_123"); assert!(visitor.literal_syntax_normalized());
+        assert!(!visitor.metadata_nonfinite_ignored());
+        for (cfg,code) in [("{VISITOR_DATA:'good',LOGGED_IN:true}","watch_authenticated_unsupported"),
+            ("{VISITOR_DATA:'good',LOGGED_IN:'false'}","watch_config_login_type"),
+            ("{'VISITOR_DATA':'a',VISITOR_DATA:'b'}","watch_config_duplicate_visitor"),
+            (r#"{VISITOR_DATA:'bad\r\nvalue'}"#,"watch_visitor_invalid")] {
+            let html=format!("<script>ytcfg.set({cfg});</script><script>let ytInitialPlayerResponse = {};</script>",player());
+            assert_eq!(parse(html.as_bytes(),ID).err(),Some(code));
+        }
     }
     #[test] fn malformed_literals_duplicate_keys_and_unsupported_wrappers_stop_safely() {
         for script in [b"ytcfg.set({\"VISITOR_DATA\":\"a\",\"VISITOR_DATA\":\"b\"});".as_slice(),

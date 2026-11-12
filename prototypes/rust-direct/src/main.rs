@@ -1,15 +1,15 @@
 //! Bounded public-player feasibility probe. No downloader library, JS engine or subprocess.
 //! Does not solve signatures/tokens or bypass playability restrictions. Never production.
 mod bootstrap;
-mod config_numbers;
+mod literal_data;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 use serde_json::json;
 use std::{fs, time::{Duration, Instant}};
 const IDENTITY: &str = "aysha-direct-v2-visionos";
 const STANDARD_IDENTITY: &str = "aysha-direct-v3-standard-context";
-const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v4.4-guarded-bootstrap";
-const INSPECT_IDENTITY: &str = "aysha-direct-v4.4-metadata-guard";
+const BOOTSTRAP_IDENTITY: &str = "aysha-direct-v5-data-literals";
+const INSPECT_IDENTITY: &str = "aysha-direct-v5-watch-inspect";
 const VERSION: &str = "1.02";
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const METADATA_MAX: usize = 1024 * 1024;
@@ -113,6 +113,10 @@ fn append_bounded(buffer: &mut Vec<u8>, chunk: &[u8], max: usize) -> Result<(), 
     Ok(())
 }
 fn mp4(bytes: &[u8]) -> bool { bytes.len() >= 8 && &bytes[4..8] == b"ftyp" }
+fn validate_sample(count: usize, prefix: &[u8]) -> Result<(), &'static str> {
+    if count != SAMPLE || !mp4(prefix) { return Err("short_or_invalid_probe"); }
+    Ok(())
+}
 fn peak_kib() -> Option<u64> {
     fs::read_to_string("/proc/self/status").ok()?.lines().find_map(|line| {
         line.strip_prefix("VmHWM:")?.split_whitespace().next()?.parse().ok()
@@ -183,10 +187,11 @@ fn http_client() -> Result<Client, &'static str> {
 }
 fn watch_summary(visitor: bootstrap::Visitor, started: Instant) -> serde_json::Value {
     let metadata_nonfinite_ignored = visitor.metadata_nonfinite_ignored();
+    let literal_syntax_normalized = visitor.literal_syntax_normalized();
     drop(visitor);
     json!({"status":"diagnostic_pass", "candidate":INSPECT_IDENTITY, "stage":"watch",
         "watch_parser_only":true, "player_requested":false, "media_requested":false,
-        "metadata_nonfinite_ignored":metadata_nonfinite_ignored,
+        "metadata_nonfinite_ignored":metadata_nonfinite_ignored, "literal_syntax_normalized":literal_syntax_normalized,
         "native_acquisition_demonstrated":false, "production_ready":false, "external_tools":false,
         "total_ms":started.elapsed().as_millis(), "peak_rss_kib":peak_kib()})
 }
@@ -207,6 +212,8 @@ async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> R
         *stage = "watch";
         Some(watch_visitor(&client,id).await?)
     } else { None };
+    let metadata_nonfinite_ignored = visitor.as_ref().is_some_and(|v| v.metadata_nonfinite_ignored());
+    let literal_syntax_normalized = visitor.as_ref().is_some_and(|v| v.literal_syntax_normalized());
     *stage = "player";
     let mut response = player_request(&client, id, profile, visitor.as_ref()).send().await.map_err(|_| "player_request_failed")?;
     if !response.status().is_success() { return Err("player_http_failed"); }
@@ -236,10 +243,11 @@ async fn probe(id: &str, profile: RequestProfile, stage: &mut &'static str) -> R
         count += chunk.len().min(SAMPLE - count);
         if count == SAMPLE { break; }
     }
-    if count != SAMPLE || !mp4(&prefix) { return Err("short_or_invalid_probe"); }
+    validate_sample(count,&prefix)?;
     Ok(json!({"status":"pass", "candidate":profile.identity(), "bytes":count, "itag":format.itag,
         "resolve_ms":resolve_ms, "first_byte_ms":first_byte_ms, "total_ms":started.elapsed().as_millis(),
-        "peak_rss_kib":peak_kib(), "external_tools":false, "production_ready":false}))
+        "peak_rss_kib":peak_kib(), "external_tools":false, "production_ready":false,
+        "literal_syntax_normalized":literal_syntax_normalized,"metadata_nonfinite_ignored":metadata_nonfinite_ignored}))
 }
 async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'static str>>, limit: Duration) -> Result<T, &'static str> {
     tokio::time::timeout(limit,future).await.map_err(|_| "deadline_exceeded")?
@@ -248,7 +256,7 @@ async fn within_deadline<T>(future: impl std::future::Future<Output=Result<T, &'
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).take(4).collect();
     if args == ["--help"] {
-        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v4.4 guarded metadata check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
+        println!("aysha-direct-prototype --video-id ID [--standard-context | --watch-bootstrap | --watch-inspect]\n--watch-inspect: v5 data-literal check ONLY; never requests player or media.\n--watch-bootstrap: opt-in v4 anonymous watch context, no cookies/persistence/JS; one attempt.\n--standard-context: isolated v3 request adding only Origin and UTC fields; no fallback.\nExperimental public AAC 64KiB probe only. No JS/signature/PO-token support, credentials, fallback, playback or production integration. Fixed 60s deadline; external timeout recommended.");
         return;
     }
     let (id, profile) = match parse_args(&args) {
@@ -375,6 +383,37 @@ mod tests {
         assert_eq!(report["media_requested"],false);
         assert_eq!(report["native_acquisition_demonstrated"],false);
         assert!(!report.to_string().contains("PRIVATE_CONTEXT"));
+    }
+    #[tokio::test(flavor="current_thread")] async fn fixture_pipeline_watch_request_selection_and_prefix_validation() {
+        // Entire pipeline is synthetic/offline: no send(), audio device or media decode.
+        let html=br#"<!doctype html><html><textarea><script>ytcfg.set({VISITOR_DATA:'fake'});</script></textarea><script nonce="x">/* data only */ ytcfg . set ({VISITOR_DATA:'opaque_fixture',LOGGED_IN:false,INNERTUBE_CONTEXT:{client:{visitorData:'opaque_fixture'}},metadata:{quoted:'I\'m } [ not code',values:[NaN,Infinity,-Infinity,],},});</script><script>const ytInitialPlayerResponse={playabilityStatus:{status:'OK'},videoDetails:{videoId:'Jm7Satp7Zqk'},};</script></html>"#;
+        let visitor=bootstrap::parse(html,"Jm7Satp7Zqk").unwrap();
+        assert!(visitor.literal_syntax_normalized()); assert!(visitor.metadata_nonfinite_ignored());
+        let client=http_client().unwrap();
+        let request=player_request(&client,"Jm7Satp7Zqk",RequestProfile::WatchBootstrap,Some(&visitor)).build().unwrap();
+        assert_eq!(request.url().host_str(),Some("www.youtube.com"));
+        assert_eq!(request.headers()["X-Goog-Visitor-Id"],"opaque_fixture");
+        assert!(request.headers().get("cookie").is_none());
+        assert!(request.headers().get("authorization").is_none());
+        let body:serde_json::Value=serde_json::from_slice(request.body().unwrap().as_bytes().unwrap()).unwrap();
+        assert!(body["context"]["client"].get("visitorData").is_none());
+        assert!(body.get("serviceIntegrityDimensions").is_none());
+        let payload=fixture(json!([format("",256000),format("https://x.googlevideo.com/audio",128000)]));
+        let selected=select(&payload,"Jm7Satp7Zqk").unwrap(); assert_eq!(selected.itag,140);
+        assert!(validate_sample(65536,b"\0\0\0\x20ftyp").is_ok());
+        assert!(validate_sample(65535,b"\0\0\0\x20ftyp").is_err());
+        assert!(validate_sample(65536,b"<html>bad").is_err());
+        let report=watch_summary(visitor,Instant::now());
+        assert_eq!(report["player_requested"],false);
+        assert!(!report.to_string().contains("opaque_fixture"));
+    }
+    #[test] fn single_quoted_initial_player_restrictions_stop_the_pipeline() {
+        for (status,expected) in [("LOGIN_REQUIRED","player_login_required"),
+            ("AGE_CHECK_REQUIRED","player_age_check_required"),("UNPLAYABLE","player_unplayable")] {
+            let html=format!("<script>ytcfg.set({{VISITOR_DATA:'opaque',LOGGED_IN:false}});</script><script>let ytInitialPlayerResponse={{playabilityStatus:{{status:'{status}',reason:'PRIVATE'}},videoDetails:{{videoId:'Jm7Satp7Zqk'}}}};</script>");
+            let error=bootstrap::parse(html.as_bytes(),"Jm7Satp7Zqk").err().unwrap();
+            assert_eq!(error,expected); assert!(!error.contains("PRIVATE"));
+        }
     }
     #[test] fn ids_and_origins_fail_closed() {
         assert!(valid_id("Jm7Satp7Zqk")); assert!(!valid_id("--exec=evil"));
