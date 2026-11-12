@@ -20,7 +20,8 @@ class NetworkingSkillContractTests(unittest.TestCase):
         self.assertIn("Architecture approval", self.text)
 
     def test_project_budget_and_single_preview_contract(self):
-        self.assertIn("100,000,000 bytes (100 MB)", self.text)
+        self.assertIn("**100 MB**", self.text)
+        self.assertIn("decimal/binary byte threshold", self.text)
         self.assertNotIn("20 MB", self.text)
         self.assertIn("do not recreate the duplicate 5051 preview", self.text)
         self.assertIn("Preview servers bind `0.0.0.0`", self.text)
