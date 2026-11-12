@@ -592,3 +592,33 @@ Verification outcome: ea22b14 CI43256268361 all4jobsPASS. Extractor10offline tes
 release and CLI smoke passed; existing Rust/Python/Node/browser/audio checks passed.
 Compile/fixture proof only, not live-host recovery or15MB acceptance. Agent network
 cannot reach YouTube under sandbox policy; no claim of having reproduced live media.
+
+
+## All AAC URLs missing: reject published artifact, test a researched candidate
+
+Active department: QA & Debugging. User's host1729086 ten tests/releasePASS, then
+all_aac_urls_missing:26formats,1AAC candidate,1empty URL,0invalid/rejected/usable;
+VmHWM24868KiB (~25.5decimalMB). Local selection/origin guards cannot manufacture a URL.
+Published0.7.4 is rejected for this host/track; no successful speed/memory benchmark.
+Stop asking identical rebuild/probes for that artifact.15MB target not met by failed
+candidate alone, not full stack accounting. Production remains unchanged.
+
+Reviewed GitHub release/history/issues and PR62 diff.0.7.4release2024-08-10 lacks later
+visitor/client changes; issues52/53 flag unpublished fixes. Official main contains
+android_sdkless update; open PR62 reports newer403 and proposes android_vr. It is
+not merged and does not prove exact host root cause; compatibility is a justified
+hypothesis, not a confirmed fix. Initial dependency selection missed this release gap.
+Changed isolated manifest to fork restalex/rusty_ytdl exact immutable PR62 head
+b390352a5db4b57aa630e8dc7b427fb560feccd5, rustls feature, no defaults/search/live/ffmpeg.
+Inherited reqwest0.13/Boa0.21 dependencies; no helper processes or root dependency
+changes. Emit exact candidate identity in pass/failureJSON and allowlist in benchmark.
+No origin weakening/credentials/tokens/automatic production fallback.49localPythonPASS,
+diffPASS; CI43259772140 for c227d8a pending at this entry, no localCargo/live request.
+Detailed sources/rollback/trust/compile costs in RUST_EXTRACT_PROTOTYPE.md. Alternative
+RustyPipe assessed but not adopted (GPL3/QuickJS dependencies; no15MB proof). No ratings
+increase. Keep existing Linux5050, Vercel, Rodio and unrelated pyc deletion intact.
+
+Verification outcome: c227d8a CI43259772140 all4jobsPASS; pinned candidate ten offline
+tests, release build and strictCLI smoke passed with new dependency APIs/features.
+Existing server/audio/browser checks also passed. No agent/CI live YouTube probe;
+compatibility fix still needs one actual-host test. No faster/lower-RSS/15MB claim.

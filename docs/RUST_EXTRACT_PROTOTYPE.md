@@ -7,7 +7,12 @@ backend migration occurs. Only access content you are permitted to use.
 
 ## Actual implementation
 
-`prototypes/rust-extract` pins rusty_ytdl0.7.4, default features off, rustls-tls only.
+Current candidate: `prototypes/rust-extract` pins upstream PR62 revision
+`b390352a5db4b57aa630e8dc7b427fb560feccd5` from `restalex/rusty_ytdl`, default
+features off, `rustls` only. The published crate0.7.4 candidate is rejected for the
+reported host/track (all compatible AAC URLs missing). See latest evidence below.
+The fork still calls its package0.7.4; JSON candidate identity includes the revision
+so it cannot be mistaken for the failed published artifact.
 This is native extraction with its embedded Boa JavaScript engine (written in Rust),
 not a Rust wrapper invoking yt-dlp/Python/Node. Embedded JS is still execution work
 and may use substantial memory. No live/ffmpeg/search feature or hidden subprocess
@@ -192,3 +197,55 @@ format availability is separate from subsequent HTTP/media/decoding success. Aft
 this selection patch is tested, use the same one-probe build command above, not the
 full comparison yet. If all AAC URLs are missing, this candidate needs upstream
 extraction repair or replacement, not another permissive allowlist patch.
+
+
+## Published candidate rejected; pinned compatibility experiment
+
+Latest host evidence at source1729086: ten tests/releasePASS; all_aac_urls_missing,
+formats_total26, aac_candidates1, empty_urls1, invalid_urls0, rejected_origins0,
+usable_urls0, VmHWM24868KiB (25,464,832bytes). AAC metadata exists, but no usable AAC
+URL was supplied. Stop re-running the published0.7.4 build or changing local selection
+for this result. This candidate failed the required workload; not production-ready.
+
+Upstream review (GitHub API; claims below are source/issue evidence, not live success):
+
+- https://github.com/Mithronn/rusty_ytdl/releases/tag/v0.7.4 — published2024-08-10.
+- https://github.com/Mithronn/rusty_ytdl/issues/52 and
+  https://github.com/Mithronn/rusty_ytdl/issues/53 — report unreleased compatibility fixes
+  and stale crates.io distribution. The release number alone did not establish current
+  functionality; initial selection should have checked this gap earlier.
+- https://github.com/Mithronn/rusty_ytdl/commit/bfd7fedb8e871fb26b528cada0a4c837e645182a
+  — later default android_sdkless client; not in published0.7.4.
+- https://github.com/Mithronn/rusty_ytdl/pull/62 — still open, proposes android_vr because
+  sdkless later returned403. Contributor reports some standard-video success, with
+  child-directed/live cases not established. These reports do not prove our missing-URL
+  root cause or today's host success. Do not call it a merged/released upstream fix.
+
+Next experiment pins that PR's head exactly to b390352a5db4b57aa630e8dc7b427fb560feccd5.
+Reviewed diff against official main b1c6eb7: only client configuration and selection
+changed; inherited source also has visitor-data/client compatibility changes absent
+from the published crate. No arbitrary latest-head dependency, no credentials/tokens,
+no Python/Node process added, no local signature bypass. Only public permitted content
+is in scope. Local media-origin/format/size/time guards remain. No own patch to special
+restricted-content handling is authorized. Upstream dependency still contains broader
+capabilities than this prototype's accepted scope.
+
+This is a THIRD-PARTY, UNMERGED experiment, not a safe production dependency declaration.
+Source dependency changes reqwest0.12 to0.13, Boa0.19 to0.21 and supporting libraries;
+Cargo feature is now rustls (not rustls-tls). Direct revision is immutable, transitive
+lock is still resolved locally/retained in CI artifact, not committed in source.
+Never remove/reset the host lock manually; Cargo updates it for the new manifest.
+Offline tests/build must pass first. A host rebuild may be substantially longer because
+of dependency changes. If it fails, report that failure; do not install anything.
+Only after verified compilation is one same-host probe useful. New candidate string
+is emitted on success/failure and allowlisted into benchmark reports.
+
+Alternative assessed, NOT adopted: TeamPiped/rustypipe mirror advertises broad native
+Innertube/search support, but inspected manifest has GPL3, rquickjs (native QuickJS,
+not wholly Rust), wreq and JS parser dependencies. It is not a drop-in MIT/Apache2,
+no-JS-engine or proven15MB replacement. No GPL dependency is introduced here.
+
+Recovery: this experiment only changes the isolated prototype's dependency/source.
+Do not install/promote it. The root server, installed service, Vercel preview and
+Rust audio prototype remain unchanged; no production rollback needed. Earlier
+published-candidate source/evidence is retained in Git history at1729086.
