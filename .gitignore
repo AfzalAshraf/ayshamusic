@@ -10,3 +10,5 @@ __pycache__/
 
 # Generated Vercel static Build Output API artifacts.
 /.vercel/
+
+/prototypes/rust-extract/target/

@@ -61,3 +61,21 @@ jobs:
 
       - name: Generated Vercel static preview browser checks
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs
+
+  rust-extract-prototype:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test isolated native extraction candidate (offline tests)
+        run: cargo test --manifest-path prototypes/rust-extract/Cargo.toml
+      - name: Build isolated extraction candidate
+        run: cargo build --release --manifest-path prototypes/rust-extract/Cargo.toml
+      - name: Strict CLI smoke without upstream network
+        run: |
+          prototypes/rust-extract/target/release/aysha-extract-prototype --help
+          if prototypes/rust-extract/target/release/aysha-extract-prototype --video-id invalid; then exit 1; fi
+      - name: Retain prototype dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-extract-lock
+          path: prototypes/rust-extract/Cargo.lock
