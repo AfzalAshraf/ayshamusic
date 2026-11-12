@@ -102,7 +102,7 @@ jobs:
           import os
           from pathlib import Path
           # Offline fixture/compiler output only, never real provider data.
-          text = Path(os.environ['TEST_LOG']).read_text(errors='replace')[-7000:]
+          text = Path(os.environ['TEST_LOG']).read_text(errors='replace')[-2500:]
           text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
           print('::error title=Direct prototype offline test failure::' + text)
           PY
