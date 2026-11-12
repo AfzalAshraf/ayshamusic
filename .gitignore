@@ -7,3 +7,6 @@ __pycache__/
 
 # Local paste-ready diagnostics (never upload or commit automatically).
 /diagnostics/
+
+# Generated Vercel static Build Output API artifacts.
+/.vercel/

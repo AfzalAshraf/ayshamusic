@@ -17,7 +17,7 @@ jobs:
       - name: Python checker tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Embedded frontend regression tests
-        run: node --test tests/frontend.test.cjs
+        run: node --test tests/frontend.test.cjs tests/vercel-preview.test.cjs
       - name: Linux script syntax
         run: bash -n scripts/install_local.sh scripts/diagnose_local.sh
   rust-audio-prototype:
@@ -58,3 +58,6 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/aysha-browser" --no-audit --no-fund playwright-core@1.65.0 @sparticuz/chromium@153.0.0
       - name: Portrait layout and browser navigation
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/mobile.browser.cjs
+
+      - name: Generated Vercel static preview browser checks
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs

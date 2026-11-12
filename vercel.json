@@ -1,0 +1,5 @@
+{
+  "framework": null,
+  "buildCommand": "node scripts/build_vercel_preview.cjs",
+  "installCommand": "echo No dependencies required for static preview"
+}
