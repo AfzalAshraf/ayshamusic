@@ -13,6 +13,8 @@ import subprocess
 import tempfile
 import time
 
+from source_stage_trace import StageTrace
+
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / "prototypes/rust-extract/target/release/aysha-extract-prototype"
 PROBE = 65536
@@ -51,31 +53,47 @@ def safe_format_counts(payload):
             if type(counts.get(key)) is int and 0 <= counts[key] <= 100000}
 
 
-def execute(argv, binary_media=False, deadline=75):
+def execute(argv, binary_media=False, deadline=75, trace_stages=False):
     start = time.monotonic()
     proc = None
     sampled_peak = None
     result = {}
+    trace = StageTrace() if trace_stages else None
     try:
         proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL, start_new_session=True, cwd=ROOT)
+                                stderr=subprocess.PIPE if trace else subprocess.DEVNULL, start_new_session=True, cwd=ROOT)
         data = bytearray()
         first = None
         with selectors.DefaultSelector() as selector:
-            selector.register(proc.stdout, selectors.EVENT_READ)
+            selector.register(proc.stdout, selectors.EVENT_READ, "stdout")
+            if trace:
+                selector.register(proc.stderr, selectors.EVENT_READ, "stderr")
+            complete = False
             while time.monotonic() - start < deadline:
                 rss = group_rss_kib(proc.pid)
                 if rss is not None:
                     sampled_peak = max(sampled_peak or 0, rss)
-                if not selector.select(timeout=0.02):
-                    continue
-                chunk = os.read(proc.stdout.fileno(), min(4096, PROBE - len(data)))
-                if not chunk:
-                    break
-                if first is None:
-                    first = (time.monotonic() - start) * 1000
-                data.extend(chunk)
-                if len(data) >= PROBE:
+                events = selector.select(timeout=0.02)
+                # Drain stderr concurrently so verbose output cannot deadlock stdout.
+                for key, _ in sorted(events, key=lambda event: event[0].data == "stdout"):
+                    if key.data == "stderr":
+                        chunk = os.read(key.fileobj.fileno(), 4096)
+                        if chunk:
+                            trace.feed(chunk)
+                        else:
+                            selector.unregister(key.fileobj)
+                        continue
+                    chunk = os.read(proc.stdout.fileno(), min(4096, PROBE - len(data)))
+                    if not chunk:
+                        selector.unregister(proc.stdout)
+                        continue
+                    if first is None:
+                        first = (time.monotonic() - start) * 1000
+                    data.extend(chunk)
+                    if len(data) >= PROBE:
+                        complete = True
+                        break
+                if complete or not selector.get_map():
                     break
             else:
                 result = {"status": "fail", "code": "deadline_exceeded"}
@@ -120,6 +138,8 @@ def execute(argv, binary_media=False, deadline=75):
         return result
     finally:
         result["sampled_group_peak_rss_kib"] = sampled_peak
+        if trace:
+            result["stage_trace"] = trace.report()
         if proc is not None:
             # Kill descendants even after their leader exits; no production process is touched.
             try:
@@ -128,6 +148,8 @@ def execute(argv, binary_media=False, deadline=75):
                 pass
             proc.wait()
             proc.stdout.close()
+            if proc.stderr is not None:
+                proc.stderr.close()
 
 
 def summarize(results):
@@ -146,7 +168,11 @@ def main(argv=None):
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--baseline-only", action="store_true",
                         help="Diagnostic only: run existing yt-dlp, never build/run a native candidate")
+    parser.add_argument("--trace-stages", action="store_true",
+                        help="Baseline-only: classify bounded stderr into fixed stage markers; discard raw text")
     args = parser.parse_args(argv)
+    if args.trace_stages and not args.baseline_only:
+        parser.error("--trace-stages requires --baseline-only; no native retries")
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", args.video_id) or not 1 <= args.runs <= 5:
         parser.error("Use an 11-character video ID and 1-5 runs")
     if not args.baseline_only and not BINARY.is_file():
@@ -161,11 +187,17 @@ def main(argv=None):
                 "--proxy", "", "--no-playlist", "--no-progress", "--socket-timeout", "15", "--retries", "0",
                 "-f", "bestaudio[ext=m4a][acodec^=mp4a]", "-o", "-", "--",
                 "https://www.youtube.com/watch?v=" + args.video_id]
-            row = dict(execute(argv, binary_media=tool == "yt-dlp"), tool=tool, run=index + 1)
+            if args.trace_stages:
+                argv.insert(1, "--verbose")
+            options = {"binary_media": tool == "yt-dlp"}
+            if args.trace_stages:
+                options["trace_stages"] = True
+            row = dict(execute(argv, **options), tool=tool, run=index + 1)
             results.append(row)
     report = {"utc": datetime.now(timezone.utc).isoformat(), "prototype_only": True,
               "mode": "baseline_only" if args.baseline_only else "legacy_comparison",
               "native_executed": not args.baseline_only,
+              "stage_trace_requested": args.trace_stages,
               "workload": "same public track, audio-only AAC/MP4, 64KiB prefix; no playback",
               "interpretation": ("Baseline pass means unauthenticated AAC acquisition worked for this attempt; investigate missing native source-access capabilities, not a general outage. Baseline failure does not prove a general outage or explain the native bot check. No native performance comparison was run."
                                  if args.baseline_only else "Compare successful equivalent workloads only."),

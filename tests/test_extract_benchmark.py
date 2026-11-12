@@ -11,16 +11,24 @@ from unittest import mock
 
 spec = importlib.util.spec_from_file_location("benchmark", Path(__file__).resolve().parents[1] / "scripts/benchmark_extract.py")
 benchmark = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(benchmark)
+# Standalone script imports a sibling diagnostic helper.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+try:
+    spec.loader.exec_module(benchmark)
+finally:
+    sys.path.pop(0)
 
 
 class BenchmarkTests(unittest.TestCase):
-    def run_baseline(self, result):
+    def run_baseline(self, result, trace=False):
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(benchmark, "ROOT", Path(directory)), \
                 mock.patch.object(benchmark, "BINARY", Path(directory) / "missing-native"), \
                 mock.patch.object(benchmark, "execute", return_value=result) as execute, \
                 contextlib.redirect_stdout(io.StringIO()):
-            code = benchmark.main(["--baseline-only", "--video-id", "Jm7Satp7Zqk", "--runs", "1"])
+            arguments = ["--baseline-only", "--video-id", "Jm7Satp7Zqk", "--runs", "1"]
+            if trace:
+                arguments.append("--trace-stages")
+            code = benchmark.main(arguments)
             reports = list((Path(directory) / "diagnostics").glob("*.json"))
             self.assertEqual(len(reports), 1)
             report = json.loads(reports[0].read_text())
@@ -59,6 +67,29 @@ class BenchmarkTests(unittest.TestCase):
                     benchmark.main(["--baseline-only", *args])
                 self.assertEqual(error.exception.code, 2)
                 execute.assert_not_called()
+
+    def test_trace_option_enables_only_baseline_verbose_classifier(self):
+        code, report, calls = self.run_baseline({"status":"pass", "bytes":65536, "total_ms":100}, trace=True)
+        self.assertEqual(code, 0)
+        self.assertTrue(report["stage_trace_requested"])
+        self.assertFalse(report["native_executed"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].args[0][0:2], ["yt-dlp", "--verbose"])
+        self.assertTrue(calls[0].kwargs["trace_stages"])
+
+    def test_verbose_pipe_is_drained_and_raw_stderr_is_not_returned(self):
+        script = ("import sys; sys.stderr.buffer.write(b'private-secret'*100000+b'\\n'); "
+                  "sys.stderr.flush(); sys.stdout.buffer.write(b'\\0\\0\\0\\x20ftyp'+b'x'*(65536-8))")
+        row = benchmark.execute([sys.executable, "-c", script], binary_media=True, trace_stages=True, deadline=5)
+        self.assertEqual(row["status"], "pass")
+        self.assertTrue(row["stage_trace"]["classification_truncated"])
+        self.assertNotIn("private-secret", str(row))
+
+    def test_trace_requires_baseline_and_does_not_start_a_native_retry(self):
+        with contextlib.redirect_stderr(io.StringIO()), mock.patch.object(benchmark, "execute") as execute:
+            with self.assertRaises(SystemExit):
+                benchmark.main(["--trace-stages", "--video-id", "Jm7Satp7Zqk"])
+            execute.assert_not_called()
 
     def test_native_metrics_are_allowlisted_and_startup_inclusive(self):
         payload = {"status": "pass", "bytes": 65536, "total_ms": 1, "resolve_ms": 1,
