@@ -401,3 +401,42 @@ attributecontent, malformed/duplicateJSON, explicitmodeCLI, exactheader/bodydelt
 no leakage to mediaheaders, deadline cancellation and ownedstatedrop. CI verification
 must pass before the explicit hosttrial. Historical evidencegate remainsblocked until
 newactualhostevidence is supplied; approval/codebuild alone doesnotchange acceptance.
+
+### V4 verification and one approved host trial
+
+Source7d0890c: CI43274748320 all5jobssuccess, directjob131380060168 tests/release/
+noJSdependencygraph/strictCLI+invalidbootstrapCLI allpassed. Sourcehas21Rusttests
+(11retained+7bootstrapfixtures+3mode/header/cancellationtests). No agentlocalCargo;
+verification isCI, not localRustbuild/targethostsuccess. No livev4attempt made here.
+
+**Terminal: BUILD + ONE APPROVED NATIVE DIAGNOSTIC — no install/restart**
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+cargo test --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
+timeout --kill-after=2s 75s prototypes/rust-direct/target/release/aysha-direct-prototype \
+  --video-id Jm7Satp7Zqk --watch-bootstrap
+```
+
+No standalonev2/v3 retry. Do not add --standard-context; modes are mutuallyexclusive.
+Existinghostlockpreserved/no dependencyupdate. Expected21offlinetests thenbuild and
+oneJSONcandidateaysha-direct-v4-watch-bootstrap. PASSrequires65536MP4prefixbytes;
+production_readyfalse. Failures includestage and fixedcode. Do not collect/share raw
+pagecontent, visitorvalues, cookies, signedURLs, HTTPtraces or debuglogs.
+
+- watch_size_limit/player_missing/visitor_missing/markup/literal errors: stop and
+  sharefixedJSON; parser/protocolsubsetneedsreview, not retry or capincrease by default.
+- watch_restriction_detected/player_bot_check/login/age/content/auth: stop; no workaround,
+  account export, generatedtoken or secondattempt. Recordexactstage; bootstrapmayitself
+  beblocked, or permittedbootstrapmaystillnotyieldplayeraccess.
+- signature_required_unsupported/format/mediafailure: newstageevidence, not success;
+  investigateboundednextcapabilityseparately, neverfallback toPython/Node/yt-dlp.
+- PASS: prefixonly, not decode/control/audiooutput/search/productionorwholeRAMproof.
+  Separatelyplanactualplayback/completeaccountingandrepresentativepermittedinputs.
+- Build/lockfailure: stop/shareerror withoutdeletinglock/upgradingproductiondeps.
+  Exit124/noJSON: recordtimeout; no loop. No servicesareinstalled/restarted.
+
+Offlinehistoricalevidenceguardstillreturnsblocked until actualnativehostsuccessis
+recorded; its nextactionnowreflectstheapprovedv4scope, not a freshapprovalrequest.

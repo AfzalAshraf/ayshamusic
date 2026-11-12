@@ -38,6 +38,16 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertFalse(result['network_executed'])
         self.assertFalse(result['native_executed'])
 
+    def test_approval_changes_next_action_but_never_acceptance(self):
+        evidence = {'latest_native': {'status':'fail','code':'player_bot_check'},
+                    'approved_experiment': {'candidate':'aysha-direct-v4-watch-bootstrap',
+                                            'approval_recorded':True,'status':'awaiting_single_host_trial'}}
+        result = gate.assess(evidence)
+        self.assertEqual(result['status'], 'blocked')
+        self.assertEqual(result['next'], 'one_approved_v4_host_trial_after_offline_verification')
+        self.assertFalse(result['whole_stack_ready'])
+        self.assertFalse(result['memory_budget_accepted'])
+
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:
             output = io.StringIO()

@@ -185,3 +185,12 @@ Origin+UTC did not establish acquisition. No reason to repeat or add JS on this
 evidence. See RUST_DIRECT_PROTOTYPE.md finalsection for stoppedtrial, offline
 acceptancegate and explicitlyunapprovedanonymouswatchbootstrap scope. No new
 networkdiagnostic or rebuild is requested. PureRustgoal/15MBstillunproved.
+
+## V4 scope approved; implemented and offline verified, live result pending
+
+Userapproved boundedanonymouswatchbootstrap. Implemented opt-inRust--watch-bootstrap
+with inertliteralJSONreader, initialplayerrestriction/identitygate, fixedorigin
+visitorheaderonly, no credentials/cookies/persistence/JS/POtoken/fallback and no
+productionwiring. SeeRUST_DIRECT_PROTOTYPE.md for exactbounds/subset/command/stops.
+CI43274748320 over7d0890c: all5jobsPASS inclnativefixtures/build/CLI. No livev4probe.
+REA remainsresearchonly, no dependency/runtime integration or new REA execution.

@@ -14,6 +14,10 @@ def assess(evidence):
     native = evidence.get("latest_native", {})
     prefix_pass = (native.get("status") == "pass" and native.get("bytes") == 65536
                    and native.get("external_tools") is False and not native.get("code"))
+    approved = evidence.get("approved_experiment", {})
+    awaiting_trial = (isinstance(approved, dict) and approved.get("approval_recorded") is True
+                      and approved.get("candidate") == "aysha-direct-v4-watch-bootstrap"
+                      and approved.get("status") == "awaiting_single_host_trial")
     return {
         "status": "pass" if prefix_pass else "blocked",
         "code": "historical_native_prefix_pass" if prefix_pass else "native_acquisition_not_demonstrated",
@@ -23,8 +27,9 @@ def assess(evidence):
         "whole_stack_ready": False,
         "memory_budget_accepted": False,
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
-        "next": "separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
-                "review_and_approve_next_probe_scope_before_any_new_native_trial",
+        "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
+                 "one_approved_v4_host_trial_after_offline_verification" if awaiting_trial else
+                 "review_and_approve_next_probe_scope_before_any_new_native_trial"),
         "limits": "Committed historical evidence only. No media validation occurs here. A prefix pass alone cannot certify decoding, audible output, resource budgets or production readiness.",
     }
 

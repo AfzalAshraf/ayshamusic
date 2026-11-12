@@ -922,3 +922,41 @@ thatdoesnotcertifydecoder/hardware/production. No privatevalues/rawlogs echoed.
 Userneednotrunanotherhostprobe: optionalofflinecommand only. Production5050/UI/
 Vercel/systemd/dependencies/stopped5051unchanged. Extraction2/5unchanged. Userapproval
 ofephemeralanonymouswatchbootstrap isthenextdecision, not anotherdiagnosticloop.
+
+## User approves v4 boundedanonymousbootstrap; code/CI verified, no live attempt yet
+
+Afteruserconfirmedofflineguardblockedwithoutnetwork/nativeexecution, explicitlyasked
+scopeapproval viaUI; userselectedApproveboundedexperiment. This authorizes onlyone
+isolatedRustwatchbootstraptrial, not production/sessionpersistence/autharchitecture.
+
+Source7d0890c adds bootstrap.rs inertHTML/JSONsubset; opt-in--watch-bootstrap ->
+aysha-direct-v4-watch-bootstrap. FixedwatchoriginGETwith2MiBpayloadcap; inlineonly
+literalytcfg.set and initialplayerassignments (1MiBeachJSON,depth64) with acceptedopaque
+visitorvalue<=4KiB. TypedSerde, noJSexecution. Fullwatchpageparse/restriction+identity/
+livechecks beforeplayerPOST; valueonlyinX-Goog-Visitor-Idtofixedplayerorigin. Noadded
+bodyvisitorfield; v3Origin/UTCretained. No cookiejar/account/config/consentautomation/
+POtoken/signaturegeneration/redirect/proxy/clientrotation/sessionreuse/persistence/
+externalhelper/fallback/mediaheaderleakage. Stoponmissing/ambiguous/invalid/unsupported/
+recognizedrestrictiondata; conservativeparserisnotbrowser/JSruntimeequivalence and
+cannotdetecteverychallenge. OversizedliteralstringscanallocateuptoJSONcapbeforevisitor
+lengthvalidation; TLS/HTTPbuffersnotprovenheapbounded. No15MBclaim.
+
+Fixedfailurestageinit/watch/player/mediaadded, neverrawheaders/pages/visitor/signedURLs.
+Whole60sdeadline+20srequests/10sconnect remain. Helpertestverifiestimeoutdropsownedstate,
+not allrealsocketcleanup. Visitorobjectexplicitlydroppedafterplayerread; thisisnot
+securezeroizationofownedheadercopies/allocatorbuffers. No logging/filesadded.
+
+21Rusttestsin source:11retained,7bootstrapfixtures (escaping/identity/paths/ambiguity/
+missing/size/depth/consent/auth/live/inertHTMLattributes/comments/rawtext/templates/
+JSstrings/malformedduplicates/wrappers),3mode/header/privacy/deadlinecancellationtests.
+CI43274748320source7d0890c all5jobssuccess; directjob131380060168 test/release/noJSgraph/
+invalidCLI+bootstrapCLIpass. Cargoabsentagentlocal; no localRustbuildorhostsuccessclaimed.
+No liveCIrequestsoragentv4requests. Updatedofflineevidenceguardrecognizesapprovalbut
+remainsblocked; approval/buildnevernativeacceptance. Local74PythonPASS/diffcheckPASS.
+
+Next: oneexplicit75sboundedhostcommandinRUST_DIRECT_PROTOTYPE.md. Ifwatchunsupported/
+restriction/missing/oversize: stop/sharefixedJSON, no repeatedrequest/capincrease/POtoken/
+cookies. Ifplayer/mediafailsnewstageevidenceonly. IfPASSstillprefixonly, planactual
+codec/output/controls/search/recovery/wholebudgetacceptancebeforeproduction. Historical
+v2/v3remainstopped. Production5050/UI/Vercel/systemd/dependencies/stopped5051unchanged;
+unrelatedtrackedpycdeletionpreserved. Extraction2/5untilnativeacquisitionproven.
