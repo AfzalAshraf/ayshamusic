@@ -1,5 +1,8 @@
 # Native extraction prototype — benchmark before replacing yt-dlp
 
+New separate limited direct-request experiment: [RUST_DIRECT_PROTOTYPE.md](RUST_DIRECT_PROTOTYPE.md).
+The failed library candidate below is retained only for reproduction.
+
 Status: **BLOCKED — both tested extraction candidates failed the required AAC probe
 on the user's Linux host. Do not promote or recommend another identical rebuild.**
 The lockfile migration is now host-verified; native AAC extraction is not working.

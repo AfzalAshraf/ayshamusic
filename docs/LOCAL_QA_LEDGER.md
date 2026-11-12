@@ -673,3 +673,38 @@ rerun/claimed for these documentation-only changes. Latest compileCI evidence re
 43262098027; user target evidence now supersedes pending-host lock status. No speed or
 15MB pass, no readiness increase: playback/extraction remains2/5 with live extraction
 blocked. No further host action needed until a concrete reviewed mechanism change.
+
+## Approved next build: bounded direct-player experiment, not production promotion
+
+Active department: Playback & Extraction Prototypes. User says fix/build and provide
+terminal compile command. Implemented separate prototypes/rust-direct rather than
+another revision of failed rusty_ytdl. Rust reqwest0.12/rustls/json + single-thread
+Tokio/typedSerde; no extractor/embeddedJS/Python/Node/mpv/subprocess. One fixed public
+player request (android_vr parameters inspected from current yt-dlp protocol config),
+1MiBmetadata/256formats bounds, matching video identity/playability/non-live gates,
+validated direct AAC-only googlevideo URL and64KiBMP4 probe. Signatures/tokens/restricted
+content explicitly unsupported, no provider-restriction flags, raw metadata logging,
+fallback, disk cache or output files. No claims that this limited path replaces
+full YouTube extraction, guarantees15MB, or every native TLS dependency is pureRust.
+Six offline fixtures cover selection/emptyURL/cipher/restrictions/identity/size/origin.
+
+CI new job tests/builds/audits noJS dependency graph and records a bounded public
+compatibility observation (explicit code/exit, NOT an acceptance pass if upstream
+fails). Existing benchmark harness still points to old failed candidate; no false
+new benchmark claim. New guide docs/RUST_DIRECT_PROTOTYPE.md contains actual terminal
+command and scope/rollback. Sourceb845189 pushed; local49PythonPASS/whitespacePASS;
+no localCargo. CI43264608690 pending at this entry. Rootserver/5050/UI/Vercel/installer
+and Rodio unchanged. Preserve unrelated pyc deletion; no production install.
+
+Verification outcome: b845189 CI43264608690 all5code/regression jobsPASS. Direct
+prototype6offline tests/release/CLI/noJS graph auditPASS; existing server/audio/browser
+checksPASS. Explicit public network observationFAILED player_not_playable, exit1,
+VmHWM4088KiB (~4.19decimalMB). This proves bounded client can receive/parse a nonplayable
+response on cloud runner, NOT successful extraction/15MB/full-service behavior.
+Cloud reason/target-host outcome unknown, no universal/bot/IP assertion. Do not claim
+green build means network success; do not promote or give a guaranteed-fix host probe.
+User requested terminal compile command: rootcargo test && cargo build --release is
+the current CI-verified working production source build; still uses current helpers,
+no install/restart/second5050 process. New experimental package available but explicitly
+not production-ready. No target hardware test performed. Guide updated with both
+paths and limits. Extraction readiness remains2/5; no speed/resource acceptance.

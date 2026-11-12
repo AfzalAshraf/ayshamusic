@@ -40,6 +40,12 @@ Next native architecture needs a feasibility/design gate before further integrat
 see latest checkpoint in RUST_EXTRACT_PROTOTYPE.md. No performance acceptance or
 whole-stack resource promise can be made from the current results.
 
+A subsequent lightweight direct-player prototype (`prototypes/rust-direct`) removes
+extractor/JS-engine crates. Its first CI public probe FAILED player_not_playable at
+4088KiB VmHWM (~4.19decimalMB). This is not usable extraction, an improvement in
+successful-path memory, or full-stack15MB compliance. See RUST_DIRECT_PROTOTYPE.md;
+production still uses existing helpers. Keep failures distinct from performance wins.
+
 ## Historical 100 MB plan (not achieved)
 
 Status: 100 MB target not yet implemented/verified; concurrent-device architecture still awaits capacity/accounting/session decisions. The user has approved the first isolated audio-only Rust experiment, now implemented in `prototypes/rust-audio`; see [its build/test guide](RUST_AUDIO_PROTOTYPE.md). This does not switch production away from mpv/yt-dlp. This updates the earlier 20 MB target; it is not evidence that current playback fits within 100 MB.
