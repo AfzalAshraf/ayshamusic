@@ -564,3 +564,8 @@ this change; new Rust module verification pending CI, no localCargo/host executi
 Production Rust5050, UI, Vercel and Rodio prototype untouched. Preserve unrelated pyc
 deletion. Playback/extraction rating remains2/5, not increased by a failed host test.
 Next: CI then one native probe; investigate that failure before any performance rewrite.
+
+Follow-up verification: sourceceb5655 CI43251653615 all4jobsPASS, including new
+extractor6offline tests/release/CLI, root suites, existing Rodio and browser suites.
+Diagnostic classification is compile/test verified, not a fix for the upstream failure.
+No new live native probe or actual successful memory measurement performed here.
