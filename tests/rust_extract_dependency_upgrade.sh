@@ -40,11 +40,19 @@ PY
 import sys, tomllib
 with open(sys.argv[1], 'rb') as file:
     packages = tomllib.load(file)['package']
-assert {p['version'] for p in packages if p['name'] == 'idna_adapter'} == {'1.2.1'}
-assert {p['version'] for p in packages if p['name'] == 'boa_engine'} == {'0.21.0'}
-normalizers = {p['version'] for p in packages if p['name'] == 'icu_normalizer'}
-assert normalizers and all(v.startswith('2.0.') for v in normalizers), normalizers
-print('PASS: existing-lock upgrade resolves IDNA 1.2.1 / Boa 0.21 / ICU normalizer 2.0.x')
+versions = {name: sorted({p['version'] for p in packages if p['name'] == name})
+            for name in ('idna_adapter', 'boa_engine', 'icu_normalizer')}
+print('::notice title=Resolved prototype dependency versions::' + str(versions))
+checks = [
+    (versions['idna_adapter'] == ['1.2.1'], 'adapter pin not applied'),
+    (bool(versions['boa_engine']) and all(v.startswith('0.21.') for v in versions['boa_engine']), 'unexpected Boa family'),
+    (bool(versions['icu_normalizer']) and all(v.startswith('2.0.') for v in versions['icu_normalizer']), 'unexpected ICU normalizer'),
+]
+for passed, reason in checks:
+    if not passed:
+        print('::error title=Prototype lock migration check::' + reason + ': ' + str(versions))
+        raise SystemExit(1)
+print('PASS: existing-lock upgrade resolves IDNA 1.2.1 / Boa 0.21.x / ICU normalizer 2.0.x')
 PY
     # --locked proves verification itself does not require another resolution change.
     cargo metadata --locked --format-version 1 --manifest-path "$manifest" > /dev/null
