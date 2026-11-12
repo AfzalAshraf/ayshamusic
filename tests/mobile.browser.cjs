@@ -59,6 +59,11 @@ const tracks = [
       await page.goto('https://aysha.test/');
       await page.locator('#quick-picks .song-card').first().waitFor();
       assert.equal((await page.locator('.footer').textContent()).trim(), 'Made with ❤️ for Aysha — with love, from Afzal');
+      assert.equal((await page.locator('#tab-home .page-heading').innerText()).replace(/\s+/g, ' ').trim(), 'Your music. Your kind of moment. For you from my heart');
+      assert.equal(await page.locator('.profile-mark').textContent(), 'AYSHA');
+      assert.ok(await page.locator('.profile-mark').isVisible(), 'Full profile name visible even at 320px');
+      assert.ok(await page.locator('.profile-mark').evaluate(el => el.scrollWidth <= el.clientWidth && parseFloat(getComputedStyle(el).fontSize) <= 9), 'Small profile name fits inside the badge');
+
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Horizontal viewport overflow at ${viewport.width}`);
       const nav = await page.locator('#nav-home').boundingBox();
       assert.ok(nav.height >= 44 && nav.width >= 44, 'Navigation target must be at least 44px');

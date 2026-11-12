@@ -19,6 +19,11 @@ class UpgradeBaselineTests(unittest.TestCase):
             self.assertEqual(text, DEDICATION)
             self.assertIn("\u2764\ufe0f", text)
 
+    def test_requested_home_heading_and_profile_name(self):
+        page = (ROOT / "src/index.html").read_text()
+        self.assertIn('Your music.<br><span>Your kind of moment. For you from my heart</span>', page)
+        self.assertIn('<div class="profile-mark" aria-label="Aysha\'s Music">AYSHA</div>', page)
+
     def test_upgrade_skill_is_discoverable_and_links_existing_procedures(self):
         entry = (ROOT / "AGENTS.md").read_text()
         skill = (ROOT / "skills/main-upgrade/SKILL.md").read_text()
