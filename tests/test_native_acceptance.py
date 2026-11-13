@@ -129,6 +129,17 @@ class NativeAcceptanceTests(unittest.TestCase):
             'config_visitor_present', 'context_visitor_present', 'player_visitor_present')))
         self.assertEqual(gate.assess(evidence)['status'], 'blocked')
 
+    def test_confirmed_offline_guard_and_prepared_diagnostic_do_not_authorize_a_new_trial(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        review = evidence['latest_offline_host_review']
+        self.assertFalse(review['network_executed'])
+        self.assertFalse(review['native_executed'])
+        self.assertEqual(review['source_revision'], 'efde115')
+        self.assertFalse(evidence['prepared_diagnostic']['approval_recorded'])
+        result = gate.assess(evidence)
+        self.assertEqual(result['status'], 'blocked')
+        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:
             output = io.StringIO()

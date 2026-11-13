@@ -186,5 +186,21 @@
     "status": "offline_only",
     "next": "offline_source_coverage_review_no_live_retry",
     "reason": "recognized_config_and_player_visitor_sources_empty_ignored_tails_unexplained"
+  },
+  "latest_offline_host_review": {
+    "source_revision": "efde115",
+    "status": "blocked",
+    "code": "native_acquisition_not_demonstrated",
+    "network_executed": false,
+    "native_executed": false,
+    "next": "offline_source_coverage_review_no_live_retry",
+    "host_result_recorded": true
+  },
+  "prepared_diagnostic": {
+    "candidate": "aysha-direct-v5.2-coverage-only",
+    "status": "prepared_awaiting_offline_verification_and_explicit_user_approval",
+    "approval_recorded": false,
+    "scope": "one_additional_watch_only_GET_fixed_region_marker_counts_no_player_media_raw_output_or_parser_relaxation",
+    "guide": "docs/research/WATCH_COVERAGE_DIAGNOSTIC.md"
   }
 }

@@ -437,6 +437,7 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
             *literal_syntax_normalized |= cfg.literal_syntax_normalized;
             if cfg.logged_in == Some(true) { return Err("watch_authenticated_unsupported"); }
             observation.config_objects += 1;
+            if let Some(coverage)=observation.coverage.as_mut() { coverage.parsed_config(&tail[..end]); }
             observation.config_visitor_present |= cfg.visitor.is_some();
             let context_visitor=cfg.context.and_then(|c| c.client).and_then(|c| c.visitor);
             observation.context_visitor_present |= context_visitor.is_some();
@@ -457,6 +458,7 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
             observation.player_visitor_present |= response_visitor.is_some();
             remember(visitor,response_visitor)?;
             observation.initial_players += 1;
+            if let Some(coverage)=observation.coverage.as_mut() { coverage.parsed_player(&tail[..end]); }
             *initial_seen = true;
         }
         script = next;
@@ -781,6 +783,17 @@ mod tests {
         assert_eq!(report["coverage"]["skipped_attribute_bodies"]["nonempty"],1);
         assert_eq!(report["coverage"]["skipped_attribute_bodies"]["with_raw_visitor_name"],1);
         assert_eq!(report["config_objects"],0); assert_eq!(report["config_visitor_present"],false);
+        assert!(!report.to_string().contains("PRIVATE"));
+    }
+
+    #[test] fn coverage_inventory_of_unrecognized_fields_never_creates_a_visitor_source() {
+        let data=with_script("ytcfg.set({LOGGED_IN:false,responseContext:{visitorData:'PRIVATE'}});");
+        let mut observed=Observation::coverage_only();
+        assert_eq!(parse_observed(&data,ID,&mut observed).err(),Some("watch_visitor_missing"));
+        let report=serde_json::to_value(observed).unwrap();
+        assert_eq!(report["coverage"]["parsed_config_objects"]["with_raw_visitor_name"],1);
+        assert_eq!(report["coverage"]["parsed_initial_players"]["inspected"],1);
+        assert_eq!(report["config_visitor_present"],false); assert_eq!(report["context_visitor_present"],false);
         assert!(!report.to_string().contains("PRIVATE"));
     }
 

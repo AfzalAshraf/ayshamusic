@@ -22,6 +22,8 @@ impl Regions {
 pub struct Inventory {
     ignored_tails: Regions,
     skipped_attribute_bodies: Regions,
+    parsed_config_objects: Regions,
+    parsed_initial_players: Regions,
     declaration_prefixes: usize,
     parenthesis_prefixes: usize,
     window_prefixes: usize,
@@ -45,6 +47,8 @@ impl Inventory {
         else if word(data,b"window") { self.window_prefixes += 1; }
         else { self.other_prefixes += 1; }
     }
+    pub fn parsed_config(&mut self, data: &[u8]) { self.parsed_config_objects.inspect(data); }
+    pub fn parsed_player(&mut self, data: &[u8]) { self.parsed_initial_players.inspect(data); }
     pub fn skipped_attributes(&mut self, body: &[u8]) {
         self.skipped_attribute_bodies.inspect(body);
     }
@@ -90,7 +94,7 @@ mod tests {
         let mut body=vec![b'x';1024*1024];body.extend_from_slice(b"visitorData");
         inventory.skipped_attributes(&body);drop(body);
         let report=serde_json::to_string(&inventory).unwrap();
-        assert!(report.len()<512);
+        assert!(report.len()<768);
         assert_eq!(inventory.skipped_attribute_bodies.with_raw_visitor_name,1);
     }
 }
