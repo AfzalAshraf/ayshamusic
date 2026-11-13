@@ -1630,3 +1630,67 @@ boundedtransport/decode/controls,removehelpers,completeagreed50MBtotalreleasewor
 anduserhearingacceptancebeforeclaim/delivery. Existingnativewatchapprovalconsumed.
 Noautomaticproviderretry/auth/cookies/tokens/fallback/sourceaccesschange. Production
 preserved,unrelatedtrackedpycdeletionpreserved. Backend2/5,QA3/5,performance1/5.
+
+## 2026-11-07 — approved short resolver/native transfer; integrated opt-in trial
+
+Active department QA & Debugging. Userpulled66b9667->92ebccf/successfulfiletest; prior
+missingfile issue resolved, not rebuilt/installed/runningaudioevidence. Wantslargest
+memoryculpritsqueezed/bestoutput, targetremainsstrictlybelow50MBTOTAL. Historical
+service101171200bytes/RustRSS13381632/yt-dlpRSS71299072; perlabelmaximanotadditive,
+notpreciseproofwhichyt-dlprole. Sourceinspectionindependentlyproveslegacybrowser
+streamholdsyt-dlpchildforwholeHTTPtransfer. No fakeOOMcap/qualitycut/passclaim.
+
+Consequentialdesignclarification explicitlyapproved byuser: staged short-livedyt-dlp
+resolver->RustaudioHTTP behindoptin, preserveexistingpath/don'tautochangeliveuntil
+verified. Acknowledgedstartupcanstillexceed50MB/notfullyRust. No newnativewatch
+approval implied; previouswatchapprovalconsumed. Providerprobesnotrunbyagent.
+
+Runtime807b409: src/resolved_media.rsrootintegrated/mediaflagMUSIC_STREAM_TRANSPORT=
+rust-resolved. Defaultunset/legacykeepsoldpath; typo/nonUTF8failclosedafter1a38a90.
+YouTubeID/selectedIDmatch,nonlive,audioonly,directhttps/WebMOpusVorbis/MP4AACguards;
+noformatdowngrade. FixednarrowJSONprojection,bestaudio,simulate/ignoreconfig/nocache/
+noplugins; boundedsharedmetadatahelperwaitsforexit/reapBEFOREmediaGET. NativeHTTPonly
+validatedgooglevideosubdomain/videoplayback,HTTPS/normalTLS/noProxy/noRedirect; limited
+safeheaders/nocookieauthHostRangeencodinghop-by-hop;200/noContentRange/compression/
+MIME/containerprefixchecks. Requeststartup45s,connect10s/read20s/total2h. Oneactive
+trialstream/429others/nounboundedwait; prefix12/chunks256KiB/backpressure/nofullsong
+ordiskcache/transcode/resample. Unsupportedsources/protocols/expiry/CDNfailstopwithout
+heavyfallback. Neverlog signedURL/header/reqwestError;fixedcodesonly. Drop/EOF/error
+releasesresponsebody/slot; directresolverownershipnotallpossibleNodegrandchildren.
+Startup/metadata/escapedworker/platformcostsstillcount. Nativeacquisitionnotfixed.
+
+3b53084fixesHTTP-EOFvs-audibleEOF: prefetchsuppression persistsfortrialbrowsermode,
+notjustnetworklease. OtherwisebrowserbufferingcouldfinishHTTPandstillspawnhelper
+mid-song. ExplicitNext/endedstillfetchrelatedondemand; mayintroducegap/helperpeak.
+Explicitsearchcanstillstarthelperduringplayback, nativeHTTP/otherconcurrency/platform
+costsnotgloballybounded. Notagapless/security/multi-device/nativeBluetoothclaim.
+
+1a38a90installer--rust-stream-trialexplicitlyrendersknownEnvironmentenum/temporaryunit;
+noargstilllegacy. Tests/build/preflightsbeforerestart; samepriorunit/binarybackups;
+statusAPIreportsconfiguredtransportandactivelease. Installerhealthverifiesmodewithout
+providerGETandprintssanitizedmode(nottrackmetadata). Noauto-switch/auto-rollbackpromise;
+post-stopfailure needsexactbackups/review. Restoredefaulttransportwithinstallerwithout
+flag(rebuild/restart), notexactoldbinaryrollback. Nothinginstalledorstartedonhosthere.
+
+OfflinepinnedREA-labyt-dlptemplateevaluator confirmedprojectionand4defaultheaderkeys
+usinginertfixture/noURLrequest. DevelopmentPythononly, notnewproductionfallback/REA
+runtime. Fixturetests covermode,IDs,CDN,headers,live/codec,projectionCLI,resolverexit,
+bitexactfakecontainerbody,prefixsplits,redirect/403/206/encoding/MIME/containerfail,
+chunksize/drop/EOF,bodyerrorredaction,bufferedEOFprefetchguard. Fakecontainersarenot
+codec/hearingproof. Installer4tests help/invalidargswithPATHempty,templaterender,
+syntax/build-before-stoponly; sudo/systemdnotruninCI.
+
+CI43429022364all5PASSat807b409; finalruntime3b53084 CI43429899808all5PASS/rootRusttests
+andrelease/mobilebrowser/prototypes.116Python/79JS/diffcheckPASS. LocalCargonotavailable;
+CIvalidatesRustnotactualhostaudio/provider. ExistingactionNode20warningsremain.
+
+DeliveredRUST_STREAM_TRIAL.mdexactexplicitINSTALLHOSTTRIALgitpullthen
+bash scripts/install_local.sh --rust-stream-trial; aftersuccessmode rust-resolved,
+reloadlive5050phone/media-volumeup/oneordinarypermittedPlay. Firstsongfailurestop,
+noaccountcookies/clientrotation/generatedtokens/nativewatchretry. Optionaldefault
+transportrestorationbashscripts/install_local.sh. No50MBacceptanceuntilrealstartup/
+playing/search/Next/trackchange/EOF/control/recovery/attributableTOTALreleasebudget/
+swapandagreedlisteners/hardwareverified. Steadystatecanimprovebutunmeasured;startup
+resolverlikelystilllarge. No repeatdiagnosticlooprecommendedbeforetryapprovedtrial.
+Backend2/5,performance1/5(actualbudgetunverified),QA3/5. UIintact/5051unchangedstopped;
+unrelatedtrackedpycdeletionpreserved. AllRustsourceacquisitionremainsseparateblocker.

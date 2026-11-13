@@ -44,7 +44,7 @@ signed URLs, credentials or account cookies to accelerate this investigation.
 | Responsibility | Current source/dependency | Required native replacement and acceptance |
 |---|---|---|
 | HTTP/API and approved UI | src/main.rs / src/index.html | Keep stable5050API, approved portraitUI/Back/history/queue/likes; regression test, not a template rewrite |
-| Stream acquisition/proxy | src/media.rs open_stream launches yt-dlp | Native permitted-source extraction + bounded TLS streaming, matching identity/playability/privacy guards; actual media bytes, EOF/cancel/reconnect/range behavior |
+| Stream acquisition/proxy | src/media.rs legacy launches yt-dlp; opt-in src/resolved_media.rs uses short resolver then native HTTP | Native permitted-source extraction + bounded TLS streaming, matching identity/playability/privacy guards; actual media bytes, EOF/cancel/reconnect/range behavior |
 | Search and related discovery | src/main.rs fetch_related and search spawn yt-dlp | Native metadata/discovery implementation with reviewed source access, bounded responses/concurrency, errors/cancellation; real representative results, no helper/off-host fallback |
 | Speaker output and controls | src/main.rs play handler/audio_command uses mpv and socket IPC | Existing isolated Rust audio prototype is a candidate, not integrated: acquired audio decode, audible device output, pause/seek/volume/EOF/queue/recovery |
 | Process/lifecycle ownership | src/runtime_user.rs and src/speaker_process.rs now replace id -u and pkill | Native effective UID lookup, owned mpv child cancellation/reaping, private0700IPC directory and epoch guard are implemented; regression checks pass. This still uses mpv, not native audio; descendant extractor ownership needs separate acceptance |
@@ -59,6 +59,22 @@ no silent workload offload, hidden Python/Node/mpv/yt-dlp worker, external resol
 cloud fallback to manufacture a Rust/50MB claim. REA and Graphify remain development
 tools only. No new auth/session/device-isolation/source-access architecture is implied
 by this responsibility inventory. Existing global-state limitations stay explicit.
+
+## Approved opt-in Rust transfer increment
+
+The user explicitly approved a staged short resolver -> native HTTP transfer path.
+It is integrated at /api/stream behind MUSIC_STREAM_TRANSPORT=rust-resolved, default
+legacy preserved. See RUST_STREAM_TRIAL.md for exact opt-in install and restoration.
+It retains yt-dlp/optionalNode for startup resolution; waits for direct child exit;
+validates identity/origin/headers/protocol/container; streams with bounded chunks,
+backpressure/timeouts/no signed-URL logs or cache. No transcoding/bitrate downgrade.
+There is no automatic heavy fallback. Trial browser speculative prefetch stays off
+through buffered audible playback; explicit Next/EOF discovery remains on demand
+and may introduce a gap/helper peak. One active trial stream; another receives429.
+No provider/hardware test, native-acquisition fix or below50MB TOTAL acceptance.
+Resolution, interaction peaks, descendants and platform costs still count. This is
+not an all-Rust artifact. The normal installer stays legacy unless --rust-stream-trial
+is explicitly supplied; no automatic live switch or OOM budget cap is introduced.
 
 ## Latest resource patch (not a50MB release)
 
