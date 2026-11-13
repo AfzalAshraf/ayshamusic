@@ -140,6 +140,10 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+fn suppress_speculative_prefetch(play_mode: &str, transport: &str) -> bool {
+    play_mode == "browser" && transport != "legacy"
+}
+
 /// Prefetch related tracks without interrupting the current song.
 /// Browser advancement is driven by the media element's ended event.
 async fn autoplay_watcher(state: AppState) {
@@ -151,6 +155,10 @@ async fn autoplay_watcher(state: AppState) {
         if resolved_media::is_active() { continue; }
         let current = {
             let lock = state.lock().unwrap();
+            // HTTP EOF can precede audible EOF because browsers buffer audio.
+            // Keep trial prefetch disabled for the playback mode, not just while
+            // its network stream lease is held. Explicit Next remains available.
+            if suppress_speculative_prefetch(&lock.player.play_mode, media::configured_transport_name()) { continue; }
             if !attempts.reserve(lock.playback_epoch, lock.player.is_playing, lock.player.queue.is_empty()) { continue; }
             lock.player.current_track.clone().map(|track| (track, lock.playback_epoch))
         };
@@ -839,6 +847,14 @@ mod api_tests {
             let result = search_handler(State(state()), Query(SearchQuery { q })).await;
             assert!(result.0.is_empty());
         }
+    }
+
+    #[test]
+    fn trial_browser_prefetch_stays_suppressed_after_http_body_eof() {
+        assert!(suppress_speculative_prefetch("browser", "rust-resolved"));
+        assert!(suppress_speculative_prefetch("browser", "invalid"));
+        assert!(!suppress_speculative_prefetch("browser", "legacy"));
+        assert!(!suppress_speculative_prefetch("bt", "rust-resolved"));
     }
 
 }
