@@ -74,10 +74,19 @@ test('browser playback uses query parameters and browser mode', async () => {
   assert.equal(h.element('audio-player').played, true);
 });
 
-test('connected Bluetooth selects server playback, not browser audio', async () => {
+test('connected server Bluetooth does not steal browser playback', async () => {
   const h = harness(true);
   await h.context.playSong(track);
-  assert.equal(new URLSearchParams(h.calls[1].url.split('?')[1]).get('mode'), 'bt');
+  const play = h.calls.find(call => call.url.startsWith('/api/play?'));
+  assert.equal(new URLSearchParams(play.url.split('?')[1]).get('mode'), 'browser');
+  assert.equal(h.calls.some(call => call.url === '/api/bt/status'), false);
+  assert.equal(h.element('audio-player').played, true);
+});
+
+test('speaker playback still requires an explicit output request', async () => {
+  const h = harness(true);
+  await h.context.playSong(track, { mode: 'bt' });
+  assert.equal(new URLSearchParams(h.calls[0].url.split('?')[1]).get('mode'), 'bt');
   assert.notEqual(h.element('audio-player').played, true);
 });
 
@@ -200,7 +209,7 @@ test('Pause then Play resumes without creating another track registration', asyn
 
 test('Bluetooth Stop then Play starts mpv again rather than resuming a dead process', async () => {
   const h = harness(true);
-  await h.context.playSong(track);
+  await h.context.playSong(track, { mode: 'bt' });
   await h.context.stopPlay();
   await h.context.togglePlay();
   assert.equal(h.calls.filter(call => call.url.startsWith('/api/play?')).length, 2);
@@ -222,7 +231,9 @@ test('failed restart keeps Play available instead of pretending audio started', 
   h.context.fetch = async () => ({ ok: true, json: async () => ({ status: 'failed', error: 'Downloader unavailable' }) });
   await h.context.togglePlay();
   assert.equal(h.element('play-toggle').attributes['aria-label'], 'Play');
-  assert.equal(h.element('audio-player').playCount, 1);
+  assert.equal(h.element('audio-player').playCount, 2, 'Tap starts media immediately, but failed registration cancels it');
+  assert.equal(h.element('audio-player').paused, true);
+  assert.equal(h.element('audio-player').src, '');
   assert.equal(h.element('time-display').textContent, 'Downloader unavailable');
 });
 
@@ -305,16 +316,17 @@ test('restored selection supplies valid artwork to Chromium MediaSession', async
   assert.equal(new URLSearchParams(refreshed.calls.find(call => call.url.startsWith('/api/play?')).url.split('?')[1]).get('thumbnail'), 'https://img.youtube.com/vi/abc/hqdefault.jpg');
 });
 
-test('Bluetooth selection survives Stop and refresh and restarts via play, not resume', async () => {
+test('refresh restores a prior speaker song for browser playback without autoplay', async () => {
   const original = harness(true);
-  await original.context.playSong(track);
+  await original.context.playSong(track, { mode: 'bt' });
   await original.context.stopPlay();
   const refreshed = harness(true, original.storage);
-  assert.equal(refreshed.element('full-output').textContent, 'Home Bluetooth speaker');
-  await refreshed.context.togglePlay();
-  assert.equal(new URLSearchParams(refreshed.calls[0].url.split('?')[1]).get('mode'), 'bt');
-  assert.equal(refreshed.calls.some(call => call.url === '/api/resume'), false);
+  assert.notEqual(refreshed.element('full-output').textContent, 'Home Bluetooth speaker');
   assert.equal(refreshed.element('audio-player').playCount, 0);
+  await refreshed.context.togglePlay();
+  assert.equal(new URLSearchParams(refreshed.calls[0].url.split('?')[1]).get('mode'), 'browser');
+  assert.equal(refreshed.calls.some(call => call.url === '/api/resume'), false);
+  assert.equal(refreshed.element('audio-player').playCount, 1);
 });
 
 test('invalid saved selection schema is ignored without breaking the empty player', () => {
@@ -979,4 +991,43 @@ test('decorative heart effects have no visible discovery instructions', () => {
   assert.ok(!source.includes('Reveal a tiny heart'));
   assert.ok(!source.includes('heart-discovery'));
   assert.ok(source.includes('function heartPointerMove') && source.includes('function heartPointerClick'));
+});
+
+
+test('browser play is invoked before the server registration resolves', async () => {
+  const h = harness(true);
+  let finish;
+  h.context.fetch = (url, opts) => {
+    h.calls.push({url, opts});
+    return new Promise(resolve => { finish = () => resolve({ok:true,json:async()=>({status:'playing'})}); });
+  };
+  const pending = h.context.playSong(track);
+  assert.equal(h.element('audio-player').playCount, 1);
+  assert.equal(h.element('audio-player').paused, false);
+  finish();
+  await pending;
+});
+
+test('a late successful start cannot overwrite Stop on this device', async () => {
+  const h = harness();
+  let finish;
+  h.context.fetch = (url) => url.startsWith('/api/play?')
+    ? new Promise(resolve => { finish=()=>resolve({ok:true,json:async()=>({status:'playing'})}); })
+    : Promise.resolve({ok:true,json:async()=>({status:'stopped'})});
+  const pending = h.context.playSong(track);
+  await h.context.stopPlay();
+  finish();await pending;
+  assert.equal(h.element('audio-player').src, '');
+  assert.equal(h.element('audio-player').paused, true);
+  assert.match(h.element('time-display').textContent, /Stopped/);
+});
+
+test('a rejected mobile play leaves a retryable selection and no fake playing state', async () => {
+  const h = harness();
+  h.element('audio-player').play = () => Promise.reject(Object.assign(new Error('blocked'),{name:'NotAllowedError'}));
+  await h.context.playSong(track);
+  assert.match(h.element('time-display').textContent, /Tap.*Play.*this device/);
+  assert.equal(h.element('audio-player').paused, true);
+  assert.equal(h.element('audio-player').src, '');
+  assert.equal(h.element('hero-play-label').textContent, 'Play');
 });

@@ -458,6 +458,7 @@ startLoveIntro();
 
 let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
 let durationSec = 0;
+let playbackAttempt = 0;
 
 // Tab-scoped selection survives reload, never an autoplay instruction or a
 // shared-device profile. Storage denial must not break in-memory playback.
@@ -494,7 +495,9 @@ function restoreSelection() {
       id: t.id, title: t.title, artist: t.artist, url: t.url,
       thumbnail: 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg',
     };
-    state.playMode = saved.mode;
+    // A remembered speaker connection is not permission to route this phone's
+    // next tap away from this device. Restore the selection, not remote output.
+    state.playMode = 'browser';
     state.stopped = true;
     renderSelection(state.current_track);
     setPlayingState(false);
@@ -567,68 +570,70 @@ async function checkBluetooth() {
   return st.connected || false;
 }
 
-async function getStreamUrl(t) {
+function getStreamUrl(t) {
   // Assign the proxy URL directly to <audio>; never fetch audio through the JSON API helper.
   return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
 async function playSong(t, options = {}) {
+  const attempt = ++playbackAttempt;
   renderSelection(t);
   state.current_track = t;
   state.stopped = true;
-
-  // Check if Bluetooth speaker is connected
   const audio = document.getElementById('audio-player');
   audio.pause();
   audio.removeAttribute('src');
   audio.load();
-  const btConnected = options.mode ? options.mode === 'bt' : await checkBluetooth().catch(() => false);
 
-  if (btConnected) {
-    // Bluetooth connected → play on server mpv → JBL speaker
+  // This device is the default. Bluetooth status never chooses an output.
+  // Only an explicit caller request may start the server's speaker backend.
+  if (options.mode === 'bt') {
     state.playMode = 'bt';
     saveSelection();
-    document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
-    setPlayingState(true);
+    document.getElementById('time-display').textContent = 'Starting Bluetooth speaker...';
+    setPlayingState(false);
     try {
       if (options.notifyServer !== false) await api('POST', '/api/play', { ...t, mode: 'bt' });
+      if (attempt !== playbackAttempt) return;
       state.stopped = false;
+      setPlayingState(true);
+      document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
     } catch (error) {
+      if (attempt !== playbackAttempt) return;
       setPlayingState(false);
       document.getElementById('time-display').textContent = error.message;
     }
-    updateMediaSession();
     return;
   }
 
-  // Bluetooth NOT connected → play in browser via streaming proxy
   state.playMode = 'browser';
   saveSelection();
-  document.getElementById('time-display').textContent = 'Loading stream...';
-  setPlayingState(true);
-
-  try {
-    if (options.notifyServer !== false) await api('POST', '/api/play', { ...t, mode: 'browser' });
-  } catch (error) {
-    setPlayingState(false);
-    document.getElementById('time-display').textContent = error.message;
-    return;
-  }
-  const streamUrl = await getStreamUrl(t);
-  audio.src = streamUrl;
-  state.stopped = false;
+  document.getElementById('time-display').textContent = 'Loading on this device...';
+  setPlayingState(false);
+  audio.src = getStreamUrl(t);
   audio.volume = state.volume / 100;
-  audio.play()
-    .then(function() {
-      document.getElementById('time-display').textContent = 'Playing on this device...';
-    })
-    .catch(function(e) {
-      setPlayingState(false);
-      document.getElementById('time-display').textContent = e.name === 'NotAllowedError'
-        ? 'Tap ▶ Play to start' : 'Playback failed: ' + e.message;
-    });
-
-  updateMediaSession();
+  state.stopped = false;
+  try {
+    // Keep play() in the original tap stack. Awaiting Bluetooth/API first can
+    // lose mobile user activation. Never fetch an audio response as JSON.
+    const playing = audio.play();
+    const registered = options.notifyServer === false ? Promise.resolve()
+      : api('POST', '/api/play', { ...t, mode: 'browser' });
+    await Promise.all([playing, registered]);
+    if (attempt !== playbackAttempt) return;
+    setPlayingState(true);
+    document.getElementById('time-display').textContent = 'Playing on this device...';
+  } catch (error) {
+    if (attempt !== playbackAttempt) return;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    state.stopped = true;
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = error.name === 'NotAllowedError'
+      ? 'Tap ▶ Play to start on this device'
+      : error.message;
+  }
 }
 
 async function togglePlay() {
@@ -655,6 +660,7 @@ async function togglePlay() {
 }
 
 async function stopPlay() {
+  ++playbackAttempt;
   const bluetooth = state.playMode === 'bt';
   if (bluetooth) {
     try {
@@ -1394,9 +1400,12 @@ document.getElementById('audio-player').addEventListener('ended', function() {
 
 document.getElementById('audio-player').addEventListener('error', function() {
   if (state.playMode !== 'browser') return;
+  if (state.stopped) return;
+  ++playbackAttempt;
+  state.stopped = true;
   setPlayingState(false);
   const code = this.error ? this.error.code : 'unknown';
-  document.getElementById('time-display').textContent = 'Audio error ' + code + ': check stream test and server journal';
+  document.getElementById('time-display').textContent = 'Audio error ' + code + ' on this device. Retry Play; if it fails, run the browser playback diagnostic.';
 });
 
 document.getElementById('now-playing').addEventListener('close', renderRatingPrompt);
