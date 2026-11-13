@@ -1537,3 +1537,50 @@ acquisition fix, integrated bounded native transport/decode/controls, native dis
 per-stream deviceclients, real complete release budget/rollback before switch. No
 all-Rust server or30MB acceptance delivered. Honest ratings: backend2/5, performance1/5,
 QA3/5, nativeextraction2/5; full readiness blocked. Preserve unrelated trackedpyc deletion.
+
+## 2026-11-07 — user chooses phone/browser; fix implicit remote routing first
+
+Active department QA & Debugging. User successfully fast-forwarded3839d5c->66b9667
+and ran the offline gate: expectedblocked/native_acquisition_not_demonstrated,
+network/nativeexecutedfalse, replacementfalse, historicalservice101171200fails30MB,
+nextofflineonly. This is neither a currentstreamfailure nor newaudibilityevidence;
+sourcepull is not deployment. User asks resolveeverything/hearmusic and explicitly
+chooses phone/browser in output clarification. No remotehost access implied.
+
+Source-confirmed defect: playSong autoqueries /api/bt/status, routes normal song
+selection to mpv/JBL when serverconnected, not listener'sphone. Patch7433267 defaults
+normal selections to browser regardlessofBluetooth. Restore prior saved song but
+resetoutputbrowser/noautoplay (latestuserchoice supersedes oldbt-outputrestore).
+Explicitoptions.modebt remains functional, no newoutputpicker. Browseraudio.play now
+invoked in tapstack before firstawait, rather than afterBluetooth/servernetwork.
+Promiseall checks media+registration, clearsource/pause/retryableselection onfailure;
+playingstate not optimistic. Attemptcounter guards late success/failure againstStop
+and newerplay, not a backendper-devicesessionarchitecture. Error event marks selection
+retryable. No providerclient/JS/cookie/token/authchange, no native-watchretry, no extra
+stream request added; ordinary app playback remains existingyt-dlpcompatibilitypath.
+Otherdevices/sharedbackendnavigation/EOF constraints remain explicit.
+
+Tests:79JS(frontend+staticpreview)PASS,111PythonPASS,diffcheckPASS. CI43422324149 all5
+jobsPASS for7433267: rootRusttests/release, mobilebrowserlayout/navigation, isolated
+native/audio/extractchecks/offlineCLI. No hostmusicdecode/hardware/hearing acceptance.
+Node20actiondeprecation warnings remain. Initialtest failed because newtapstackstarts
+media before a failedregistration, unlike oldbehavior; updatedassertionsrequirethe
+sourcecancelled/paused,no fakeplaying,stillretryable. No deployment inagentsandbox.
+
+New scripts/check_browser_playback.py is boundedread-only stdlibDIAGNOSTIC, notserver
+runtime. Fixedloopback / and /api/status only; systemctlreadonly and journalctl atmost
+100lines/1MiB/last5minutes/10sectimeout; returnsfixedsignaturecounts, no rawlogs/song/
+signedURL/privateexception. Inaccessible/emptylogs unverified, absentmarker notsuccess;
+othercliententriesnotcausalproof. Exit1fail or2partial, neverclaims audible/native/
+30MBacceptance. Sixfixturetests coverpaths/redaction/permissions/statuserrors/exitcodes.
+No providerprobe/audio/control/install/reset/sudo/upload bydiagnostic.
+
+Guide docs/HEAR_MUSIC_IN_BROWSER.md: exactINSTALLcommandgitpullthenbashscripts/install_local.sh
+fornormalconfirmedafineUID1000compatibilityservice, NOTallRustcandidate. Thisrebuilds
+embeddedpage/testsfirst, backupsunit/binary,restarts5050. Existingyt-dlp/optionalNode
+stillrequired; nothidden/newfallback. Installerpreflight/buildfail stopandpreserve;
+poststopfailure needsreviewedbackuprollback, notblindrerun. Thenreloadlive5050app on
+phone(notstaticpreview),media-volumeup,oneordinarylistenerinitiatedsongPlay. Success
+requiresuserconfirmedsound; iffailcapturevisiblemessage + newreadonlydiagnosticJSON,
+notrepeatnativegate/watchorrawjournal. No promiseeverythingresolvedor30MBachieved.
+Backend2/5,QA3/5,performance1/5; liveaudibilityNOTRUN. Unrelatedtrackedpycdeletionpreserved.

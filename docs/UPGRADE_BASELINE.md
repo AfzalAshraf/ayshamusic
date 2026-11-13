@@ -52,3 +52,11 @@ Iconography is a UI specialist, not a separate artificial department. The main s
 ## Small changes and future redesigns
 
 The dedication correction is explicitly authorized and does not reopen the approved layout. Other visual or architectural replacements need their own user approval. "Upgrade" means preserve + improve + verify, not silently redesign, add services, buy a domain or schedule maintenance.
+
+## Current listening target —2026-11-07
+
+The user explicitly selected **phone/browser**. Normal song selection must not
+silently route to the Linux server's JBL just because Bluetooth reports connected.
+Restore song selection without autoplay; old stored speaker output must not override
+this-device default. See HEAR_MUSIC_IN_BROWSER.md for the focused compatibility-service
+fix/install and honest outstanding native/30MB/audio acceptance boundaries.
