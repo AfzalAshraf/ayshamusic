@@ -128,9 +128,9 @@
     }
   ],
   "pending_diagnostic": {
-    "candidate": "aysha-direct-v5.1-watch-observation",
-    "status": "not_scheduled_stop_live_retries",
-    "scope": "watch_only_mode_retained_not_an_extra_live_request_before_or_after_the_one_full_trial",
+    "candidate": "aysha-direct-v5.2-coverage-only",
+    "status": "awaiting_one_watch_only_request",
+    "scope": "ONE_approved_watch_GET_with_fixed_coverage_counts_never_player_or_media",
     "external_tools": false
   },
   "latest_diagnostic": {
@@ -183,9 +183,10 @@
     }
   ],
   "review_required": {
-    "status": "offline_only",
-    "next": "offline_source_coverage_review_no_live_retry",
-    "reason": "recognized_config_and_player_visitor_sources_empty_ignored_tails_unexplained"
+    "status": "approved_watch_only_diagnostic",
+    "next": "one_approved_watch_only_coverage_inventory_no_player_or_media",
+    "reason": "recognized_config_and_player_visitor_sources_empty_ignored_tails_unexplained",
+    "native_bootstrap_retry_authorized": false
   },
   "latest_offline_host_review": {
     "source_revision": "efde115",
@@ -198,8 +199,8 @@
   },
   "prepared_diagnostic": {
     "candidate": "aysha-direct-v5.2-coverage-only",
-    "status": "offline_verified_awaiting_explicit_user_approval",
-    "approval_recorded": false,
+    "status": "awaiting_one_approved_watch_only_request",
+    "approval_recorded": true,
     "scope": "one_additional_watch_only_GET_fixed_region_marker_counts_no_player_media_raw_output_or_parser_relaxation",
     "guide": "docs/research/WATCH_COVERAGE_DIAGNOSTIC.md",
     "verification": {
@@ -222,6 +223,18 @@
       "player_requested": false,
       "media_requested": false,
       "normal_cli_binary_build_verified": false
-    }
+    },
+    "approval_basis": "user_explicitly_requests_real_server_download_play_stream_and_budget_checks_after_fixture_results; limited_to_prepared_one_watch_only_request_and_read_only_running_service_sampling",
+    "host_result_recorded": false
+  },
+  "requested_budget_check": {
+    "scope": "read_only_service_cgroup_and_descendants_during_user_controlled_normal_playback_lower_bound_only",
+    "upper_limits_bytes": {
+      "15_MB": 15000000,
+      "15_MiB": 15728640
+    },
+    "boundary_and_units_finalized": false,
+    "playback_started_by_checker": false,
+    "host_result_recorded": false
   }
 }

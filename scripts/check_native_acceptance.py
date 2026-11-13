@@ -9,6 +9,7 @@ from pathlib import Path
 
 EVIDENCE = Path(__file__).resolve().parents[1] / "docs/research/NATIVE_ACQUISITION_HOST.json"
 WATCH_ACTIONS = {
+    "aysha-direct-v5.2-coverage-only": "one_approved_watch_only_coverage_inventory_no_player_or_media",
     "aysha-direct-v4.2-config-diagnostic": "one_watch_only_config_diagnostic_no_player_or_media",
     "aysha-direct-v4.3-syntax-diagnostic": "one_watch_only_syntax_subtype_diagnostic_no_player_or_media",
     "aysha-direct-v4.4-metadata-guard": "one_guarded_metadata_watch_check_no_player_or_media",
@@ -37,6 +38,16 @@ def assess(evidence):
     watch_action = (WATCH_ACTIONS.get(diagnostic.get("candidate")) if isinstance(diagnostic, dict)
                     and diagnostic.get("status") == "awaiting_one_watch_only_request" else None)
     review = evidence.get("review_required", {})
+    if isinstance(diagnostic, dict) and diagnostic.get("candidate") == "aysha-direct-v5.2-coverage-only":
+        prepared = evidence.get("prepared_diagnostic", {})
+        authorized = (isinstance(prepared, dict) and isinstance(review, dict)
+                      and prepared.get("candidate") == diagnostic.get("candidate")
+                      and prepared.get("approval_recorded") is True
+                      and prepared.get("status") == "awaiting_one_approved_watch_only_request"
+                      and prepared.get("host_result_recorded") is not True
+                      and review.get("status") == "approved_watch_only_diagnostic")
+        if not authorized:
+            watch_action = None
     offline_review = ("offline_source_coverage_review_no_live_retry"
                       if isinstance(review, dict) and review.get("status") == "offline_only" else None)
     return {

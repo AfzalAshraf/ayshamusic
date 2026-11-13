@@ -54,7 +54,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(evidence['latest_native']['code'], 'watch_visitor_missing')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
 
     def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
         result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
@@ -84,7 +84,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         evidence = json.loads(gate.EVIDENCE.read_text())
         result = gate.assess(evidence)
         self.assertEqual(evidence['approved_experiment']['candidate'], 'aysha-direct-v5.1-static-wrapper')
-        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['memory_budget_accepted'])
         self.assertFalse(result['whole_stack_ready'])
@@ -113,6 +113,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         evidence['approved_experiment'].update(status='awaiting_single_host_trial',host_result_recorded=False)
         evidence['pending_diagnostic'].update(status='awaiting_one_watch_only_request',
                                              candidate='aysha-direct-v4.4-metadata-guard')
+        evidence['review_required']['status'] = 'offline_only'
         self.assertEqual(gate.assess(evidence)['next'], 'offline_source_coverage_review_no_live_retry')
 
     def test_latest_observation_only_proves_absence_in_recognized_sources(self):
@@ -129,18 +130,18 @@ class NativeAcceptanceTests(unittest.TestCase):
             'config_visitor_present', 'context_visitor_present', 'player_visitor_present')))
         self.assertEqual(gate.assess(evidence)['status'], 'blocked')
 
-    def test_confirmed_offline_guard_and_prepared_diagnostic_do_not_authorize_a_new_trial(self):
+    def test_confirmed_offline_guard_is_historical_and_new_request_is_only_watch_diagnostic(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         review = evidence['latest_offline_host_review']
         self.assertFalse(review['network_executed'])
         self.assertFalse(review['native_executed'])
         self.assertEqual(review['source_revision'], 'efde115')
-        self.assertFalse(evidence['prepared_diagnostic']['approval_recorded'])
+        self.assertTrue(evidence['prepared_diagnostic']['approval_recorded'])
         result = gate.assess(evidence)
         self.assertEqual(result['status'], 'blocked')
-        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
 
-    def test_host_coverage_fixture_pass_is_not_consent_or_live_acquisition(self):
+    def test_host_coverage_fixture_pass_is_not_live_acquisition_even_after_separate_user_approval(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         diagnostic = evidence['prepared_diagnostic']
         host = diagnostic['host_fixture_verification']
@@ -149,11 +150,21 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(host['tests_filtered_out'], 55)
         self.assertFalse(host['provider_requests'])
         self.assertFalse(host['normal_cli_binary_build_verified'])
-        self.assertFalse(diagnostic['approval_recorded'])
+        self.assertTrue(diagnostic['approval_recorded'])
         result = gate.assess(evidence)
-        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
         self.assertFalse(result['native_prefix_gate_passed'])
         self.assertFalse(result['memory_budget_accepted'])
+
+    def test_coverage_watch_action_requires_separate_live_approval_and_unconsumed_request(self):
+        for change in ({'approval_recorded': False}, {'host_result_recorded': True},
+                       {'status': 'completed_failed_stop_live_retries'}):
+            evidence = json.loads(gate.EVIDENCE.read_text())
+            evidence['prepared_diagnostic'].update(change)
+            result = gate.assess(evidence)
+            self.assertNotEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
+            self.assertFalse(result['native_prefix_gate_passed'])
+            self.assertFalse(result['whole_stack_ready'])
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:
