@@ -1,5 +1,20 @@
 # Completed host stream/budget checks — both gates failed; do not repeat
 
+## Current requirement override —2026-11-07
+
+The latest user request supersedes10–15MB: **strictly below30MB TOTAL**, every
+application-server responsibility in Rust. Decimal30,000,000bytes is the conservative
+ceiling; equality fails, MiB31,457,280bytes is shown separately. Historical evidence
+and chronology below retain their original15MB thresholds, not the current target.
+The measured service alone101,171,200bytes still fails both30-unit ceilings. No new
+measurement or native playback success is inferred. Shared audio/BlueZ/D-Bus/tunnel
+costs and simultaneous listener count must not be omitted. See ALL_RUST_UPGRADE_GATES.md.
+The current live diagnostic uses candidate v2-30mb; committed v1reports stay immutable.
+No unchanged host probe is needed. Native acquisition is still blocked; watch approval
+is consumed. Preserve the working service; no prototype install/restart is authorized
+by a low-RSS or passing build result.
+
+
 ## Latest results and current decision
 
 Both commands below have now been run at checkout3839d5c. They are retained as the

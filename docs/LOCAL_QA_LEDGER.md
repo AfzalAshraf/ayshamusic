@@ -1490,3 +1490,50 @@ markedCOMPLETED/donotrepeat. Optionalofflinegate commandinnewgatesdoc, expectedb
 exit1/currentservicefail/noinstall; no need to remeasure/refetch before meaningfulpatch.
 Production/service/UI/deps/Vercel/stopped5051 unchanged; unrelatedpycdeletionpreserved.
 Extraction2/5, performance1/5, fullRust10–15MBunproved; no installation/restart performed.
+
+## 2026-11-07 —30MB TOTAL supersedes15MB; first native lifecycle increment
+
+Active department: QA & Debugging. Latest user requires every application runtime
+role in Rust, total strictly below30MB. Conservative ceiling30,000,000bytes; separate
+binary31,457,280bytes; equality fails. Existing101,171,200bytes remains failure, not
+future-native feasibility proof. No new host observations or installation. Historical
+JSON and15MB chronology remain immutable; current scripts/guidance now use30MB.
+
+Runtime commit27a4355: src/runtime_user.rs removes id subprocess using effective UID
+from bounded16KiBLinux/proc status and absoluteXDG override; malformed/duplicate IDs
+fail closed. src/speaker_process.rs replaces globalpkill/sharedtmp IPC with owned
+TokioChild, cancellation/reaping, private0700directory/socket, exact-path cleanup;
+start/stop epoch rejects late prepared starts and stale failures. RootAPI tests cover
+staleStop/start, newbrowserstate protection and other-child noninterference. Module
+tests cover natural exit, cancellation/drop, failedspawn and private-directory lifetime.
+No new dependencies, UI changes or production switch. mpv is STILL the audio backend;
+its descendants are not independently owned by this increment. Pause/status continue
+legacy synchronousIPC300mstimeouts; no native decoder/EOF/device acceptance inferred.
+CI43420991165 all5jobsPASS, root tests/release/frontend/syntaxPASS. Local cargo absent;
+CI validates compilation/fixtures, not real host audio/BlueZ/resource usage. GitHub
+job log download blocked by outbound host restriction; job status/steps available;
+no unverified Rust test count claimed. CI actionNode20 deprecation warnings remain.
+
+Audit explicitly adds pactl: card profile/defaultsink/unmute/100%volume/moveALLinputs.
+This is still global, potentially disruptive and helper-dependent; neither a safe
+native routing replacement nor hardware test is claimed. Stale blocking preparation
+may still perform routing side effects before the epoch rejection; this guard only
+prevents a stale mpv install. Other runtime roles: yt-dlp stream/search/related,
+optionalNodeJS,mpv,bluetoothctl,bashconnectscript. Externalconnectscript notincheckout;
+actualhostchildren/configuration cannot be certified from source. BlueZ/D-Bus/audio/
+CloudflareTunnel/systemd are native platform services, not rewrittenRust here; their
+costs cannot be omitted fromTOTAL. Actualaudio-daemon/listener/sharedaccounting open.
+PinnedREA research remains dev-only, not runtime resolver or successfulsourceproof.
+
+Gate/checker patch: reassess original schema1v1observations against30MB; accept future
+v2-30mb diagnostic format without rewriting old evidence; strict equality tests,
+no partial-scope success, measured current vs historicalpeak separate. 105Python tests
+PASS; diffcheckPASS. ExactOFFLINE diagnostic: python3 scripts/check_native_acceptance.py
+expectedexit1/blocked/current_service_budgetfail101171200/native_replacement_allowedfalse/
+keep_working_service_do_not_install_prototype/nextoffline_reproduce_ignored_watch_source_before_native_replacement.
+No unchanged build/probe/budget retry. Fail evidence parsing -> inspect local schema,
+not authorize network. Next implementation: offline reproducible permitted-source
+acquisition fix, integrated bounded native transport/decode/controls, native discovery/
+per-stream deviceclients, real complete release budget/rollback before switch. No
+all-Rust server or30MB acceptance delivered. Honest ratings: backend2/5, performance1/5,
+QA3/5, nativeextraction2/5; full readiness blocked. Preserve unrelated trackedpyc deletion.

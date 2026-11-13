@@ -1,5 +1,20 @@
 # Memory budget — Rust-only target and verification plan
 
+## Current requirement override —2026-11-07
+
+The latest user request supersedes10–15MB: **strictly below30MB TOTAL**, every
+application-server responsibility in Rust. Decimal30,000,000bytes is the conservative
+ceiling; equality fails, MiB31,457,280bytes is shown separately. Historical evidence
+and chronology below retain their original15MB thresholds, not the current target.
+The measured service alone101,171,200bytes still fails both30-unit ceilings. No new
+measurement or native playback success is inferred. Shared audio/BlueZ/D-Bus/tunnel
+costs and simultaneous listener count must not be omitted. See ALL_RUST_UPGRADE_GATES.md.
+The current live diagnostic uses candidate v2-30mb; committed v1reports stay immutable.
+No unchanged host probe is needed. Native acquisition is still blocked; watch approval
+is consumed. Preserve the working service; no prototype install/restart is authorized
+by a low-RSS or passing build result.
+
+
 ## Latest user requirement: 10–15 MB and Rust server responsibilities
 
 The user now requests every server responsibility in Rust and a 10–15 MB memory
