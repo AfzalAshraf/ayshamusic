@@ -817,7 +817,8 @@ mod api_tests {
     }
     #[tokio::test] async fn stopped_request_cannot_install_a_late_speaker() {
         let state=state(); let old_epoch=state.lock().unwrap().playback_epoch;
-        stop_handler(State(state.clone())).await;
+        let stopped = stop_handler(State(state.clone())).await;
+        assert_eq!(stopped.0["status"], "stopped");
         let ipc=speaker_process::PrivateIpc::create().unwrap();
         let result=install_speaker(&state,old_epoch,std::process::Command::new("/no-such-test-program"),ipc);
         assert_eq!(result,Err("speaker_request_superseded"));
@@ -828,7 +829,8 @@ mod api_tests {
         let track=Track{id:"fixture".into(),title:"Fixture".into(),artist:"Fixture".into(),thumbnail:String::new(),url:"https://www.youtube.com/watch?v=Jm7Satp7Zqk".into()};
         let result=start_track(state.clone(),track,"browser".into(),true).await;
         assert_eq!(result.0["status"],"playing");
-        failed_start(&state,old_epoch,"speaker_prepare_failed");
+        let failed = failed_start(&state,old_epoch,"speaker_prepare_failed");
+        assert_eq!(failed.0["status"], "failed");
         assert!(state.lock().unwrap().player.is_playing);
     }
     #[tokio::test] async fn stop_clears_owned_speaker_and_does_not_touch_another_child() {

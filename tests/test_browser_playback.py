@@ -8,7 +8,7 @@ from scripts import check_browser_playback as diagnostic
 
 
 class BrowserPlaybackTriageTests(unittest.TestCase):
-    def run_report(self, journal="ordinary service message", journal_rc=0, served=None, active=True):
+    def run_report(self, journal="ordinary service message", journal_rc=0, served=None, active=True, mode=None, stream_active=None, expected_mode=None):
         expected = (diagnostic.health.ROOT / 'src/index.html').read_bytes()
         def command(argv, timeout):
             if argv[0] == 'systemctl':
@@ -19,10 +19,12 @@ class BrowserPlaybackTriageTests(unittest.TestCase):
             return journal_rc, journal
         def http(path):
             self.assertIn(path, ['/', '/api/status'])
-            return (expected if served is None else served) if path == '/' else b'{"is_playing":true,"current_track":{"title":"PRIVATE"}}'
+            return (expected if served is None else served) if path == '/' else json.dumps({
+                "is_playing": True, "current_track": {"title": "PRIVATE"},
+                "stream_transport": mode, "rust_stream_active": stream_active}).encode()
         with mock.patch.object(diagnostic.health, 'command', side_effect=command), \
                 mock.patch.object(diagnostic.health, 'http_get', side_effect=http):
-            return diagnostic.collect()
+            return diagnostic.collect(expected_mode)
 
     def test_routes_are_local_readonly_no_media_or_controls_and_status_not_a_pass(self):
         report = self.run_report()
@@ -62,11 +64,46 @@ class BrowserPlaybackTriageTests(unittest.TestCase):
             self.assertNotIn('PRIVATE', json.dumps(report))
             self.assertEqual(report['checks'][2]['status'], 'fail')
 
+    def test_transport_expectation_distinguishes_trial_legacy_invalid_and_unknown_backend(self):
+        for mode, expected in [('rust-resolved', 'observed'), ('legacy', 'fail'), ('invalid', 'fail'), (None, 'unverified')]:
+            report = self.run_report(mode=mode, stream_active=False, expected_mode='rust-resolved')
+            row = next(row for row in report['checks'] if row['id'] == 'STREAM_TRANSPORT')
+            self.assertEqual(row['status'], expected)
+            self.assertIs(row['rust_stream_active'], False)
+            self.assertFalse(report['audibility_verified'])
+            self.assertFalse(report['memory_budget_accepted'])
+
+    def test_untrusted_mode_or_active_values_never_escape_into_report(self):
+        for mode in ['PRIVATE', [], {}, 1, True]:
+            report = self.run_report(mode=mode, stream_active='PRIVATE')
+            row = next(row for row in report['checks'] if row['id'] == 'STREAM_TRANSPORT')
+            self.assertEqual(row['configured'], 'unverified')
+            self.assertIsNone(row['rust_stream_active'])
+            self.assertNotIn('PRIVATE', json.dumps(report))
+
+    def test_fixed_rust_failure_categories_are_reported_without_raw_resolver_output(self):
+        report = self.run_report(journal='Rust-resolved stream: resolver_origin_rejected PRIVATE https://secret.invalid/TOKEN\n'
+                                 'Rust-resolved stream: metadata_exit_failed\n'
+                                 'Rust-resolved stream: native_stream_response_rejected\n'
+                                 'Rust-resolved stream: native_startup_timeout', mode='rust-resolved')
+        counts = report['checks'][-1]['signature_counts']
+        for code in ['RUST_RESOLVER_RECORD_REJECTED', 'RUST_RESOLVER_FAILED', 'RUST_CDN_OR_HEADER_FAILED', 'RUST_STARTUP_TIMEOUT']:
+            self.assertEqual(counts[code], 1)
+        for secret in ['PRIVATE', 'TOKEN', 'secret.invalid']:
+            self.assertNotIn(secret, json.dumps(report))
+
+    def test_invalid_transport_cli_never_runs_probes(self):
+        with mock.patch.object(diagnostic, 'collect') as collect, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                diagnostic.main(['--expect-transport', 'PRIVATE'])
+        self.assertEqual(error.exception.code, 2)
+        collect.assert_not_called()
+
     def test_cli_never_claims_full_success(self):
         for state, expected in [('fail', 1), ('unverified', 2), ('pass', 2)]:
             output = io.StringIO()
             with mock.patch.object(diagnostic, 'collect', return_value={'checks': [{'status': state}]}), contextlib.redirect_stdout(output):
-                self.assertEqual(diagnostic.main(), expected)
+                self.assertEqual(diagnostic.main([]), expected)
             self.assertEqual(json.loads(output.getvalue())['checks'][0]['status'], state)
 
 
