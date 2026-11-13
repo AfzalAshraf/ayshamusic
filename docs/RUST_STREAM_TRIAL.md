@@ -1,5 +1,15 @@
 # Opt-in Rust audio-transfer trial
 
+**Latest host outcome:** the user confirmed audible phone/browser music on the
+rust-resolved trial. Play/Previous/Next feel somewhat slow but acceptable. Latest
+supplied snapshot: service6,451,200bytes/current,67,592,192bytes historicalpeak,swap0;
+APIplayingfalse/streamleasefalse at that reading, so not playing-memory proof.
+Historical failure hints do not justify interrupting working audio. Runtime identity
+and RAM timeline procedure: [SERVER_RAM_MONITOR.md](SERVER_RAM_MONITOR.md). All-Rust
+acquisition and complete below50MB acceptance remain unfinished; old receipts below
+retain the evidence state at the time, not a denial of the new hearing confirmation.
+
+
 ## Approval and purpose
 
 The user explicitly approved the staged short-lived resolver -> Rust transfer design,

@@ -17,6 +17,19 @@ Use one active department per response. Ask about consequential ambiguities, ver
 
 For user-supplied server output, always return: what passed/failed and what it proves; an actionable fix plan; the justified patch or bounded diagnostic code; an exact command labelled diagnostic/build/install; expected outcomes and the next branch if it fails. Do not invent a fix or repeat an unchanged failing build. Preserve working playback. This response contract does not waive approval for consequential architecture, source-access, authentication or deployment changes.
 
+## Standing server identity and RAM output
+
+The user confirmed audible phone/browser playback on the rust-resolved trial and
+requests identity/RAM figures with future server-output responses. Always include the
+latest supplied observation time/scope, configured transport, service-cgroup current,
+window max/historical peak and swap when available. Never present an older value as
+fresh or call an inactive-transfer snapshot playing memory. Say "not remeasured"
+when no new host measurement exists. Use scripts/monitor_server.py for bounded,
+read-only identity and timelines; no build/restart/provider probe is needed. Distinguish
+service+descendants, non-additive RSS buckets, and all-workload host memory; shared
+platform/escaped-worker attribution is unresolved, so do not fabricate whole-app total.
+Preserve working music; measure slow Play/Previous/Next before changing the pipeline.
+
 ## Important file boundaries
 
 - Rust root page: `src/index.html`; embedded icons: `src/icons.svg`.
