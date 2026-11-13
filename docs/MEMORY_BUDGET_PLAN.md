@@ -180,3 +180,15 @@ Preparedwatch-onlycoverageinventory owns fixedcounters, scans boundedexistingpag
 slices withoutstoringvalues, and isdisabledinotherprofiles.62Rusttests/releaseCIpassed,
 but no newhostwatchdiagnosticapproved/run. SameTLS/allocator/decoder/server whole-memory
 uncertainties; noclaim10632KiBfaileddebugpeakdemonstratesall-Rust10–15MBstack.
+
+### Actual-playback service lower-bound audit now available, not100MB legacy health acceptance
+
+Userexplicitlyrequestsrealserverstream/budgetcheck. Newreadonlydiagnostic
+scripts/check_playback_budget.py samplescurrentservicecgroup+descendants duringuser-
+controllednormalplayback, separatehistoricalpeak/swap/allowlistedRSSbuckets andAPIflags.
+20samples2sapartdefault. Compares15,000,000vs15,728,640bytesexplicitly. Currentabove
+upperlimitrejectsservicebudget(lowerboundenough); belowlimitnevercertifieswholestack,
+audibility/nativeacquisition or outsideaudio/tunnel/browser/escapedworkers. Countersnot
+reset/RSSnotsummed/noMemoryMax/swaptrick/helperoffload. No servicecontrol/build during
+measurement.100Python/62Rust/all5CI43417518725PASS; no hostmeasurement yet. See
+STREAM_BUDGET_CHECK.md for orderedonewatch-onlydiagnosticthenusualplaybackaudit.

@@ -289,3 +289,14 @@ Graphifyrerun/runtimeintegration. Preparedwatch-onlyrawmarker/prefixregioncounte
 notJSexecution/dataparsing/sourceacceptance. Source02e1173 CI43415804715 all5PASS,
 62Rust/84PythonPASS. Explicitapprovalstillrequired forONEextrawatch-onlyGET; guardstop
 remains. See research/WATCH_COVERAGE_DIAGNOSTIC.md, no newnative/livecommand yet.
+
+### Explicit real-check request: one bounded coverage GET and current-service budget audit
+
+Userasksactualdownload/play-streamwithin10–15MB, notmorefixture-onlystatus. Record
+approvalforpreparedv5.2watch-onlyGET plusreadonlylocalserviceaudit,noplayermedia/
+newsource/auth/deployment. Guardnextapprovedwatchonly,nativegateblocked. Newdiagnostic
+servicecgroup15MBand15MiBcurrentthresholds (notlegacy100MB), separatehistoricalpeak/
+swap/helperRSS andplayingflags; neverclaimswholeRust/audioacceptance. All5CI43417518725
+PASS/source891b1c9,62Rust/100PythonPASS. Noagentliveattempt/targethostbudgetresultyet.
+CurrentorderedcommandsinSTREAM_BUDGET_CHECK.md; nativebootstrapstillnotretried,
+normalproductionunchanged,extraction2/5,10–15MBstillunproved.

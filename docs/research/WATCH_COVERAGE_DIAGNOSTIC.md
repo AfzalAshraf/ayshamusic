@@ -96,8 +96,11 @@ or audio output. If a test/build fails, stop and share normal test output; do no
 bootstrap, reset Cargo.lock or repeat live requests to repair it. CI verification is
 recorded in the QA ledger; repeating this on the host is optional.
 
-**No live command is recommended until the user explicitly approves one additional
-watch-only diagnostic.** If approved, it would be one public watch GET, at most2MiB,
+**Approval update:** the user now explicitly requests real server download/play-stream
+and budget checks. Proceed only with the already prepared ONE watch-only diagnostic
+and a read-only running-service budget audit, not a bootstrap/player/media retry.
+Current commands and interpretation: [STREAM_BUDGET_CHECK.md](../STREAM_BUDGET_CHECK.md).
+The watch-only check is one public watch GET, at most2MiB,
 same fixed origin/user-agent/deadlines, no player/media request even on parser pass,
 no credentials/cookies/persistence/JS or new sources. Only the ordinary fixed JSON
 with optional coverage counters should be shared. It may still fail visitor_missing;
@@ -117,5 +120,7 @@ User pulled f207206 and ran the coverage_ test filter: compilation2.54s,7passed,
 host; it is not a full62-test host run, ordinary CLI binary build, upstream request,
 visitor acquisition or playback/memory evidence. Cargo test builds the test harness,
 so any future approved live command must explicitly build the normal executable.
-No need to repeat these successful tests. User has not explicitly approved another
-watch GET by supplying test output; approval remains false and the offline stop stays.
+No need to repeat these successful tests. Fixture output itself was not approval.
+The later explicit real-check request separately authorizes the bounded diagnostic;
+see the approval update above. The repeated host test had cached compilation0.10s,
+7passed/55filtered/testtime0.12s and still no provider request.

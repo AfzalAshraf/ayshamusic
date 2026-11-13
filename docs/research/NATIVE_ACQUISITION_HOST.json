@@ -222,7 +222,15 @@
       "provider_requests": false,
       "player_requested": false,
       "media_requested": false,
-      "normal_cli_binary_build_verified": false
+      "normal_cli_binary_build_verified": false,
+      "cached_repeat": {
+        "tests_passed": 7,
+        "tests_failed": 0,
+        "tests_filtered_out": 55,
+        "compile_seconds": 0.1,
+        "test_seconds": 0.12,
+        "provider_requests": false
+      }
     },
     "approval_basis": "user_explicitly_requests_real_server_download_play_stream_and_budget_checks_after_fixture_results; limited_to_prepared_one_watch_only_request_and_read_only_running_service_sampling",
     "host_result_recorded": false
@@ -235,6 +243,14 @@
     },
     "boundary_and_units_finalized": false,
     "playback_started_by_checker": false,
-    "host_result_recorded": false
+    "host_result_recorded": false,
+    "verification": {
+      "source_revision": "891b1c9",
+      "ci_run": 43417518725,
+      "ci_jobs_passed": 5,
+      "python_tests_passed": 100,
+      "rust_direct_tests_passed": 62,
+      "host_budget_result_recorded": false
+    }
   }
 }

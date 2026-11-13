@@ -1,4 +1,4 @@
-# Native acquisition: v5.1 trial complete — offline coverage review
+# Native acquisition: v5.1 blocked — approved bounded coverage/budget check
 
 **Status: native acquisition BLOCKED pending target-host evidence.** Parser compatibility
 has been consolidated and offline-tested; this is not a working playback/server replacement.
@@ -165,8 +165,9 @@ Python evidence tests: **83 PASS** after recording the v5.1 host failure and con
 stop gate. Final unchanged Rust source at04e3f8b was also verified by CI43289003239,
 all five jobs PASS. Trusted parsing/bootstrap behavior is unchanged after the latest
 failure. Optional watch-only coverage inventory is now prepared, verified at02e1173 /
-CI43415804715 all5jobs PASS,62Rust tests and84localPython tests. This inventory requires
-explicit approval before another live watch-only request; no parser fix is claimed.
+CI43415804715 all5jobs PASS,62Rust tests and84localPython tests. This inventory required separate approval, now recorded from the user's explicit
+real stream/budget-check request. No parser fix or additional native bootstrap retry
+is claimed. Follow [STREAM_BUDGET_CHECK.md](STREAM_BUDGET_CHECK.md) for current commands.
 The evidence guard also rejects purported prefix passes explicitly marked watch-only,
 watch stage, or no player/media request.
 
@@ -175,7 +176,7 @@ or whole-stack acceptance. No live v5.1 trial has been made by the agent. Cargo 
 locally; native tests/builds are verified in CI. No automatic live requests in CI.
 Python's evidence guard continues to return blocked until native media success is recorded.
 
-## Next: offline source-coverage review — no new live trial scheduled
+## Current next step: ONE approved watch-only diagnostic plus read-only service-budget audit
 
 The approved v5.1 trial is complete and failed. Its counters show absence in recognized
 sources, not the shape or contents of35ignored script tails.10skipped attributes are
@@ -195,9 +196,12 @@ visualization assets and the Python development virtualenv stay outside Git/runt
 Code AST extraction and queries passed; attempted sandbox browser smoke was blocked by
 missing libnspr4.so (inline HTML script syntax checks passed). No UI or OS change made.
 
-The evidence checker now marks the trial consumed, returns blocked and recommends
-`offline_source_coverage_review_no_live_retry`; stale awaiting recommendations cannot
-override recorded host results or an explicit offline-review stop.
+The evidence checker keeps the v5.1 native trial consumed and acquisition blocked.
+The user's later request to check real download/play-stream and budget is recorded as
+approval for the prepared ONE watch-only diagnostic plus read-only service measurement.
+Its next action is now one_approved_watch_only_coverage_inventory_no_player_or_media.
+Explicit approval, matching candidate/status/review and an unconsumed request are
+required; fixture passes alone never authorize a request. No new player/media trial.
 
 The user has now run this offline checker at efde115 on the host: blocked,
 network_executedfalse/native_executedfalse, nextoffline_source_coverage_review_no_live_retry.
@@ -214,9 +218,14 @@ collect only fixed counts of raw names/prefix buckets in ignored tails, skipped 
 and recognized config/player literals. Disabled/absent in other modes; no value recovery
 or parser relaxation. Strings/comments can match; escaped keys may not. It cannot
 supply visitor data or call player/media. **Prepared and offline-tested, not approved
-or scheduled as a new live trial.** The evidence guard remains in offline-review stop.
+as a native acquisition trial.** It is now authorized solely as ONE watch-only
+coverage diagnostic after the user's explicit real-check request.
 
-No new bootstrap/watch-inspect command is recommended. Any next reader change must
+No new bootstrap retry is recommended. The one watch-inspect command and a separate
+read-only service-cgroup15MB/15MiB audit are in [STREAM_BUDGET_CHECK.md](STREAM_BUDGET_CHECK.md).
+100Python tests and all5CI jobs43417518725 passed at891b1c9. No service or playback
+control mutation, source expansion, helper fallback or resource-budget pass is implied.
+Any next reader change must
 have a specific offline unsupported-shape reproduction with negative security fixtures,
 not another guessed exception, broad JS regex search, generated visitor, account cookie,
 token/client switch or hidden fallback. If supported anonymous data cannot be established,

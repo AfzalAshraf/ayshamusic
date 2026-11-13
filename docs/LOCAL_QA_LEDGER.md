@@ -1382,3 +1382,57 @@ beingtreatedasconsent/CLIbuild/acquisition/memorypass;85localPythonPASS/diffchec
 No native/runtime/dependency/source-access/production/UI/servicechanges in this update.
 Oneextra boundedwatch-onlyGET stillrequires explicityes; ifdeclined stopbootstrapreview.
 Keepworkingproduction/extraction2of5/wholeRust10–15MBunproved/pycdeletionpreserved.
+
+## User requests actual server download/play-stream/budget check: bounded coverage approval + real service lower-bound audit
+
+ActiveQA&Debugging. Host repeats7coverage tests: cachedcompile0.10s,7passed/0failed/
+55filtered,0.12s. Fixturepass remains notnativeacquisition. User separately explicitly
+asks to check actual server download/play stream within10–15MB. Treat that request
+as authorization to proceed with the alreadypreparedONEwatch-onlycoverageGET and
+read-onlyrunningservicemeasurement, NOT broad authentication/source/deployment/audio
+mutation/player/media/bootstrapretry. No moreapproval/test-onlyloop. Recordseparate
+requestbasis,preparedapprovaltrue/awaitingoneapprovedwatchrequest; pendingmatches,
+reviewapprovedwatchonly. Guardstillblocked,nativenotdemonstrated, nextoneapproved
+watch-onlycoverageinventorynoplayermedia. Requiresmatchedpreparedapproval/status,
+unconsumedresult and explicitreviewstate; nativev5.1trialstaysconsumed. Failed/stale/
+missingconsentcannotrevivewatchrequest. No agent/provider/targethostrequest madehere.
+
+Added scripts/check_playback_budget.py, diagnosticstdlibPythononly, neverruntimehelper.
+Oldcheck_health100MBthresholdnotreusedtomislabel15MBpass. Fixedreadonlysystemctlstate,
+validatedservicecgroupv2+descendants,existingbounded64cgroups/256PID allowlistedRSShelper,
+2secondspacing1–30samples(default20),fixedloopback/api/statusonlystart/end. No build/
+control/APIstream/download/reset/OOMcap/install/restart/upload/rawlog/key/path/PID/
+unknowncomm/song/URL/env output. Compare sampledmaxmemory.current vs15,000,000 and
+15,728,640bytes; historicalpeakkeptseparate/notattributedtoresetsong; swapmax, partial
+inventory and serviceMainPID/NRestarts/ControlGroupstability flags. Separatefixedbucket
+RSSmax/count; neveraddto cgroup totals. Reporter metadataonly/alwaysfalse forwhole-stack,
+audibility/downloaddecode/nativeverified; exit1 if currentservicealoneaboveupperlimit,
+exit2otherwise(incomplete). Decimaltobinaryboundaryreportedexplicitly. Lowmeasurements,
+APIplayingflags/historyalonecannotcertifyactualstream/audio/recovery/wholememory.
+
+This is a service-cgroupLOWERBOUND includingdescendanthelpers, not completewholeRust/
+externalsharedaudio/tunnel/browser/escapedworker certification. Ifservicealoneexceeds
+15MB, wholeappcannotfit; extraresourcescannotreduceit. Belowlimitstillunproved.
+Historicalworkingservice~87MBalreadyabovegoalbutnotafreshreport; failedwatch10632KiB
+notworkingstackmemory. Hardwarecapacityvsimplementationbudgetdistinct. Pythonchecker
+outsideapplicationruntimeasdiagnostic, no productionhelper/offloadaccountingtrick.
+Playnormalsongbyuserfirst,hear it, run20samples(~38splusboundedlocalchecks), change
+songoncebyuser. No build/testswhilemeasuring; inspectorbuild/GETfinishesfirst.
+Requestusualoutputmode(browser/BT),listeningdevicecount,audibleyes/no withbothJSON.
+
+Source891b1c9 CI43417518725 all5PASS, direct13185908229762Rusttests/release/noJSgraph/
+offlineCLI.100localPythonPASS/diffcheckPASS incl14budgettests(thresholdboundaries,
+historicalvscurrent,swap,changingidentity,missingservice/counters,idle/unknownAPI,
+privateerrors,scopeunderlimitnotpass,namesredaction/readonlycommands/pathtraversal,
+clisamples/exits) plusguardapproval/consumedtest. Actualhostbudget/livev5.2NOTRUN.
+Normaldebugbinarymustexplicitlybuildsincepriorcargotestonlytestharness. Finalguide
+STREAM_BUDGET_CHECK.md provides A lockeddebugbuild+ONE--watch-inspect with75sexttimeout,
+expectedidentityaysha-direct-v5.2-coverage-only/watchparseronlytrue/noplayermedia;
+failvisitormissingwithcoveragehintsstilluseful, noautomaticretry. B separatePython
+budgetcheckduringusercontrolledplayback. No claims allRustdownload→decode→outputchain
+exists now; dependencygatecontinues untilacquisition succeeds. Restrictionstops access,
+unsupportedcoverage requires concreteinertfixtures/securitytests beforeparserchange.
+
+Production/server/UI/service/deps/Vercel unchanged,5050preserved/5051stopped,trackedpyc
+deletionpreserved. Extraction2/5, allRust10–15MB unproved. No releaseinstall/restart,
+newendpoint/client/cookie/token/JS/fallback. Ask noadditionalcredentials/SSHaccess.
