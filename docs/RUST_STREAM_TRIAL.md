@@ -127,3 +127,46 @@ excluded to manufacture a pass. No OOM cap/counter reset/quality cut/hidden fall
   extraction/audio/direct offline candidates. This is the final runtime verification.
 -116Python/79JavaScript tests and diffcheckPASS locally. Installer unit/template tests
   do not exercise a real systemd switch. No provider/hardware/budget/hearing trial run.
+
+## Latest supplied host receipt — install output incomplete
+
+The user supplied checkout b448cc5,45/45 root tests passing (0.19s), release build
+26.66s and the beginning of the saved-service-unit message. The excerpt ends there:
+service stop/replacement/start/health/mode completion is NOT confirmed. No audible
+trial result or memory measurement was supplied. The two unused-Json warnings were
+in tests;8219767 replaces those ignored results with assertions. No runtime behavior
+change/reinstall is needed for the warning fix or Python reporter improvement.
+
+The older15-test root build,6-test audio prototype/missing local M4A and V5
+watch_visitor_missing output in the same paste are historical. They do not establish
+new source access or a new trial. Do not rebuild/repeat those prototypes, apt installs
+or the consumed native-watch experiment. SSH Broken pipe is a connection symptom;
+it is not evidence that the systemd server stopped or that audio failed.
+
+If the installer is still running, let it finish. After the shell prompt returns,
+use only this read-only DIAGNOSTIC (source update, no rebuild/restart/provider request):
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+python3 scripts/check_browser_playback.py --expect-transport rust-resolved
+```
+
+Expected SERVICE_RUNNINGpass, STREAM_TRANSPORTconfiguredrust-resolved/observed.
+Exit2 means incomplete sound/budget acceptance by design, not an installation failure;
+exit1 means a detected service/UI/status/mode failure. Legacy/invalid mode is not the
+requested trial; absent mode stays unverified, never inferred from UI equality.
+rust_stream_activefalse is normal before a song or after HTTP buffering ends, even
+if the browser is still audibly playing. Do not require that flag to be true as a
+hearing test. Logs produce fixed categorized counts only, not raw signed URLs/errors.
+No entries/inaccessible logs are unverified; recent hints may refer to another client.
+
+If service or transport fails, stop and share this JSON; do not blindly rerun the
+installer or stop/restart Bluetooth. If active in rust-resolved mode, open the live
+app on the phone and make one ordinary permitted-song Play attempt. No repeated
+attempt is needed if one was already made: report whether sound was heard and the
+exact visible player error if any. Native extraction/all-Rust/50MB remain unaccepted.
+
+Reporter/test-warning patch8219767:120Python tests/diffcheckPASS locally; CI43462122764
+all5jobsPASS including rootRusttests/release. No reason to rebuild/reinstall the host
+just for this diagnostic/test-only patch.

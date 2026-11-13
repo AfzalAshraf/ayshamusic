@@ -1694,3 +1694,44 @@ swapandagreedlisteners/hardwareverified. Steadystatecanimprovebutunmeasured;star
 resolverlikelystilllarge. No repeatdiagnosticlooprecommendedbeforetryapprovedtrial.
 Backend2/5,performance1/5(actualbudgetunverified),QA3/5. UIintact/5051unchangedstopped;
 unrelatedtrackedpycdeletionpreserved. AllRustsourceacquisitionremainsseparateblocker.
+
+## 2026-11-07 — host45tests/releasePASS; trial install completion unknown
+
+Active department QA & Debugging. Latestuserpastecombinesoldlogswithnewb448cc5install:
+45rootRusttestsPASS/0.19s,release26.66sPASS,sudoauthorizedandunitbackupmessagebegins,
+thenexcerpttruncates. Stop/replace/start/APIhealth/configuredmode/hearing/50MBresults
+NOTsupplied. Donotassumeinstallerfailedorsucceeded, donotrepeatinstaller/build. If
+stillrunningletfinish; source/reportchangesonlyafterprompt. Priorexcerpt15rootPASS,
+6isolatedaudioPASS/release/missing~/aysha-prototype.m4a,V5watch_visitor_missinghistorical,
+notnewtrial/approval. Missingfixturecausedoldaudioinvocationfailure,notdecoderorphone
+streamproof. SSHBrokenpipeonlyconnectionloss,notcausalevidenceofsystemdtermination;
+noSSH/firewall/package/serviceconfigurationchangesjustified. No newupstreamattempt.
+
+Reported2RustunusedmustuseJsonwarningsinregressiontests fixedin8219767 byasserting
+stopstatusstoppedandfailed_startstatusfailed, notsuppressingwarnings. Runtimeunchanged;
+nohostrebuild/reinstallrequired. Existingroottrialalreadycompiled45testsonhost.
+Read-onlyscripts/check_browser_playback.pyv2-transportadds --expect-transport enum,
+allowlistedAPIstream_transport+typecheckedactiveflag. Expectedtrialvslegacy/invalid
+fails; missing/unknown/malformedbackendmodeunverified,neveracceptjustHTMLmatch.
+Noentries/empty/permissionlimitedjournalunverified. FixedRustresolverbusy/failure/
+recordreject/CDN-or-header/startuptimeoutsignaturecounts added; neverrawlog/URL/header/
+exception/songmetadata. StillfixedlocalhostUI/statusGETs/systemctl/journalonly,
+noaudio/download/provider/build/install/restart/sudo/upload. Exit1detectedfailure,
+2partialalways(no0sound/memorycertification). Bool/string/list/dictmodefieldsand
+untrustedactivevaluescannotleak/crash. APIreportedmodeisnotexactbinaryidentity.
+Falseactiveflagbeforeplay/afterbrowserbufferedHTTPeofnotproofofsilence.
+
+120PythonPASS(including4newtransport/privacy/fixedhint/CLIguardcases),diffcheckPASS.
+CI8219767queued/inprogressattimeofentry; finishstatusrecordbelowbeforeclaimifavailable.
+NoRustruntime/installer/UI/depschanges. ExactDIAGNOSTICsourcepullthen
+python3 scripts/check_browser_playback.py --expect-transport rust-resolved
+expectedservicepass/trialobserved/exit2; missingservice/modewrong->shareJSON/stop,
+notrepeatinstaller. Ifconfirmedactive,phoneoneordinarypermittedPlay(orreportexisting
+attempt),actualsound+visibleerrormessageifany. Donotrerunisolatedprototypes/apt/native
+watch/memorybuildloops. Nohosthardware/audibility/whole50MBpassinferred. Priorall5CI
+43429899808passforruntime3b53084stillvalidruntimeevidence. Unrelatedtrackedpycdeletion
+preserved. Backend2/5,QA3/5,performance1/5;total50MB/allRustremainunverified/blocked.
+
+Follow-up:8219767 CI43462122764 completedexit0/all5jobsPASS, includingrootRusttests+
+release,120Python/embeddedfrontend/shellchecksandmobile/prototypejobs. Thisvalidates
+warningfix/reporterfixtures,notincompletehostinstall/provider/audio/memoryacceptance.
