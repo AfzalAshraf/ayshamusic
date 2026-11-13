@@ -70,6 +70,12 @@ Added offline tests cover region-not-occurrence counts, raw-string/comment/dead-
 false positives, escaped-key misses, prefix boundaries, large-region/no-value-storage,
 unchanged errors with inventory enabled/disabled, skipped attributes not supplying
 visitor data, and unknown config responseContext not becoming an accepted source.
+Verification: source02e1173, CI43415804715 all five jobs PASS; direct job131853270437
+passed62Rust tests/release/no-JS dependency graph/offline CLI. Local84Python tests PASS.
+Source files _base.py and _video.py were also byte-compared to the pinned GitHub API
+contents, not just trusted by directory name. No local Cargo is available in the agent
+workspace; Rust verification is CI evidence, not local hardware/provider acceptance.
+
 The existing watch-only branch still has no player/media call. No new live attempt
 has been made by the agent or scheduled by the evidence guard.
 

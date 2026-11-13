@@ -172,3 +172,11 @@ No native prefix, decoder/audio output or complete release budget acceptance. Gr
 code-only graph was built in an isolated agent-workspace Python dev environment, never
 as a production/helper process; its graph/library/cache remain outside Git/runtime. It
 maps source, not working memory or provider-page contents. No extra live trial scheduled.
+
+### Optional coverage inventory is not a resource-budget fix
+
+Latesthostefde115ran onlyofflineguard: no native/networkexecution or newRSS evidence.
+Preparedwatch-onlycoverageinventory owns fixedcounters, scans boundedexistingpage
+slices withoutstoringvalues, and isdisabledinotherprofiles.62Rusttests/releaseCIpassed,
+but no newhostwatchdiagnosticapproved/run. SameTLS/allocator/decoder/server whole-memory
+uncertainties; noclaim10632KiBfaileddebugpeakdemonstratesall-Rust10–15MBstack.

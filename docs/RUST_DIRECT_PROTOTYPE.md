@@ -122,7 +122,7 @@ Provider restrictions stop the chain. No raw page, visitor value, signed media U
 request header, reason text or raw exception is printed/saved. State is invocation-only;
 dropping memory is not secure zeroization of allocator/HTTP/TLS buffers.
 
-The optional `--watch-inspect` mode remains separate, identity `aysha-direct-v5.1-watch-observation`.
+The optional `--watch-inspect` mode remains separate, identity `aysha-direct-v5.2-coverage-only`.
 It can never request player/media even when parsing passes. It is **not an extra request
 recommended before or after the one full trial below**.
 
@@ -147,7 +147,7 @@ before player/media work; no whole-song buffer. Debug RSS is not a release bench
 
 ## Verification
 
-The source has **55 Rust tests** covering:
+The source now has **62 Rust tests** covering:
 
 - String/key escaping, Unicode/surrogates, comments, trailing commas, nested data,
   framing, deterministic string corpus comparisons and size/depth/output limits.
@@ -163,7 +163,10 @@ Source `a169b48`: CI **43288159691**, all five jobs PASS; direct job **131426972
 passed tests, release build, dependency graph and invalid-CLI offline checks. Local
 Python evidence tests: **83 PASS** after recording the v5.1 host failure and consumed-trial
 stop gate. Final unchanged Rust source at04e3f8b was also verified by CI43289003239,
-all five jobs PASS. No native implementation change was made after the latest failure.
+all five jobs PASS. Trusted parsing/bootstrap behavior is unchanged after the latest
+failure. Optional watch-only coverage inventory is now prepared, verified at02e1173 /
+CI43415804715 all5jobs PASS,62Rust tests and84localPython tests. This inventory requires
+explicit approval before another live watch-only request; no parser fix is claimed.
 The evidence guard also rejects purported prefix passes explicitly marked watch-only,
 watch stage, or no player/media request.
 
@@ -196,17 +199,22 @@ The evidence checker now marks the trial consumed, returns blocked and recommend
 `offline_source_coverage_review_no_live_retry`; stale awaiting recommendations cannot
 override recorded host results or an explicit offline-review stop.
 
-**Optional terminal: OFFLINE DIAGNOSTIC ONLY — no native rebuild/request/install/restart**
+The user has now run this offline checker at efde115 on the host: blocked,
+network_executedfalse/native_executedfalse, nextoffline_source_coverage_review_no_live_retry.
+This is expected. **No need to repeat that command.** It is not another native result.
 
-```bash
-cd /home/afine/ayshamusic &&
-git pull --ff-only origin arena/a850fb0d-ayshamusic &&
-python3 scripts/check_native_acceptance.py
-```
+The follow-up upstream audit established no new fourth field path in the player flow;
+VISIONOS does not have an alternate download_ytcfg config-page mapping. The typed Rust
+schemas remain narrower than upstream generic helper paths; this does not prove host
+page shape. See [prepared coverage diagnostic](research/WATCH_COVERAGE_DIAGNOSTIC.md)
+for the pinned source comparison and optional development-only regression command.
 
-Expected blocked/exit1 (intentional acceptance failure), network_executedfalse, next
-offline_source_coverage_review_no_live_retry. If evidence_missing_or_invalid, stop and
-share the fixed code; do not attempt an upstream request to repair an offline guard.
+Optional `--watch-inspect` now has identity `aysha-direct-v5.2-coverage-only` and can
+collect only fixed counts of raw names/prefix buckets in ignored tails, skipped bodies
+and recognized config/player literals. Disabled/absent in other modes; no value recovery
+or parser relaxation. Strings/comments can match; escaped keys may not. It cannot
+supply visitor data or call player/media. **Prepared and offline-tested, not approved
+or scheduled as a new live trial.** The evidence guard remains in offline-review stop.
 
 No new bootstrap/watch-inspect command is recommended. Any next reader change must
 have a specific offline unsupported-shape reproduction with negative security fixtures,

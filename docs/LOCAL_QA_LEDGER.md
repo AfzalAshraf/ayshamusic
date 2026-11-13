@@ -1314,3 +1314,56 @@ networkfalse,nextoffline_source_coverage_review_no_live_retry. No native rebuild
 probe/install/restart. Current guide removes consumed live command. Extraction2/5,
 wholeRust10–15MB unproved. Production/UI/Vercel/service5050/stopped5051 unchanged;
 unrelated trackedpyc deletion preserved. No claim Graphify repairs runtime access.
+
+## Host confirms offline stop gate; upstream audit and opt-in coverage-only instrumentation
+
+Active department QA & Debugging. User reposted prior04e3f8b native packet (not a new
+attempt), then pulled04e3f8b->efde115 and ran Python evidence guard: blocked/native
+acquisitionnotdemonstrated, network/nativeexecutedfalse, all acceptance gatesfalse,
+stopidenticaltrue,nextoffline_source_coverage_review_no_live_retry. Expected guard
+behavior, not new extraction/playback/memory evidence. Recorded separate offlinehost
+review; latestnative remains04e3f8b. No need to repeat the same guard/build/live trial.
+
+Continued actual offline audit rather than another guessed fix. Inspected pinned
+12ac9aca79671420724227aca37bc888c604a6f8 yt-dlp_base/_video; byteverified both local
+research files against GitHub contentsAPI at pin: _baseSHA2568461458c34377c3fe3af4fa9a5c457bbcce9b7295c42931d079741fce9aa8ff3,
+_videoSHA256ea220b8f9e94c8ec10b7f1e0de297986f35dfe4afa18b5ddc1519bb84979a0b0.
+Visitorhelper has the same3field paths but applies them generically to webpageytcfg,
+initialpr,playerytcfg; our typed source/schema association narrower, not full equivalence.
+E.g.config.responseContext.visitorData currently ignored; no host evidence it exists.
+Playerflow does NOT use ytInitialData there, so no speculative4thobject added. Config
+page mapping lacksVISIONOS and returns{}, so alternateclientconfigs do NOT establish
+newVISIONOSsource/explainbaseline. No useroverride/accountcookie/newendpoint/client
+rotation/token/JS/source-access/helperfallback added. No current watchpage fetched.
+
+Prepared optional coverage.rs inventory for existing separate watch-inspect branch,
+identityaysha-direct-v5.2-coverage-only. Not a parser fix: rawmarker namesytcfg and
+VISITOR_DATA/visitorData in ignoredtails/skippedattributebodies/typedconfig/validated
+player literals, onceperregion plus inspected/nonempty counts. Ignoredtails receive
+coarse declaration/parenthesis/window/otherprefix buckets. Rawstrings/comments/deadcode
+maymatch, escapednamesmaymiss; no JSlexer/codeexecutionproof or exactshape inference.
+Fixed counters only, no copies/rawdata/lengths/hashes/offsets/values/logging/persistence.
+InventoryenabledonlyWatchInspect; otherprofilesObservationdefault withoutcoveragefield.
+Never feeds back into visitor/schema/parser/requestdecisions; watch-only branchstill
+has no player/media call. Alreadyboundedpageslices scanned; no completeheapcap claim.
+
+Source86a800cinitial, refined02e1173 CI43415804715 all5jobsPASS, directjob131853270437:
+62Rusttests/release/noJSgraph/offlineCLI PASS. Tests18main/28bootstrap/12literal/4coverage;
+7new include largeboundedregions/no privatevalue output, markerfalsepositives/escapes,
+prefixboundaries, sameparseerror withinventoryon/off, untrustedattributes and unknown
+configpaths never supplying context.84PythonPASS/diffcheckPASS including prepared
+instrumentation+offlinehostreview never reviving a consumed trial. Cargoabsent locally;
+CItests not actual host/provider/hardware acceptance. Dependencies unchanged.
+
+Prepareddiagnostic stateoffline_verified_awaiting_explicit_user_approval/approvalfalse;
+evidenceguardstill offline stop. Future proposal only ONE extra watchGET in watch-only
+mode within samebounds, no downstreamrequests, and only if userexplicitlyapproves. If
+notapproved, stop this bootstrap approach/reviewalternatives before source-access change.
+No live command issued yet. Exact optional development command in research/
+WATCH_COVERAGE_DIAGNOSTIC.md is lockedcargo testfiltercoverage_, provider/mediaoffline;
+not required on productionhost, no install/restart. Mainguide removes repeatedguard
+recommendation. DocsGraphify map remains pinned04e3f8b, notnewsource/livepageproof.
+
+Production/UI/service5050/stopped5051/Vercel unchanged; unrelatedtrackedpycdeletion
+preserved. AFZ5 stillunresolved, extraction2/5, wholeRust10–15MB stillunproved. This is
+prepared safer diagnostic code plus negative source evidence, not acquisition solution.

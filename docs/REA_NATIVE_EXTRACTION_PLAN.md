@@ -278,3 +278,14 @@ Graphify runtime integration/fallback, no current-page inspection or visitor gen
 Evidence guard now consumes trial/stops stale recommendations; offline review only,
 83PythonPASS, nativeRust unchanged55tests/all5CI43289003239PASS. Acquisition2/5,
 codec/controls/search and complete10–15MB gates remain unpassed.
+
+### Offline guard confirmed; bounded coverage diagnostic prepared, no new live approval
+
+User hostefde115 guard behaved asintended: blocked,nonetwork/nonative,nextofflinereview.
+Pinnedupstreamplayerflow uses same3visitorpaths acrossgenericargs; Rusttypedassociation
+is narrower. ytInitialData notpassedthere, andVISIONOS absentfromconfigpagemap. No new
+samepagesource/providerfixestablished. Verified_upstreambytes atpin12ac9aca; noREAor
+Graphifyrerun/runtimeintegration. Preparedwatch-onlyrawmarker/prefixregioncounters,
+notJSexecution/dataparsing/sourceacceptance. Source02e1173 CI43415804715 all5PASS,
+62Rust/84PythonPASS. Explicitapprovalstillrequired forONEextrawatch-onlyGET; guardstop
+remains. See research/WATCH_COVERAGE_DIAGNOSTIC.md, no newnative/livecommand yet.

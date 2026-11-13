@@ -198,9 +198,16 @@
   },
   "prepared_diagnostic": {
     "candidate": "aysha-direct-v5.2-coverage-only",
-    "status": "prepared_awaiting_offline_verification_and_explicit_user_approval",
+    "status": "offline_verified_awaiting_explicit_user_approval",
     "approval_recorded": false,
     "scope": "one_additional_watch_only_GET_fixed_region_marker_counts_no_player_media_raw_output_or_parser_relaxation",
-    "guide": "docs/research/WATCH_COVERAGE_DIAGNOSTIC.md"
+    "guide": "docs/research/WATCH_COVERAGE_DIAGNOSTIC.md",
+    "verification": {
+      "source_revision": "02e1173",
+      "ci_run": 43415804715,
+      "ci_jobs_passed": 5,
+      "rust_tests_passed": 62,
+      "python_tests_passed": 84
+    }
   }
 }
