@@ -21,6 +21,13 @@ pub struct Observation {
     config_visitor_present: bool,
     context_visitor_present: bool,
     player_visitor_present: bool,
+    #[serde(skip_serializing_if="Option::is_none")]
+    coverage: Option<super::coverage::Inventory>,
+}
+impl Observation {
+    pub fn coverage_only() -> Self {
+        Self { coverage: Some(super::coverage::Inventory::default()), ..Self::default() }
+    }
 }
 
 pub struct Visitor { value: String, metadata_nonfinite_ignored: bool, literal_syntax_normalized: bool }
@@ -301,7 +308,11 @@ pub fn parse_observed(page: &[u8], id: &str, observation: &mut Observation) -> R
         let script = &rest[..close];
         rest = &rest[close..];
         if !eq(name,b"script") || template_depth != 0 { continue; }
-        if !attributes_safe(attrs) { observation.skipped_script_attributes += 1; continue; }
+        if !attributes_safe(attrs) {
+            observation.skipped_script_attributes += 1;
+            if let Some(coverage)=observation.coverage.as_mut() { coverage.skipped_attributes(script); }
+            continue;
+        }
         observation.inline_scripts += 1;
         parse_script(script,id,&mut visitor,&mut initial_seen,&mut metadata_nonfinite_ignored,&mut literal_syntax_normalized,observation)?;
     }
@@ -399,7 +410,10 @@ fn parse_script(mut script: &[u8], id: &str, visitor: &mut Option<String>, initi
             (super::literal_data::trivia(tail)?,false)
         } else {
             if wrapper.is_some() { return Err("watch_config_wrapper_unsupported"); }
-            if !script.is_empty() { observation.ignored_script_tails += 1; }
+            if !script.is_empty() {
+                observation.ignored_script_tails += 1;
+                if let Some(coverage)=observation.coverage.as_mut() { coverage.ignored(script); }
+            }
             return Ok(());
         };
         if wrapper.is_some() && !config { return Err("watch_config_wrapper_unsupported"); }
@@ -738,6 +752,36 @@ mod tests {
         assert_eq!(parse_observed(&data,ID,&mut observed).err(),Some("watch_visitor_missing"));
         assert_eq!(observed.skipped_script_attributes,1);
         assert!(!serde_json::to_string(&observed).unwrap().contains("PRIVATE"));
+    }
+
+    #[test] fn coverage_inventory_does_not_turn_ignored_strings_or_functions_into_data() {
+        for script in ["var text=\"ytcfg.set({VISITOR_DATA:'PRIVATE'});\";",
+            "(function(arg){ytcfg.set({VISITOR_DATA:'PRIVATE'});})();",
+            "window.fake='ytcfg VISITOR_DATA';"] {
+            let data=with_script(script);
+            let mut ordinary=Observation::default();
+            let mut coverage=Observation::coverage_only();
+            assert_eq!(parse_observed(&data,ID,&mut ordinary).err(),Some("watch_visitor_missing"));
+            assert_eq!(parse_observed(&data,ID,&mut coverage).err(),Some("watch_visitor_missing"));
+            let mut ordinary=serde_json::to_value(ordinary).unwrap();
+            let mut coverage=serde_json::to_value(coverage).unwrap();
+            assert_eq!(coverage["coverage"]["ignored_tails"]["with_raw_visitor_name"],1);
+            assert!(!coverage.to_string().contains("PRIVATE"));
+            assert!(ordinary.get("coverage").is_none());
+            coverage.as_object_mut().unwrap().remove("coverage");
+            assert_eq!(ordinary.take(),coverage);
+        }
+    }
+    #[test] fn coverage_inventory_reports_skipped_attribute_bodies_but_does_not_trust_them() {
+        let mut data=b"<script id='PRIVATE'>ytcfg.set({VISITOR_DATA:'PRIVATE'});</script>".to_vec();
+        data.extend_from_slice(&with_script(""));
+        let mut observed=Observation::coverage_only();
+        assert_eq!(parse_observed(&data,ID,&mut observed).err(),Some("watch_visitor_missing"));
+        let report=serde_json::to_value(observed).unwrap();
+        assert_eq!(report["coverage"]["skipped_attribute_bodies"]["nonempty"],1);
+        assert_eq!(report["coverage"]["skipped_attribute_bodies"]["with_raw_visitor_name"],1);
+        assert_eq!(report["config_objects"],0); assert_eq!(report["config_visitor_present"],false);
+        assert!(!report.to_string().contains("PRIVATE"));
     }
 
 }
