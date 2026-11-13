@@ -11,6 +11,7 @@ use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
 mod media;
+mod metadata_budget;
 mod playback;
 mod runtime_user;
 mod speaker_process;
@@ -141,17 +142,18 @@ async fn main() {
 /// Prefetch related tracks without interrupting the current song.
 /// Browser advancement is driven by the media element's ended event.
 async fn autoplay_watcher(state: AppState) {
+    let mut attempts = metadata_budget::PrefetchAttempts::default();
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         let current = {
             let lock = state.lock().unwrap();
-            if !lock.player.is_playing || !lock.player.queue.is_empty() { continue; }
-            lock.player.current_track.clone()
+            if !attempts.reserve(lock.playback_epoch, lock.player.is_playing, lock.player.queue.is_empty()) { continue; }
+            lock.player.current_track.clone().map(|track| (track, lock.playback_epoch))
         };
-        if let Some(current) = current {
+        if let Some((current, epoch)) = current {
             let related = fetch_related_tracks(&current.id, &current.title, &current.artist).await;
             let mut lock = state.lock().unwrap();
-            if lock.player.current_track.as_ref().map(|t| &t.url) == Some(&current.url) {
+            if lock.playback_epoch == epoch && lock.player.current_track.as_ref().map(|t| &t.url) == Some(&current.url) {
                 lock.player.enqueue_related(related);
             }
         }
@@ -164,17 +166,18 @@ async fn fetch_related_tracks(id: &str, title: &str, artist: &str) -> Vec<Track>
     let mut command = tokio::process::Command::new("yt-dlp");
     command.args(["--flat-playlist", "--dump-json", "--socket-timeout", "10", "--retries", "1",
         &format!("ytsearch10:{}", query)]).kill_on_drop(true);
-    let output = tokio::time::timeout(std::time::Duration::from_secs(30), command.output()).await;
+    let output = metadata_budget::helper_output(command).await;
 
     let mut tracks = Vec::new();
-    if let Ok(Ok(out)) = output {
-        let text = String::from_utf8_lossy(&out.stdout);
+    if let Ok(bytes) = output {
+        let text = String::from_utf8_lossy(&bytes);
         for line in text.lines() {
             if let Ok(item) = serde_json::from_str::<Value>(line) {
                 let tid = item["id"].as_str().unwrap_or("").to_string();
                 if tid.is_empty() || tid == id {
                     continue;
                 }
+                if tracks.len() >= 10 { break; }
                 tracks.push(Track {
                     id: tid.clone(),
                     title: item["title"].as_str().unwrap_or("Unknown Title").to_string(),
@@ -221,6 +224,7 @@ async fn search_handler(
     };
 
     let query_str = sq.q.trim().to_string();
+    if query_str.is_empty() || query_str.len() > 512 { return Json(Vec::new()); }
     let mut results = Vec::new();
 
     // 1. Try Fast InnerTube API (Android Client)
@@ -237,39 +241,38 @@ async fn search_handler(
         "query": query_str
     });
 
-    if let Ok(res) = client.post(url).json(&body).send().await {
-        if let Ok(v) = res.json::<serde_json::Value>().await {
-            results = parse_yt_json(&v);
-        }
-    }
+    // Bound the entire native HTTP path, not just its individual socket reads.
+    let native = tokio::time::timeout(std::time::Duration::from_secs(12), async {
+        let response = client.post(url).json(&body).send().await.ok()?;
+        metadata_budget::bounded_json(response).await
+    }).await;
+    if let Ok(Some(value)) = native { results = parse_yt_json(&value); }
 
-    // 2. Fallback to flat playlist search if InnerTube returned empty
+    // Existing compatibility fallback remains explicit; it is NOT native
+    // extraction or a proof that the helper's own RSS fits the total target.
     if results.is_empty() {
-        let q_clone = query_str.clone();
-        if let Ok(out) = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("yt-dlp")
-                .args(&["--flat-playlist", "--dump-json", &format!("ytsearch16:{}", q_clone)])
-                .output()
-        }).await {
-            if let Ok(out) = out {
-                let text = String::from_utf8_lossy(&out.stdout);
-                for line in text.lines() {
+        let mut command = tokio::process::Command::new("yt-dlp");
+        command.args(["--flat-playlist", "--dump-json", "--socket-timeout", "10", "--retries", "1",
+                      &format!("ytsearch16:{}", query_str)]);
+        match metadata_budget::helper_output(command).await {
+            Ok(bytes) => {
+                for line in String::from_utf8_lossy(&bytes).lines() {
                     if let Ok(item) = serde_json::from_str::<serde_json::Value>(line) {
                         let id = item["id"].as_str().unwrap_or("").to_string();
                         if !id.is_empty() {
                             let title = item["title"].as_str().unwrap_or("Unknown Title").to_string();
                             let artist = item["uploader"].as_str().or_else(|| item["channel"].as_str()).unwrap_or("YouTube Artist").to_string();
                             results.push(Track {
-                                id: id.clone(),
-                                title,
-                                artist,
+                                id: id.clone(), title, artist,
                                 thumbnail: format!("https://img.youtube.com/vi/{}/hqdefault.jpg", id),
                                 url: format!("https://www.youtube.com/watch?v={}", id),
                             });
+                            if results.len() >= 16 { break; }
                         }
                     }
                 }
             }
+            Err(code) => eprintln!("Search compatibility fallback: {code}"),
         }
     }
 
@@ -822,6 +825,14 @@ mod api_tests {
         assert_eq!(result.0["status"],"stopped");
         assert!(state.lock().unwrap().speaker.is_none());
         assert!(other.try_wait().unwrap().is_none());other.kill().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn oversized_or_empty_search_never_starts_an_upstream_request() {
+        for q in [String::new(), " ".into(), "x".repeat(513)] {
+            let result = search_handler(State(state()), Query(SearchQuery { q })).await;
+            assert!(result.0.is_empty());
+        }
     }
 
 }
