@@ -4,7 +4,7 @@ use futures_util::stream::Stream;
 use std::{pin::Pin, process::Stdio, task::{Context, Poll}, time::Duration};
 use tokio::{io::{AsyncRead, AsyncReadExt, ReadBuf}, process::{Child, ChildStdout}};
 
-fn content_type(bytes: &[u8]) -> Option<&'static str> {
+pub(super) fn content_type(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(b"\x1aE\xdf\xa3") {
         Some("audio/webm")
     } else if bytes.len() >= 8 && &bytes[4..8] == b"ftyp" {
@@ -28,8 +28,23 @@ fn allowed_url(value: &str) -> bool {
         && matches!(url.host_str(), Some("youtube.com" | "www.youtube.com" | "m.youtube.com" | "music.youtube.com" | "youtu.be"))
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum StreamTransport { Legacy, RustResolved }
+fn stream_transport(value: Option<&str>) -> Result<StreamTransport, StatusCode> {
+    match value {
+        None | Some("legacy") => Ok(StreamTransport::Legacy),
+        Some("rust-resolved") => Ok(StreamTransport::RustResolved),
+        // A typo is a configuration failure, never an implicit heavy fallback.
+        _ => Err(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
+
 pub async fn open_stream(url: &str) -> Result<Response, StatusCode> {
     if !allowed_url(url) { return Err(StatusCode::BAD_REQUEST); }
+    match stream_transport(std::env::var("MUSIC_STREAM_TRANSPORT").ok().as_deref())? {
+        StreamTransport::RustResolved => return crate::resolved_media::open_stream(url).await,
+        StreamTransport::Legacy => (),
+    }
     let mut command = tokio::process::Command::new("yt-dlp");
     if let Ok(runtime) = std::env::var("MUSIC_YTDLP_JS_RUNTIME") {
         if !runtime.is_empty() { command.args(["--js-runtimes", &runtime]); }
@@ -115,6 +130,16 @@ impl Stream for AudioStream {
 mod tests {
     use super::*;
     use futures_util::StreamExt;
+
+    #[test]
+    fn native_transport_requires_explicit_opt_in_and_unknown_mode_fails_closed() {
+        assert_eq!(stream_transport(None).unwrap(), StreamTransport::Legacy);
+        assert_eq!(stream_transport(Some("legacy")).unwrap(), StreamTransport::Legacy);
+        assert_eq!(stream_transport(Some("rust-resolved")).unwrap(), StreamTransport::RustResolved);
+        for mode in ["", "rust", "RUST-RESOLVED"] {
+            assert_eq!(stream_transport(Some(mode)).unwrap_err(), StatusCode::SERVICE_UNAVAILABLE);
+        }
+    }
 
     #[test]
     fn detects_supported_containers() {

@@ -14,6 +14,7 @@ mod media;
 mod metadata_budget;
 mod playback;
 mod runtime_user;
+mod resolved_media;
 mod speaker_process;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -145,6 +146,9 @@ async fn autoplay_watcher(state: AppState) {
     let mut attempts = metadata_budget::PrefetchAttempts::default();
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        // The opt-in transfer trial must not immediately restart a speculative
+        // Python resolver during steady audio. Explicit Next remains on demand.
+        if resolved_media::is_active() { continue; }
         let current = {
             let lock = state.lock().unwrap();
             if !attempts.reserve(lock.playback_epoch, lock.player.is_playing, lock.player.queue.is_empty()) { continue; }
