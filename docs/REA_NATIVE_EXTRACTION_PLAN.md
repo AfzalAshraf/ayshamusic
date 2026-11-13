@@ -265,3 +265,16 @@ account/session/token provider/REA production dependency.55Rust tests/sourcea169
 CI43288159691 all5PASS, actual acquisition/audio/full10–15MB still blocked. Current
 direct guide supplies ONE changed bounded trial and explicit absent-data/unsupported-
 wrapper/restriction stop branches; no unchanged v5 retry or separate inspect request.
+
+### V5.1 trial consumed; Graphify development source map does not unblock acquisition
+
+Host04e3f8b debug3.16sPASS/watch_visitor_missing before player/media; config1/player1,
+no visitor in recognized sources, ignoredtails35/wrapper0. Archived wrapper assumption
+not confirmed, no unchanged request advised. User suggested Graphify; actually ran
+pinned52cb28218eea0c68d80a9f4b2ae102d2fa63e267/graphifyy0.9.108 isolated code-only,
+backendnone/querylogdisabled,197nodes447edges. See research/GRAPHIFY_SOURCE_REVIEW.md
+for where to inspect prefix/schema/attribute policies and query limitations. No REA or
+Graphify runtime integration/fallback, no current-page inspection or visitor generation.
+Evidence guard now consumes trial/stops stale recommendations; offline review only,
+83PythonPASS, nativeRust unchanged55tests/all5CI43289003239PASS. Acquisition2/5,
+codec/controls/search and complete10–15MB gates remain unpassed.

@@ -163,3 +163,12 @@ or live media/memory pass. Fixed per-invocation count/boolean observations add n
 page storage; wrapper parsing has fixed token/state overhead and reuses bounded1MiB
 config/message readers sequentially. Still no complete heap/TLS/audio/server budget
 certification, hidden helpers/offload/OOM acceptance or production switch.
+
+### V5.1 failed-host peak is not a complete memory pass
+
+Latest04e3f8b host debug3.16sPASS/watch_visitor_missing, player/mediafalse, HWM10632KiB
+(10,887,168bytes). Config1/player1 recognized but allvisitor-pathflagsfalse, wrapper0.
+No native prefix, decoder/audio output or complete release budget acceptance. Graphify
+code-only graph was built in an isolated agent-workspace Python dev environment, never
+as a production/helper process; its graph/library/cache remain outside Git/runtime. It
+maps source, not working memory or provider-page contents. No extra live trial scheduled.

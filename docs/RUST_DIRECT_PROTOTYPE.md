@@ -1,4 +1,4 @@
-# Native acquisition: current v5.1 plan
+# Native acquisition: v5.1 trial complete — offline coverage review
 
 **Status: native acquisition BLOCKED pending target-host evidence.** Parser compatibility
 has been consolidated and offline-tested; this is not a working playback/server replacement.
@@ -10,12 +10,14 @@ Extraction readiness remains **2/5**. No 10–15 MB whole-server claim.
 - v4/v4.1 stopped at local watch parsing, before player/media requests.
 - v4.2/v4.3 diagnostics narrowed the rejection to a value outside strict JSON.
 - v4.4 at `5142200` stopped with `watch_config_js_single_quote` before player/media.
-- Latest host at `39dd9fe`: debug build PASS in 1.64 s; v5 stopped with
-  `watch_visitor_missing`, stage `watch`, player/media requested `false`.
-  Initial-player playability/identity checks passed; no accepted visitor was found in
-  recognized sources. The report does not distinguish absent visitor data from skipped
-  config scripts. Failed debug HWM: 10,884 KiB (11,145,216 bytes), not release,
-  successful-acquisition or whole-service memory acceptance.
+- v5 at `39dd9fe`: debug build1.64s PASS; `watch_visitor_missing` before player/media.
+- **Latest host at `04e3f8b`: debug build3.16s PASS; v5.1 `watch_visitor_missing`**,
+  stage `watch`, player/media requested `false`. One config and one validated initial
+  player; no visitor in any of the three recognized sources. Observed eligible scripts38,
+  ignored nonempty tails35, skipped-attribute scripts10, recognized closed wrappers0.
+  This does not identify the contents of ignored tails or prove whole-page absence.
+  Failed debug HWM10,632KiB (10,887,168bytes), not release/working-stack memory acceptance.
+  **The archived wrapper hypothesis is not confirmed; stop unchanged live trials.**
 - Earlier same-track yt-dlp baseline fetched an AAC/MP4 64 KiB prefix successfully.
   Its client/JS markers do not prove exact request equivalence or absence of JS.
 
@@ -159,7 +161,9 @@ The source has **55 Rust tests** covering:
 
 Source `a169b48`: CI **43288159691**, all five jobs PASS; direct job **131426972404**
 passed tests, release build, dependency graph and invalid-CLI offline checks. Local
-Python evidence tests: **80 PASS** after recording v5 host failure and v5.1 next action.
+Python evidence tests: **83 PASS** after recording the v5.1 host failure and consumed-trial
+stop gate. Final unchanged Rust source at04e3f8b was also verified by CI43289003239,
+all five jobs PASS. No native implementation change was made after the latest failure.
 The evidence guard also rejects purported prefix passes explicitly marked watch-only,
 watch stage, or no player/media request.
 
@@ -168,42 +172,47 @@ or whole-stack acceptance. No live v5.1 trial has been made by the agent. Cargo 
 locally; native tests/builds are verified in CI. No automatic live requests in CI.
 Python's evidence guard continues to return blocked until native media success is recorded.
 
-## Next: one changed native trial, not more syntax-only probes
+## Next: offline source-coverage review — no new live trial scheduled
 
-The user approved anonymous watch bootstrap, and requested fixing the remaining issues.
-This trial stays within that same source-access scope; no new authentication, deployment
-or session architecture. Keep the working production service intact.
+The approved v5.1 trial is complete and failed. Its counters show absence in recognized
+sources, not the shape or contents of35ignored script tails.10skipped attributes are
+not10proven defects; external scripts are intentionally not read.0closed wrappers does
+not prove no wrappers exist anywhere; only none were accepted by this reader.
 
-**Terminal: DEBUG BUILD + ONE NATIVE DIAGNOSTIC — no install/restart**
+Graphify was actually run, development-only, on the three direct-reader Rust files at
+04e3f8b.197nodes/447edges/15communities, code-only with all model backends and query
+logging disabled; no assistant hooks/cloud account/server installation. The code map
+points to parse_script's unknown-prefix early return and the three visitor schema
+paths. It cannot recover a live page from source or certify runtime reachability.
+
+See **[Graphify source review: where to check](research/GRAPHIFY_SOURCE_REVIEW.md)** for
+source locations, verified edges, reproducible queries, the graph attachment location,
+privacy boundary, actual host evidence and the offline investigation plan. Graphs,
+visualization assets and the Python development virtualenv stay outside Git/runtime.
+Code AST extraction and queries passed; attempted sandbox browser smoke was blocked by
+missing libnspr4.so (inline HTML script syntax checks passed). No UI or OS change made.
+
+The evidence checker now marks the trial consumed, returns blocked and recommends
+`offline_source_coverage_review_no_live_retry`; stale awaiting recommendations cannot
+override recorded host results or an explicit offline-review stop.
+
+**Optional terminal: OFFLINE DIAGNOSTIC ONLY — no native rebuild/request/install/restart**
 
 ```bash
 cd /home/afine/ayshamusic &&
 git pull --ff-only origin arena/a850fb0d-ayshamusic &&
-cargo build --locked --manifest-path prototypes/rust-direct/Cargo.toml &&
-timeout --kill-after=2s 75s prototypes/rust-direct/target/debug/aysha-direct-prototype \
-  --video-id Jm7Satp7Zqk --watch-bootstrap
+python3 scripts/check_native_acceptance.py
 ```
 
-No repeated test/release LTO cycle on the host is needed after verified CI. Preserve
-its existing Cargo.lock; no dependency update/deletion. Do not run an inspect probe first.
+Expected blocked/exit1 (intentional acceptance failure), network_executedfalse, next
+offline_source_coverage_review_no_live_retry. If evidence_missing_or_invalid, stop and
+share the fixed code; do not attempt an upstream request to repair an offline guard.
 
-Expected: one JSON with candidate `aysha-direct-v5.1-static-wrapper` and either:
-
-- `status: pass`, `bytes: 65536`: native prefix acquisition worked for this attempt.
-  `literal_syntax_normalized` and `metadata_nonfinite_ignored` report only fixed booleans.
-  This is **not** full codec validation/playback, reliability, release memory or production readiness.
-- Failure with fixed stage/code: stop, share the single normal JSON (including fixed
-  `watch_observation` counts/flags), do not loop or collect raw pages/visitor values/
-  cookies/headers/debug traces. If `watch_visitor_missing` with parsed configs but all
-  visitor-path flags false, no visitor exists in those recognized sources: stop, do
-  not synthesize one or repeat syntax-only tweaks. Zero configs with ignored scripts
-  instead identifies a coverage gap; wrapper errors identify unsupported scaffold.
-  Either requires specific offline evidence/scope review before another patch/trial,
-  not another arbitrary exception or regex search. Player restriction
-  means stop this access path; no token/account/proxy workaround. A signature/media failure
-  is new-stage evidence, not success or permission to fall back to external helpers.
-- Build/lock failure or timeout (exit124 may lack JSON): stop and share normal output;
-  no lock reset, production update or automatic retry.
+No new bootstrap/watch-inspect command is recommended. Any next reader change must
+have a specific offline unsupported-shape reproduction with negative security fixtures,
+not another guessed exception, broad JS regex search, generated visitor, account cookie,
+token/client switch or hidden fallback. If supported anonymous data cannot be established,
+stop this bootstrap path and review scope before further live/source-access changes.
 
 ## Remaining work in dependency order
 

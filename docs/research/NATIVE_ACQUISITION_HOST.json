@@ -3,6 +3,33 @@
   "scope": "user_supplied_target_host_observations_not_a_live_probe",
   "video_id": "Jm7Satp7Zqk",
   "latest_native": {
+    "source_revision": "04e3f8b",
+    "candidate": "aysha-direct-v5.1-static-wrapper",
+    "debug_build_passed": true,
+    "build_profile": "debug",
+    "debug_build_seconds": 3.16,
+    "status": "fail",
+    "code": "watch_visitor_missing",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 10632,
+    "watch_parser_only": false,
+    "player_requested": false,
+    "media_requested": false,
+    "production_ready": false,
+    "watch_observation": {
+      "config_objects": 1,
+      "config_visitor_present": false,
+      "context_visitor_present": false,
+      "ignored_script_tails": 35,
+      "initial_players": 1,
+      "inline_scripts": 38,
+      "player_visitor_present": false,
+      "skipped_script_attributes": 10,
+      "wrapped_config_blocks": 0
+    }
+  },
+  "previous_native": {
     "source_revision": "39dd9fe",
     "candidate": "aysha-direct-v5-data-literals",
     "debug_build_passed": true,
@@ -16,19 +43,6 @@
     "watch_parser_only": false,
     "player_requested": false,
     "media_requested": false,
-    "production_ready": false
-  },
-  "previous_native": {
-    "source_revision": "5dd69ff",
-    "candidate": "aysha-direct-v4.1-watch-literals",
-    "tests_passed": 25,
-    "release_build_passed": true,
-    "release_build_seconds": 18.6,
-    "status": "fail",
-    "code": "watch_config_invalid",
-    "stage": "watch",
-    "external_tools": false,
-    "peak_rss_kib": 6016,
     "production_ready": false
   },
   "baseline_trace": {
@@ -49,8 +63,8 @@
   "approved_experiment": {
     "candidate": "aysha-direct-v5.1-static-wrapper",
     "approval_recorded": true,
-    "status": "awaiting_single_host_trial",
-    "host_result_recorded": false,
+    "status": "completed_failed_stop_live_retries",
+    "host_result_recorded": true,
     "scope": "same_approved_bounded_anonymous_chain_with_exact_static_wrapper_scaffold_and_value_free_observations_no_execution"
   },
   "historical_native": [
@@ -95,11 +109,27 @@
       "external_tools": false,
       "peak_rss_kib": 6016,
       "production_ready": false
+    },
+    {
+      "source_revision": "39dd9fe",
+      "candidate": "aysha-direct-v5-data-literals",
+      "debug_build_passed": true,
+      "build_profile": "debug",
+      "debug_build_seconds": 1.64,
+      "status": "fail",
+      "code": "watch_visitor_missing",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10884,
+      "watch_parser_only": false,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
     }
   ],
   "pending_diagnostic": {
     "candidate": "aysha-direct-v5.1-watch-observation",
-    "status": "optional_not_the_next_host_trial",
+    "status": "not_scheduled_stop_live_retries",
     "scope": "watch_only_mode_retained_not_an_extra_live_request_before_or_after_the_one_full_trial",
     "external_tools": false
   },
@@ -151,5 +181,10 @@
       "media_requested": false,
       "production_ready": false
     }
-  ]
+  ],
+  "review_required": {
+    "status": "offline_only",
+    "next": "offline_source_coverage_review_no_live_retry",
+    "reason": "recognized_config_and_player_visitor_sources_empty_ignored_tails_unexplained"
+  }
 }

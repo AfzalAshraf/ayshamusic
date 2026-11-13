@@ -31,10 +31,14 @@ def assess(evidence):
     approved = evidence.get("approved_experiment", {})
     native_action = (NATIVE_ACTIONS.get(approved.get("candidate")) if isinstance(approved, dict)
                      and approved.get("approval_recorded") is True
-                     and approved.get("status") == "awaiting_single_host_trial" else None)
+                     and approved.get("status") == "awaiting_single_host_trial"
+                     and approved.get("host_result_recorded") is not True else None)
     diagnostic = evidence.get("pending_diagnostic", {})
     watch_action = (WATCH_ACTIONS.get(diagnostic.get("candidate")) if isinstance(diagnostic, dict)
                     and diagnostic.get("status") == "awaiting_one_watch_only_request" else None)
+    review = evidence.get("review_required", {})
+    offline_review = ("offline_source_coverage_review_no_live_retry"
+                      if isinstance(review, dict) and review.get("status") == "offline_only" else None)
     return {
         "status": "pass" if prefix_pass else "blocked",
         "code": "historical_native_prefix_pass" if prefix_pass else "native_acquisition_not_demonstrated",
@@ -45,6 +49,7 @@ def assess(evidence):
         "memory_budget_accepted": False,
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
         "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
+                 offline_review if offline_review else
                  watch_action if watch_action else
                  native_action if native_action else
                  "review_and_approve_next_probe_scope_before_any_new_native_trial"),

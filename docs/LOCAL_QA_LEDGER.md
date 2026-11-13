@@ -1259,3 +1259,58 @@ No auth/session/token/client-switch/source-access/deployment expansion. No audio
 UI/dependency/service/Vercel changes or installation;5050 preserved/5051stopped; unrelated
 trackedpyc deletion retained. Extraction2/5, all-Rust10–15MB remains unproved. No claim
 that static wrapper compatibility alone fixes audio/search/control/resource gates.
+
+## Latest v5.1 host: recognized visitor sources empty; Graphify actually used for offline mapping
+
+Active department QA & Debugging. User pulled04e3f8b, debug3.16s PASS; v5.1 stopped
+watch_visitor_missing/stagewatch, player/mediafalse, no helpers/production_readyfalse.
+Observation: config_objects1, initial_players1, inline_scripts38, ignored_script_tails35,
+skipped_script_attributes10, wrapped_config_blocks0; config/context/player visitor flags
+allfalse. HWM10632KiB=10,887,168bytes, failed debugprocess only. Counters prove absence in
+recognized parsed sources, NOT absence across full page,35config-bearing scripts,10
+attribute bugs, or exact current wrapper shape. Prior archived-wrapper hypothesis NOT
+confirmed. Single approved trial consumed; no unchanged or extra inspect request advised.
+
+User points to Graphify-Labs/graphify and asks where to check. Reviewed README/pyproject/
+CLI at52cb28218eea0c68d80a9f4b2ae102d2fa63e267 (defaultv8), graphifyy0.9.108Apache2.0.
+Installed from that source into isolated /home/user/graphify-lab/venv only. No production
+Python/Node/server dependency, assistant skill installation, cloud account/key, API or
+model backend. Source acquisition archive filter arg incompatible with Python here,
+resolved with explicit regular-file/directory/path-boundary validation; no repository
+root alteration. Source input ONLY three direct-reader Rust files at04e3f8b, including
+tests, not wholeapp/docs/media/user runtime pages. Ran extract --code-only then
+cluster-only --no-label, GRAPHIFY_BACKENDnone/GRAPHIFY_QUERY_LOG_DISABLE1 throughout.
+
+Graph197nodes/447edges/15communities:400EXTRACTED/47INFERRED. Actual explain queries
+watch_visitor/parse_script confirmed EXTRACTED links probe->watch_visitor->parse_observed
+->parse_script; navigation to config_start/decode_config/wrapper helpers/remember and
+unknown-prefix earlyreturn manually inspected. Generic shortest path probe->remember
+returned an INFERRED0.55shortcut via Observation/file containment: NOT runtime proof.
+No graph tool can infer actual35ignored tail contents from source-only input. Use to
+inspect eligibility/early-return/schema coverage, not magic provider/memory fixing.
+No new native parser/requests/client/source-access implementation was guessed.
+
+Delivered code map /home/user/graphify-lab/Aysha-native-reader-graph.html; originals
+(graph.json/GRAPH_REPORT.md/graph.html/cache) and venv outside Git/production. Embedded
+vis-network9.1.6 from npm registry, checked SHA384 against original Graphify SRI, retained
+license notices; no external resource tags. All4inlineJS scripts node--checkPASS. Browser
+smoke NOT verified: initial cached ESM import corrected, then Chromium launch failed
+missinglibnspr4.so; no OS package installation/new server/preview. Markdown review
+provides source locations/queries/privacy/warnings if user's viewer blocksHTML.
+
+Patch scripts/check_native_acceptance.py: explicitoffline review takes precedence over
+stale native/watch recommendations; consumed host_result_recordedtrue cannot revive an
+awaiting trial. Evidence records latest supplied packet and previousv5; trial status
+completed_failed_stop_live_retries.83PythonPASS/diffcheckPASS including stale flags,
+observation-only evidence and absence-vs-coverage assertions. No Rust changed:55tests/
+release/all5jobs at04e3f8b CI43289003239 remain last native-source verification.
+
+Next is bounded offline source-coverage/fixture audit using graph/source and pinned
+public data only; concrete reproduction + security negatives before future patch/scope
+review. If anonymous visitor source unavailable, stop this path; no generated context,
+account cookie/token/proxy/client rotation/JS/helperfallback/repeated requests. Optional
+host command is gitpull+Python offline evidence guard only; expected blocked/exit1,
+networkfalse,nextoffline_source_coverage_review_no_live_retry. No native rebuild/live
+probe/install/restart. Current guide removes consumed live command. Extraction2/5,
+wholeRust10–15MB unproved. Production/UI/Vercel/service5050/stopped5051 unchanged;
+unrelated trackedpyc deletion preserved. No claim Graphify repairs runtime access.

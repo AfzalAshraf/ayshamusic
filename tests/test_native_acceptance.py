@@ -7,11 +7,11 @@ from scripts import check_native_acceptance as gate
 
 
 class NativeAcceptanceTests(unittest.TestCase):
-    def test_host_v5_failure_is_blocked_despite_build_and_low_rss(self):
+    def test_host_v5_1_failure_is_blocked_despite_build_and_low_rss(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         result = gate.assess(evidence)
-        self.assertEqual(evidence['latest_native']['debug_build_seconds'], 1.64)
-        self.assertEqual(evidence['latest_native']['peak_rss_kib'], 10884)
+        self.assertEqual(evidence['latest_native']['debug_build_seconds'], 3.16)
+        self.assertEqual(evidence['latest_native']['peak_rss_kib'], 10632)
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['native_prefix_gate_passed'])
         self.assertFalse(result['memory_budget_accepted'])
@@ -54,7 +54,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(evidence['latest_native']['code'], 'watch_visitor_missing')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'one_bounded_v5_1_wrapper_trial_with_value_free_observations')
+        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
 
     def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
         result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
@@ -80,11 +80,11 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertFalse(result['memory_budget_accepted'])
         self.assertFalse(result['whole_stack_ready'])
 
-    def test_v5_1_approval_and_fixture_success_do_not_replace_live_acquisition_evidence(self):
+    def test_v5_1_consumed_approval_and_fixture_success_do_not_replace_live_acquisition_evidence(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         result = gate.assess(evidence)
         self.assertEqual(evidence['approved_experiment']['candidate'], 'aysha-direct-v5.1-static-wrapper')
-        self.assertEqual(result['next'], 'one_bounded_v5_1_wrapper_trial_with_value_free_observations')
+        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['memory_budget_accepted'])
         self.assertFalse(result['whole_stack_ready'])
@@ -99,6 +99,35 @@ class NativeAcceptanceTests(unittest.TestCase):
             self.assertFalse(result['native_prefix_gate_passed'])
             self.assertFalse(result['whole_stack_ready'])
             self.assertFalse(result['memory_budget_accepted'])
+
+    def test_consumed_trial_cannot_be_recommended_even_with_stale_awaiting_status(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        evidence.pop('review_required')
+        evidence['approved_experiment']['status'] = 'awaiting_single_host_trial'
+        self.assertTrue(evidence['approved_experiment']['host_result_recorded'])
+        self.assertEqual(gate.assess(evidence)['next'],
+                         'review_and_approve_next_probe_scope_before_any_new_native_trial')
+
+    def test_offline_review_takes_precedence_over_stale_native_or_watch_trial(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        evidence['approved_experiment'].update(status='awaiting_single_host_trial',host_result_recorded=False)
+        evidence['pending_diagnostic'].update(status='awaiting_one_watch_only_request',
+                                             candidate='aysha-direct-v4.4-metadata-guard')
+        self.assertEqual(gate.assess(evidence)['next'], 'offline_source_coverage_review_no_live_retry')
+
+    def test_latest_observation_only_proves_absence_in_recognized_sources(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        native = evidence['latest_native']
+        self.assertFalse(native['player_requested'])
+        self.assertFalse(native['media_requested'])
+        observed = native['watch_observation']
+        self.assertEqual(observed['config_objects'], 1)
+        self.assertEqual(observed['initial_players'], 1)
+        self.assertEqual(observed['wrapped_config_blocks'], 0)
+        self.assertEqual(observed['ignored_script_tails'], 35)
+        self.assertFalse(any(observed[key] for key in (
+            'config_visitor_present', 'context_visitor_present', 'player_visitor_present')))
+        self.assertEqual(gate.assess(evidence)['status'], 'blocked')
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:
