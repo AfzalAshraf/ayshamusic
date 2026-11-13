@@ -1778,3 +1778,38 @@ Noentry->stop/requestphoneexistingresult,notnewsourceaccessattempt. Askdirectlyi
 musicheard; ifsoundyeshistoricalhintnotreasontointerruptworkingplayback. Newnative
 sourceacquisitionnotfixed, nohiddenfallback/JS/token/authchanges. Preservepycdeletion.
 Ratingsbackend2/5,QA3/5,performance1/5untilrealresource+soundacceptance.
+
+## 2026-11-07 — QA: audible trial confirmed; read-only server/RAM timeline
+
+User now explicitly confirms hearing the song on phone/browser. Play/Previous/Next
+slightly slow but acceptable; no latency optimization claimed or runtime change made.
+Latest supplied fd72635 host report: service/UI PASS/configured rust-resolved;
+playing=false/transfer=false at that snapshot; current6,451,200bytes (6.4512MB),
+historicalpeak67,592,192bytes (67.592192MB),swap0. These are older supplied values,
+NOT a fresh agent measurement. Historical exact response_rejected count1 in bounded
+120min window is not causally linked to current song or reason to interrupt sound.
+All-Rust/strict whole-app50MB acceptance remains unfinished.
+
+Added scripts/monitor_server.py + tests/test_monitor_server.py + SERVER_RAM_MONITOR.md.
+Bounded foreground CLI (1–60samples/1,2,5s/about180s sampling), loaded-vs-installed
+SHA256, process start stability, main-fd port5050 ownership; no source identity claim.
+Cgroup service+descendant timeline/current/historicalpeak/swap, fixed-label RSS buckets,
+status flags/request timing, separate all-workload host memory; no additive/doublecount
+or full application total fabrication. Unknown permissions/missing counters remain
+unverified; no sudo/restart/counter reset/OOM cap. One-time bounded hash before window.
+No controls/build/provider request/upload/background daemon. Private0600 ignoredJSON,
+progress+summary; interruption preserves collected rows where possible. GET status
+latency is NOT Play/Previous/Next handler latency; sampling may miss helper bursts.
+Standing future server-reply identity/RAM output recorded in AGENTS.md with scope and
+"not remeasured" requirement. Shared platform/escaped workers remain unattributed.
+
+137Python tests PASS,79JS tests PASS,diffcheck PASS. Tests include fixture loaded-image
+mismatch/socket ownership/privacy, deadline, CLI bounds, restart/missing memory,
+helperburst correlation vs cgroup max, private save and historicalpeak-not-pass.
+No Rust/UI/service/installer dependency change. Existing fd72635 CI43463802697 and
+43463793220 success confirmed. ce2a8f7 CI43465208987/43465219894 pending when recorded;
+no direct access to user's host, no new host RAM measurement or deployment claimed.
+Preserved unrelated tracked pyc deletion. One department: QA & Debugging; backend2/5,
+QA3/5,measured performance1/5 unchanged until real workload resource acceptance.
+Next: host runs documented read-only monitor during ordinary listening and optionally
+one Next/Previous, sends summary and approximate tap times. Do not rerun native watch.
