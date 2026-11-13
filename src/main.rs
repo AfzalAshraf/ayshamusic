@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
 mod media;
 mod playback;
+mod runtime_user;
+mod speaker_process;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Track {
@@ -37,6 +39,8 @@ struct PlayerState {
 struct AppStateInner {
     player: PlayerState,
     http_client: reqwest::Client,
+    speaker: Option<speaker_process::SpeakerProcess>,
+    playback_epoch: u64,
 }
 
 type AppState = Arc<Mutex<AppStateInner>>;
@@ -92,6 +96,8 @@ async fn main() {
             play_mode: "bt".to_string(),
         },
         http_client,
+        speaker: None,
+        playback_epoch: 0,
     }));
 
     // Start autoplay watcher with access to state
@@ -333,59 +339,71 @@ async fn start_track(state: AppState, track: Track, mode: String, remember: bool
     let browser_mode = mode == "browser";
     let video_url = track.url.clone();
     let response_track = track.clone();
-    let vol_percent = {
+    let (vol_percent, epoch, previous) = {
         let mut lock = state.lock().unwrap();
+        lock.playback_epoch = lock.playback_epoch.wrapping_add(1);
+        let epoch = lock.playback_epoch;
+        let previous = lock.speaker.take();
         if remember { lock.player.remember_current(&track); }
         lock.player.current_track = Some(track);
         lock.player.is_playing = true;
         lock.player.play_mode = if browser_mode { "browser" } else { "bt" }.to_string();
         lock.player.status_msg = "Playing".to_string();
-        (lock.player.volume * 100.0) as u32
+        ((lock.player.volume * 100.0) as u32, epoch, previous)
     };
 
-    // Kill any existing mpv stream instantly
-    let _ = std::process::Command::new("pkill")
-        .args(&["-f", "mpv.*mpv-music.sock"])
-        .output();
-
+    if let Some(previous) = previous {
+        if let Err(code) = previous.stop().await { return failed_start(&state,epoch,code); }
+    }
     if browser_mode {
-        return Json(serde_json::json!({"status": "playing", "mode": "browser", "track": response_track}));
+        if state.lock().unwrap().playback_epoch != epoch {
+            return Json(serde_json::json!({"status":"failed","error":"Playback request superseded"}));
+        }
+        return Json(serde_json::json!({"status":"playing","mode":"browser","track":response_track}));
     }
 
-    let result = tokio::task::spawn_blocking(move || {
+    let prepared = tokio::task::spawn_blocking(move || {
         setup_pulse_bt_audio("04:CB:88:92:43:60");
+        let ipc = speaker_process::PrivateIpc::create()?;
         let mut command = audio_command("mpv");
         command.args([
             "--no-video", "--no-terminal", "--demuxer-max-bytes=2MiB",
-            "--demuxer-readahead-secs=5", &format!("--volume={}", vol_percent),
-            "--ao=pulse", "--input-ipc-server=/tmp/mpv-music.sock", &video_url,
+            "--demuxer-readahead-secs=5", &format!("--volume={}",vol_percent),
+            "--ao=pulse", &format!("--input-ipc-server={}",ipc.socket().display()), &video_url,
         ]);
         if let Ok(runtime) = std::env::var("MUSIC_YTDLP_JS_RUNTIME") {
-            if !runtime.is_empty() {
-                command.arg(format!("--ytdl-raw-options=js-runtimes={runtime}"));
-            }
+            if !runtime.is_empty() { command.arg(format!("--ytdl-raw-options=js-runtimes={runtime}")); }
         }
-        command.spawn().map(|mut child| {
-            // Reap mpv when it exits without blocking an async runtime worker.
-            std::thread::spawn(move || { let _ = child.wait(); });
-        })
+        Ok::<_, std::io::Error>((command,ipc))
     }).await;
-    match result {
-        Ok(Ok(())) => Json(serde_json::json!({"status": "playing", "mode": "bt", "track": response_track})),
-        other => {
-            let error = format!("Unable to start mpv: {other:?}");
-            eprintln!("{error}");
-            let mut lock = state.lock().unwrap();
-            lock.player.is_playing = false;
-            lock.player.status_msg = error.clone();
-            Json(serde_json::json!({"status": "failed", "error": error}))
-        }
+    match prepared {
+        Ok(Ok((command,ipc))) => match install_speaker(&state,epoch,command,ipc) {
+            Ok(()) => Json(serde_json::json!({"status":"playing","mode":"bt","track":response_track})),
+            Err(code) => failed_start(&state,epoch,code),
+        },
+        _ => failed_start(&state,epoch,"speaker_prepare_failed"),
     }
+}
+
+fn failed_start(state: &AppState, epoch: u64, code: &'static str) -> Json<Value> {
+    let mut lock = state.lock().unwrap();
+    if lock.playback_epoch == epoch {
+        lock.player.is_playing = false;
+        lock.player.status_msg = code.into();
+    }
+    Json(serde_json::json!({"status":"failed","error":code}))
+}
+fn install_speaker(state: &AppState, epoch: u64, command: std::process::Command,
+                   ipc: speaker_process::PrivateIpc) -> Result<(), &'static str> {
+    let mut lock = state.lock().unwrap();
+    if lock.playback_epoch != epoch { return Err("speaker_request_superseded"); }
+    lock.speaker = Some(speaker_process::SpeakerProcess::spawn(command,ipc).map_err(|_| "speaker_spawn_failed")?);
+    Ok(())
 }
 
 async fn pause_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let mut lock = state.lock().unwrap();
-    send_mpv_ipc(r#"{"command": ["set_property", "pause", true]}"#);
+    send_mpv_ipc(&lock,r#"{"command": ["set_property", "pause", true]}"#);
     lock.player.is_playing = false;
     lock.player.status_msg = "Paused".to_string();
     Json(serde_json::json!({"status": "paused"}))
@@ -393,21 +411,28 @@ async fn pause_handler(State(state): State<AppState>) -> Json<serde_json::Value>
 
 async fn resume_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let mut lock = state.lock().unwrap();
-    send_mpv_ipc(r#"{"command": ["set_property", "pause", false]}"#);
+    send_mpv_ipc(&lock,r#"{"command": ["set_property", "pause", false]}"#);
     lock.player.is_playing = true;
     lock.player.status_msg = "Playing".to_string();
     Json(serde_json::json!({"status": "resumed"}))
 }
 
 async fn stop_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let mut lock = state.lock().unwrap();
-    let _ = std::process::Command::new("pkill")
-        .args(&["-f", "mpv.*mpv-music.sock"])
-        .output();
-    lock.player.is_playing = false;
-    lock.player.current_track = None;
-    lock.player.status_msg = "Stopped".to_string();
-    Json(serde_json::json!({"status": "stopped"}))
+    let previous = {
+        let mut lock = state.lock().unwrap();
+        lock.playback_epoch = lock.playback_epoch.wrapping_add(1);
+        let previous = lock.speaker.take();
+        lock.player.is_playing = false;
+        lock.player.current_track = None;
+        lock.player.status_msg = "Stopped".to_string();
+        previous
+    };
+    if let Some(previous) = previous {
+        if let Err(code) = previous.stop().await {
+            return Json(serde_json::json!({"status":"failed","error":code}));
+        }
+    }
+    Json(serde_json::json!({"status":"stopped"}))
 }
 
 async fn volume_up_handler(
@@ -418,7 +443,7 @@ async fn volume_up_handler(
     let mut lock = state.lock().unwrap();
     lock.player.volume = (lock.player.volume + step).min(1.0);
     let vol_percent = (lock.player.volume * 100.0) as u32;
-    send_mpv_ipc(&format!(
+    send_mpv_ipc(&lock,&format!(
         r#"{{"command": ["set_property", "volume", {}]}}"#,
         vol_percent
     ));
@@ -433,7 +458,7 @@ async fn volume_down_handler(
     let mut lock = state.lock().unwrap();
     lock.player.volume = (lock.player.volume - step).max(0.0);
     let vol_percent = (lock.player.volume * 100.0) as u32;
-    send_mpv_ipc(&format!(
+    send_mpv_ipc(&lock,&format!(
         r#"{{"command": ["set_property", "volume", {}]}}"#,
         vol_percent
     ));
@@ -483,14 +508,14 @@ async fn volume_handler(State(state): State<AppState>, Query(vq): Query<SetVolum
     let mut lock = state.lock().unwrap();
     lock.player.volume = vq.val / 100.0;
     if lock.player.play_mode == "bt" {
-        send_mpv_ipc(&format!(r#"{{"command":["set_property","volume",{}]}}"#, vq.val));
+        send_mpv_ipc(&lock,&format!(r#"{{"command":["set_property","volume",{}]}}"#, vq.val));
     }
     Json(serde_json::json!({"volume": lock.player.volume}))
 }
 
 async fn status_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let lock = state.lock().unwrap();
-    let (pos, duration) = if lock.player.play_mode == "bt" { get_mpv_pos_duration() } else { (0.0, 0.0) };
+    let (pos, duration) = if lock.player.play_mode == "bt" { get_mpv_pos_duration(&lock) } else { (0.0, 0.0) };
     Json(serde_json::json!({
         "current_track": lock.player.current_track,
         "is_playing": lock.player.is_playing,
@@ -610,8 +635,9 @@ async fn bt_disconnect_handler() -> Json<serde_json::Value> {
     }
 }
 
-fn send_mpv_ipc(cmd: &str) {
-    if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
+fn send_mpv_ipc(state: &AppStateInner, cmd: &str) {
+    let Some(path) = state.speaker.as_ref().and_then(|speaker| speaker.socket()) else { return };
+    if let Ok(mut stream) = UnixStream::connect(path) {
         let mut full_cmd = cmd.to_string();
         full_cmd.push('\n');
         let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
@@ -620,11 +646,12 @@ fn send_mpv_ipc(cmd: &str) {
     }
 }
 
-fn get_mpv_pos_duration() -> (f64, f64) {
+fn get_mpv_pos_duration(state: &AppStateInner) -> (f64, f64) {
+    let Some(path) = state.speaker.as_ref().and_then(|speaker| speaker.socket()) else { return (0.0,0.0) };
     let mut pos = 0.0;
     let mut duration = 0.0;
 
-    if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
+    if let Ok(mut stream) = UnixStream::connect(path) {
         let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.write_all(b"{\"command\": [\"get_property\", \"time-pos\"]}\n");
@@ -639,7 +666,7 @@ fn get_mpv_pos_duration() -> (f64, f64) {
         }
     }
 
-    if let Ok(mut stream) = UnixStream::connect("/tmp/mpv-music.sock") {
+    if let Ok(mut stream) = UnixStream::connect(path) {
         let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(300)));
         let _ = stream.write_all(b"{\"command\": [\"get_property\", \"duration\"]}\n");
@@ -659,16 +686,11 @@ fn get_mpv_pos_duration() -> (f64, f64) {
 
 fn audio_command(program: &str) -> std::process::Command {
     let mut command = std::process::Command::new(program);
-    let runtime = std::env::var("XDG_RUNTIME_DIR").ok().or_else(|| {
-        let output = std::process::Command::new("id").arg("-u").output().ok()?;
-        if !output.status.success() { return None; }
-        let uid = String::from_utf8(output.stdout).ok()?;
-        Some(format!("/run/user/{}", uid.trim()))
-    });
+    let runtime = runtime_user::runtime_directory();
     if let Some(runtime) = runtime {
         command.env("XDG_RUNTIME_DIR", &runtime);
         if std::env::var_os("PULSE_SERVER").is_none() {
-            command.env("PULSE_SERVER", format!("unix:{runtime}/pulse/native"));
+            command.env("PULSE_SERVER", format!("unix:{}/pulse/native",runtime.display()));
         }
     }
     command
@@ -735,6 +757,8 @@ mod api_tests {
             player: PlayerState { current_track: None, is_playing: false, volume: 0.8,
                 status_msg: String::new(), history: vec![], queue: vec![], liked: vec![], play_mode: "browser".into() },
             http_client: reqwest::Client::new(),
+            speaker: None,
+            playback_epoch: 0,
         }))
     }
 
@@ -774,4 +798,30 @@ mod api_tests {
         assert!(svg.contains("id=\"previous\""));
         assert!(svg.contains("id=\"next\""));
     }
+    #[tokio::test] async fn stopped_request_cannot_install_a_late_speaker() {
+        let state=state(); let old_epoch=state.lock().unwrap().playback_epoch;
+        stop_handler(State(state.clone())).await;
+        let ipc=speaker_process::PrivateIpc::create().unwrap();
+        let result=install_speaker(&state,old_epoch,std::process::Command::new("/no-such-test-program"),ipc);
+        assert_eq!(result,Err("speaker_request_superseded"));
+        assert!(state.lock().unwrap().speaker.is_none());
+    }
+    #[tokio::test] async fn stale_start_failure_cannot_mark_a_new_browser_track_stopped() {
+        let state=state();let old_epoch=state.lock().unwrap().playback_epoch;
+        let track=Track{id:"fixture".into(),title:"Fixture".into(),artist:"Fixture".into(),thumbnail:String::new(),url:"https://www.youtube.com/watch?v=Jm7Satp7Zqk".into()};
+        let result=start_track(state.clone(),track,"browser".into(),true).await;
+        assert_eq!(result.0["status"],"playing");
+        failed_start(&state,old_epoch,"speaker_prepare_failed");
+        assert!(state.lock().unwrap().player.is_playing);
+    }
+    #[tokio::test] async fn stop_clears_owned_speaker_and_does_not_touch_another_child() {
+        let state=state();let mut other=tokio::process::Command::new("sleep").arg("30").kill_on_drop(true).spawn().unwrap();
+        let mut command=std::process::Command::new("sleep");command.arg("30");
+        install_speaker(&state,0,command,speaker_process::PrivateIpc::create().unwrap()).unwrap();
+        let result=stop_handler(State(state.clone())).await;
+        assert_eq!(result.0["status"],"stopped");
+        assert!(state.lock().unwrap().speaker.is_none());
+        assert!(other.try_wait().unwrap().is_none());other.kill().await.unwrap();
+    }
+
 }
