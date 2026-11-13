@@ -192,3 +192,16 @@ audibility/nativeacquisition or outsideaudio/tunnel/browser/escapedworkers. Coun
 reset/RSSnotsummed/noMemoryMax/swaptrick/helperoffload. No servicecontrol/build during
 measurement.100Python/62Rust/all5CI43417518725PASS; no hostmeasurement yet. See
 STREAM_BUDGET_CHECK.md for orderedonewatch-onlydiagnosticthenusualplaybackaudit.
+
+### Measured current service fails15MB/15MiB, not just historical100MB health warnings
+
+Newhost3839d5c two20-samplewindows: currentmax100,941,824 then101,171,200bytes
+(101.1712MB/96.484375MiB). SecondAPIplayingtrueatbothends/stable/in-cgroupinventory
+complete. Histpeak218,480,640bytes separate/unaltered; secondswap905,216bytes.
+RustRSSmax13,381,632/yt-dlp71,299,072 non-atomicnotsummedwithcgroup. Servicealone
+failsboth15,000,000and15,728,640upperlimits; outside/sharedcostscannotreduceit.
+Nativev5.2watchonlystillvisitor_missing/no player/media and11104KiBfailedprocessHWM
+notworkingstack. Recordbudgetfailureandreplacementblocked; no moreunchangedmeasurements.
+No proofhardware/futureRustcannotmeetbudget, norpromiseitcan; removalofyt-dlpalone
+notall-Rust/audio/discovery/device/wholememoryacceptance. Fullresponsibilitygatesin
+ALL_RUST_UPGRADE_GATES.md, no OOM/reset/offload/targetincrease/fakepass.

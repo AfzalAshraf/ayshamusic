@@ -1436,3 +1436,57 @@ unsupportedcoverage requires concreteinertfixtures/securitytests beforeparsercha
 Production/server/UI/service/deps/Vercel unchanged,5050preserved/5051stopped,trackedpyc
 deletionpreserved. Extraction2/5, allRust10–15MB unproved. No releaseinstall/restart,
 newendpoint/client/cookie/token/JS/fallback. Ask noadditionalcredentials/SSHaccess.
+
+## Fresh real-host v5.2 coverage + two service windows FAIL; full replacement requested, not ready
+
+ActiveQA&Debugging. User checkout3839d5c normaldebugbuild1.62sPASS, v5.2watch-only
+watch_visitor_missing, stagewatch/player/mediafalse, HWM11104KiB=11,370,496bytes.
+Observedconfig1/player1 neitherrawvisitor/ytcfgname. Ignoredtails35 withrawvisitor2 /
+rawytcfg4; prefixesdeclaration5/parenthesis8/window3/other19. Attribute-skipped11bodies,
+3nonempty,zerorawvisitor/ytcfg. Rawhitsmaystrings/comments/deadcode, no value/syntax/
+execution/visitor-acquisition proof. Promising location for offlinefixtureaudit, NOT
+permission toregex-extract values or bypass auth/restrictions. No newlive request.
+Approvalconsumed/pendingcompleted/reviewoffline reproduceignoredsource before replacement.
+Latestnative remainsv5.1failure, latestdiagnostic nowv5.2 separately with older4.4archived.
+
+Budgetwindow1:20samples/stable/completeboundedcgroupinventory, startplayingfalse/endtrue,
+currentmax100,941,824bytes, histpeak218,480,640bytes, swap913,408bytes. BucketmaxRust
+13,381,632bytes/yt-dlp71,188,480/other4,542,464. Window2:20samples/stable/complete,
+bothplayingflagstrue, currentmax101,171,200bytes=101.1712MB/96.484375MiB, samehistpeak,
+swap905,216bytes. BucketmaxRust13,381,632/yt-dlp71,299,072bytes. No summation ofnon-atomic
+RSSmax/sharedpageswithcgroup. Historicalpeaknotattributedtothissong; APIflagsnotcontinuous
+actualdownload/decode/audibility/hardware proof. Outputmode/devicecount/audibilitynot
+received, installed/runningrevisionnotcertified bycheckoutpull. Definitecurrentservice
+lower-bound failure at BOTH15MB/15MiB; includingexternalservicescannotmakeitlower.
+No inference that futureoptimizednativeimplementationorhardwarecannotfit, nor promise
+thatfuturefullRustwillfit. RustRSSaloneleaves1,618,368bytes belowdecimal15MB arithmetic,
+notadditiveheapmodel. yt-dlp largestobservedprocessbucket, notexactattributionorproof
+removingitalonefixesallroles/resourcecosts. Swapobserved, notexcluded tofakepass.
+
+User now requests full upgradedRustserver replacement conditionalonworks. Itdoesnot
+workasreplacementyet, doNOTinstallprototype orcallexistinghelperinstallerall-Rust.
+Inspected actualproductionresponsibilities beyond extractor: src/media yt-dlp stream;
+src/main yt-dlp search/related,mpv+IPC,pkillpattern,id-u,bluetoothctl/bash/devicepaths;
+queue/historynativepuremodule; rootalreadyRustHTTP butnot allRustapplicationbackend.
+DocALL_RUST_UPGRADE_GATES.md enumerates complete boundary with acceptance checks:
+evidence-basednativeacquisition -> realstream/decode/audio/controls -> native discovery/
+helperlifecycle/device management -> complete agreed release memory/device/recovery ->
+explicitbackup/switch/rollback. UI5050/approvedvisuals preserved; no auth/session/source
+scope expansion, no hiddenhelper/cloudfallback/JS/token/visitor-generation. No full
+serverartifact or native runtimefix delivered by this QApatch. Do notpretend workdone.
+
+Codepatch gate recomputes observedcurrentservicebudget from suppliedschema/bytes, not
+claimedstatus, lowprobeRSS or historicalpeak. Reportsfail101171200upperboth, deployment
+keepworkingservice/native_replacement_allowedfalse and specificofflinereproductionnext.
+This is diagnosticreadiness reporting, not an enforcement hookininstaller. Under-limit/
+malformeddata neveracceptswholestack. Added4tests;104PythonPASS/diffcheckPASS. NoRust
+change: last62Rust/release/all5CI43417518725 at891b1c9 stillnativeimplementationevidence.
+LatestverifiedcodeCIrecordtofollowoncecompleted. Historical100MB entries in mainupgrade
+skill/approvedbaseline correctedto explicitlatest10–15MB requirement withmeasuredfailure.
+
+Requestedobservationsrecorded asnative/diagnostic/twobudgetwindows separately, watch
+approvalnotrevived; historicalpassedfixturesstillnotacceptance. Currenthostcheckguide
+markedCOMPLETED/donotrepeat. Optionalofflinegate commandinnewgatesdoc, expectedblocked/
+exit1/currentservicefail/noinstall; no need to remeasure/refetch before meaningfulpatch.
+Production/service/UI/deps/Vercel/stopped5051 unchanged; unrelatedpycdeletionpreserved.
+Extraction2/5, performance1/5, fullRust10–15MBunproved; no installation/restart performed.

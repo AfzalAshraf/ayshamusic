@@ -23,6 +23,35 @@ NATIVE_ACTIONS = {
 }
 
 
+def observed_service_budget(evidence):
+    """Recompute a lower-bound failure; never accept an old service as a new native stack."""
+    budget = evidence.get("requested_budget_check", {})
+    reports = budget.get("host_observations", []) if isinstance(budget, dict) else []
+    if not isinstance(reports, list):
+        reports = []
+    valid = [r for r in reports if isinstance(r, dict)
+             and r.get("schema") == 1 and r.get("candidate") == "aysha-service-playback-budget-v1"
+             and r.get("measurement_scope") == "aysha_music_service_cgroup_and_descendants_only"
+             and type(r.get("sampled_max_current_bytes")) is int and r["sampled_max_current_bytes"] >= 0
+             and type(r.get("samples_completed")) is int and 1 <= r["samples_completed"] <= 30]
+    if not valid:
+        return {"status": "unverified", "code": "no_valid_service_budget_observation",
+                "whole_stack_accepted": False}
+    current = max(r["sampled_max_current_bytes"] for r in valid)
+    decimal = current > 15_000_000
+    binary = current > 15 * 1048576
+    return {
+        "status": "fail" if decimal else "unverified",
+        "code": ("current_service_alone_exceeds_both_upper_limits" if binary else
+                 "current_service_exceeds_decimal_upper_limit" if decimal else
+                 "service_only_under_upper_limit_not_whole_stack_acceptance"),
+        "observations_recorded": len(valid), "max_sampled_current_bytes": current,
+        "exceeds_15_MB": decimal, "exceeds_15_MiB": binary,
+        "whole_stack_accepted": False,
+        "scope": "Existing service cgroup lower bound, not future-native feasibility or candidate memory. RSS buckets not summed; historical peak not attributed to these windows.",
+    }
+
+
 def assess(evidence):
     native = evidence.get("latest_native", {})
     prefix_pass = (native.get("status") == "pass" and native.get("bytes") == 65536
@@ -48,7 +77,9 @@ def assess(evidence):
                       and review.get("status") == "approved_watch_only_diagnostic")
         if not authorized:
             watch_action = None
-    offline_review = ("offline_source_coverage_review_no_live_retry"
+    offline_review = (("offline_reproduce_ignored_watch_source_before_native_replacement"
+                       if review.get("next") == "offline_reproduce_ignored_watch_source_before_native_replacement"
+                       else "offline_source_coverage_review_no_live_retry")
                       if isinstance(review, dict) and review.get("status") == "offline_only" else None)
     return {
         "status": "pass" if prefix_pass else "blocked",
@@ -58,6 +89,9 @@ def assess(evidence):
         "native_prefix_gate_passed": prefix_pass,
         "whole_stack_ready": False,
         "memory_budget_accepted": False,
+        "native_replacement_allowed": False,
+        "deployment_action": "keep_working_service_do_not_install_prototype",
+        "current_service_budget": observed_service_budget(evidence),
         "stop_identical_trials": evidence.get("stop_identical_native_trials") is True,
         "next": ("separate_decoder_controls_and_whole_budget_acceptance" if prefix_pass else
                  offline_review if offline_review else

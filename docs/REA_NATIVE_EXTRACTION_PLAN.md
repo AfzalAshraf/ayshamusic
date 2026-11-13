@@ -300,3 +300,16 @@ swap/helperRSS andplayingflags; neverclaimswholeRust/audioacceptance. All5CI4341
 PASS/source891b1c9,62Rust/100PythonPASS. Noagentliveattempt/targethostbudgetresultyet.
 CurrentorderedcommandsinSTREAM_BUDGET_CHECK.md; nativebootstrapstillnotretried,
 normalproductionunchanged,extraction2/5,10–15MBstillunproved.
+
+### V5.2 and working-service budget results fail: full Rust upgrade requested, replacement held
+
+Host3839d5c nativewatch-onlynormalbuild1.62sPASS/visitor_missing/noplayermedia; raw
+visitornames in2ignoredtails only, not parsedconfig/player/skippedattribute bodies.
+No exactsource/runtimevalueestablished. Watchapprovalconsumed, offlinereproductionnext.
+Twoactualservicewindows100.942/101.171MBcurrent,218.481MBhistoryseparate,swapobserved.
+yt-dlpRSSmax71.30MB/Rust13.38MBnotsummed; definite15MB/15MiBservicebudgetfailure.
+UserrequestsfullupgradedRustserver: preserveworkingserviceuntilrealnativeacquisition,
+streamdecode/audio/controls/discovery/lifecycle/devicehelpers andcompletereleasebudget
+pass; no fullartifact/installationclaimed. RootRustHTTPnotallRustbackend, REA/Graphify
+stilldevonly. SeeALL_RUST_UPGRADE_GATES.md forinspectedrolemap.104PythonPASS, native
+Rustunchanged62CI; gateexplicitlyreportsmeasuredfailure/notreplacement, no newrequest.

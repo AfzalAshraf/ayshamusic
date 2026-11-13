@@ -1,8 +1,24 @@
-# Native acquisition: v5.1 blocked — approved bounded coverage/budget check
+# Native acquisition: v5.2 diagnostic complete — replacement blocked
 
 **Status: native acquisition BLOCKED pending target-host evidence.** Parser compatibility
 has been consolidated and offline-tested; this is not a working playback/server replacement.
 Extraction readiness remains **2/5**. No 10–15 MB whole-server claim.
+
+## Latest decision: not a replacement release
+
+User completed the v5.2 coverage diagnostic and two service-budget windows at3839d5c.
+Watch-onlynormalbuild1.62sPASS, visitor_missing, no player/media. Rawvisitorname hits
+in2ignoredtails only; no usable source/exactsyntax established. Currentservice sampled
+max101,171,200bytes, historicalpeak218,480,640bytes (notattributedtothiswindow),
+swap905,216bytes; yt-dlpRSSmax71,299,072/Rust13,381,632bytes, notsummed. Both15MB and
+15MiB fail. Bothplayingflags true in secondwindow is not audible-output confirmation.
+
+The request for the full all-Rust upgrade is retained, but conditional replacement is
+not allowed now. See [ALL_RUST_UPGRADE_GATES.md](ALL_RUST_UPGRADE_GATES.md) for all
+production helper roles, implementation gates and no-fake-release boundary. Existing
+workingservice preserved. Watch-onlyapproval is consumed; **no unchanged host rerun**.
+The gate reports current_service_budgetfail/native_replacement_allowedfalse. This
+readiness report does not change or enforce the installer; no runtimefix is claimed.
 
 ## What the host proved
 
@@ -176,7 +192,7 @@ or whole-stack acceptance. No live v5.1 trial has been made by the agent. Cargo 
 locally; native tests/builds are verified in CI. No automatic live requests in CI.
 Python's evidence guard continues to return blocked until native media success is recorded.
 
-## Current next step: ONE approved watch-only diagnostic plus read-only service-budget audit
+## Historical v5.2 preparation — diagnostic and budget procedure now completed
 
 The approved v5.1 trial is complete and failed. Its counters show absence in recognized
 sources, not the shape or contents of35ignored script tails.10skipped attributes are

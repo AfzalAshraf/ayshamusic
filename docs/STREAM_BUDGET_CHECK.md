@@ -1,4 +1,20 @@
-# Real host stream/budget check — no install, restart or player mutation
+# Completed host stream/budget checks — both gates failed; do not repeat
+
+## Latest results and current decision
+
+Both commands below have now been run at checkout3839d5c. They are retained as the
+historical procedure, **not instructions for another unchanged run**.
+
+- Watch-onlyv5.2: build1.62sPASS, watch_visitor_missing, no player/media requests.
+  Raw visitor-name hits occur in2ignoredtails, not parsedconfig/player/skippedattributes.
+- Two20-sample service windows: sampledmax100,941,824 and101,171,200bytes. Second
+  start/endplayingtrue, servicestable; yt-dlpRSSmax71,299,072bytes, RustRSS13,381,632bytes.
+  Historicalpeak218,480,640bytes remains separate; swap905,216bytes in secondwindow.
+- Currentservicealone **fails both15MB and15MiB**. No audibility/outputmode/devicecount
+  confirmation or full native acquisition. This is a failure, not a ready upgradedserver.
+- Watch-onlyapprovalconsumed. No newrequest/bootstrapretry/install/restart. See
+  [all-Rust replacement gates](ALL_RUST_UPGRADE_GATES.md) for the actual fullserver
+  responsibilities and ordered native implementation/release requirements.
 
 ## What can be established now
 
@@ -111,5 +127,5 @@ Source891b1c9 CI43417518725 all five jobs PASS (direct job131859082297), includi
 including14new budget tests and a new explicit-approval/
 consumed-watch guard regression. Native implementation is unchanged in this budget
 patch; optional coverage reader62Rust tests/release/noJSgraph previously verified inCI
-and7coverage tests on host. No target-host budget report, audible test or v5.2live
-result has yet been received. CI never makes live provider requests or controls audio.
+and7coverage tests on host. Target-host budget and v5.2live reports have now been received and fail; no audible
+output, native acquired media or successful15MB acceptance is established. CI never makes live provider requests or controls audio.

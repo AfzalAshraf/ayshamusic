@@ -33,7 +33,7 @@ The heart is the real red-heart emoji U+2764 U+FE0F, not the text word "love", t
 - The JBL last reported `org.bluez.Error.Failed br-connection-page-timeout`. UI approval does not establish a hardware fix.
 - Cloudflare is not deployed. Domain, access policy, provider media suitability and origin protection must be decided before public launch.
 - Nightly maintenance time/timezone/scope and idle-update behavior are not approved. Do not auto-update arbitrary branch code or restart active music without agreement.
-- The user has replaced the earlier 20 MB budget with a 100 MB maximum for concurrent devices. Listener count, accounting scope and independent/synchronized semantics need confirmation; see MEMORY_BUDGET_PLAN.md. No measured multi-device memory guarantee has been demonstrated.
+- The latest target supersedes the historical 100 MB/20 MB budgets: all application-server responsibilities in Rust within 10–15 MB, with no hidden runtime helpers or off-host fallback. Latest supplied service-cgroup samples reached 101,171,200 bytes, failing both 15 MB and 15 MiB upper limits. Listener count, decimal/binary units, complete shared-service accounting and independent/synchronized semantics remain unresolved; see MEMORY_BUDGET_PLAN.md and ALL_RUST_UPGRADE_GATES.md. No native playback or measured multi-device budget acceptance has been demonstrated.
 - Queue/history/likes are in-memory; persistent storage semantics remain unapproved.
 - Sequential audio proxy does not implement Range/206 seeking; no offline/PWA guarantees are made.
 

@@ -54,7 +54,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(evidence['latest_native']['code'], 'watch_visitor_missing')
         result = gate.assess(evidence)
         self.assertFalse(result['native_prefix_gate_passed'])
-        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
+        self.assertEqual(result['next'], 'offline_reproduce_ignored_watch_source_before_native_replacement')
 
     def test_watch_diagnostic_pass_is_not_native_media_acceptance(self):
         result = gate.assess({'latest_native': {'status':'diagnostic_pass', 'watch_parser_only':True,
@@ -66,7 +66,7 @@ class NativeAcceptanceTests(unittest.TestCase):
     def test_host_syntax_diagnostic_is_recorded_separately_without_media_claim(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         diagnostic = evidence['latest_diagnostic']
-        self.assertEqual(diagnostic['code'], 'watch_config_js_single_quote')
+        self.assertEqual(diagnostic['code'], 'watch_visitor_missing')
         self.assertEqual(diagnostic['build_profile'], 'debug')
         self.assertFalse(diagnostic['player_requested'])
         self.assertFalse(diagnostic['media_requested'])
@@ -84,7 +84,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         evidence = json.loads(gate.EVIDENCE.read_text())
         result = gate.assess(evidence)
         self.assertEqual(evidence['approved_experiment']['candidate'], 'aysha-direct-v5.1-static-wrapper')
-        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
+        self.assertEqual(result['next'], 'offline_reproduce_ignored_watch_source_before_native_replacement')
         self.assertEqual(result['status'], 'blocked')
         self.assertFalse(result['memory_budget_accepted'])
         self.assertFalse(result['whole_stack_ready'])
@@ -114,6 +114,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         evidence['pending_diagnostic'].update(status='awaiting_one_watch_only_request',
                                              candidate='aysha-direct-v4.4-metadata-guard')
         evidence['review_required']['status'] = 'offline_only'
+        evidence['review_required']['next'] = 'offline_source_coverage_review_no_live_retry'
         self.assertEqual(gate.assess(evidence)['next'], 'offline_source_coverage_review_no_live_retry')
 
     def test_latest_observation_only_proves_absence_in_recognized_sources(self):
@@ -139,7 +140,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertTrue(evidence['prepared_diagnostic']['approval_recorded'])
         result = gate.assess(evidence)
         self.assertEqual(result['status'], 'blocked')
-        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
+        self.assertEqual(result['next'], 'offline_reproduce_ignored_watch_source_before_native_replacement')
 
     def test_host_coverage_fixture_pass_is_not_live_acquisition_even_after_separate_user_approval(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
@@ -152,7 +153,7 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertFalse(host['normal_cli_binary_build_verified'])
         self.assertTrue(diagnostic['approval_recorded'])
         result = gate.assess(evidence)
-        self.assertEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
+        self.assertEqual(result['next'], 'offline_reproduce_ignored_watch_source_before_native_replacement')
         self.assertFalse(result['native_prefix_gate_passed'])
         self.assertFalse(result['memory_budget_accepted'])
 
@@ -165,6 +166,57 @@ class NativeAcceptanceTests(unittest.TestCase):
             self.assertNotEqual(result['next'], 'one_approved_watch_only_coverage_inventory_no_player_or_media')
             self.assertFalse(result['native_prefix_gate_passed'])
             self.assertFalse(result['whole_stack_ready'])
+
+    def test_completed_coverage_inventory_does_not_authorize_another_request_or_install(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        self.assertTrue(evidence['prepared_diagnostic']['host_result_recorded'])
+        observed = evidence['latest_diagnostic']['watch_observation']['coverage']
+        self.assertEqual(observed['ignored_tails']['with_raw_visitor_name'], 2)
+        self.assertEqual(observed['parsed_config_objects']['with_raw_visitor_name'], 0)
+        self.assertEqual(observed['skipped_attribute_bodies']['with_raw_visitor_name'], 0)
+        result = gate.assess(evidence)
+        self.assertFalse(result['native_replacement_allowed'])
+        self.assertEqual(result['deployment_action'], 'keep_working_service_do_not_install_prototype')
+        self.assertEqual(result['next'], 'offline_reproduce_ignored_watch_source_before_native_replacement')
+
+    def test_working_service_budget_is_a_recomputed_failure_not_native_feasibility(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        reports = evidence['requested_budget_check']['host_observations']
+        self.assertEqual(len(reports), 2)
+        self.assertEqual(reports[1]['playing_flag_start'], True)
+        self.assertEqual(reports[1]['playing_flag_end'], True)
+        self.assertEqual(reports[1]['historical_peak_bytes'], 218480640)
+        result = gate.assess(evidence)
+        measured = result['current_service_budget']
+        self.assertEqual(measured['max_sampled_current_bytes'], 101171200)
+        self.assertEqual(measured['observations_recorded'], 2)
+        self.assertTrue(measured['exceeds_15_MB'])
+        self.assertTrue(measured['exceeds_15_MiB'])
+        self.assertEqual(measured['status'], 'fail')
+        self.assertFalse(result['memory_budget_accepted'])
+
+    def test_low_probe_rss_or_claimed_pass_cannot_erase_existing_service_failure(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        for report in evidence['requested_budget_check']['host_observations']:
+            report.update(status='pass', whole_stack_accepted=True)
+        evidence['latest_diagnostic'].update(status='diagnostic_pass', peak_rss_kib=1)
+        result = gate.assess(evidence)
+        self.assertEqual(result['current_service_budget']['status'], 'fail')
+        self.assertFalse(result['native_replacement_allowed'])
+
+    def test_invalid_or_low_service_budget_observation_never_becomes_acceptance(self):
+        for reports in (None, {}, [], [{'sampled_max_current_bytes':1}],
+                        [{'schema':1,'candidate':'aysha-service-playback-budget-v1',
+                          'measurement_scope':'aysha_music_service_cgroup_and_descendants_only',
+                          'samples_completed':20,'sampled_max_current_bytes':False}]):
+            measured = gate.observed_service_budget({'requested_budget_check': {'host_observations':reports}})
+            self.assertEqual(measured['status'], 'unverified')
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        for report in evidence['requested_budget_check']['host_observations']:
+            report['sampled_max_current_bytes'] = 1
+        measured = gate.observed_service_budget(evidence)
+        self.assertEqual(measured['status'], 'unverified')
+        self.assertFalse(measured['whole_stack_accepted'])
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:

@@ -124,3 +124,14 @@ No need to repeat these successful tests. Fixture output itself was not approval
 The later explicit real-check request separately authorizes the bounded diagnostic;
 see the approval update above. The repeated host test had cached compilation0.10s,
 7passed/55filtered/testtime0.12s and still no provider request.
+
+
+## Completed v5.2 diagnostic: approval consumed, no unchanged retry
+
+User checkout3839d5c normalbuild1.62sPASS, watch_visitor_missing before player/media,
+HWM11104KiB. Twoignoredtails rawvisitorname hits/fourrawytcfg; parsedconfig/player
+and11skippedattribute bodies zero rawvisitorname hits. This narrows offline coverage
+review, not a usable value or exact wrapper. Watch-onlyattempt completed and no
+additionalrequest is scheduled. The same user's service samples fail15MB/15MiB at
+101,171,200bytes. ALL_RUST_UPGRADE_GATES.md is the current replacement decision;
+previous approval/procedure sections above are historical, not permission to repeat.
