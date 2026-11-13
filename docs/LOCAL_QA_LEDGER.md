@@ -1735,3 +1735,46 @@ preserved. Backend2/5,QA3/5,performance1/5;total50MB/allRustremainunverified/blo
 Follow-up:8219767 CI43462122764 completedexit0/all5jobsPASS, includingrootRusttests+
 release,120Python/embeddedfrontend/shellchecksandmobile/prototypejobs. Thisvalidates
 warningfix/reporterfixtures,notincompletehostinstall/provider/audio/memoryacceptance.
+
+## 2026-11-07 — installedrust-resolved confirmed; one ambiguous priorCDN hint
+
+Active department QA & Debugging. Newuserreceipt completespriorcutoff: previousunit
+backup20261113-112001, initialcurlconnectionrefused, THENinstallercompletion/mode
+rust-resolved. Installerretry-connrefused/capturedstatus+Nodeenumvalidationmeans
+retryeventuallysucceeded; notanongoingbindfailure/doNOTreinstallforthatline. Newv2
+readonlyreportafterpull12b2f10:servicePASS/UIcomparePASS,playingflagtrue/selectiontrue,
+configuredrust-resolved/expectedmatch,activeleasetrue; oneRUST_CDN_OR_HEADER_FAILED
+hintoverthe5min/100entrywindow,othercategorieszero. Userhasnotsaidifsoundheard.
+Mode/APIisnotexactinstalledbackendrevisionidentity. Leasebeginsbeforehelperresolution,
+notproofofmediaGET/headerbytes/decode/audibility. Hintmayolder/otherrequest; no causal
+join. ZeroUPSTREAM403 DOESNOTexcludenativeCDN403becauseinstalledguardgenericcode.
+AllRust/total50MBstillnotaccepted;no newmemoryreadingprovided/no nativewatchapproval.
+
+Patchscripts/check_browser_playback.pyv3-exact-codes:extractonlyknownwholefixedRust
+journalmessagesinto counts+last_in_window,unknownsuffix/URL/exceptionlinesNOTechoed.
+Existinggroupedhintsretainedforcompatibility. Optional --journal-minuteschoices5/30/120
+keeps100entries/1MiB/10sreadlimit; broaderexistinglookbackavoidsaskingnewproviderrequest
+justtorecreatelogs. Lastcodeisnotrequestcorrelation. Missing/expired/permissionlimited
+logunknown; doNOTrepeatproviderattempt. Noaudio/controls/install/build/restart/sudo/
+rawlogs/upload/providertraffic. AddedMemoryCurrent/MemoryPeak/MemorySwapCurrentto
+existingreadonlysystemctlquery;separatespointcurrent/history/swap/MB/MiB,50MBstrict
+boundaryfailurevsunderlimitunverified;notRustRSS/fullresourceworkload/window/or
+attributedpeak. Currentat/above50MBlowerboundfailsetsCLIexit1,otherwisepartialexit2,
+never0. DoesnotsetOOMcap/resetcounters/hidecosts. Memory/APIreadingsnotatomic.
+
+125PythonPASS/5newtests(exactcodes/privacy,boundedlookback,strictsnapshotunitsand
+malformedcounters,CLIbounds,exitmemoryfail),diffcheckPASS. NoRust/UI/installer/service
+unit/dependencychanges; nohostreinstallneeded. RuntimeCI43462122764/previous45host
+Rusttestsremainvalidforruntime; latestPythonreportervalidatedoffline. Addedexplicit
+source-reviewfailurebranchesinRUST_STREAM_TRIAL.md. Correctexactreadonlycommand:
+gitpullcurrentbranchthenpython3scripts/check_browser_playback.py --expect-transport
+rust-resolved --journal-minutes120. Expectedmodeobserved/servicepass,exactknownerror
+codeifstillinboundedwindow,onesnapshot;exit1memoryfailuremustnotbemisreadasdeadservice.
+
+NextbranchdependsFIXEDcode:requestfailedconnectionlayer;response_rejectedstillneeds
+status/MIME/rangepolicyclassificationbeforeinstrumentation/fix,NOTassume403orrelax
+validation;containerrejectselected/headeridentity;short/read/chunkprefixstreambounds.
+Noentry->stop/requestphoneexistingresult,notnewsourceaccessattempt. Askdirectlyifany
+musicheard; ifsoundyeshistoricalhintnotreasontointerruptworkingplayback. Newnative
+sourceacquisitionnotfixed, nohiddenfallback/JS/token/authchanges. Preservepycdeletion.
+Ratingsbackend2/5,QA3/5,performance1/5untilrealresource+soundacceptance.

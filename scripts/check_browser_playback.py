@@ -42,12 +42,56 @@ def journal_counts(text):
             for code, patterns in SIGNATURES.items()}
 
 
-def collect(expected_transport=None):
+RUST_PREFIX = "rust-resolved stream: "
+RUST_CODES = frozenset(pattern[len(RUST_PREFIX):]
+                       for key, patterns in SIGNATURES.items() if key.startswith("RUST_")
+                       for pattern in patterns if pattern.startswith(RUST_PREFIX))
+
+
+def exact_rust_codes(text):
+    counts = {}
+    last = None
+    for line in text.lower().splitlines():
+        line = line.strip()
+        if not line.startswith(RUST_PREFIX):
+            continue
+        code = line[len(RUST_PREFIX):]
+        # Whole known code only. Never echo arbitrary suffixes/URLs/exceptions.
+        if code in RUST_CODES:
+            counts[code] = counts.get(code, 0) + 1
+            last = code
+    return {"counts": counts, "last_in_window": last,
+            "scope": "Recognized fixed journal lines only; not correlated with the current lease or song. Missing/expired entries do not justify another request."}
+
+
+def memory_snapshot(props):
+    def amount(key):
+        value = props.get(key, "")
+        if not isinstance(value, str) or not value.isascii() or not value.isdigit() or len(value) > 20:
+            return None
+        number = int(value)
+        return number if number < 2**64 else None
+    current = amount("MemoryCurrent")
+    peak = amount("MemoryPeak")
+    return {"id": "SERVICE_MEMORY_SNAPSHOT", "status": "unverified" if current is None else "observed",
+            "budget_status": "fail" if current is not None and current >= 50_000_000 else "unverified",
+            "current_bytes": current, "historical_peak_bytes": peak,
+            "swap_current_bytes": amount("MemorySwapCurrent"),
+            "current_MB": None if current is None else current / 1_000_000,
+            "current_MiB": None if current is None else current / 1048576,
+            "current_at_or_above_50_MB": None if current is None else current >= 50_000_000,
+            "current_at_or_above_50_MiB": None if current is None else current >= 50 * 1048576,
+            "whole_stack_accepted": False,
+            "limits": "One read-only service-cgroup snapshot, not Rust RSS or a workload window. Historical peak is not attributed to this attempt. Platform/escaped worker costs omitted, swap separate. Below-limit is not complete total-budget acceptance; no counters reset."}
+
+
+def collect(expected_transport=None, journal_minutes=5):
     rows = []
     transport = "unverified"
     active_stream = None
     rc, raw = health.command(["systemctl", "--no-pager", "show", health.SERVICE,
-                              "-p", "ActiveState", "-p", "SubState"], timeout=10)
+                              "-p", "ActiveState", "-p", "SubState", "-p", "MemoryCurrent",
+                              "-p", "MemoryPeak", "-p", "MemorySwapCurrent"], timeout=10)
     props = health.properties(raw) if rc == 0 else {}
     running = props.get("ActiveState") == "active" and props.get("SubState") == "running"
     rows.append({"id": "SERVICE_RUNNING", "status": "pass" if running else "fail"})
@@ -78,21 +122,25 @@ def collect(expected_transport=None):
     rows.append({"id": "STREAM_TRANSPORT", "status": mode_status, "configured": transport,
                  "expected": expected_transport, "rust_stream_active": active_stream,
                  "limits": "API-reported mode only, not exact binary identity, audible output or a memory measurement."})
+    rows.append(memory_snapshot(props))
     rc, raw = health.command(["journalctl", "--no-pager", "--quiet", "-u", health.SERVICE,
-                              "--since", "5 minutes ago", "-n", "100", "-o", "cat"], timeout=10)
+                              "--since", f"{journal_minutes} minutes ago", "-n", "100", "-o", "cat"], timeout=10)
     # A permission warning may accompany rc=0. Do not mistake that for log access.
     unavailable = rc != 0 or not raw.strip() or any(phrase in raw.lower() for phrase in (
         "permission denied", "insufficient permissions", "not seeing messages", "no journal files", "no entries"))
     rows.append({"id": "RECENT_SERVICE_ERROR_HINTS", "status": "unverified" if unavailable else "observed",
                  "signature_counts": {} if unavailable else journal_counts(raw),
-                 "scope": "At most 100 recent service lines/1MiB, last 5 minutes; may include other clients; absence is not proof of successful streaming."})
+                 "rust_error_codes": None if unavailable else exact_rust_codes(raw),
+                 "scope": f"At most 100 recent service entries/1MiB, last {journal_minutes} minutes; may include other clients; absence is not proof of successful streaming."})
     if any(row["status"] == "fail" for row in rows):
         code = "fix_reported_service_or_deployment_layer_first"
     elif not unavailable and any(journal_counts(raw).values()):
         code = "review_reported_stream_error_hints_no_automatic_retry"
+    elif any(row.get("budget_status") == "fail" for row in rows):
+        code = "service_snapshot_above_budget_full_workload_not_accepted"
     else:
         code = "need_phone_error_and_listening_result_not_native_acceptance"
-    return {"schema": 2, "candidate": "aysha-browser-playback-triage-v2-transport", "code": code,
+    return {"schema": 3, "candidate": "aysha-browser-playback-triage-v3-exact-codes", "code": code,
             "checks": rows, "starts_audio": False, "upstream_requested": False,
             "service_changed": False, "raw_logs_included": False,
             "audibility_verified": False, "memory_budget_accepted": False,
@@ -103,10 +151,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expect-transport", choices=["legacy", "rust-resolved"],
                         help="Check the API-reported mode without changing service configuration")
+    parser.add_argument("--journal-minutes", type=int, choices=[5, 30, 120], default=5,
+                        help="Bounded lookback over existing logs; still at most 100 entries/1MiB; no new playback")
     args = parser.parse_args(argv)
-    report = collect(args.expect_transport)
+    report = collect(args.expect_transport, args.journal_minutes)
     print(json.dumps(report, indent=2))
-    return 1 if any(row["status"] == "fail" for row in report["checks"]) else 2
+    return 1 if any(row["status"] == "fail" or row.get("budget_status") == "fail" for row in report["checks"]) else 2
 
 
 if __name__ == "__main__":

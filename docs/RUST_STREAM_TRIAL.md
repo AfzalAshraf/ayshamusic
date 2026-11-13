@@ -170,3 +170,51 @@ exact visible player error if any. Native extraction/all-Rust/50MB remain unacce
 Reporter/test-warning patch8219767:120Python tests/diffcheckPASS locally; CI43462122764
 all5jobsPASS including rootRusttests/release. No reason to rebuild/reinstall the host
 just for this diagnostic/test-only patch.
+
+## New host receipt — trial install and running mode confirmed
+
+The user supplied the install completion message `Stream transport: rust-resolved`
+and v2 diagnostic: SERVICE_RUNNINGpass, UI comparisonpass, API mode rust-resolved,
+playingflagtrue/selectionpresent/streamslotheldtrue. This supersedes the earlier
+incomplete-install receipt. The transient curl connection refusal was followed by
+successful retry/status-mode validation; do not reinstall/restart for that line.
+API mode is not exact backend revision identity; no actual hearing result supplied.
+
+One RUST_CDN_OR_HEADER_FAILED hint was observed over the prior5minute log window.
+It may be a previous request, including a different client. The active slot begins
+BEFORE resolution and can outlive startup into transfer; it is not proof of received
+media bytes. Zero UPSTREAM_HTTP_403 markers does NOT exclude a CDN403, because the
+installed native response guard reports a generic fixed response-rejected code.
+No guard weakening, fallback, token/auth/client change or provider retry is justified.
+
+The v3 reporter now extracts only exact known whole-line Rust error codes from
+EXISTING logs, plus one service memory snapshot using the existing systemctl query.
+It never emits arbitrary suffixes, URLs, headers, raw log text or exceptions. A
+lookback choice5/30/120minutes is bounded to100entries/1MiB; last-in-window is NOT
+correlated with the current slot. Missing/expired/inaccessible entries remain unknown.
+Memory current/peak/swap are separate; historical peak not attributed to this song,
+RSS not summed, omitted platform/escaped costs cannot be silently excluded. Below
+50MB current alone never accepts total workload; at/above50MB is a lower-bound fail.
+
+**DIAGNOSTIC ONLY — no rebuild/restart/new media request or need to press Play again:**
+
+```bash
+cd /home/afine/ayshamusic &&
+git pull --ff-only origin arena/a850fb0d-ayshamusic &&
+python3 scripts/check_browser_playback.py --expect-transport rust-resolved --journal-minutes 120
+```
+
+Share only the JSON (especially rust_error_codes and SERVICE_MEMORY_SNAPSHOT) and
+whether music was heard/the exact phone player error. Exit1 means a service/mode/UI
+failure OR a current memory snapshot already at/above50MB; inspect the rows, not
+just the exit code. Exit2 is partial evidence, never hearing/budget acceptance.
+
+Branches: native_stream_request_failed -> connection/request layer, no raw reqwest
+error capture; native_stream_response_rejected -> response status/MIME/encoding/range
+policy ambiguity, do not assume403 or loosen guards; native_stream_container_rejected
+-> selected/container mismatch; short_header/read_failed/chunk_limit -> startup/body
+read acceptance. Resolving a generic response guard further would need a justified
+instrumentation patch, not an unchanged rebuild or automatic request. No fixed-code
+entry -> stop collecting; do not recreate a failed provider request just for the log.
+If sound was heard, a historical hint alone is not reason to interrupt it. Full
+startup/interaction/steady/EOF/recovery resource acceptance remains unverified.
