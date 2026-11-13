@@ -532,6 +532,8 @@ async fn status_handler(State(state): State<AppState>) -> Json<serde_json::Value
         "duration": duration,
         "queue_len": lock.player.queue.len(),
         "liked_count": lock.player.liked.len(),
+        "stream_transport": media::configured_transport_name(),
+        "rust_stream_active": resolved_media::is_active(),
     }))
 }
 

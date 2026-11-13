@@ -39,9 +39,25 @@ fn stream_transport(value: Option<&str>) -> Result<StreamTransport, StatusCode> 
     }
 }
 
+fn configured_transport() -> Result<StreamTransport, StatusCode> {
+    let value = std::env::var_os("MUSIC_STREAM_TRANSPORT");
+    let text = match value.as_deref() {
+        None => None,
+        Some(value) => Some(value.to_str().ok_or(StatusCode::SERVICE_UNAVAILABLE)?),
+    };
+    stream_transport(text)
+}
+pub fn configured_transport_name() -> &'static str {
+    match configured_transport() {
+        Ok(StreamTransport::Legacy) => "legacy",
+        Ok(StreamTransport::RustResolved) => "rust-resolved",
+        Err(_) => "invalid",
+    }
+}
+
 pub async fn open_stream(url: &str) -> Result<Response, StatusCode> {
     if !allowed_url(url) { return Err(StatusCode::BAD_REQUEST); }
-    match stream_transport(std::env::var("MUSIC_STREAM_TRANSPORT").ok().as_deref())? {
+    match configured_transport()? {
         StreamTransport::RustResolved => return crate::resolved_media::open_stream(url).await,
         StreamTransport::Legacy => (),
     }

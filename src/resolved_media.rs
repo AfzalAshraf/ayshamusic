@@ -104,7 +104,7 @@ fn parse_record(bytes: &[u8], expected: &str) -> Result<Selection, &'static str>
 }
 fn resolver_command(url: &str, runtime: Option<&str>) -> Command {
     let mut command = Command::new("yt-dlp");
-    command.args(["--ignore-config", "--no-cache-dir", "--no-playlist", "--no-progress", "--no-warnings",
+    command.args(["--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-playlist", "--no-progress", "--no-warnings",
                   "--simulate", "-f", "bestaudio", "--print", PROJECTION,
                   "--socket-timeout", "15", "--retries", "1"]);
     if let Some(runtime) = runtime.filter(|value| !value.is_empty()) { command.args(["--js-runtimes", runtime]); }
@@ -282,7 +282,7 @@ mod tests {
     fn resolver_command_only_prints_projection_and_never_downloads_or_adds_credentials() {
         let command=resolver_command("https://www.youtube.com/watch?v=fixture0001", Some("node:/fixture/node"));
         let args:Vec<_>=command.as_std().get_args().map(|arg|arg.to_str().unwrap()).collect();
-        for flag in ["--simulate","--ignore-config","--no-cache-dir","--no-playlist"] { assert!(args.contains(&flag)); }
+        for flag in ["--simulate","--ignore-config","--no-plugin-dirs","--no-cache-dir","--no-playlist"] { assert!(args.contains(&flag)); }
         assert!(args.windows(2).any(|pair| pair==["-f","bestaudio"]));
         assert!(args.windows(2).any(|pair| pair==["--print",PROJECTION]));
         for flag in ["-o","--exec","--cookies","--cookies-from-browser"] { assert!(!args.contains(&flag)); }
@@ -338,4 +338,16 @@ mod tests {
         assert!(stream.next().await.unwrap().is_err());
         assert_eq!(slots.available_permits(),1);assert!(stream.next().await.is_none());
     }
+    #[tokio::test]
+    async fn upstream_errors_are_sanitized_and_empty_prefix_is_not_audio() {
+        let error=reqwest::Client::new().get("not a URL private-fixture").build().unwrap_err();
+        let (slots,permit)=lease();
+        let upstream:Upstream=Box::pin(futures_util::stream::iter(vec![Err(error)]));
+        let mut stream=NativeAudioStream { upstream:Some(upstream),first:None,pending:None,permit:Some(permit) };
+        assert_eq!(stream.next().await.unwrap().unwrap_err().to_string(), "native_stream_transfer_failed");
+        assert_eq!(slots.available_permits(),1);
+        let mut empty:Upstream=Box::pin(futures_util::stream::empty());
+        assert!(prefix(&mut empty).await.is_err());
+    }
+
 }
