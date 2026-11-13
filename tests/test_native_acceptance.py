@@ -140,6 +140,21 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['status'], 'blocked')
         self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
 
+    def test_host_coverage_fixture_pass_is_not_consent_or_live_acquisition(self):
+        evidence = json.loads(gate.EVIDENCE.read_text())
+        diagnostic = evidence['prepared_diagnostic']
+        host = diagnostic['host_fixture_verification']
+        self.assertEqual(host['source_revision'], 'f207206')
+        self.assertEqual(host['tests_passed'], 7)
+        self.assertEqual(host['tests_filtered_out'], 55)
+        self.assertFalse(host['provider_requests'])
+        self.assertFalse(host['normal_cli_binary_build_verified'])
+        self.assertFalse(diagnostic['approval_recorded'])
+        result = gate.assess(evidence)
+        self.assertEqual(result['next'], 'offline_source_coverage_review_no_live_retry')
+        self.assertFalse(result['native_prefix_gate_passed'])
+        self.assertFalse(result['memory_budget_accepted'])
+
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):
         for error in [OSError('private-path'), ValueError('private-data')]:
             output = io.StringIO()

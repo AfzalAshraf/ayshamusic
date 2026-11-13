@@ -208,6 +208,20 @@
       "ci_jobs_passed": 5,
       "rust_tests_passed": 62,
       "python_tests_passed": 84
+    },
+    "host_fixture_verification": {
+      "source_revision": "f207206",
+      "command_kind": "cargo_test_filter_coverage_",
+      "status": "pass",
+      "tests_passed": 7,
+      "tests_failed": 0,
+      "tests_filtered_out": 55,
+      "compile_seconds": 2.54,
+      "test_seconds": 0.12,
+      "provider_requests": false,
+      "player_requested": false,
+      "media_requested": false,
+      "normal_cli_binary_build_verified": false
     }
   }
 }

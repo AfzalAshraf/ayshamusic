@@ -108,3 +108,14 @@ native acquisition approach before further source-access changes. If approved bu
 no useful evidence results, stop rather than turning this into a sequence of guessed
 wrapper fixes or repeated scans. Unsupported grammar still requires a specific inert
 fixture and negative security tests before accepting a new data source.
+
+
+## Host fixture verification received
+
+User pulled f207206 and ran the coverage_ test filter: compilation2.54s,7passed,
+0failed,55filteredout, testtime0.12s. This verifies the seven fixture tests on the
+host; it is not a full62-test host run, ordinary CLI binary build, upstream request,
+visitor acquisition or playback/memory evidence. Cargo test builds the test harness,
+so any future approved live command must explicitly build the normal executable.
+No need to repeat these successful tests. User has not explicitly approved another
+watch GET by supplying test output; approval remains false and the offline stop stays.
