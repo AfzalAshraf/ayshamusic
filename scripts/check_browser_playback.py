@@ -71,7 +71,7 @@ def collect():
             "checks": rows, "starts_audio": False, "upstream_requested": False,
             "service_changed": False, "raw_logs_included": False,
             "audibility_verified": False, "memory_budget_accepted": False,
-            "limits": "Read-only installed-service triage, not a native probe. UI equality is not complete backend binary identity. Cannot inspect the phone's media element or hear output. No all-Rust/30MB acceptance."}
+            "limits": "Read-only installed-service triage, not a native probe. UI equality is not complete backend binary identity. Cannot inspect the phone's media element or hear output. No all-Rust/50MB acceptance."}
 
 
 def main():

@@ -1,5 +1,18 @@
 # Hear music on the phone/browser — targeted recovery
 
+**Latest target override:** the user now requests strictly below50MB TOTAL, replacing
+30MB. Neither this compatibility-service recovery nor the new metadata bounds is a
+verified50MB/all-Rust release. Historical verification below retains its original
+context. Do not install expecting the new memory target to be met.
+
+A reported `can't open file ... check_browser_playback.py` means the local file is
+absent, not failedstreaming or failedPython. It is tracked in7433267 and later; pull
+must succeed before using that path. The error alone does not establish whether the
+host skipped the pull, has a different checkout or deleted the file. Source update
+alone does not deploy the embeddedRustUI. No repeated playback diagnostic is needed
+just to confirm this missing-file error.
+
+
 ## What the supplied output actually proves
 
 The host fast-forwarded to66b9667 and ran the OFFLINE native-evidence checker.

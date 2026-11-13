@@ -22,18 +22,18 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_current_cgroup_above_both_limits_is_failure_even_without_audibility_proof(self):
         report = budget.evaluate([sample(87_000_000)], [True, True], True, False)
         self.assertEqual(report['status'], 'fail')
-        self.assertTrue(report['sampled_current_at_or_above_30_MB'])
-        self.assertTrue(report['sampled_current_at_or_above_30_MiB'])
+        self.assertTrue(report['sampled_current_at_or_above_50_MB'])
+        self.assertTrue(report['sampled_current_at_or_above_50_MiB'])
         self.assertFalse(report['audible_output_verified'])
         self.assertFalse(report['download_or_decode_verified'])
         self.assertFalse(report['whole_stack_accepted'])
 
     def test_decimal_and_binary_thresholds_are_distinct(self):
-        for amount, decimal, binary in [(29_999_999, False, False), (30_000_000, True, False),
-                                        (30 * 1048576 - 1, True, False), (30 * 1048576, True, True)]:
+        for amount, decimal, binary in [(49_999_999, False, False), (50_000_000, True, False),
+                                        (50 * 1048576 - 1, True, False), (50 * 1048576, True, True)]:
             report = budget.evaluate([sample(amount, amount)], [True, True], True, False)
-            self.assertEqual(report['sampled_current_at_or_above_30_MB'], decimal)
-            self.assertEqual(report['sampled_current_at_or_above_30_MiB'], binary)
+            self.assertEqual(report['sampled_current_at_or_above_50_MB'], decimal)
+            self.assertEqual(report['sampled_current_at_or_above_50_MiB'], binary)
             self.assertFalse(report['whole_stack_accepted'])
 
     def test_under_limit_never_certifies_whole_stack(self):
@@ -52,8 +52,8 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_historical_peak_is_kept_separate_from_sampled_current(self):
         report = budget.evaluate([sample(8_000_000, 120_000_000)], [True, True], True, False)
         self.assertEqual(report['status'], 'incomplete')
-        self.assertFalse(report['sampled_current_at_or_above_30_MB'])
-        self.assertTrue(report['historical_peak_at_or_above_30_MB'])
+        self.assertFalse(report['sampled_current_at_or_above_50_MB'])
+        self.assertTrue(report['historical_peak_at_or_above_50_MB'])
         self.assertIn('historical_peak', report['code'])
 
     def test_swap_and_changed_service_prevent_budget_acceptance(self):

@@ -30,7 +30,7 @@ def observed_service_budget(evidence):
     if not isinstance(reports, list):
         reports = []
     valid = [r for r in reports if isinstance(r, dict)
-             and r.get("schema") == 1 and r.get("candidate") in {"aysha-service-playback-budget-v1", "aysha-service-playback-budget-v2-30mb"}
+             and r.get("schema") == 1 and r.get("candidate") in {"aysha-service-playback-budget-v1", "aysha-service-playback-budget-v2-30mb", "aysha-service-playback-budget-v3-50mb"}
              and r.get("measurement_scope") == "aysha_music_service_cgroup_and_descendants_only"
              and type(r.get("sampled_max_current_bytes")) is int and r["sampled_max_current_bytes"] >= 0
              and type(r.get("samples_completed")) is int and 1 <= r["samples_completed"] <= 30]
@@ -38,17 +38,17 @@ def observed_service_budget(evidence):
         return {"status": "unverified", "code": "no_valid_service_budget_observation",
                 "whole_stack_accepted": False}
     current = max(r["sampled_max_current_bytes"] for r in valid)
-    decimal = current >= 30_000_000
-    binary = current >= 30 * 1048576
+    decimal = current >= 50_000_000
+    binary = current >= 50 * 1048576
     return {
         "status": "fail" if decimal else "unverified",
-        "code": ("current_service_alone_at_or_above_both_30_unit_limits" if binary else
-                 "current_service_at_or_above_decimal_30_MB_limit" if decimal else
+        "code": ("current_service_alone_at_or_above_both_50_unit_limits" if binary else
+                 "current_service_at_or_above_decimal_50_MB_limit" if decimal else
                  "service_only_under_upper_limit_not_whole_stack_acceptance"),
         "observations_recorded": len(valid), "max_sampled_current_bytes": current,
-        "current_target": "strictly_below_30_MB_total",
-        "target_upper_bytes": {"30_MB": 30_000_000, "30_MiB": 30 * 1048576},
-        "at_or_above_30_MB": decimal, "at_or_above_30_MiB": binary,
+        "current_target": "strictly_below_50_MB_total",
+        "target_upper_bytes": {"50_MB": 50_000_000, "50_MiB": 50 * 1048576},
+        "at_or_above_50_MB": decimal, "at_or_above_50_MiB": binary,
         "max_sampled_current_MB": current / 1_000_000,
         "max_sampled_current_MiB": current / 1048576,
         "exceeds_15_MB": current > 15_000_000, "exceeds_15_MiB": current > 15 * 1048576,

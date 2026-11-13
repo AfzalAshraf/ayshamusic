@@ -2,7 +2,7 @@
 
 **Current decision: DO NOT replace the working service with a prototype.**
 The user requests replacing every server responsibility with Rust, conditional on
-working download/playback **strictly below30MB TOTAL** (latest request, superseding10–15MB). The latest real tests failed both native
+working download/playback **strictly below50MB TOTAL** (latest request, superseding30MB and10–15MB). The latest real tests failed both native
 acquisition and the working service's memory budget. A successful test harness or
 small watch-only process is not an upgraded server. No all-Rust release/install
 artifact has been produced; no service switch occurred in this work.
@@ -24,15 +24,15 @@ artifact has been produced; no service switch occurred in this work.
 - Window2 per-label RSS maxima: Rustmusic-server13,381,632bytes, yt-dlp71,299,072bytes.
   Non-atomic/maxima/shared pages: do not sum with each other or cgroup totals to claim
   exact attribution. yt-dlp is the largest observed process bucket, not evidence that
-  deleting it alone achieves30MB or that remaining native work costs zero memory.
+  deleting it alone achieves50MB or that remaining native work costs zero memory.
 
-The service cgroup alone exceeds **both30,000,000 and31,457,280bytes**. The decimal
-30MB ceiling is the conservative gate; equality fails because the request says below.
+The service cgroup alone exceeds **both50,000,000 and52,428,800bytes**. The decimal
+50MB ceiling is the conservative gate; equality fails because the request says below.
 MiB is reported separately, not used to relax the target. Omitted shared components
 cannot make this lower bound smaller. This rejects the measured implementation, not
 future native feasibility. There is no proof a complete future Rust design will fit.
 Historical15MB reports remain unchanged in the evidence JSON; the current checker
-reassesses their original byte measurements against the latest30MB requirement.
+reassesses their original byte measurements against the latest50MB requirement.
 
 The approved watch-only attempt is consumed. No unchanged build, watch request or
 memory rerun is recommended. Preserve production while the missing implementation
@@ -56,9 +56,30 @@ signed URLs, credentials or account cookies to accelerate this investigation.
 Linux/systemd/audio/Bluetooth platform services remain platform services, not claimed
 Rust application code. Their attributable resource boundary must be agreed and counted;
 no silent workload offload, hidden Python/Node/mpv/yt-dlp worker, external resolver or
-cloud fallback to manufacture a Rust/30MB claim. REA and Graphify remain development
+cloud fallback to manufacture a Rust/50MB claim. REA and Graphify remain development
 tools only. No new auth/session/device-isolation/source-access architecture is implied
 by this responsibility inventory. Existing global-state limitations stay explicit.
+
+## Latest resource patch (not a50MB release)
+
+src/metadata_budget.rs now bounds existing metadata-helper stdout to256KiB and total
+runtime to30seconds; one shared metadata-helper slot rejects concurrent launches
+instead of accumulating blocking subprocess work. Search no longer uses an uncancellable
+spawn_blocking Command::output. Direct search HTTP is capped at512KiB and12seconds;
+empty/over512byte search terms are rejected before any upstream work. Metadata result
+counts remain10related/16search. A failed/empty/busy automatic prefetch is attempted
+once per playback epoch, not again every10seconds; explicit Next can still try related
+on demand. Prefetch completion checks epoch, so a restarted identical URL cannot accept
+stale results. Busy compatibility discovery currently returns empty results, not a
+queued job; Next reports no next track and may be retried explicitly. This is a visible
+resource trade-off, not permission to remove search/related or use an off-host resolver.
+
+This bounds parent buffers, deadlines and metadata launch concurrency, NOT helperRSS,
+JSON allocator overhead, native HTTP request concurrency, stream helper concurrency,
+platform service costs or aggregate memory. yt-dlp/media/mpv/Bluetooth roles remain;
+measured helperRSS71,299,072bytes already exceeds50MB. No all-Rust source fix, release
+budget pass, hearing test or deployment has occurred. A50MB MemoryMax would risk OOM,
+not solve the implementation gap. Do not install this as a verified50MB candidate.
 
 ## Ordered gates before installation
 
@@ -77,7 +98,7 @@ by this responsibility inventory. Existing global-state limitations stay explici
    change-track peaks, EOF/recovery and intended listener count. Both resident and swap
    accounting, owned descendants/escaped workers and agreed shared-service costs.
    Decimal/binary units and simultaneous-device semantics remain to be agreed. No
-   hard-OOM cap/counter reset as optimization. Latest target: strictly below30MB total.
+   hard-OOM cap/counter reset as optimization. Latest target: strictly below50MB total.
 5. **Switch explicitly, with rollback.** Only a verified integrated artifact goes to
    /home/afine/music-server under systemd, with backup, installed/running identity,
    health/audio/resource acceptance and recoverability. No prototype installation now.
@@ -113,7 +134,7 @@ The offline gate records native/diagnostic failures and both original budget win
 it never trusts small probe RSS, claimed status or old approval. It reports replacement
 not allowed and keep-working-service. Under-limit or malformed observations never
 certify the future complete stack. The gate is not installer enforcement. No source
-access fix, full Rust artifact, hardware test, deployment or30MB pass is claimed.
+access fix, full Rust artifact, hardware test, deployment or50MB pass is claimed.
 
 **Optional OFFLINE review command—no need to repeat previous host tests:**
 

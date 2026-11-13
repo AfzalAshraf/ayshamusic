@@ -1584,3 +1584,49 @@ phone(notstaticpreview),media-volumeup,oneordinarylistenerinitiatedsongPlay. Suc
 requiresuserconfirmedsound; iffailcapturevisiblemessage + newreadonlydiagnosticJSON,
 notrepeatnativegate/watchorrawjournal. No promiseeverythingresolvedor30MBachieved.
 Backend2/5,QA3/5,performance1/5; liveaudibilityNOTRUN. Unrelatedtrackedpycdeletionpreserved.
+
+## 2026-11-07 —50MB TOTAL target; real runtime metadata bounds, no release claim
+
+Active department QA & Debugging. User'shost says scripts/check_browser_playback.py
+absent/Errno2. That onlyprovesmissinglocalfile, notserver/Python/mediafailure. Fileis
+trackedfrom7433267 (confirmedgitlsfiles); mostlikelycheckoutnotupdated, but different
+checkout/deletionnotruledout. No sourceupdate/installoutputfromthatattempt. Do not
+senduserthroughsamecheckerloop orcalluninstalledcodeahearingfix. Usernowrequests
+strictlybelow50MBTOTAL, superseding30MBandalloldertargets; conservative50,000,000bytes,
+separate50MiB52,428,800bytes/equalityfails. Historical101171200stillfails, notnewreading.
+CompleteallRustworkingYouTubeserverunderbudget remainsundelivered; bestraightaboutit.
+
+Runtimecommitb1428a3: newsrc/metadata_budget.rs integratesrootmetadatahelperowner.
+Searchfallback no longerspawnblocking/unboundedCommandoutput; timeout30s/cap256KiB
+stdout/stdinnull/stderrnull/ownedkillondrop; failurekills/reapsdirectchildwithbounded
+1scleanup. One metadatahelperpermit rejectsconcurrentlaunches ratherthanqueueingjobs.
+Slotreleasesonexit/failure/cancellation. ThisdoesNOTboundhelperRSS/grandchildren,
+streamsoraggregateworkload. Legacyyt-dlpstillrequired; nohiddenfallback/nativeclaim.
+ExistingnativeHTTPsearch bounded512KiB/errorstatusguard/12swholepath; empty/over512byte
+searchreturnsbeforeupstream. Relatedresultcap10/search16. Prefetchreservedonceperplay
+requestepoch, notever10safterfailure/empty/busy. ExplicitNextstillgetsondemandrelated;
+queuealreadyfilledstillused. CompletionrejectsstaleepochincludingrestartsameURL.
+Contentionmayyieldemptysearch/relatedlist, notinfinitewait; prefetchdoesnotautoretry
+untilnewplayepoch. No newupstreamclient/accessarchitecture/providerrequestinagent.
+BuffersanddeadlinesarenotaggregateRSSguarantees/JSONallocatorbounds; nativeHTTP/stream
+concurrencyandotherhelpersstillneedacceptance. Historicalyt-dlpRSS71299072exceeds50MB;
+noevidencethatthispatchalonebringsworkingplaybackbelowtarget. NohardOOMcap/counterreset.
+
+Tests:6metadataunitcasesinclprefetchreservation,smalloutput/exit,slotbusy-before-spawn,
+oversize/missingprogram/timeout,taskcancelpermitrelease,boundedHTTP/errorstatus; plus
+rootempty/oversizesearchteststays offline. CI43425193365all5PASS/rootRusttests+release,
+mobilebrowser/prototypes/offlineCLI; nohostmusic/hearing/nativeacquisitionsuccess.
+Finalbudgetpatch112PythonPASS/79JSpreviouslyPASS/diffcheckPASS. Newv3-50mbdiagnostic
+candidate; offlinegateacceptshistoricalv1/v2andnewv3byteswithoutrewritingJSON; strict50MB
+and50MiBboundarytests/unknownschemaneverpass. Browsertriagewordingcurrent50MB.
+
+Currentguidance/rolemap/baseline/skillupdated50MB; oldchronologyexplicitlyhistorical.
+No INSTALLrecommendationas50MBcandidate. ExactoptionalSOURCEUPDATEcommand:
+cd /home/afine/ayshamusic && git pull --ff-only origin arena/a850fb0d-ayshamusic && test -f scripts/check_browser_playback.py
+Expectedexit0/filepresentonly, noaudio/build/install/restart; failurestopandinspectpull/
+checkout,notrepeatPythonagainstmissingfile. No needrerundiagnosticnow. Nextsubstantive
+workstillnativepermittedsourceacquisition (offlinefailurefixturefirst),integrated
+boundedtransport/decode/controls,removehelpers,completeagreed50MBtotalreleaseworkload
+anduserhearingacceptancebeforeclaim/delivery. Existingnativewatchapprovalconsumed.
+Noautomaticproviderretry/auth/cookies/tokens/fallback/sourceaccesschange. Production
+preserved,unrelatedtrackedpycdeletionpreserved. Backend2/5,QA3/5,performance1/5.

@@ -218,22 +218,33 @@ class NativeAcceptanceTests(unittest.TestCase):
         self.assertEqual(measured['status'], 'unverified')
         self.assertFalse(measured['whole_stack_accepted'])
 
-    def test_current_30mb_target_is_strict_and_keeps_historical_evidence_intact(self):
+    def test_current_50mb_target_is_strict_and_keeps_historical_evidence_intact(self):
         evidence = json.loads(gate.EVIDENCE.read_text())
         before = json.dumps(evidence, sort_keys=True)
         report = gate.observed_service_budget(evidence)
-        self.assertEqual(report['current_target'], 'strictly_below_30_MB_total')
-        self.assertTrue(report['at_or_above_30_MB'])
-        self.assertTrue(report['at_or_above_30_MiB'])
+        self.assertEqual(report['current_target'], 'strictly_below_50_MB_total')
+        self.assertTrue(report['at_or_above_50_MB'])
+        self.assertTrue(report['at_or_above_50_MiB'])
         self.assertEqual(json.dumps(evidence, sort_keys=True), before)
-        for amount, decimal, binary in [(29_999_999, False, False), (30_000_000, True, False),
-                                        (30 * 1048576 - 1, True, False), (30 * 1048576, True, True)]:
+        for amount, decimal, binary in [(49_999_999, False, False), (50_000_000, True, False),
+                                        (50 * 1048576 - 1, True, False), (50 * 1048576, True, True)]:
             for observation in evidence['requested_budget_check']['host_observations']:
                 observation['sampled_max_current_bytes'] = amount
             report = gate.observed_service_budget(evidence)
-            self.assertEqual(report['at_or_above_30_MB'], decimal)
-            self.assertEqual(report['at_or_above_30_MiB'], binary)
+            self.assertEqual(report['at_or_above_50_MB'], decimal)
+            self.assertEqual(report['at_or_above_50_MiB'], binary)
             self.assertEqual(report['status'], 'fail' if decimal else 'unverified')
+            self.assertFalse(report['whole_stack_accepted'])
+
+    def test_old_and_new_budget_schemas_are_reassessed_at_current_target(self):
+        for candidate in ['aysha-service-playback-budget-v1', 'aysha-service-playback-budget-v2-30mb',
+                          'aysha-service-playback-budget-v3-50mb', 'unknown']:
+            report = gate.observed_service_budget({'requested_budget_check': {'host_observations': [{
+                'schema': 1, 'candidate': candidate,
+                'measurement_scope': 'aysha_music_service_cgroup_and_descendants_only',
+                'samples_completed': 20, 'sampled_max_current_bytes': 50_000_000,
+            }]}})
+            self.assertEqual(report['status'], 'unverified' if candidate == 'unknown' else 'fail')
             self.assertFalse(report['whole_stack_accepted'])
 
     def test_missing_or_invalid_evidence_fails_closed_without_exception_text(self):

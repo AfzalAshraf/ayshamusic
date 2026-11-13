@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only strictly-below-30 MB service-cgroup audit during user-controlled playback.
+"""Read-only strictly-below-50 MB service-cgroup audit during user-controlled playback.
 
 No builds, player controls, extraction, upstream requests, sudo, installs or resets.
 Python is diagnostic-only, never a production playback/extraction helper.
@@ -14,8 +14,8 @@ try:
 except ModuleNotFoundError:
     import check_health as health
 
-DECIMAL_UPPER = 30_000_000
-BINARY_UPPER = 30 * 1024 * 1024
+DECIMAL_UPPER = 50_000_000
+BINARY_UPPER = 50 * 1024 * 1024
 
 
 def service_state():
@@ -56,7 +56,7 @@ def evaluate(samples, flags, stable, incomplete):
     report = {
         "status": "incomplete", "code": "budget_not_accepted",
         "measurement_scope": "aysha_music_service_cgroup_and_descendants_only",
-        "candidate_upper_bytes": {"30_MB": DECIMAL_UPPER, "30_MiB": BINARY_UPPER},
+        "candidate_upper_bytes": {"50_MB": DECIMAL_UPPER, "50_MiB": BINARY_UPPER},
         "target_comparison": "strictly_below; decimal MB is the conservative gate, binary shown separately",
         "samples_completed": len(samples), "service_identity_stable": stable,
         "process_inventory_incomplete": incomplete,
@@ -76,15 +76,15 @@ def evaluate(samples, flags, stable, incomplete):
         "sampled_max_swap_bytes": swap,
         "sampled_max_current_MB": round(current / 1_000_000, 3),
         "sampled_max_current_MiB": round(current / 1048576, 3),
-        "sampled_current_at_or_above_30_MB": current >= DECIMAL_UPPER,
-        "sampled_current_at_or_above_30_MiB": current >= BINARY_UPPER,
-        "historical_peak_at_or_above_30_MB": peak >= DECIMAL_UPPER,
-        "historical_peak_at_or_above_30_MiB": peak >= BINARY_UPPER,
+        "sampled_current_at_or_above_50_MB": current >= DECIMAL_UPPER,
+        "sampled_current_at_or_above_50_MiB": current >= BINARY_UPPER,
+        "historical_peak_at_or_above_50_MB": peak >= DECIMAL_UPPER,
+        "historical_peak_at_or_above_50_MiB": peak >= BINARY_UPPER,
     })
     if current >= BINARY_UPPER:
-        report.update(status="fail", code="service_cgroup_alone_at_or_above_both_30_MB_and_30_MiB")
+        report.update(status="fail", code="service_cgroup_alone_at_or_above_both_50_MB_and_50_MiB")
     elif current >= DECIMAL_UPPER:
-        report.update(status="fail", code="service_cgroup_at_or_above_decimal_30_MB_units_unresolved")
+        report.update(status="fail", code="service_cgroup_at_or_above_decimal_50_MB_units_unresolved")
     elif swap:
         report["code"] = "swap_observed_budget_not_accepted"
     elif not stable:
@@ -147,7 +147,7 @@ def main(argv=None):
         report = {"status": "incomplete", "code": "service_cgroup_unavailable",
                   "whole_stack_accepted": False, "audible_output_verified": False,
                   "native_acquisition_verified": False, "download_or_decode_verified": False}
-    report.update(schema=1, candidate="aysha-service-playback-budget-v2-30mb",
+    report.update(schema=1, candidate="aysha-service-playback-budget-v3-50mb",
                   starts_playback=False, upstream_requested=False, builds_run=False)
     print(json.dumps(report, indent=2))
     # Never exit 0: current cgroup-only readings cannot certify the whole stack.

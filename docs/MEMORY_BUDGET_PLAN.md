@@ -1,6 +1,16 @@
 # Memory budget — Rust-only target and verification plan
 
-## Current requirement override —2026-11-07
+## Current requirement override — latest user request: strictly below50MB TOTAL
+
+The latest50MB requirement supersedes30MB and all earlier targets. Conservative
+ceiling50,000,000bytes, separate50MiB ceiling52,428,800bytes; equality fails. The
+previously observed101,171,200bytes still fails. No new host measurement, audible
+acceptance or all-Rust release is inferred. Current live diagnostic candidate is
+v3-50mb; committed v1/v2 reports and historical thresholds remain unmodified.
+The30MB section immediately below is historical, not the current acceptance target.
+Do not install a prototype or claim50MB based on a small failed probe.
+
+### Previous30MB requirement (historical)
 
 The latest user request supersedes10–15MB: **strictly below30MB TOTAL**, every
 application-server responsibility in Rust. Decimal30,000,000bytes is the conservative
