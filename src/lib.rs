@@ -43,6 +43,8 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 /// Playback thread, started lazily on the first `/api/play`.
 static PLAYER: OnceLock<player::Player> = OnceLock::new();
 static TG_CACHE: OnceLock<Arc<TelegramCacheManager>> = OnceLock::new();
+// Serializes Stop with source handoff, including a Play still resolving remotely.
+static PLAY_TICKET: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
 fn cache_manager() -> Option<Arc<TelegramCacheManager>> { TG_CACHE.get().cloned() }
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
@@ -302,7 +304,7 @@ async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>
     let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
     tg_storage::pause(true);
     match manager.telegram().disconnect().await {
-        Ok(())=>{let _=manager.clear_pending();let _=started_player().map(player::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
+        Ok(())=>{let _=manager.clear_pending();let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);let _=started_player().map(player::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
         Err(error)=>api_error(StatusCode::BAD_GATEWAY,"telegram_disconnect",error),
     }
 }
@@ -409,6 +411,7 @@ async fn start_track(
     forced: Option<youtube::InnertubeClient>,
 ) -> Result<Value, (StatusCode, Json<Value>)> {
     use youtube::ResolveError;
+    let ticket=*PLAY_TICKET.lock().unwrap();
 
     if !youtube::valid_video_id(video_id) {
         return Err(api_error(
@@ -421,7 +424,7 @@ async fn start_track(
     if forced.is_none() {
         if let Some(cache)=cache_manager() {
             if let Ok(Some(media))=tg_storage::lookup(&cache,video_id).await {
-                if start_native(media).await.is_ok() {
+                if start_native(media,ticket).await.is_ok() {
                     return Ok(json!({"status":"playing","video_id":video_id,"source":"telegram","telegram_archive":"saved"}));
                 }
                 // User approved YouTube fallback if Telegram lookup/read/decode fails.
@@ -473,7 +476,7 @@ async fn start_track(
         video_id:audio.video_id.clone(), title:audio.title.clone(), client:audio.client,
         itag:audio.itag,url:audio.url.clone(),user_agent:youtube::ANDROID.user_agent,
         content_length:audio.content_length,fetch:None,
-    }).await?;
+    },ticket).await?;
     let mut archive = "not_connected";
     if let Some(cache)=cache_manager() {
         let path=cache.cached_path(video_id);
@@ -499,8 +502,12 @@ async fn start_track(
     }))
 }
 
-async fn start_native(media: player::Media) -> Result<(), (StatusCode, Json<Value>)> {
-    let ready=player().play(media).map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"playback_unavailable",e))?;
+async fn start_native(media: player::Media,ticket:u64) -> Result<(), (StatusCode, Json<Value>)> {
+    let ready={
+        let current=PLAY_TICKET.lock().unwrap();
+        if *current!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Playback was stopped while preparing".into()));}
+        player().play(media).map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"playback_unavailable",e))?
+    };
     match tokio::time::timeout(std::time::Duration::from_secs(45),ready).await {
         Ok(Ok(Ok(())))=>Ok(()),
         Ok(Ok(Err(error)))=>Err(api_error(StatusCode::BAD_GATEWAY,"audio_prepare_failed",error)),
@@ -662,6 +669,7 @@ async fn resume() -> Json<Value> {
 
 async fn stop(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
     sample_listening(&phone);phone.listening.lock().unwrap().flush();
+    let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);
     match started_player().map(player::Player::stop) {
         Some(Ok(())) => Json(json!({ "status": "stopped" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
@@ -1090,6 +1098,16 @@ mod api_tests {
             .await
             .unwrap();
         assert_eq!(json_body(response).await["status"], "unavailable");
+    }
+
+    #[tokio::test]
+    async fn stop_cancels_a_play_still_preparing_before_audio_is_opened() {
+        let ticket=*PLAY_TICKET.lock().unwrap();
+        let app=router(Arc::new(None));
+        app.oneshot(post("/api/stop","{}")).await.unwrap();
+        let media=player::Media {video_id:"abcdefghijk".into(),title:None,client:"ANDROID",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:None};
+        let result=start_native(media,ticket).await.unwrap_err();
+        assert_eq!(result.0,StatusCode::CONFLICT);assert_eq!(result.1.0["error"],"play_cancelled");
     }
 
     #[tokio::test]

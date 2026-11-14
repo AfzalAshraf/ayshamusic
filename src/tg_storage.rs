@@ -47,8 +47,8 @@ fn saved_media(client:Arc<Client>,id:&str,message:&grammers_client::message::Mes
 }
 pub async fn lookup(cache:&TelegramCacheManager,id:&str)->Result<Option<player::Media>,String> {
     if PAUSED.load(Ordering::Acquire) {return Ok(None);}
-    let Some(client)=cache.telegram().authorized_client().await else {return Ok(None);};
     tokio::time::timeout(Duration::from_secs(15),async {
+        let Some(client)=cache.telegram().authorized_client().await else {return Ok(None);};
         if let Some(message_id)=cache.saved_message(id).ok().flatten() {
             let messages=client.get_messages_by_id(me(),&[message_id]).await.map_err(|e|{if let Some(seconds)=flood_wait(&e.to_string()) {let _=cache.on_flood_wait(seconds);} "Telegram message unavailable".to_string()})?;
             for message in messages.into_iter().flatten() {
@@ -78,7 +78,7 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
     loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
         if PAUSED.load(Ordering::Acquire) || !cache.telegram().is_configured() {continue;}
-        let Some(client)=cache.telegram().authorized_client().await else {continue;};
+        let Ok(Some(client))=tokio::time::timeout(Duration::from_secs(20),cache.telegram().authorized_client()).await else {continue;};
         match cache.seconds_until_allowed() {Ok(0)=>(),_=>continue}
         let Ok(Some(item))=cache.take_next_pending() else {continue;};
         let result=tokio::time::timeout(Duration::from_secs(15*60),async {
