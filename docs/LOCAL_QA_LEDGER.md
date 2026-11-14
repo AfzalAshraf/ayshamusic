@@ -1813,3 +1813,22 @@ Preserved unrelated tracked pyc deletion. One department: QA & Debugging; backen
 QA3/5,measured performance1/5 unchanged until real workload resource acceptance.
 Next: host runs documented read-only monitor during ordinary listening and optionally
 one Next/Previous, sends summary and approximate tap times. Do not rerun native watch.
+
+## 2026-11-07 — Product & Architecture: inspect newer standalone Android work
+
+User redirects goal to publishable standalone APK, same website UI, no external
+Aysha server. Fetched origin/main bf37384 (no branch switch): it contains Android
+work absent from session HEAD eca0265. Android CI43584788099 success; apk-latest
+metadata7,108,929bytes explicitly debug-signed/physical playback unverified.
+Inspected JNI/library/router/UI/Kotlin/manifest/Gradle/workflow. Missing Android
+search/queue/likes/next/prev/icons routes remain referenced by UI/media service;
+startup race and WebView hardening/signing/publication issues documented in
+ANDROID_STANDALONE_REVIEW.md. APK compilation is not a working full website clone.
+Attempted gh release download: asset-host redirect blocked/EOF; no binary validation
+or APK fabricated. No main merge, remote host change, source/provider probe or
+publication. Existing approved audible Linux path untouched, trackedpyc deletion
+preserved. Pending publishing-channel choice Play versus direct APK. No code change
+or new test run claimed; audit uses exact source and CI metadata. Architecture2/5,
+Android feature completeness1/5,device/release acceptance0/5. Latest supplied Linux
+RAM not remeasured:6.4512MBcurrent/67.592192MBhistoricalpeak/0swap, rust-resolved;
+not phone memory. No fresh Android RAM measurement exists.
