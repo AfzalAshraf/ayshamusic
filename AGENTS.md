@@ -49,3 +49,15 @@ do not call fixture decoding/green CI a verified fix or publish-ready playback.
 For automatic Next infer from actual local listening time, skips and likes; no
 Romantic/Melody dropdown and NOT the current song name; filter same-song variants/recent history, preserve explicit queue/Previous.
 See docs/STRICT_RUST_PROVIDER_AND_NEXT.md and the latest QA ledger for evidence.
+
+## Latest Play crash follow-up
+
+User reports app closing on Play (installed build/stack not yet confirmed). The
+locked CPAL0.18.2 Android backend calls ndk-context0.1.1, which panics when no
+Android context was initialized; release panic=abort closes the process. Patch
+d6fd6a0 passes application Context through JNI, pins a GlobalRef and initializes
+exactly once before boot; guards CPAL open. Follow-up9f7f9d0 preserves JNI bridge
+signatures under R8. This is a concrete source defect, not confirmed device crash
+attribution/audibility. Keep media-client1.2.1 fix and automatic local recommendations.
+See latest ledger for CI/artifact results. `docs/REUSABLE_PROJECT_PROMPT.md` contains
+the user-requested reusable project prompt (not hidden agent instructions).

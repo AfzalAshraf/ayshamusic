@@ -2061,3 +2061,97 @@ empty-queue different-song selection, queue order, Previous and reset. Phone RAM
 **NOT MEASURED**; Linux RAM **not remeasured**, old service figures not APK totals.
 Recovery: old phone packages/data and main public1.2.1 release are untouched; source
 merge can be reverted on this branch without restarting the working Linux service.
+
+## Follow-up — unexpected close on Play; Android context initialization
+
+**Active department: QA/debugging.** User reports 'it unexpectedly closed when i
+click play' and asks for a reverse/reusable project prompt. Exact installed source,
+Android version and crash stack are not supplied; do not silently equate the report
+with proof of a particular SIGABRT or provider success.
+
+### Evidence and narrow correction
+
+- Inspected locked CPAL0.18.2 source, tag `v0.18.2` at
+  `e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7`, via GitHub API (file inspection only):
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/mod.rs
+  opens AAudio and calls `AudioManager::get_mixer_bursts()`;
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/java_interface/audio_manager.rs
+  calls `get_context()`;
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/java_interface/utils.rs
+  directly calls `ndk_context::android_context()`.
+- ndk-context source/package0.1.1 inspected at
+  https://github.com/rust-mobile/ndk-context/blob/0eb252bf2306f6ca477430a35e88298e634c0b24/ndk-context/src/lib.rs
+  has `ANDROID_CONTEXT.expect("android context was not initialized")` and requires
+  initialization exactly once with valid process-lifetime pointers. In this app,
+  JNI_OnLoad only negotiated a version; nothing initialized ndk-context. This is
+  a real crash-capable Android path. Cargo release `panic = "abort"` kills the APK
+  rather than showing an ordinary Rust playback error. No source tweak to timeout
+  or provider versions addresses that initialization omission.
+- Fix `d6fd6a08b60f5ea630b88e73e044006aed47033d`: Kotlin supplies
+  `context.applicationContext` through the actual JNI signature. Rust gets the VM,
+  pins a GlobalRef, serializes initialization under a mutex and initializes the
+  existing shared ndk-context0.1.1 instance before boot/worker creation. A retained
+  application reference avoids dangling local refs or retaining destroyed Activities;
+  duplicate startup does not double-initialize. No teardown while native workers live.
+  The player checks the initialization invariant before opening CPAL and returns a
+  player error for the missing-context path instead of entering the dependency panic.
+- Follow-up `9f7f9d03e1453966dc84255b716a9b1410b53223`: R8 keeps RustBridge object,
+  instance and both methods; removed stale static/two-string-only keep signatures.
+- Only an existing transitive Rust dependency becomes a direct Android-only optional
+  dependency, with the same locked0.1.1 version. No new extractor/backend/codec,
+  Android permission, Java audio engine or provider call. JNI initialization is not
+  a non-Rust playback helper. Media-client1.2.1 fix and local listening remain intact.
+- Corrected inherited inaccurate 'only decoded128KiB/flat RSS' comment: transfer
+  queue has eight compressed-media chunks, variable chunk sizes plus decoder/device
+  buffers. No whole-process memory bound follows; phone RAM NOT MEASURED.
+- User-requested reverse prompt: `docs/REUSABLE_PROJECT_PROMPT.md`, a copyable project
+  requirements/history/next-task prompt, presented in the file viewer. It is a
+  reconstruction of the user's project request, not system or developer prompts.
+
+### Local verification and acceptance limits
+
+**94 Node tests PASS / 137 Python tests PASS**, diffcheckPASS. Added source contracts
+for matching Context argument across Kotlin/JNI, application-vs-Activity context,
+initialization-before-boot order, retained global reference/exactly-once lock, audio
+invariant guard and release shrinker. These are static/source contracts, NOT device
+runtime tests. Rust/Android compilation is performed by CI; sandbox has no toolchain.
+
+Expected result of the narrow patch: CPAL can read a valid Android context when
+Play opens the audio sink. This does not prove that provider resolution, FIFO decode,
+physical output, focus or background behavior will succeed. No live provider or
+phone/emulator execution performed. If the close persists, obtain the actual app
+identity/Android crash section before more unrelated changes. Do not call it fixed
+on the phone based on build success alone.
+
+### Verified crash-fix candidate manifest
+
+- **Android43592475037 at9f7f9d0: SUCCESS**, job132439956892, 2m51s. Host Rust phone
+  tests + Linux binary check, Android Rust/JNI crosscompile/Gradle/R8, size gate,
+  artifact upload and Android website contracts all passed. No live provider tests
+  or physical/emulator audio execution. Counts from redirected logs not invented.
+- **Linux43592474963 at9f7f9d0: SUCCESS, all five jobs**. Main Rust/server/Python/
+  frontend/scripts, audio/extract/direct prototypes and mobile/static-preview browser
+  regressions green. These host jobs do not execute Android context initialization.
+- **1.2.3-preview/code7**, package **com.afzal.ayshamusic.context7**, launcher
+  **Aysha Music Audio Fix**; source receipt **9f7f9d0**. Android8+/ARM64, separate
+  test package to preserve old signed apps/data; no production signing/publication.
+- Artifact **14113285899**, **ayshamusic-arm64-release**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43592475037/artifacts/14113285899
+  Extract `app-release.apk`. Repository access/sign-in may be needed, retention14days.
+  GitHub-reported ZIP size **3,717,081bytes**, archive SHA256
+  `7890f218b77abf7aa21a76e2a7f52efc6e6f8c525f6917a26e99ac009f3f7c38`.
+  This is artifact ZIP metadata, not installed APK size or RAM. Sandbox redirect
+  restrictions remain; no independent binary/signature/badging inspection claimed.
+- **QA3/5**, device-crash attribution/audible playback/publication still OPEN. This
+  candidate corrects the verified initialization omission, not a claimed confirmed
+  phone crash stack. No new provider/client/watch/decoder experiments. No Linux
+  installation/restart, phone RAM or Linux RAM remeasurement. Public main1.2.1
+  release and old app data untouched; unrelated tracked pyc deletion preserved.
+
+Optional **diagnostic** only if the corrected candidate still closes and ADB is
+already available: `adb logcat -b crash -d -v brief`. Review locally and share only
+the Aysha package's fatal exception/native abort section, not other apps, signed
+URLs or credentials. Also identify the launcher/source receipt and Android version.
+A successful next step means remaining open and producing actual audible music
+with advancing time; an ordinary provider error means crash may be avoided but
+resolution is still not accepted. Repeated identical reinstalls are not a plan.

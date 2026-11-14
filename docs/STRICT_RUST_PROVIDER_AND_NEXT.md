@@ -1,5 +1,26 @@
 # Standalone Rust APK: playback baseline and automatic local recommendations
 
+## Latest follow-up: app closes on Play
+
+The user reports an unexpected close when Play is tapped; the exact installed
+build and native crash stack have not been supplied. Treat this as a separate
+crash report, not just the earlier provider refusal. Prior Listening candidate
+compilation is not successful phone acceptance.
+
+Source patch `d6fd6a0` initializes CPAL's required Android JVM/application context
+before starting workers, pins a global application reference for process lifetime,
+and guards audio opening if initialization is missing. Follow-up `9f7f9d0` keeps
+the Kotlin JNI bridge intact during release shrinking. The dependency's actual
+missing-context panic combined with release `panic = "abort"` explains a concrete
+crash-capable path, but is not a confirmed phone stack trace. See the latest ledger
+for exact source references, verification and current candidate download.
+
+Current fix-candidate identity: **1.2.3-preview/code7**, launcher
+**Aysha Music Audio Fix**, package **com.afzal.ayshamusic.context7**. Historical
+1.2.2/Listening artifact details below describe the previous candidate, not this fix.
+No provider/version/codec/media-timeout/recommendation changes in this crash patch.
+
+
 ## Current user correction and device evidence
 
 The user explicitly rejected the Romantic/Melody dropdown. Native Next must learn
@@ -138,3 +159,18 @@ These are archive metadata, not phone RAM or installed size. Download from the
 sandbox failed at the restricted Azure redirect; independent binary/signature and
 physical-device inspection remain unperformed. No claim that green CI resolves
 the user's no-AAC error or establishes audibility.
+
+## Latest crash-fix build (supersedes the Listening install candidate)
+
+[Download **Aysha Music Audio Fix — 1.2.3-preview**](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43592475037/artifacts/14113285899).
+Source receipt **9f7f9d0**, Android build **43592475037 PASS** and Linux
+**43592474963 all five jobs PASS**; local **94 Node / 137 Python PASS**.
+Extract `app-release.apk`. Package **com.afzal.ayshamusic.context7**, code7,
+Android8+/ARM64. It installs alongside the old candidate, not over a mismatched key.
+
+This corrects the missing Android-context initialization described at the top.
+Physical-phone crash confirmation, provider access and audible playback remain
+unverified. A successful build is not permission to publish it as working.
+GitHub archive14113285899 is3,717,081bytes, ZIP SHA256
+`7890f218b77abf7aa21a76e2a7f52efc6e6f8c525f6917a26e99ac009f3f7c38`;
+not an APK-size/RAM measurement. See ledger for evidence and optional crash capture.
