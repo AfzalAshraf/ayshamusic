@@ -34,7 +34,8 @@ output, not the server's JBL speaker.
 
 Do **not** show a Romantic/Melody dropdown or make me choose a mood. Automatically
 learn my taste from the songs I actually listen to most, played duration, short
-skips and explicit likes. Store the learning locally on my phone and let me reset it.
+skips and explicit likes. Store the learning locally on my phone. Keep it invisible
+on the player: no Reset learning button or learning-explanation paragraph there.
 Do not count failed playback, search activity, pauses or wall-clock waiting as
 listening. Explain honestly if inference uses metadata/channel heuristics rather
 than audio analysis or a trained model.

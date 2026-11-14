@@ -67,8 +67,9 @@ were superseded by the main baseline, not silently presented as retained feature
 
 ## Automatic Next: what is implemented
 
-- **No mood dropdown or mood API.** Native Now Playing explains local learning and
-  has a Reset learning action.
+- **No mood dropdown or mood API.** Learning runs in the background. The user
+  rejected the learning explanation and Reset learning button on Now Playing;
+  both are removed. The internal reset API remains, without a player control.
 - A Rust task samples the actual player position every five seconds. UI polling,
   searches, failed resolves and elapsed wall time do not count as listening.
   Initial samples establish a baseline; pauses and position jumps are not credited.

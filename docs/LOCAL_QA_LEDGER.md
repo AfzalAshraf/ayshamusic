@@ -2155,3 +2155,26 @@ URLs or credentials. Also identify the launcher/source receipt and Android versi
 A successful next step means remaining open and producing actual audible music
 with advancing time; an ordinary provider error means crash may be avoided but
 resolution is still not accepted. Repeated identical reinstalls are not a plan.
+
+## Follow-up — remove learning clutter from Now Playing
+
+**Active department: UI/UX frontend.** User screenshot `image-3.png`, receipt
+`9f7f9d0`, rejects the Reset learning button on the player. Removed the entire
+learning explanation/button block, its CSS, frontend handler and visibility update
+from `src/index.html`. No replacement control was added elsewhere. Rust learning,
+preferences, Next ranking and the internal reset API are unchanged. Controls,
+visible playback errors and exact dedication are preserved. Reusable project
+prompt/current guidance updated so the rejected block is not added back.
+
+Local **94 Node / 137 Python PASS**, `git diff --check` PASS. Replaced the obsolete
+frontend reset-action test with an absence regression for learning clutter and a
+contract that the backend still uses preferences. No new physical screenshot/layout
+inspection or APK installation; the installed app will not change until a later
+APK is built/installed. No public release or Linux restart. UI readiness remains
+4/5 historical, real target-device validation for this removal pending.
+
+Separate evidence: screenshot shows **audio decode failed: The format of the data
+has not been recognized.** The displayed error is no longer the older no-AAC
+resolver report. The app is open in this screenshot, but this is not proof all
+crashes are fixed or audio works. This scoped UI edit does not change the decoder,
+provider or media path, and does not hide the error. Decode failure remains OPEN.

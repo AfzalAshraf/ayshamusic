@@ -1104,11 +1104,9 @@ test('resolver rejection persists through idle polls and is separated from the c
   assert.doesNotMatch(h.element('full-duration').textContent, /ANDROID|failedPrecondition/);
 });
 
-test('learning reset only calls the on-phone reset endpoint and there is no mood dropdown', async () => {
-  const h = harness();
-  vm.runInContext('state.nativePlayback=true', h.context);
-  await h.context.resetListeningPreferences();
-  assert.deepEqual(h.calls.map(c=>c.url), ['/api/recommendation/reset']);
+test('player contains no learning controls or explanatory clutter', () => {
   const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
-  assert.doesNotMatch(html, /id="next-mood"|setRecommendationMood/);
+  assert.doesNotMatch(html, /automatic-recommendations|resetListeningPreferences|Reset learning|Next learns from|id="next-mood"|setRecommendationMood/);
+  const catalog = fs.readFileSync(path.join(__dirname, '../src/android_catalog.rs'), 'utf8');
+  assert.match(catalog, /listening\.lock\(\)\.unwrap\(\)\.preferences\(\)/);
 });

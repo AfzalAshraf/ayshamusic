@@ -61,3 +61,10 @@ signatures under R8. This is a concrete source defect, not confirmed device cras
 attribution/audibility. Keep media-client1.2.1 fix and automatic local recommendations.
 See latest ledger for CI/artifact results. `docs/REUSABLE_PROJECT_PROMPT.md` contains
 the user-requested reusable project prompt (not hidden agent instructions).
+
+Latest UI correction: no Reset learning button or learning-explanation paragraph on
+Now Playing. Keep automatic learning in the background; do not reintroduce that
+block or relocate it to another screen without a request. Screenshot9f7f9d0 now
+shows `audio decode failed: The format of the data has not been recognized.` This
+is unresolved playback evidence, not audible acceptance; this UI-only change does
+not fix or conceal that error.
