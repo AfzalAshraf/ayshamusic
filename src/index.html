@@ -817,6 +817,8 @@ async function navigateTrack(direction) {
     if (!result.track) throw new Error('No track returned by server');
     // Navigation already updated server state. Do not add a second history entry.
     if (state.nativePlayback && result.already_started) {
+      state.nativeError = '';
+      state.nativeStage = 'playing';
       state.current_track = result.track;
       state.playMode = 'native';
       state.stopped = false;

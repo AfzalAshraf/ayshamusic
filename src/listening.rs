@@ -1,4 +1,4 @@
-//! Bounded on-phone listening preferences. No telemetry/upload or invented plays.
+//! Bounded on-phone listening preferences. No listening-log uploads or invented plays.
 //! Only actual player progress and explicit likes/skips update the local model.
 use crate::android_catalog::Track;
 use serde::{Deserialize, Serialize};
@@ -130,6 +130,29 @@ mod tests {
         let mut loaded=Listening::open(Some(path.clone()));assert_eq!(loaded.preferences().observations,1);
         #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;assert_eq!(fs::metadata(&path).unwrap().permissions().mode()&0o777,0o600);}
         loaded.reset();assert_eq!(Listening::open(Some(path.clone())).preferences().observations,0);let _=fs::remove_file(path);
+    }
+    #[test] fn most_listened_metadata_wins_and_unlike_removes_bonus() {
+        let mut model=Listening::open(None);
+        let romantic=track();
+        model.like(&romantic,true);
+        let dance=Track {id:"12345678901".into(),title:"Dance party".into(),artist:"Another artist".into(),..romantic.clone()};
+        let snapshot=|position|json!({"video_id":dance.id,"state":"playing","position_secs":position,"duration_secs":600.0});
+        model.observe(&dance,&snapshot(0));
+        for position in (5..=300).step_by(5) {model.observe(&dance,&snapshot(position));}
+        let preferences=model.preferences();
+        assert_eq!(preferences.query(),"dance songs music");
+        assert!(preferences.score(&dance)>preferences.score(&romantic));
+        model.like(&romantic,false);
+        assert!(!model.preferences().styles.contains_key("romantic"));
+    }
+    #[test] fn failed_or_unobserved_track_is_not_a_skip_and_profile_is_bounded() {
+        let mut model=Listening::open(None);model.skip(&track());
+        assert_eq!(model.preferences().observations,0);
+        for n in 0..LIMIT+1 {
+            let mut t=track();t.id=format!("{n:011}");model.like(&t,true);
+        }
+        assert_eq!(model.model.entries.len(),LIMIT);
+        assert!(!model.model.entries.iter().any(|e|e.id=="00000000000"));
     }
     #[test] fn no_history_is_honest_discovery_not_a_forced_mood() {assert_eq!(Listening::open(None).preferences().query(),"music songs discovery");}
 }

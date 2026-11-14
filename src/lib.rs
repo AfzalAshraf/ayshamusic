@@ -1020,6 +1020,29 @@ mod api_tests {
         assert_eq!(body["error"], "invalid_video_id");
     }
 
+    #[tokio::test]
+    async fn phone_learning_reset_preserves_queue_and_likes_without_opening_audio() {
+        let app=router(Arc::new(None));
+        let track=r#"{"id":"abcdefghijk","title":"Romantic song","artist":"A"}"#;
+        for route in ["/api/queue_add","/api/like"] {
+            assert_eq!(app.clone().oneshot(post(route,track)).await.unwrap().status(),StatusCode::OK);
+        }
+        let get=|uri|axum::http::Request::builder().uri(uri).body(Body::empty()).unwrap();
+        let profile=json_body(app.clone().oneshot(get("/api/recommendation/profile")).await.unwrap()).await;
+        assert_eq!(profile["learned_tracks"],1);assert_eq!(profile["local_only"],true);
+        assert_eq!(app.clone().oneshot(post("/api/recommendation/reset","{}")).await.unwrap().status(),StatusCode::OK);
+        let profile=json_body(app.clone().oneshot(get("/api/recommendation/profile")).await.unwrap()).await;
+        assert_eq!(profile["learned_tracks"],0);
+        for uri in ["/api/liked","/api/queue"] {
+            let items=json_body(app.clone().oneshot(get(uri)).await.unwrap()).await;
+            assert_eq!(items.as_array().unwrap().len(),1);
+        }
+        let page=app.oneshot(get("/")).await.unwrap();
+        let body=page.into_body().collect().await.unwrap().to_bytes();
+        let html=std::str::from_utf8(&body).unwrap();
+        assert!(html.contains("nativePlayback: true"));assert!(!html.contains("id=\"next-mood\""));
+    }
+
     /// Live diagnostic (not in the default suite): shows exactly what each
     /// client said. `cargo test --lib live_play -- --ignored --nocapture`.
     #[tokio::test]
