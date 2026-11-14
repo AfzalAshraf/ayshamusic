@@ -598,6 +598,53 @@ function fmtSecs(value) {
   return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
 }
 
+// Render the Rust player's own snapshot (/api/player): position, play/pause,
+// volume and - after a reload or a background change - the track it is playing.
+// It reports position only, so the progress bar is never filled with a guess.
+function renderNativePlayer(player) {
+  const name = String(player.state || 'idle');
+  const playing = name === 'playing';
+  if (player.error) {
+    document.getElementById('time-display').textContent = String(player.error).slice(0, 300);
+    setPlayingState(false);
+    return;
+  }
+  const active = playing || name === 'paused';
+  if (active && player.video_id) {
+    // Adopt the player's track only when nothing is selected locally, so
+    // browsing never overwrites the song the page is about to start.
+    if (!state.current_track) {
+      state.current_track = {
+        id: player.video_id,
+        video_id: player.video_id,
+        title: player.title || 'Playing on this device',
+        artist: 'This device',
+        url: '',
+      };
+      state.playMode = 'native';
+      renderSelection(state.current_track);
+    }
+    state.stopped = false;
+    if (playing !== state.is_playing) setPlayingState(playing);
+    state.pos = Number(player.position_secs) || 0;
+    document.getElementById('time-display').textContent =
+      fmtSecs(state.pos) + (name === 'paused' ? ' (paused)' : '');
+    if (document.getElementById('now-playing').open) {
+      syncNowPlaying();
+      document.getElementById('full-elapsed').textContent = formatClock(state.pos);
+    }
+  } else if ((name === 'idle' || name === 'stopped') && state.is_playing) {
+    setPlayingState(false);
+  }
+  const volume = Number(player.volume);
+  if (Number.isFinite(volume) && Math.abs(volume * 100 - state.volume) > 0.5) {
+    state.volume = Math.round(volume * 100);
+    document.getElementById('volume-slider').value = state.volume;
+    document.getElementById('full-volume').value = state.volume;
+    updateVolumeIcon(state.volume);
+  }
+}
+
 // One-tap proof that resolve + media fetch work on this phone.
 async function runSelftest() {
   const label = document.getElementById('time-display');
@@ -1454,18 +1501,7 @@ async function pollStatus() {
     const st = await api('GET', '/api/status');
     if (st && st.native_playback === true) state.nativePlayback = true;
     if (state.nativePlayback) {
-      const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
-      if (player.error) {
-        document.getElementById('time-display').textContent = String(player.error).slice(0, 300);
-        if (player.state === 'error') setPlayingState(false);
-        return;
-      }
-      if (player.state === 'playing' || player.state === 'paused') {
-        const playing = player.state === 'playing';
-        if (playing !== state.is_playing) setPlayingState(playing);
-      }
-      document.getElementById('time-display').textContent =
-        fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : '');
+      renderNativePlayer(await (await fetch('/api/player', { cache: 'no-store' })).json());
       return;
     }
     // Global server metadata is not evidence that this browser has an audio

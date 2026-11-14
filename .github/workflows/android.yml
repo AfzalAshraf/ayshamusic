@@ -104,7 +104,12 @@ jobs:
           tag_name: apk-latest
           name: Aysha Music APK (latest)
           body: |
-            Aysha Music 1.1.0 (versionCode 2), arm64-v8a, from ${{ github.sha }}.
+            Aysha Music 1.1.1 (versionCode 3), arm64-v8a, from ${{ github.sha }}.
+
+            UI:
+            - The page's play/pause/resume/stop/volume controls call the Rust
+              endpoints directly, and every 400 ms the page renders /api/player:
+              position, paused marker, volume, and the track name after a reload.
 
             Resolution changes:
             - InnerTube client versions are current (Android 20.10.38 / iOS 20.10.4);

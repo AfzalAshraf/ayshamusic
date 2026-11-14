@@ -1928,3 +1928,30 @@ debug-signed, MediaSession/queue/offline untouched by this pass.
 Device expectation: Test button -> `Selftest OK: ANDROID itag 140, <n> B in <ms>
 (visitor disk|network)`. If it fails, the message lists
 `ANDROID [<status>, visitor] <YouTube body>` per client.
+
+## 2026-11-14 (d) — Android frontend: render /api/player (v1.1.1)
+
+The page already called `/api/play`, `/api/pause`, `/api/resume`, `/api/stop`
+(`nativeJson`) and polled `/api/player`; what was missing was rendering that
+snapshot. Added `renderNativePlayer()` and routed the native poll branch through
+it, so the UI now shows:
+- position + `(paused)` marker from `position_secs`;
+- play/pause icon from `state`;
+- volume sliders and mute icon from `volume`;
+- after a reload (or an external change) the playing track's id/title, since
+  native sessions are not in `sessionStorage` and previously showed nothing.
+
+Guard: the player's track is adopted only when `state.current_track` is empty, so
+browsing never overwrites the song the page is about to start. Duration is not in
+the snapshot, so the progress bar is deliberately left unfilled rather than guessed.
+
+Evidence:
+- `node --check` on the extracted inline script -> OK.
+- `node --test tests/frontend.test.cjs` -> 73 pass.
+- One-off DOM harness (deleted): adopts track + renders `1:03`, volume 40, pause
+  icon; paused renders `0:05 (paused)`; later snapshots do not overwrite the
+  selection; error text surfaces; idle clears the playing state.
+- `build_apk.sh` -> BUILD SUCCESSFUL, 6.81 MB, gate PASS; badging 1.1.1 / code 3;
+  `.so` contains `renderNativePlayer`, `/api/player`, `api/play/pause/resume/stop`.
+
+Not verified: visual layout and real device taps (no device/emulator here).
