@@ -18,3 +18,11 @@ __pycache__/
 /android-app/app/build/
 /android-app/app/src/main/jniLibs/
 /android-app/local.properties
+
+# Android generated artifacts and private signing material
+/android-app/build/
+/android-app/.idea/
+*.apk
+*.aab
+*.keystore
+*.jks

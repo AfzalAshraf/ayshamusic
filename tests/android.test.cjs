@@ -25,6 +25,8 @@ test('Android branch APK build never overwrites the main public release', () => 
   assert.doesNotMatch(workflow, /action-gh-release|contents: write/);
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
+  assert.match(workflow, /AYSHA_PREVIEW: "1"/);
+  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.preview"/);
 });
 
 test('startup waits for the on-phone API and retains external-server independence', () => {

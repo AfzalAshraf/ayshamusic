@@ -33,6 +33,7 @@ jobs:
       MAX_APK_MB: "15"
       WARN_APK_MB: "12"
       CARGO_TERM_COLOR: always
+      AYSHA_PREVIEW: "1"
 
     steps:
       - uses: actions/checkout@v4

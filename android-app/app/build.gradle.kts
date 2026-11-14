@@ -45,6 +45,13 @@ android {
 
     buildTypes {
         release {
+            // CI test builds install alongside the old APK: ephemeral debug keys
+            // must not force the user to uninstall it and lose local preferences.
+            if (System.getenv("AYSHA_PREVIEW") == "1") {
+                applicationIdSuffix = ".preview"
+                versionNameSuffix = "-preview"
+                resValue("string", "app_name", "Aysha Music Preview")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
