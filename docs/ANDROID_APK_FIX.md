@@ -1,5 +1,9 @@
 # APK missing icons and HTTP404 fix
 
+**Follow-up:** the user subsequently reports fetching but no song audio. The newer
+[standalone streaming fix](ANDROID_STREAM_FIX.md) replaces the unseekable decoder
+input and provides a newer test APK. The earlier artifact below is historical.
+
 ## Report and reproduced source defect
 
 The user likes the installed APK's UI, but icons are invisible and music loading

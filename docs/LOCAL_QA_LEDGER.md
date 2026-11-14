@@ -1880,3 +1880,51 @@ remeasured6.4512MBcurrent/67.592192MBhistoricalpeak/0swap,notphoneresourceproof.
 RatingsAndroidcontract2/5,QA3/5,device/releaseacceptance0/5untilhostreceipt. Next user
 opens Preview (not old app),checks symbols/search/tapqueuedtrack with Linuxserveroff;
 sends exact NEW error and stage only if it fails. No repeated diagnostic install loop.
+
+## 2026-11-07 — QA: standalone APK fetching, no audio / Streaming label
+
+User confirms retrieval from YouTube but song not playing, generic Streaming label;
+asks to fix streamer and confirm self-contained APK. Clarified app embeds UI/catalogue,
+resolver, streamer/decoder/output with phone-localRust listener; no Linux/Vercel/hosted
+Aysha backend, still requires Internet/provider availability. Fetch success does not
+prove CDN bytes/decoding/sound. No rawlogs/repeated provider probe requested.
+
+Inspected player.rs/lib.rs and fetched newer origin/main05f0a1a: player still has same
+forward-only unseekableChannelReader. Did NOT import new visitor/client acquisition
+experiments from1c2c7bf; this report already fetches and does not justify that scope.
+Reproduced concrete transport defect in CI-generated realM4A: moov-after-mdat requires
+seeking, oldwith_seekable(false) decoder fails; newRead+Seek+byte_len demux/decode
+nonzerosamples+duration for both tail and frontindex. This is a verified source defect,
+NOT a declaration that the phone's exact failure cause/audibility was independently
+observed. Also fullplayerusedunusedHTMLaudio clock/genericStreamingaudio label.
+
+36b7538/48c72e3patch: newrange_media.rs64KiBstrictHTTPS206rangeinput with Content-Range/
+length/total/type/identityvalidation,512MiBmax/16,384requestlimit,8sconnect/12srequest,
+seek-tail-return/cancel/cachebounds, matching resolverUA. No whole-songRAM/diskdownload,
+unknownredirect/URLfallback or qualitycodecchange. Removes formerringpump/autore-resolve
+path; refuses invalid/ignoredranges explicitly, no403guardrelaxation. Decoder/output
+readyoneshot+40sdeadline afterexistingboundedresolver, not mereURL->playing. Lazydevice
+openingretry, failfastcommands, cancel/generation/lateStopprotection and midstreamerrors.
+pcm_stream.rs bounded8x4096samples+prime, max2workers, network/decode OFF real-time
+callback; nonblocking starvation silence/buffering and position excludes thatsilence.
+NativeUIreadsRustposition/duration/stages and visibleerror in fullplayer. Sameicons/
+search/libraryfixesretained. Linuxruntime/service/installunmodified. Nativebuffersizes
+NOT fullphoneRAMor50MBacceptance. Deviceaudiofocus/background/manyformatsstillunproved.
+
+Newversion1.0.2-preview/packagecom.afzal.ayshamusic.streamfix/launcherAyshaMusicStreamFix
+installsalongsideoldPreview,avoidsforcinguninstallwithfreshCIdebugkey. Artifacttestonly,
+no productionkey/storepublication/publicapk-latestoverwrite. Source48c72e3AndroidCI
+43587570184ALLPASS3m51s:phoneRusttests(realFFmpegAACfront/tailoldfailure/newdecode),
+Androidcrossbuild/Gradle,sizegate,artifactupload,websitecontracts. Linux43587570191ALL5
+PASS. Locally137Python/89NodePASS,diffcheckPASS. TestsHTTP206/200/403/missingrange,
+wrongoffset/length/seek/cancel,PCMnoblockposition,stalegeneration,fullplayernativeclock/
+errors. No upstream/liveCDN/audiohardwareprobe by agent. No locallyavailableCargo;
+CIactuallycompiled/testedRust. GitHubartifact/logredirectnetworklimitsremain;noAPKbytes/
+signatureinspectionfabricated. Artifact14111150675ayshamusic-arm64-releaseZIP3,687,512B,
+GitHubarchiveSHA2566de2fec9b252d44b1dc102a968d91e2f1728b193e28840c5b8cb8a9ec60707f6.
+NewANDROID_STREAM_FIX.mdhasdownload/install/expectedoutcomes/failurebranches;priorguide
+markedhistorical. Preserveunrelatedtrackedpycdeletion. QAactive3/5,Androidcontract2/5,
+phoneaudibility/releaseacceptance0/5untiluserreceipt. PhoneRAMNOTMEASURED;oldLinuxservice
+6.4512MBcurrent/67.592192MBpeak/0swapNOTREMEASURED/notphoneRAM. Next:openStreamFixNOT
+oldapp,searchonce/tapone,checkaudibleadvancingposition;onfailureexactnewstate/errorand
+whetherclockmoves,notrepeatedTest/nativewatch or Linuxinstallation.
