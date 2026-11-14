@@ -37,3 +37,15 @@ Preserve working music; measure slow Play/Previous/Next before changing the pipe
 - Local installation: `scripts/install_local.sh` and `deploy/aysha-music.service`, specifically for the confirmed afine host.
 - Agent workspace is not the user's Linux host. Do not claim remote installations, hardware tests or scheduled updates happened here.
 - Authentication, per-device session isolation, tunnel setup, resource-budget scope and nightly-maintenance decisions remain open until implemented/approved and verified.
+
+## Current standalone APK decision
+
+The user now targets a self-contained phone APK, preserving the Aysha UI. They
+explicitly chose `strict_rust` over NewPipeExtractor: keep acquisition/transfer/
+decode/player core Rust; no Java extractor, Python/Node/yt-dlp, hosted resolver or
+proxy fallback without new explicit approval. Existing Kotlin shell/HTML UI remain.
+Screenshot HTTP400 failedPrecondition is a provider request rejection before decode;
+do not call fixture decoding/green CI a verified fix or publish-ready playback.
+For automatic Next use Romantic/Melody mood and local likes, NOT the current song
+name; filter same-song variants/recent history, preserve explicit queue/Previous.
+See docs/STRICT_RUST_PROVIDER_AND_NEXT.md and the latest QA ledger for evidence.

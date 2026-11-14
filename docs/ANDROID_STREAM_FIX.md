@@ -1,5 +1,9 @@
 # Standalone APK: fetching works, but no audible song
 
+**Later device evidence:** the user supplied HTTP400 failedPrecondition during
+resolution, before this decoder path. See [STRICT_RUST_PROVIDER_AND_NEXT.md](STRICT_RUST_PROVIDER_AND_NEXT.md).
+This decoder receipt must NOT be represented as proof of a repaired YouTube resolver.
+
 ## What the APK contains
 
 The phone APK embeds the Aysha UI, direct YouTube catalogue/resolver, HTTP media

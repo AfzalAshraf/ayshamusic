@@ -1928,3 +1928,55 @@ phoneaudibility/releaseacceptance0/5untiluserreceipt. PhoneRAMNOTMEASURED;oldLin
 6.4512MBcurrent/67.592192MBpeak/0swapNOTREMEASURED/notphoneRAM. Next:openStreamFixNOT
 oldapp,searchonce/tapone,checkaudibleadvancingposition;onfailureexactnewstate/errorand
 whetherclockmoves,notrepeatedTest/nativewatch or Linuxinstallation.
+
+## 2026-11-07 — QA: screenshot provider400; strict Rust choice; mood Next
+
+Screenshot/user: ANDROID/IOS HTTP400 failedPrecondition, TVunplayable; noaudibility.
+This is resolver-layer refusal BEFORE range/decoder, not proof previousAACfixiswrong
+or that player/CDN works. Longerrorcollideswithtimeinfullplayer. UseralsoasksNextlike
+romantic/melody taste, NOT same-name uploads. Inspected newer origin/main0a3de4c title-
+seedednext(mainuses'<title> similar songs'); didNOTimportthatundesiredsearch strategy.
+
+Offered consequential on-deviceNewPipeExtractor vs strictRust with GPL/core-language
+tradeoff. ask_userextractor_architecture selectedstrict_rust. Recorded AGENTS; no
+NewPipe/Javaextractor/Python/Node/offhost/token/proxyfallback added. ExistingKotlin/HTML
+UI unchanged except focusederror/moodcontrols. No blanket allbugs/publishready claim.
+
+0d5f461compatibilitycandidate: Android21.26.364/iOS21.26.4 fields/UA/OS matching reviewed
+upstreamprofilefacts, bodyuserAgent matchesheaders. Referenceyt-dlp_base.pycommit
+12ac9aca79671420724227aca37bc888c604a6f8(fileinspectiononly,noPythonruntime). Default
+TVprofile removed; legacyexplicitTV aliasretained. PlayerJSON1MiB/12sbound. Anonymous
+visitorData reused ONLY fromactualnormal search/playerresponse, sane16–1024ASCII,
+30minprocessmemory/noextrafetch/disk/log/preview/synthesis. Screenshot400typedterminal
+PreconditionFailed->youtube_precondition_failed, nootherprofile/songrotationonrefusal.
+NoevidencethesechangesactuallyclearYouTube'sprecondition:liveprovider/CDN/audio remains
+OPEN. Upstreamalsoindicatesprooftokenrequirements: don'trepresentrequestformatfixas
+bypassorCDNsuccess. No watch/auth/challengeexperiment,guardrelaxation,codecqualitychange.
+
+Recommendations.rs mood-onlysearchRomantic(default)/Melody, oneboundedsearch+onechosen
+candidateperNext. Explicitqueuefirst/Previoushistorypreserved. Locallikedartist/channel
+andmoodwordscore,providerorderforties;excludeID/normalizednamevariantsandlast50played.
+Noallcandidateplaybackretry; failurekeepsqueue/current/history. No privatefavorite title
+queries. MetadataheuristicNOTfingerprinting/audioanalysis/personalizedAI;languages/
+transliterationscanstillmissduplicates,labelsarenotalwaysartists. No suitablecandidate
+->clearconflict,insteadofseedreplay. Mood/likesprocessmemoryonly. NoEOFautoplayadded.
+UIwrappedpersistentfull-errorseparateclock,notidlepolloverwrite; pendingselectionguard;
+Romantic/Melodypicker; compiledSHAreceiptsoactualAPKsourcecanbeidentified.
+
+Verification137Python/91NodePASS,diffcheckPASS. Android43589877314at0d5f461ALLPASS2m57s:
+Rustrequest/header/body/visitorfixture,terminal400classification,moodroute/pureselection
+fixtures,realfront/tailAACtests,Androidcrossbuild/Gradle,sizegate,artifactupload/contracts.
+Linux43589877315ALL5PASS. No liveYouTube/provider/phone/hostmeasurement executed. APK
+networkredirectdownloadrestrictionunchanged;noindependentbinary/signatureinspection.
+Version1.0.3-preview/packagecom.afzal.ayshamusic.rust4/launcherAyshaMusicRust4 toinstall
+alongsideoldsignedtestapps. No productionkey/publicrelease/storeclaim. Artifact14111903921
+ayshamusic-arm64-releaseZIP3,709,490B(notAPKsize/RAM),GitHubarchiveSHA256
+341dc12bd3b6c6828cc5834d9f88b716d51f8a1ece8102099504447a34d8ed2f.
+STRICT_RUST_PROVIDER_AND_NEXT.mdhasexactdownload/install/acceptanceandSTOP-if400branch;
+priorstreamguidedoesnotclaimfixofnew400. Unrelatedtrackedpycdeletionpreserved.
+
+QA3/5,Androidcontract2/5,liveprovider/device/release0/5stillblocked. PhoneRAMNOTMEASURED;
+oldLinux6.4512MBcurrent/67.592192MBhistoricalpeak/0swapNOTREMEASURED/notAPKtotal.
+NextdeviceowneropensRust4(checkSHA0d5f461),onePlayattempt; if400remains,stop/unaccepted,
+notmoreblindclientretry. OnlyafteraudibilitytestmoodNextwithEMPTYqueue; manualqueue
+orderseparately. Do not promisefullyfledgedpublicationwhileproviderrejectionunresolved.
