@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aysha's Music">
+<meta name="theme-color" content="#030303">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff0000'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>">
+<title>Aysha's Music Player</title>
+<style>
+@font-face{font-family:'Delius';font-style:normal;font-weight:400;font-display:swap;src:url(data:font/woff2;base64,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) format('woff2')}
+
+:root{color-scheme:dark;--bg:#0c0c0e;--panel:#171719;--raised:#232326;--accent:#ff525f;--text:#f6f4f2;--sub:#a3a1a7;--dim:#74727a;--border:rgba(255,255,255,.08);--liked:#ff6375;--nav:76px;--mini:78px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;background:var(--bg)}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg);display:flex;height:100vh;height:100dvh;overflow:hidden;font-size:14px;line-height:1.5}
+button,input{font:inherit}button{cursor:pointer;color:inherit}button:disabled{opacity:.45;cursor:default}button,input{-webkit-appearance:none}button{touch-action:manipulation}button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}img{display:block;max-width:100%}.muted{color:var(--sub)}
+.sidebar{width:208px;flex-shrink:0;padding:32px 14px;background:#101012;border-right:1px solid var(--border);z-index:20}.brand{display:flex;align-items:center;gap:10px;padding:0 10px 36px;cursor:pointer}.brand svg{color:var(--accent);width:28px;height:28px}.brand h1{font-size:18px;letter-spacing:-.7px}.nav-group{display:flex;flex-direction:column;gap:7px}.nav-item{width:100%;display:flex;gap:14px;align-items:center;min-height:50px;padding:12px 16px;border-radius:12px;background:transparent;color:var(--sub);font-size:14px;font-weight:600;text-align:left}.nav-item:hover{background:var(--panel);color:#fff}.nav-item.active{background:var(--raised);color:#fff}.nav-item.active svg{color:var(--accent)}
+.main-wrapper{min-width:0;flex:1;display:flex;flex-direction:column;height:100%;position:relative}.header{display:flex;align-items:center;gap:16px;padding:20px 36px;flex-shrink:0;background:rgba(12,12,14,.96)}.back-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--panel);flex-shrink:0}.search-wrap{position:relative;flex:1;max-width:520px}.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--sub);pointer-events:none}.search-bar{width:100%;min-width:0;height:46px;background:#1a1a1d;color:#fff;border:1px solid var(--border);border-radius:24px;padding:10px 18px 10px 48px;font-size:15px}.search-bar::placeholder{color:#8b8992}.search-bar:focus{border-color:#68646e;outline:none}.profile-mark{margin-left:auto;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#30232c;color:#f0c9d2;border:1px solid #50333e;font-size:8px;font-weight:700;letter-spacing:.25px;flex-shrink:0}
+.content-area{flex:1;min-height:0;overflow:auto;overscroll-behavior-y:contain;scroll-behavior:smooth;padding:8px 36px 120px}.tab-page{display:none;max-width:1180px;margin:0 auto}.tab-page.active{display:block}.page-eyebrow{color:var(--sub);font-size:10px;letter-spacing:2.2px;font-weight:700;text-transform:uppercase;margin:12px 0 8px}.page-heading{font-size:clamp(26px,3vw,42px);line-height:1.15;font-weight:750;letter-spacing:-1.4px;margin-bottom:24px}.page-heading span{color:#aaa6ae}.section-title{font-size:21px;line-height:1.3;font-weight:700;letter-spacing:-.5px;margin:30px 0 16px}.section-subtitle{color:var(--sub);font-size:12px;margin:-8px 0 16px}.section-heading-row{display:flex;justify-content:space-between;align-items:center;gap:12px}.section-heading-row .section-title{margin-bottom:10px}.section-badge{color:var(--sub);font-size:10px;text-transform:uppercase;letter-spacing:1.4px}
+.now-playing-hero{display:flex;align-items:center;gap:32px;background:radial-gradient(ellipse at 0 10%,#52252f 0,transparent 65%),linear-gradient(120deg,#251d25,#151416);border:1px solid rgba(241,143,162,.13);border-radius:22px;padding:28px;margin-bottom:28px;overflow:hidden}.hero-art-box{width:220px;aspect-ratio:1;border-radius:14px;overflow:hidden;flex-shrink:0;background:#30242c;box-shadow:0 20px 50px #0006}.hero-art{width:100%;height:100%;object-fit:cover}.hero-details{min-width:0;flex:1}.hero-tag{font-size:10px;color:#edb7c5;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:12px}.hero-title{font-size:clamp(24px,3vw,38px);line-height:1.15;letter-spacing:-1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}.hero-artist{font-size:14px;color:#c2b4bd;margin:12px 0 24px}.hero-controls{display:flex;gap:10px}.btn-hero{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 24px;border-radius:24px;background:#f8f5f3;color:#171417;font-weight:700;font-size:13px}.btn-hero.btn-stop{background:#ffffff12;color:#e4dce0;border:1px solid #ffffff14}.btn-hero svg{width:18px;height:18px}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px 16px}.song-card{display:flex;align-items:center;gap:12px;min-width:0;padding:10px 6px;border-radius:12px;cursor:pointer;background:transparent;transition:background .15s;position:relative}.song-card:hover,.song-card:focus-within{background:#ffffff08}.card-thumb{width:56px;height:56px;object-fit:cover;border-radius:9px;flex-shrink:0;background:var(--raised)}.card-info{min-width:0;flex:1}.card-title{font-size:14px;line-height:1.4;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-artist{font-size:12px;color:var(--sub);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-action,.card-heart{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--sub);flex-shrink:0}.card-action:hover,.card-heart:hover{background:#ffffff0c;color:#fff}.card-heart.liked{color:var(--liked)}.card-heart.liked .app-icon{fill:currentColor}.card-action svg,.card-heart svg{width:19px;height:19px}.card-play{display:none}.card-queue{display:none}.song-card:hover .card-queue,.song-card:focus-within .card-queue{display:grid}.chips-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 0 12px;margin-bottom:12px}.chips-row::-webkit-scrollbar{display:none}.chip{min-height:44px;padding:10px 18px;border-radius:12px;background:var(--raised);border:1px solid var(--border);color:var(--text);white-space:nowrap;font-size:12px;font-weight:600}.chip.active{background:var(--text);color:#19181c}.chip:hover{border-color:#777}
+.player-bar{position:fixed;left:208px;right:0;bottom:0;height:88px;border-top:1px solid var(--border);background:#19191cf5;backdrop-filter:blur(20px);z-index:30}.progress-container{height:3px;background:#ffffff10}.progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s linear}.player-content{height:calc(100% - 3px);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 28px}.player-left{display:flex;align-items:center;gap:12px;min-width:0;width:32%;background:transparent;text-align:left;border-radius:8px;min-height:44px}.np-art{width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--raised);flex-shrink:0}.player-text{min-width:0}.np-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.np-artist{font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.player-center{display:flex;align-items:center;gap:8px;flex-shrink:0}.ctrl-btn{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:transparent;color:var(--text);flex-shrink:0}.ctrl-btn:hover{background:#ffffff0c}.play-main{background:var(--text);color:#121214;width:44px;height:44px}.play-main:hover{background:#ddd}.player-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:24%}.vol-box input{accent-color:var(--accent);width:92px;min-height:44px;background:transparent}.time-str{font-size:10px;font-variant-numeric:tabular-nums;color:var(--sub);max-width:115px}.footer{max-width:1180px;margin:36px auto 0;padding:24px 0;border-top:1px solid var(--border);color:var(--dim);font-size:11px;letter-spacing:.2px}
+.bt-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;background:var(--panel);border:1px solid var(--border);border-radius:16px;margin:16px 0}.bt-card small{display:block;color:var(--sub);margin-top:6px;overflow-wrap:anywhere}.liked-count{color:var(--sub);font-size:14px;margin-left:6px}.empty-msg{color:var(--sub);padding:28px 12px;font-size:13px;background:var(--panel);border-radius:12px;grid-column:1/-1}.app-message{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:80;background:#30272d;color:#f4e5ea;border:1px solid #805360;border-radius:12px;padding:12px 18px;font-size:13px;max-width:min(90vw,520px);box-shadow:0 12px 40px #0008}.app-message:empty{display:none}.skeleton-card{height:76px;border-radius:12px;background:linear-gradient(100deg,#19191c 30%,#252529 50%,#19191c 70%);background-size:200% 100%;animation:shimmer 1.5s infinite}@keyframes shimmer{to{background-position:-200% 0}}
+.now-dialog{inset:0;margin:auto;width:480px;max-width:100%;height:min(90dvh,820px);max-height:100dvh;padding:24px 30px;border:1px solid var(--border);border-radius:24px;color:var(--text);background:radial-gradient(ellipse at 50% 0,#4c2b38,transparent 75%),#161317;overflow:auto}.now-dialog::backdrop{background:#000b;backdrop-filter:blur(12px)}.now-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.now-header p{text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#c3b2bc}.now-header strong{display:block;color:#fff;font-size:12px;text-transform:none;letter-spacing:0;margin-top:3px}.now-art{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:#31242d;box-shadow:0 24px 60px #0007;margin-bottom:28px}.now-title{font-size:25px;letter-spacing:-.7px;line-height:1.25;overflow-wrap:anywhere}.now-artist{color:#b7a9b3;margin-top:8px;font-size:14px}.now-time{display:flex;justify-content:space-between;color:#b7a9b3;font-size:11px;margin:12px 0 24px;font-variant-numeric:tabular-nums}.now-progress{margin-top:24px;height:3px;border-radius:4px;background:#ffffff20}.now-progress span{display:block;width:0;height:100%;background:#f7f0f4}.now-controls{display:flex;align-items:center;justify-content:space-evenly;margin:20px 0}.now-controls .play-main{width:68px;height:68px}.now-controls .play-main svg{width:30px;height:30px}.now-volume{display:flex;align-items:center;gap:12px;margin:20px 8px}.now-volume input{width:100%;min-height:44px;accent-color:#eee;background:transparent}.now-volume input,.vol-box input{appearance:none;-webkit-appearance:none;background:transparent;border:0}.now-volume input::-webkit-slider-runnable-track,.vol-box input::-webkit-slider-runnable-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-webkit-slider-thumb,.vol-box input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#f5f1f3;margin-top:-5px}.now-volume input::-moz-range-track,.vol-box input::-moz-range-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-moz-range-thumb,.vol-box input::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#f5f1f3}.now-footer{display:flex;justify-content:space-between;align-items:center;color:#ad9fa9;border-top:1px solid #ffffff10;padding-top:20px;font-size:11px}.now-footer>span{min-width:0;max-width:calc(100% - 76px);line-height:1.6}.dedication-heart{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}.now-footer button{background:transparent;color:inherit;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px}.now-header .ctrl-btn{background:#ffffff08}
+.comfort-intro{max-width:580px;color:var(--sub);margin:-10px 0 24px;font-size:14px;line-height:1.8}.quote-card{position:relative;max-width:720px;overflow:hidden;border:1px solid #70505d55;border-radius:24px;padding:clamp(24px,5vw,48px);background:radial-gradient(ellipse at 90% 0,#76435455,transparent 75%),linear-gradient(145deg,#29202a,#19171d);margin:8px 0 20px;min-height:310px;display:flex;flex-direction:column;justify-content:space-between}.quote-mark{font-family:Georgia,serif;font-size:88px;line-height:.8;color:#e8a3b788;user-select:none;margin:12px 0 20px}.quote-category{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#e9bdcd}.quote-text{font-family:Georgia,"Times New Roman",serif;font-size:clamp(24px,3.5vw,36px);line-height:1.5;letter-spacing:-.4px;overflow-wrap:anywhere;margin:10px 0 24px;max-width:24em}.quote-signature{color:#bca8b6;font-size:11px;letter-spacing:.4px}.quote-actions{display:flex;gap:10px;flex-wrap:wrap;max-width:720px}.quote-actions button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:24px;background:var(--raised);font-size:13px}.quote-actions .quote-next{background:var(--text);color:#171217;flex:1;min-width:150px}.quote-actions button[aria-pressed="true"]{color:#ff9eae;background:#422a37}.quote-filters .chip{min-height:44px}.quote-caption{color:var(--sub);font-size:12px;margin:14px 0;max-width:650px;line-height:1.8}.quote-settings{max-width:720px;margin:28px 0 8px;border-top:1px solid var(--border);padding-top:10px}.quote-settings summary{cursor:pointer;min-height:48px;padding:14px 0;color:#ded4dc;font-size:13px}.quote-opt-in{display:flex;align-items:center;gap:12px;min-height:48px;font-size:13px}.quote-opt-in input{appearance:auto;-webkit-appearance:auto;accent-color:var(--accent);width:20px;height:20px;flex-shrink:0}.quote-reset{min-height:44px;background:transparent;text-decoration:underline;text-underline-offset:4px;color:#c3a7b5;padding:8px 0}.quote-storage{max-width:650px;min-height:1.5em;color:#c6b1bf;font-size:12px;margin-top:12px}
+.now-controls::before{content:"";width:44px;height:44px;flex-shrink:0}.now-controls .favorite-toggle{color:var(--sub);border:1px solid #ffffff22}.now-controls .favorite-toggle.liked{color:var(--liked);background:#ff637516}.favorite-toggle.liked .app-icon{fill:currentColor}.full-action-status{font-size:12px;color:#e9cbd7;line-height:1.6;margin:10px 0;overflow-wrap:anywhere}.full-action-status:empty{display:none}.song-score{font-size:12px;color:#edbbc9;text-align:center}.song-rating{position:fixed;left:50%;bottom:calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 12px);transform:translateX(-50%);z-index:85;width:min(380px,calc(100vw - 24px));max-height:45dvh;overflow:auto;padding:16px;border-radius:18px;background:#2c202c;border:1px solid #805360;box-shadow:0 12px 36px #0007}.song-rating[hidden]{display:none}.song-rating-inline{bottom:calc(12px + env(safe-area-inset-bottom))}.song-rating h3{font-size:14px;margin-bottom:4px}.song-rating-title{font-size:12px;color:#d2bac8;overflow-wrap:anywhere}.song-rating-buttons{display:flex;gap:4px;margin:12px 0 4px}.song-rating-buttons button{flex:1;min-width:44px;min-height:44px;border-radius:10px;background:#ffffff12;color:#ffd091;font-weight:700}.song-rating-dismiss{min-height:44px;padding:8px;background:transparent;color:#cbb7c6;font-size:12px}.song-rating-note{font-size:10px;color:#cbb7c6;line-height:1.5}.song-rating-entry{display:flex;justify-content:space-between;gap:16px;min-height:44px;padding:12px 0;border-bottom:1px solid var(--border);font-size:13px}.song-rating-entry span{min-width:0;overflow-wrap:anywhere}.song-rating-entry strong{color:#edbbc9;white-space:nowrap}
+@media(max-width:900px){
+ .sidebar{position:fixed;bottom:0;left:0;right:0;width:100%;height:calc(var(--nav) + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom);border:0;border-top:1px solid var(--border);background:#111113f8;backdrop-filter:blur(20px);z-index:40}.brand{display:none}.nav-group{height:var(--nav);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;align-items:center}.nav-item{min-width:0;min-height:60px;flex-direction:column;gap:5px;padding:8px 4px;border-radius:12px;font-size:10px;line-height:1.2;letter-spacing:.15px}.nav-item.active{background:transparent}.nav-item.active svg{color:#fff;filter:drop-shadow(0 0 8px #ffffff35)}.nav-item.active span{color:#fff}.nav-item svg{width:23px;height:23px}.main-wrapper{height:100%;width:100%}.header{padding:calc(12px + env(safe-area-inset-top)) 18px 12px;gap:10px}.profile-mark{width:36px;height:36px}.search-bar{height:44px;font-size:14px}.back-btn{background:transparent;width:44px;min-width:44px}.content-area{padding:8px 20px calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 26px)}.page-eyebrow{margin-top:8px}.page-heading{font-size:31px;letter-spacing:-1px;margin-bottom:22px}.section-title{font-size:21px}.now-playing-hero{padding:18px;gap:16px;border-radius:18px;flex-direction:row;align-items:center}.hero-art-box{width:34%;max-width:130px;align-self:center;border-radius:10px}.hero-details{padding-top:2px}.hero-tag{margin-bottom:8px;font-size:8px;letter-spacing:1.3px}.hero-title{font-size:21px;letter-spacing:-.6px}.hero-artist{margin:8px 0 14px;font-size:12px}.hero-controls{gap:8px;flex-wrap:wrap}.hero-controls .btn-hero{min-height:44px;padding:8px 14px;font-size:12px}.grid-cards{grid-template-columns:1fr;gap:2px}.song-card{padding:8px 0;gap:12px}.card-thumb{width:56px;height:56px}.card-title{font-size:14px}.card-heart{width:44px;height:44px}.song-card .card-queue{display:grid}.song-card:hover{background:transparent}.chips-row{margin-right:-20px;padding-right:20px}.bt-card{padding:16px;gap:8px}.bt-card .chip{padding:10px 12px}.player-bar{left:10px;right:10px;bottom:calc(var(--nav) + env(safe-area-inset-bottom));height:var(--mini);border:1px solid #ffffff10;border-radius:12px 12px 0 0;background:#252326;box-shadow:0 -8px 32px #0003;overflow:hidden}.progress-container{position:absolute;bottom:0;width:100%;height:2px}.player-content{height:100%;padding:10px;gap:4px}.player-left{width:auto;flex:1;gap:10px}.np-art{width:48px;height:48px}.np-title{font-size:12px}.np-artist{font-size:10px}.player-center{gap:0}.player-center>button:first-child,.player-center>button[aria-label="Stop"],.time-str,.player-right{display:none}.player-center .play-main{background:transparent;color:#fff}.player-center .play-main svg{width:26px;height:26px}.app-message{bottom:calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 12px);width:max-content}.now-dialog{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0;padding:calc(12px + env(safe-area-inset-top)) 26px calc(20px + env(safe-area-inset-bottom))}.now-art{max-width:440px;margin:0 auto 28px}.now-title{font-size:25px}.now-header{margin-bottom:28px}.now-footer{margin-top:26px}.footer{font-size:10px}
+}
+@media(min-width:600px) and (max-width:900px){.now-playing-hero{flex-direction:row;align-items:center}.hero-art-box{width:220px}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:360px){.content-area{padding-left:14px;padding-right:14px}.header{padding-left:10px;padding-right:10px;gap:6px}.hero-title{font-size:23px}.card-queue{display:none!important}.now-dialog{padding-left:20px;padding-right:20px}.page-heading{font-size:28px}}
+@media(max-height:520px) and (orientation:landscape){.now-dialog{height:100dvh;overflow:auto}.now-art{max-width:220px}.now-playing-hero{flex-direction:row}.hero-art-box{width:150px}.now-header{margin-bottom:16px}}
+
+/* A quiet, monochrome letter before the music. No media or network dependency. */
+.love-intro{position:fixed;inset:0;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;border:0;padding:0;background:#080808;color:#fafafa;overflow:auto;color-scheme:dark}
+.love-intro::backdrop{background:#080808}.love-intro-shell{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));text-align:center;isolation:isolate;position:relative}
+.love-intro-shell::before,.love-intro-shell::after{content:"";position:absolute;z-index:-1;border:1px solid #ffffff0c;border-radius:50%;width:min(85vw,620px);aspect-ratio:1;top:10%;pointer-events:none}.love-intro-shell::after{width:min(65vw,460px);top:20%}
+.love-intro-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1100px}.love-intro-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b5b5b5}.love-skip{min-width:64px;min-height:44px;padding:10px 16px;border:1px solid #ffffff35;border-radius:24px;background:transparent;color:white;font-size:12px}.love-skip:focus-visible{outline-color:white}
+.love-letter{flex:1;width:100%;max-width:640px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 0 32px}.love-bubble{display:grid;place-items:center;width:76px;height:76px;border-radius:50%;border:1px solid #ffffff40;background:radial-gradient(circle at 30% 20%,#ffffff18,transparent 70%);box-shadow:0 0 55px #ffffff09;margin-bottom:24px;animation:love-breathe 4s ease-in-out infinite}.love-bubble svg{width:30px;height:30px;fill:white;stroke:white}.love-to{font-family:Georgia,serif;font-style:italic;font-size:16px;color:#bdbdbd;margin-bottom:12px}.love-letter h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(34px,7vw,64px);line-height:1.15;letter-spacing:-1.3px;margin-bottom:28px}.love-lines{min-height:6em;width:100%;font-family:Georgia,"Times New Roman",serif;font-size:clamp(18px,3.5vw,26px);line-height:1.8;overflow-wrap:anywhere}.love-lines p{display:block}.love-lines.love-line-enter{animation:love-rise .65s ease-out both}.love-signature{font-size:11px;color:#b5b5b5;letter-spacing:.8px;margin-top:20px}
+.love-loading{width:min(260px,100%);font-size:10px;color:#b5b5b5;letter-spacing:1px}.love-loading-track{height:1px;background:#ffffff25;margin:14px 0 12px;overflow:hidden}.love-loading-track span{display:block;height:100%;background:white;width:0;transition:width .2s linear}.love-loading small{font-size:9px;letter-spacing:.4px;color:#888}
+@keyframes love-rise{from{transform:translateY(8px)}to{transform:translateY(0)}}@keyframes love-breathe{50%{transform:scale(1.05);box-shadow:0 0 65px #ffffff16}}
+@media(max-height:520px){.love-letter{padding:12px 0}.love-bubble{width:44px;height:44px;margin-bottom:8px}.love-bubble svg{width:22px;height:22px}.love-letter h2{font-size:30px;margin-bottom:12px}.love-to{margin-bottom:4px}.love-lines{font-size:17px;min-height:3.6em}.love-signature{margin-top:8px}}
+
+
+/* Decorative only: clipped, non-interactive and bounded in JS. */
+.heart-effects{position:fixed;inset:0;z-index:100;pointer-events:none!important;overflow:hidden;contain:strict;user-select:none}
+.heart-reveal{position:absolute;inset:0;pointer-events:none;opacity:0;color:#ed304b;transition:opacity .9s ease-out;--reveal-x:-1000px;--reveal-y:-1000px;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M12 21 3 12C-3 4 7-1 12 6c5-7 15-2 9 6Z'/%3E%3C/svg%3E");-webkit-mask-size:112px 104px;mask-size:112px 104px;-webkit-mask-position:calc(var(--reveal-x) - 56px) calc(var(--reveal-y) - 52px);mask-position:calc(var(--reveal-x) - 56px) calc(var(--reveal-y) - 52px);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.heart-reveal.is-revealed{opacity:.6;transition:opacity .12s ease-out}.heart-reveal svg{display:block;width:100%;height:100%;fill:currentColor;stroke:none}.love-intro .heart-reveal.is-revealed{opacity:.3}
+.heart-particle{position:absolute;display:block;pointer-events:none!important;color:var(--heart-color);width:var(--heart-size);height:var(--heart-size);animation:heart-flight var(--heart-life) linear both;will-change:transform,opacity}
+.heart-particle .app-icon{display:block;width:100%;height:100%;fill:currentColor;stroke:currentColor;animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate;transform-origin:center}.love-intro .heart-particle{color:#fff}
+.heart-particle .heart-morph,.heart-particle .butterfly-morph{position:absolute;inset:0;display:block}.heart-morph{animation:heart-morph-out .35s ease-out both}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both}.heart-morph .app-icon{animation:none!important}.love-intro .heart-particle.is-butterfly{color:#ed304b}
+@keyframes heart-morph-out{to{opacity:0;transform:scale(.6)}}@keyframes butterfly-morph-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+.love-letter-particle{display:flex;flex-direction:column;align-items:center;color:#fff;font-family:'Delius',cursive;font-size:18px;line-height:1;text-shadow:0 1px 5px #0008}.love-letter-glyph{display:block}.love-letter-heart{display:block;width:7px;height:7px;margin-top:2px}
+@keyframes heart-flutter{from{transform:perspective(90px) rotateY(-48deg) rotate(-9deg) scaleX(.6)}to{transform:perspective(90px) rotateY(35deg) rotate(9deg) scaleX(1)}}
+@keyframes heart-flight{0%{opacity:1;transform:translate(-50%,-50%) scale(.7)}20%{opacity:1;transform:translate(calc(-50% + var(--heart-x)*.3),calc(-50% + var(--heart-lift)*.2)) rotate(-12deg) scale(1)}45%{opacity:.95;transform:translate(calc(-50% + var(--heart-x)*.65 + var(--heart-sway)),calc(-50% + var(--heart-lift)*.45)) rotate(12deg) scale(.95)}75%{opacity:.7;transform:translate(calc(-50% + var(--heart-x)*.8 - var(--heart-sway)),calc(-50% + var(--heart-lift)*.75)) rotate(-9deg) scale(.8)}100%{opacity:0;transform:translate(calc(-50% + var(--heart-x)),calc(-50% + var(--heart-lift))) rotate(8deg) scale(.45)}}
+
+/* Explicit owner request: click/tap hearts stay animated even with Reduce Motion.
+   All other UI motion continues to respect the browser preference. */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-morph{animation:heart-morph-out .35s ease-out both!important}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
+*{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
+
+</style>
+</head>
+<body>
+<div id="heart-effects-page" class="heart-effects" aria-hidden="true"></div>
+
+<dialog id="love-intro" class="love-intro" aria-labelledby="love-intro-title" aria-describedby="love-intro-hint">
+  <div id="heart-effects-intro" class="heart-effects" aria-hidden="true"></div>
+  <div class="love-intro-shell">
+    <div class="love-intro-top"><span class="love-intro-label">A little letter, just for you</span><button type="button" class="love-skip" onclick="finishLoveIntro()" autofocus>Skip</button></div>
+    <div class="love-letter">
+      <div class="love-bubble" aria-hidden="true"><svg class="app-icon" viewBox="0 0 24 24"><use href="/icons.svg#heart"></use></svg></div>
+      <p class="love-to">My dearest Aysha,</p>
+      <h2 id="love-intro-title">You are loved…</h2>
+      <div id="love-intro-lines" class="love-lines" aria-live="polite" aria-atomic="true"><p>In the quiet, in the everyday,</p><p>my heart finds its way to you.</p></div>
+      <p class="love-signature">With all my love, Afzal</p>
+    </div>
+    <div class="love-loading"><span>Opening your little world of music</span><div class="love-loading-track" aria-hidden="true"><span id="love-intro-progress"></span></div><small id="love-intro-hint">A 15-second love note · skip whenever you like</small></div>
+  </div>
+</dialog>
+
+<div class="sidebar">
+  <div class="brand" onclick="switchTab('home')">
+    <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#heart"></use></svg>
+    <h1>Aysha's Music</h1>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-item active" id="nav-home" aria-label="Home" onclick="switchTab('home')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#home"></use></svg><span>Home</span></button>
+    <button type="button" class="nav-item" id="nav-explore" aria-label="Explore" onclick="switchTab('explore')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#compass"></use></svg><span>Explore</span></button>
+    <button type="button" class="nav-item" id="nav-library" aria-label="Library" onclick="switchTab('library')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#library"></use></svg><span>Library</span></button>
+    <button type="button" class="nav-item" id="nav-quotes" aria-label="Quotes" onclick="switchTab('quotes')"><svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/icons.svg#heart"></use></svg><span>Quotes</span></button>
+    <button type="button" class="nav-item" id="nav-bluetooth" aria-label="Bluetooth" onclick="switchTab('bluetooth')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#bluetooth"></use></svg><span>Bluetooth</span></button>
+  </div>
+</div>
+<div class="main-wrapper">
+  <header class="header">
+    <button class="back-btn" id="back-button" onclick="goBack()" aria-label="Go back" title="Go back"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#arrow-left"></use></svg></button>
+    <form class="search-wrap" role="search" onsubmit="event.preventDefault(); searchMusic(document.getElementById('search-input').value)">
+      <svg class="app-icon search-icon" aria-hidden="true"><use href="/icons.svg#search"></use></svg>
+      <input id="search-input" type="search" class="search-bar" aria-label="Search songs and artists" placeholder="Songs, artists, a feeling…" autocomplete="off" enterkeyhint="search">
+    </form>
+    <div class="profile-mark" aria-label="Aysha's Music">AYSHA</div>
+  </header>
+  <main class="content-area" id="content-area">
+    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment. For you from my heart</span></h2>
+      <div class="now-playing-hero" id="hero-box">
+        <div class="hero-art-box"><img class="hero-art" id="hero-art" alt="Current track artwork" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E"></div>
+        <div class="hero-details">
+          <div class="hero-tag">YOUR DAILY SOUNDTRACK</div>
+          <div class="hero-title" id="hero-title">Find your next favorite.</div>
+          <div class="hero-artist" id="hero-artist">Press play. Make yourself at home.</div>
+          <div class="hero-controls">
+            <button class="btn-hero" id="hero-toggle" aria-label="Play" onclick="togglePlay()"><svg id="hero-play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg><span id="hero-play-label">Play</span></button>
+            <button class="btn-hero btn-stop" onclick="stopPlay()"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>Stop</button>
+          </div>
+        </div>
+      </div>
+      <div class="section-heading-row"><h2 class="section-title">Quick picks</h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
+      <div class="grid-cards" id="quick-picks"></div>
+      <h2 class="section-title">Close to your heart</h2><p class="section-subtitle">Your liked songs, always within reach.</p>
+      <div class="grid-cards" id="recent-history"></div>
+    </section>
+    <div class="tab-page" id="tab-explore">
+      <div class="chips-row">
+        <button class="chip active" onclick="fetchCategory('Jazz', event)">Jazz</button>
+        <button class="chip" onclick="fetchCategory('Malayalam', event)">Malayalam</button>
+        <button class="chip" onclick="fetchCategory('Tamil', event)">Tamil</button>
+        <button class="chip" onclick="fetchCategory('Hindi', event)">Hindi</button>
+        <button class="chip" onclick="fetchCategory('Enrique', event)">Enrique</button>
+        <button class="chip" onclick="fetchCategory('English love songs', event)">English Love Songs</button>
+        <button class="chip" onclick="fetchCategory('Lofi', event)">Lofi</button>
+        <button class="chip" onclick="fetchCategory('Arabic', event)">Arabic</button>
+      </div>
+      <div class="section-title" id="explore-title">Featured Genre</div>
+      <div class="grid-cards" id="explore-cards"></div>
+    </div>
+    <div class="tab-page" id="tab-library">
+      <div class="section-title">Liked Songs <span class="liked-count" id="liked-count">0</span></div>
+      <div class="grid-cards" id="full-history"></div>
+      <div class="section-title">Queue <span id="queue-count">0</span> <button class="chip" onclick="queueClear()" style="float:right">Clear</button> <span style="color:var(--sub);font-size:11px">auto-plays next</span></div>
+      <div class="grid-cards" id="queue-list"></div>
+      <h2 class="section-title">Your song ratings <span class="liked-count" id="song-ratings-count">0</span></h2>
+      <p class="section-subtitle">Latest 20 · Up to 1,000 ratings in this browser only. Not shared with other devices or the music server.</p>
+      <div id="song-ratings-list"></div>
+      <details class="quote-settings"><summary>Manage song ratings</summary><button class="quote-reset" onclick="clearSongRatings()">Delete all song ratings from this browser</button></details>
+    </div>
+    <section class="tab-page" id="tab-quotes" aria-labelledby="quotes-heading">
+      <p class="page-eyebrow">A moment just for you</p>
+      <h2 class="page-heading" id="quotes-heading">A little <span>comfort.</span></h2>
+      <p class="comfort-intro">Some words to rest with. Take what feels kind, leave what doesn’t. There’s no rush here.</p>
+      <div class="chips-row quote-filters" role="group" aria-label="Quote categories">
+        <button class="chip active" data-quote-category="all" aria-pressed="true" onclick="filterQuotes('all')">For you</button>
+        <button class="chip" data-quote-category="love" aria-pressed="false" onclick="filterQuotes('love')">Love</button>
+        <button class="chip" data-quote-category="rest" aria-pressed="false" onclick="filterQuotes('rest')">Rest</button>
+        <button class="chip" data-quote-category="kindness" aria-pressed="false" onclick="filterQuotes('kindness')">Kindness</button>
+        <button class="chip" data-quote-category="courage" aria-pressed="false" onclick="filterQuotes('courage')">Courage</button>
+        <button class="chip" data-quote-category="saved" aria-pressed="false" onclick="filterQuotes('saved')">Saved <span id="quote-saved-count">0</span></button>
+      </div>
+      <article class="quote-card" aria-label="A comforting message">
+        <div><span class="quote-category" id="quote-category-label">Love</span><div class="quote-mark" aria-hidden="true">“</div>
+          <blockquote class="quote-text" id="quote-text" aria-live="polite" aria-atomic="true">You don’t have to earn tenderness by having a perfect day.</blockquote>
+        </div>
+        <p class="quote-signature">Original words. A little warmth. Just for you.</p>
+      </article>
+      <div class="quote-actions">
+        <button class="quote-next" id="quote-next" onclick="nextQuote()">Next message <svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
+        <button id="quote-save" aria-pressed="false" onclick="toggleQuoteSave()"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg><span id="quote-save-label">Save quote</span></button>
+        <button id="quote-more" onclick="moreQuotesLikeThis()" disabled>More like this</button>
+      </div>
+      <p class="quote-caption" id="quote-selection-note">A mix of gentle messages. No viewing or mood tracking.</p>
+      <details class="quote-settings">
+        <summary>Make this space yours</summary>
+        <label class="quote-opt-in"><input type="checkbox" id="quote-personalize" onchange="setQuotePersonalization(this.checked)">Use my saved quotes and “More like this” choices to tailor the mix</label>
+        <p class="quote-caption">Optional and off by default. Saved quotes and choices stay in this browser on this device, not on the music server. We don’t measure what you look at or infer how you feel. Turn this off for an untailored mix.</p>
+        <button class="quote-reset" onclick="resetQuotePreferences()">Delete saved quotes &amp; reset preferences</button>
+      </details>
+      <p class="quote-storage" id="quote-storage-status" role="status" aria-live="polite"></p>
+      <p class="quote-caption">A little encouragement, not a promise to make difficult feelings disappear. You can always return to your music.</p>
+    </section>
+    <div class="tab-page" id="tab-bluetooth">
+      <div class="section-title">Bluetooth Settings</div>
+      <div class="bt-card" id="bt-status-card">
+        <div><b id="bt-status-text">Status: Checking...</b><small id="bt-device-text">--</small></div>
+        <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
+      </div>
+      <div class="section-title">Configured Speaker</div>
+      <div id="bt-list"></div>
+    </div>
+    <div class="footer">Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</div>
+  </main>
+  <div class="player-bar" id="player-bar">
+    <div class="progress-container" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="player-content">
+      <button class="player-left" id="open-player" onclick="openNowPlaying()" aria-label="Open now playing">
+        <img class="np-art" id="np-art" alt="" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E">
+        <div class="player-text"><div class="np-title" id="np-title">No track playing</div><div class="np-artist" id="np-artist">Aysha's Music</div></div>
+      </button>
+      <div class="player-center">
+        <button class="ctrl-btn" onclick="prevTrack()" title="Previous track" aria-label="Previous track">
+          <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#previous"></use></svg>
+        </button>
+        <button class="ctrl-btn play-main" id="play-toggle" aria-label="Play" onclick="togglePlay()">
+          <svg id="play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg>
+        </button>
+        <button class="ctrl-btn" onclick="nextTrack()" title="Next track" aria-label="Next track">
+          <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#next"></use></svg>
+        </button>
+        <button class="ctrl-btn" onclick="stopPlay()" title="Stop" aria-label="Stop">
+          <svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>
+        </button>
+        <span class="time-str" id="time-display">0:00 / 0:00</span>
+      </div>
+      <div class="player-right">
+        <button class="ctrl-btn" onclick="toggleMute()" title="Mute/Unmute" aria-label="Mute" id="mute-btn">
+          <svg id="volume-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#volume-high"></use></svg>
+        </button>
+        <div class="vol-box"><input type="range" min="0" max="100" step="5" value="80" oninput="changeVol(this.value)" id="volume-slider" aria-label="Volume"></div>
+      </div>
+    </div>
+  </div>
+  <audio id="audio-player" crossorigin="anonymous"></audio>
+</div>
+
+<dialog class="now-dialog" id="now-playing" aria-labelledby="full-title">
+  <div id="heart-effects-player" class="heart-effects" aria-hidden="true"></div>
+  <div class="now-header">
+    <button class="ctrl-btn" onclick="closeNowPlaying()" aria-label="Close now playing"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#chevron-down"></use></svg></button>
+    <p>NOW PLAYING<strong id="full-output">This device</strong></p>
+    <button class="ctrl-btn" onclick="queueFromPlayer()" aria-label="Open queue"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#queue"></use></svg></button>
+  </div>
+  <img class="now-art" id="full-art" alt="Current track artwork">
+  <h2 class="now-title" id="full-title">Select a song</h2>
+  <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
+  <div class="now-progress" aria-hidden="true"><span id="full-progress"></span></div>
+  <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
+  <div class="now-controls">
+    <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
+    <button class="ctrl-btn play-main" id="full-play-toggle" onclick="togglePlay()" aria-label="Play"><svg class="app-icon" id="full-play-svg" aria-hidden="true"><use href="/icons.svg#play"></use></svg></button>
+    <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
+    <button class="ctrl-btn favorite-toggle" id="full-favorite" onclick="toggleCurrentFavorite()" aria-label="Add to favorites" aria-pressed="false" title="Add to favorites" disabled><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg></button>
+  </div>
+  <p class="song-score" id="full-song-score"></p>
+  <p class="full-action-status" id="full-action-status" role="status" aria-live="polite"></p>
+  <section class="song-rating song-rating-inline" id="full-song-rating" aria-labelledby="full-song-rating-heading" hidden>
+    <h3 id="full-song-rating-heading">How was that song?</h3>
+    <p class="song-rating-title" id="full-song-rating-title" aria-live="polite"></p>
+    <div class="song-rating-buttons" role="group" aria-label="Rate the completed song"><button aria-label="Rate 1 out of 5" onclick="rateCompletedSong(1)">1 <span aria-hidden="true">★</span></button><button aria-label="Rate 2 out of 5" onclick="rateCompletedSong(2)">2 <span aria-hidden="true">★</span></button><button aria-label="Rate 3 out of 5" onclick="rateCompletedSong(3)">3 <span aria-hidden="true">★</span></button><button aria-label="Rate 4 out of 5" onclick="rateCompletedSong(4)">4 <span aria-hidden="true">★</span></button><button aria-label="Rate 5 out of 5" onclick="rateCompletedSong(5)">5 <span aria-hidden="true">★</span></button></div>
+    <button class="song-rating-dismiss" onclick="dismissSongRating()">Not now</button>
+    <p class="song-rating-note">Optional · Only your choice is saved in this browser · Autoplay keeps going</p>
+  </section>
+  <div class="now-volume"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#volume-low"></use></svg><input id="full-volume" type="range" min="0" max="100" step="5" value="80" aria-label="Playback volume" oninput="changeVol(this.value)"></div>
+  <div class="now-footer"><span>Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</span><button onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg>Stop</button></div>
+</dialog>
+<section class="song-rating" id="song-rating" aria-labelledby="song-rating-heading" hidden>
+    <h3 id="song-rating-heading">How was that song?</h3>
+    <p class="song-rating-title" id="song-rating-title" aria-live="polite"></p>
+    <div class="song-rating-buttons" role="group" aria-label="Rate the completed song"><button aria-label="Rate 1 out of 5" onclick="rateCompletedSong(1)">1 <span aria-hidden="true">★</span></button><button aria-label="Rate 2 out of 5" onclick="rateCompletedSong(2)">2 <span aria-hidden="true">★</span></button><button aria-label="Rate 3 out of 5" onclick="rateCompletedSong(3)">3 <span aria-hidden="true">★</span></button><button aria-label="Rate 4 out of 5" onclick="rateCompletedSong(4)">4 <span aria-hidden="true">★</span></button><button aria-label="Rate 5 out of 5" onclick="rateCompletedSong(5)">5 <span aria-hidden="true">★</span></button></div>
+    <button class="song-rating-dismiss" onclick="dismissSongRating()">Not now</button>
+    <p class="song-rating-note">Optional · Only your choice is saved in this browser · Autoplay keeps going</p>
+  </section>
+<div class="app-message" id="app-message" role="status" aria-live="polite"></div>
+<script>
+
+
+// Ephemeral pointer decoration only. No storage, telemetry, fetch or audio work.
+const HEART_EFFECT_LIMIT = 32;
+const heartParticles = new Map();
+const heartFields = new Map();
+let lastHeartMove = -Infinity;
+let lastRevealFlight = -Infinity;
+let heartEffectsInitialized = false;
+function removeHeartParticle(particle) {
+  if (!heartParticles.has(particle)) return;
+  clearTimeout(heartParticles.get(particle));
+  heartParticles.delete(particle);
+  particle.remove();
+}
+function clearHeartReveals() {
+  lastHeartMove = -Infinity;
+  lastRevealFlight = -Infinity;
+  for (const field of heartFields.values()) {
+    if (field.timer !== null) clearTimeout(field.timer);
+    field.timer = null;
+    field.element.classList.remove('is-revealed');
+  }
+}
+function clearHeartEffects() {
+  clearHeartReveals();
+  for (const particle of heartParticles.keys()) removeHeartParticle(particle);
+}
+// A click may close/open a modal. Keep its butterflies in the visible top layer.
+function relocateHeartEffects() {
+  clearHeartReveals();
+  const host = heartEffectHost();
+  for (const particle of heartParticles.keys()) host.appendChild(particle);
+}
+function heartEffectsAllowed() {
+  return !document.hidden;
+}
+function heartEffectHost() {
+  if (document.getElementById('love-intro').open) return document.getElementById('heart-effects-intro');
+  if (document.getElementById('now-playing').open) return document.getElementById('heart-effects-player');
+  return document.getElementById('heart-effects-page');
+}
+// One fixed SVG tile pattern per context; only the spotlight coordinates move.
+function revealHeartField(x, y) {
+  if (!heartEffectsAllowed() || !Number.isFinite(x) || !Number.isFinite(y)) return;
+  const host = heartEffectHost();
+  let field = heartFields.get(host);
+  if (!field) {
+    const element = document.createElement('div');
+    const id = 'heart-tiles-' + heartFields.size;
+    element.className = 'heart-reveal';
+    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><defs><pattern id="' + id + '" width="20" height="20" patternUnits="userSpaceOnUse"><use href="/icons.svg#heart" x="6" y="6" width="8" height="8"></use></pattern></defs><rect width="100%" height="100%" fill="url(#' + id + ')"></rect></svg>';
+    host.appendChild(element);
+    field = { element, timer: null };
+    heartFields.set(host, field);
+  }
+  const rect = field.element.getBoundingClientRect();
+  field.element.style.setProperty('--reveal-x', (x - rect.left) + 'px');
+  field.element.style.setProperty('--reveal-y', (y - rect.top) + 'px');
+  field.element.classList.add('is-revealed');
+  if (field.timer !== null) clearTimeout(field.timer);
+  field.timer = setTimeout(() => { field.element.classList.remove('is-revealed'); field.timer = null; }, 650);
+}
+function heartPointerMove(event) {
+  if (event.pointerType !== 'mouse' || event.buttons || event.isPrimary === false || !heartEffectsAllowed()) return;
+  if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+  const now = Date.now();
+  if (now - lastHeartMove < 32) return;
+  lastHeartMove = now;
+  revealHeartField(event.clientX, event.clientY);
+  if (now - lastRevealFlight >= 240) {
+    lastRevealFlight = now;
+    // Launch from actual tile centres inside the small heart-shaped reveal.
+    const tx = Math.round((event.clientX - 10) / 20) * 20 + 10;
+    const ty = Math.round((event.clientY - 10) / 20) * 20 + 10;
+    spawnHeartParticle(tx - 20, ty, 'hover-butterfly');
+    spawnHeartParticle(tx + 20, ty, 'hover-butterfly');
+  }
+}
+function spawnHeartParticle(x, y, variant = 'heart') {
+  if (!heartEffectsAllowed() || !Number.isFinite(x) || !Number.isFinite(y)) return;
+  while (heartParticles.size >= HEART_EFFECT_LIMIT) removeHeartParticle(heartParticles.keys().next().value);
+  const particle = document.createElement('span');
+  const butterfly = variant === 'butterfly' || variant === 'hover-butterfly';
+  const letter = ['A', 'Y', 'S', 'H'].includes(variant) ? variant : null;
+  particle.className = 'heart-particle ' + (letter ? 'love-letter-particle' : variant === 'hover-butterfly' ? 'hover-butterfly' : 'heart-burst') + (butterfly ? ' is-butterfly' : '');
+  particle.innerHTML = letter ? '<span class="love-letter-glyph">' + letter + '</span><span class="love-letter-heart">' + icon('heart') + '</span>' : butterfly ? '<span class="heart-morph">' + icon('heart') + '</span><span class="butterfly-morph">' + icon('butterfly') + '</span>' : icon('heart');
+  particle.style.left = x + 'px';
+  particle.style.top = y + 'px';
+  const life = 2200 + Math.random() * 600;
+  particle.style.setProperty('--heart-size', (letter ? 22 : butterfly ? 12 + Math.random() * 4 : 18 + Math.random() * 8) + 'px');
+  particle.style.setProperty('--heart-color', letter ? '#fff' : butterfly ? '#ed304b' : (Math.random() < .5 ? '#ff6375' : '#f3a7c4'));
+  particle.style.setProperty('--heart-life', life + 'ms');
+  particle.style.setProperty('--heart-flap', (150 + Math.random() * 100) + 'ms');
+  particle.style.setProperty('--heart-x', (Math.random() - .5) * 220 + 'px');
+  particle.style.setProperty('--heart-lift', -(180 + Math.random() * 110) + 'px');
+  particle.style.setProperty('--heart-sway', (Math.random() < .5 ? -1 : 1) * (12 + Math.random() * 14) + 'px');
+  particle.addEventListener('animationend', event => { if (event.target === particle) removeHeartParticle(particle); });
+  heartEffectHost().appendChild(particle);
+  // Cleanup even if a modal closes or an animation is cancelled.
+  heartParticles.set(particle, setTimeout(() => removeHeartParticle(particle), life + 150));
+}
+function heartTileOrigins(x, y) {
+  const tx = Math.round((x - 10) / 20) * 20 + 10;
+  const ty = Math.round((y - 10) / 20) * 20 + 10;
+  // Nearby revealed tile centres, not a burst of larger hearts at one point.
+  return [[-20, 0], [20, 0], [0, 0], [-20, -20], [20, -20], [0, 20]]
+    .map(([dx, dy]) => ({ x: tx + dx, y: ty + dy }));
+}
+function heartPointerClick(event) {
+  // A single click listener handles mouse/touch taps without double pointerup bursts.
+  // Embedded previews/automation can dispatch coordinate clicks with detail=0.
+  // Exclude coordinate-less keyboard activation, not valid positioned clicks.
+  if ((!event.detail && event.clientX === 0 && event.clientY === 0) || event.button !== 0 || !heartEffectsAllowed()) return;
+  if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+  revealHeartField(event.clientX, event.clientY);
+  for (const particle of heartParticles.keys()) { if (particle.className.includes('hover-butterfly')) removeHeartParticle(particle); }
+  const origins = heartTileOrigins(event.clientX, event.clientY);
+  for (let i = 0; i < 12; i++) {
+    const origin = origins[i % origins.length];
+    spawnHeartParticle(origin.x, origin.y, 'butterfly');
+  }
+  ['A', 'Y', 'S', 'H', 'A'].forEach((letter, i) => {
+    spawnHeartParticle(event.clientX + (i - 2) * 16, event.clientY + 6, letter);
+  });
+}
+function initializeHeartEffects() {
+  if (heartEffectsInitialized || typeof document.addEventListener !== 'function') return;
+  heartEffectsInitialized = true;
+  document.addEventListener('pointermove', heartPointerMove, { passive: true });
+  document.addEventListener('pointerout', event => { if (event.pointerType === 'mouse' && !event.relatedTarget) clearHeartReveals(); }, { passive: true });
+  document.addEventListener('click', heartPointerClick, { passive: true, capture: true });
+  // Touch pointerout never clears anything; mouse exit fades only the reveal, not flights.
+  for (const id of ['love-intro', 'now-playing']) document.getElementById(id).addEventListener('close', relocateHeartEffects);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearHeartEffects(); });
+}
+initializeHeartEffects();
+
+// The opening is a letter, not a simulated backend-loading percentage.
+const LOVE_LETTER = [
+  ['In the quiet, in the everyday,', 'my heart finds its way to you.'],
+  ['A little world, made just for you.', 'A song, a breath, a place to rest.'],
+  ['Every note, a little love letter.', 'From my heart to yours, always.'],
+];
+// Every pair gets five full seconds at full opacity, including its gentle entrance.
+const LOVE_VERSE_MS = 5000;
+const LOVE_INTRO_MS = LOVE_LETTER.length * LOVE_VERSE_MS;
+let loveIntroTimer = null;
+let loveIntroStarted = 0;
+let loveIntroVerse = -1;
+let loveIntroFocus = null;
+function renderLoveIntro(elapsed) {
+  const verse = Math.min(LOVE_LETTER.length - 1, Math.floor(Math.max(0, elapsed) / LOVE_VERSE_MS));
+  if (verse !== loveIntroVerse) {
+    loveIntroVerse = verse;
+    const lines = document.getElementById('love-intro-lines');
+    // The letter is a fixed internal text inventory, never track/user HTML.
+    lines.innerHTML = LOVE_LETTER[verse].map(line => '<p>' + line + '</p>').join('');
+    lines.classList.remove('love-line-enter');
+    void lines.offsetWidth;
+    lines.classList.add('love-line-enter');
+  }
+  document.getElementById('love-intro-progress').style.width = Math.min(100, Math.max(0, elapsed / LOVE_INTRO_MS * 100)) + '%';
+}
+function finishLoveIntro() {
+  if (loveIntroTimer !== null) clearInterval(loveIntroTimer);
+  loveIntroTimer = null;
+  const dialog = document.getElementById('love-intro');
+  if (dialog.open) dialog.close();
+  if (loveIntroFocus && typeof loveIntroFocus.focus === 'function') loveIntroFocus.focus({ preventScroll: true });
+  loveIntroFocus = null;
+}
+function startLoveIntro() {
+  const dialog = document.getElementById('love-intro');
+  // Older browsers/disabled JS fail open to the player, never a blocking overlay.
+  if (typeof dialog.showModal !== 'function' || dialog.open) return;
+  loveIntroFocus = document.activeElement;
+  loveIntroVerse = -1;
+  loveIntroStarted = Date.now();
+  renderLoveIntro(0);
+  try { dialog.showModal(); } catch (_) { return; }
+  dialog.addEventListener('cancel', finishLoveIntro);
+  dialog.addEventListener('close', finishLoveIntro);
+  loveIntroTimer = setInterval(() => {
+    const elapsed = Date.now() - loveIntroStarted;
+    if (elapsed >= LOVE_INTRO_MS) finishLoveIntro();
+    else renderLoveIntro(elapsed);
+  }, 200);
+}
+startLoveIntro();
+
+
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
+let durationSec = 0;
+let playbackAttempt = 0;
+
+// Tab-scoped selection survives reload, never an autoplay instruction or a
+// shared-device profile. Storage denial must not break in-memory playback.
+const selectionKey = 'aysha.selection.v1';
+function saveSelection() {
+  try {
+    const t = state.current_track;
+    sessionStorage.setItem(selectionKey, JSON.stringify({
+      track: { id: t.id, title: t.title, artist: t.artist, url: t.url },
+      mode: state.playMode,
+    }));
+  } catch (_) { /* Session storage may be unavailable in private/restricted contexts. */ }
+}
+
+function renderSelection(t) {
+  const thumb = 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg';
+  for (const prefix of ['hero', 'np']) {
+    document.getElementById(prefix + '-art').src = thumb;
+    document.getElementById(prefix + '-title').textContent = t.title;
+    document.getElementById(prefix + '-artist').textContent = t.artist;
+  }
+}
+
+function restoreSelection() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(selectionKey));
+    const t = saved && saved.track;
+    if (!t || !['browser', 'bt'].includes(saved.mode)) return;
+    for (const [key, limit] of [['id', 256], ['title', 500], ['artist', 500], ['url', 2048]]) {
+      if (typeof t[key] !== 'string' || t[key].length > limit) return;
+    }
+    if (!t.id || !t.title || !/^https?:\/\//.test(t.url)) return;
+    state.current_track = {
+      id: t.id, title: t.title, artist: t.artist, url: t.url,
+      thumbnail: 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg',
+    };
+    // A remembered speaker connection is not permission to route this phone's
+    // next tap away from this device. Restore the selection, not remote output.
+    state.playMode = 'browser';
+    state.stopped = true;
+    renderSelection(state.current_track);
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = 'Song restored — press Play to start again';
+  } catch (_) { /* Ignore missing, malformed or inaccessible session data. */ }
+}
+
+async function api(method, path, body) {
+  // The Rust play endpoint extracts query parameters, not a JSON body.
+  if (method === 'POST' && path === '/api/play' && body) {
+    path += '?' + new URLSearchParams(body).toString();
+    body = null;
+  }
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    const detail = (await r.text()).slice(0, 300);
+    throw new Error('HTTP ' + r.status + ': ' + detail);
+  }
+  const result = await r.json();
+  if (result.status === 'failed') throw new Error(result.error || 'Request failed');
+  return result;
+}
+
+function icon(name) {
+  return '<svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#' + name + '"></use></svg>';
+}
+
+function setPlayingState(playing) {
+  state.is_playing = playing;
+  const name = playing ? 'pause' : 'play';
+  document.getElementById('play-svg').innerHTML = '<use href="/icons.svg#' + name + '"></use>';
+  document.getElementById('hero-play-svg').innerHTML = '<use href="/icons.svg#' + name + '"></use>';
+  document.getElementById('hero-play-label').textContent = playing ? 'Pause' : 'Play';
+  document.getElementById('play-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  document.getElementById('hero-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  document.getElementById('full-play-svg').innerHTML = '<use href="/icons.svg#' + name + '"></use>';
+  document.getElementById('full-play-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  updateMediaSession();
+}
+
+function updateMediaSession() {
+  syncNowPlaying();
+  if (!('mediaSession' in navigator)) return;
+  const t = state.current_track;
+  const audio = document.getElementById('audio-player');
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: t ? t.title : 'Aysha\'s Music',
+    artist: t ? t.artist : '',
+    album: 'Aysha\'s Music',
+    artwork: t ? [{ src: 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg', sizes: '512x512', type: 'image/jpeg' }] : [],
+  });
+  navigator.mediaSession.setActionHandler('play', () => { if (!state.is_playing) togglePlay(); });
+  navigator.mediaSession.setActionHandler('pause', () => { if (state.is_playing) togglePlay(); });
+  navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+  navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+  navigator.mediaSession.setActionHandler('stop', stopPlay);
+  if (t) {
+    navigator.mediaSession.setPositionState({
+      duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+      position: Number.isFinite(audio.duration) ? Math.min(audio.currentTime || 0, audio.duration) : 0,
+      playbackRate: 1,
+    });
+  }
+}
+
+async function checkBluetooth() {
+  const st = await api('GET', '/api/bt/status');
+  return st.connected || false;
+}
+
+function getStreamUrl(t) {
+  // Assign the proxy URL directly to <audio>; never fetch audio through the JSON API helper.
+  return '/api/stream?url=' + encodeURIComponent(t.url);
+}
+
+async function playSong(t, options = {}) {
+  const attempt = ++playbackAttempt;
+  renderSelection(t);
+  state.current_track = t;
+  state.stopped = true;
+  const audio = document.getElementById('audio-player');
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+
+  // This device is the default. Bluetooth status never chooses an output.
+  // Only an explicit caller request may start the server's speaker backend.
+  if (options.mode === 'bt') {
+    state.playMode = 'bt';
+    saveSelection();
+    document.getElementById('time-display').textContent = 'Starting Bluetooth speaker...';
+    setPlayingState(false);
+    try {
+      if (options.notifyServer !== false) await api('POST', '/api/play', { ...t, mode: 'bt' });
+      if (attempt !== playbackAttempt) return;
+      state.stopped = false;
+      setPlayingState(true);
+      document.getElementById('time-display').textContent = 'Playing on Bluetooth speaker...';
+    } catch (error) {
+      if (attempt !== playbackAttempt) return;
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = error.message;
+    }
+    return;
+  }
+
+  state.playMode = 'browser';
+  saveSelection();
+  document.getElementById('time-display').textContent = 'Loading on this device...';
+  setPlayingState(false);
+  audio.src = getStreamUrl(t);
+  audio.volume = state.volume / 100;
+  state.stopped = false;
+  try {
+    // Keep play() in the original tap stack. Awaiting Bluetooth/API first can
+    // lose mobile user activation. Never fetch an audio response as JSON.
+    const playing = audio.play();
+    const registered = options.notifyServer === false ? Promise.resolve()
+      : api('POST', '/api/play', { ...t, mode: 'browser' });
+    await Promise.all([playing, registered]);
+    if (attempt !== playbackAttempt) return;
+    setPlayingState(true);
+    document.getElementById('time-display').textContent = 'Playing on this device...';
+  } catch (error) {
+    if (attempt !== playbackAttempt) return;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    state.stopped = true;
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = error.name === 'NotAllowedError'
+      ? 'Tap ▶ Play to start on this device'
+      : error.message;
+  }
+}
+
+async function togglePlay() {
+  if (!state.current_track) {
+    document.getElementById('time-display').textContent = 'Select a song first';
+    return;
+  }
+  // Stop releases the old stream/mpv process; Pause does not. Restart the
+  // retained selection with /api/play instead of resuming an empty source.
+  if (state.stopped) {
+    return playSong(state.current_track, { mode: state.playMode || 'browser' });
+  }
+  const shouldPlay = !state.is_playing;
+  try {
+    if (state.playMode === 'browser') {
+      const audio = document.getElementById('audio-player');
+      if (shouldPlay) await audio.play(); else audio.pause();
+    }
+    await api('POST', shouldPlay ? '/api/resume' : '/api/pause');
+    setPlayingState(shouldPlay);
+  } catch (error) {
+    document.getElementById('time-display').textContent = error.message;
+  }
+}
+
+async function stopPlay() {
+  ++playbackAttempt;
+  const bluetooth = state.playMode === 'bt';
+  if (bluetooth) {
+    try {
+      await api('POST', '/api/stop');
+    } catch (error) {
+      document.getElementById('time-display').textContent = error.message;
+      return;
+    }
+  } else {
+    const audio = document.getElementById('audio-player');
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+  }
+  // Keep the selected song and output so every Play control can restart it.
+  state.stopped = true;
+  state.pos = 0;
+  setPlayingState(false);
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('time-display').textContent = 'Stopped — press Play to start again';
+  updateMediaSession();
+  if (!bluetooth) {
+    try {
+      await api('POST', '/api/stop');
+    } catch (error) {
+      document.getElementById('time-display').textContent = 'Stopped on this device; server update failed: ' + error.message;
+    }
+  }
+}
+
+let navigationBusy = false;
+async function navigateTrack(direction) {
+  if (navigationBusy) return;
+  navigationBusy = true;
+  try {
+    const result = await api('POST', '/api/' + direction);
+    if (!result.track) throw new Error('No track returned by server');
+    // Navigation already updated server state. Do not add a second history entry.
+    await playSong(result.track, { notifyServer: false, mode: result.mode });
+  } catch (error) {
+    document.getElementById('time-display').textContent = error.message;
+  } finally {
+    navigationBusy = false;
+  }
+}
+
+async function nextTrack() { return navigateTrack('next'); }
+async function prevTrack() { return navigateTrack('prev'); }
+
+async function seekTrack(e) {
+  const audio = document.getElementById('audio-player');
+  if (!audio.duration || audio.duration === 0) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  audio.currentTime = pct * audio.duration;
+}
+
+async function changeVol(v) {
+  document.getElementById('volume-slider').value = v;
+  document.getElementById('full-volume').value = v;
+  const audio = document.getElementById('audio-player');
+  audio.volume = v / 100;
+  state.volume = Number(v);
+  await api('POST', '/api/volume?val=' + v);
+  updateVolumeIcon(v);
+}
+
+async function toggleMute() {
+  const audio = document.getElementById('audio-player');
+  const slider = document.getElementById('volume-slider');
+  if (audio.volume > 0) {
+    audio.volume = 0;
+    slider.value = 0;
+    await api('POST', '/api/volume?val=0');
+  } else {
+    audio.volume = 0.8;
+    slider.value = 80;
+    await api('POST', '/api/volume?val=80');
+  }
+  state.volume = audio.volume * 100;
+  updateVolumeIcon(state.volume);
+}
+
+function updateVolumeIcon(v) {
+  const name = Number(v) === 0 ? 'volume-off' : Number(v) <= 50 ? 'volume-low' : 'volume-high';
+  document.getElementById('volume-svg').innerHTML = '<use href="/icons.svg#' + name + '"></use>';
+  document.getElementById('mute-btn').setAttribute('aria-label', Number(v) === 0 ? 'Unmute' : 'Mute');
+}
+
+function renderGrid(tracks, containerId, showHeart) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  if (!tracks || !tracks.length) {
+    c.innerHTML = '<div class="empty-msg">No results found.</div>';
+    return;
+  }
+  tracks.forEach(t => {
+    const isLiked = state.liked.some(l => l.id === t.id);
+    const qIn = state.queue ? state.queue.some(q => q.id === t.id) : false;
+    const card = document.createElement('div');
+    card.className = 'song-card';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', t.title + ' by ' + t.artist);
+    card.innerHTML =
+      '<img class="card-thumb" alt="" loading="lazy" src="https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg">' +
+      '<div class="card-info">' +
+      '<div class="card-title">' + escapeHtml(t.title) + '</div>' +
+      '<div class="card-artist">' + escapeHtml(t.artist) + '</div>' +
+      '</div>' +
+      '<button class="card-action card-play" data-action="play" title="Play">' +
+      icon('play') + '</button>' +
+      '<button class="card-action card-queue' + (qIn ? ' active' : '') + '" data-action="queue" title="Add to Queue">' +
+      icon(qIn ? 'check' : 'queue') + '</button>' +
+      '<button class="card-heart' + (isLiked ? ' liked' : '') + '" data-action="like" data-track-id="' + escapeHtml(t.id) + '" aria-label="Like song" aria-pressed="' + isLiked + '">' +
+      icon('heart') +
+      '</button>';
+    card.querySelector('[data-action="play"]').onclick = event => { event.stopPropagation(); playSong(t); };
+    card.querySelector('[data-action="queue"]').onclick = event => { event.stopPropagation(); queueAdd(t); };
+    card.querySelector('[data-action="like"]').onclick = event => { event.stopPropagation(); toggleLike(t); };
+    card.onclick = () => playSong(t);
+    card.onkeydown = event => {
+      if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); playSong(t); }
+    };
+    c.appendChild(card);
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function toggleLike(t) {
+  if (!t || !t.id || favoriteRequests.has(t.id)) return;
+  favoriteRequests.add(t.id);
+  renderHearts();
+  try {
+    if (!favoritesLoaded) await refreshFavorites();
+    const already = state.liked.some(l => l.id === t.id);
+    const track = { ...t, thumbnail: t.thumbnail || 'https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg' };
+    await api('POST', already ? '/api/unlike' : '/api/like', track);
+    state.liked = already ? state.liked.filter(l => l.id !== t.id) : [...state.liked, track];
+    favoritesRevision++;
+    document.getElementById('liked-count').textContent = state.liked.length;
+    if (currentTab === 'library') renderGrid(state.liked, 'full-history', true);
+    if (currentTab === 'home') renderGrid(state.liked, 'recent-history', true);
+    songFeedback(already ? 'Removed from favorites.' : 'Added to favorites — find it in Library → Liked Songs.');
+  } catch (error) {
+    songFeedback('Could not update favorites: ' + error.message);
+  } finally {
+    favoriteRequests.delete(t.id);
+    renderHearts();
+  }
+}
+
+function renderHearts() {
+  document.querySelectorAll('.card-heart').forEach(btn => {
+    const liked = state.liked.some(track => track.id === btn.dataset.trackId);
+    btn.classList.toggle('liked', liked);
+    btn.setAttribute('aria-pressed', String(liked));
+    btn.disabled = favoriteRequests.has(btn.dataset.trackId);
+  });
+  renderFavoriteState();
+}
+
+// Favorites use the existing shared Rust library; ratings are explicit/local only.
+const favoriteRequests = new Set();
+let favoritesLoaded = false;
+let favoritesRead = null;
+let favoritesRevision = 0;
+
+function songFeedback(message) {
+  document.getElementById('full-action-status').textContent = message;
+  showMessage(message);
+}
+
+function renderFavoriteState() {
+  const track = state.current_track;
+  const liked = !!track && state.liked.some(t => t.id === track.id);
+  const button = document.getElementById('full-favorite');
+  button.disabled = !track || !!favoritesRead || favoriteRequests.has(track.id);
+  button.classList.toggle('liked', liked);
+  button.setAttribute('aria-pressed', String(liked));
+  button.setAttribute('aria-label', liked ? 'Remove from favorites' : 'Add to favorites');
+  button.setAttribute('title', liked ? 'Remove from favorites' : 'Add to favorites');
+}
+
+async function refreshFavorites() {
+  if (favoritesRead) return favoritesRead;
+  const revision = favoritesRevision;
+  favoritesRead = (async () => {
+    const result = await api('GET', '/api/liked');
+    const tracks = Array.isArray(result) ? result : result.results;
+    if (!Array.isArray(tracks)) throw new Error('Unable to read favorites');
+    if (revision === favoritesRevision) {
+      state.liked = tracks;
+      favoritesLoaded = true;
+      document.getElementById('liked-count').textContent = state.liked.length;
+      renderHearts();
+    }
+  })();
+  renderFavoriteState();
+  try { await favoritesRead; }
+  finally { favoritesRead = null; renderFavoriteState(); }
+}
+
+async function toggleCurrentFavorite() {
+  const track = state.current_track;
+  if (track) await toggleLike(track);
+}
+
+const songRatingsKey = 'aysha.song-ratings.v1';
+const MAX_SONG_RATINGS = 1000;
+const songRatings = { loaded: false, entries: [], pending: null, storageAvailable: true };
+
+function initializeSongRatings() {
+  if (songRatings.loaded) return;
+  songRatings.loaded = true;
+  try {
+    const raw = localStorage.getItem(songRatingsKey);
+    if (!raw) return;
+    if (raw.length > 500000) throw new Error('Rating record too large');
+    const record = JSON.parse(raw);
+    if (!record || record.version !== 1 || !Array.isArray(record.entries)) throw new Error('Invalid rating record');
+    const seen = new Set();
+    for (const item of record.entries.slice(0, MAX_SONG_RATINGS)) {
+      if (!item || typeof item.id !== 'string' || !/^[\w-]{1,128}$/.test(item.id) ||
+          typeof item.title !== 'string' || !Number.isInteger(item.rating) || item.rating < 1 || item.rating > 5 || seen.has(item.id)) continue;
+      seen.add(item.id);
+      songRatings.entries.push({ id: item.id, title: item.title.slice(0, 300), rating: item.rating });
+    }
+  } catch (_) { songRatings.storageAvailable = false; }
+}
+
+function askForSongRating(track) {
+  initializeSongRatings();
+  if (!track || typeof track.id !== 'string' || !/^[\w-]{1,128}$/.test(track.id) ||
+      songRatings.entries.some(item => item.id === track.id)) return false;
+  // Snapshot the completed song before autoplay changes current_track. An ignored
+  // prompt is replaced by the next completed unrated song, never an unbounded queue.
+  songRatings.pending = { id: track.id, title: String(track.title || 'This song').slice(0, 300) };
+  showMessage('');
+  renderRatingPrompt();
+  return true;
+}
+
+function renderRatingPrompt() {
+  const inPlayer = !!document.getElementById('now-playing').open;
+  for (const prefix of ['song-rating', 'full-song-rating']) {
+    document.getElementById(prefix).hidden = !songRatings.pending || (prefix === 'full-song-rating' ? !inPlayer : inPlayer);
+    document.getElementById(prefix + '-title').textContent = songRatings.pending ? songRatings.pending.title : '';
+  }
+}
+
+function dismissSongRating() {
+  songRatings.pending = null;
+  renderRatingPrompt();
+}
+
+function rateCompletedSong(rating) {
+  const pending = songRatings.pending;
+  if (!pending || !Number.isInteger(rating) || rating < 1 || rating > 5) return;
+  initializeSongRatings();
+  const existing = songRatings.entries.findIndex(item => item.id === pending.id);
+  if (existing < 0 && songRatings.entries.length >= MAX_SONG_RATINGS) {
+    songFeedback('This browser has 1,000 ratings. Clear ratings in Library before saving more; existing ratings are kept.');
+    return;
+  }
+  if (existing >= 0) songRatings.entries.splice(existing, 1);
+  songRatings.entries.push({ ...pending, rating });
+  try {
+    localStorage.setItem(songRatingsKey, JSON.stringify({ version: 1, entries: songRatings.entries }));
+    songRatings.storageAvailable = true;
+  } catch (_) { songRatings.storageAvailable = false; }
+  dismissSongRating();
+  renderSongRatings();
+  songFeedback('Rated “' + pending.title + '” ' + rating + '/5. ' + (songRatings.storageAvailable
+    ? 'Saved in this browser; we won’t ask again here.' : 'Kept for this page only: browser storage failed, so we may ask again after reload.'));
+}
+
+function renderSongRatings() {
+  initializeSongRatings();
+  document.getElementById('song-ratings-count').textContent = songRatings.entries.length;
+  document.getElementById('song-ratings-list').innerHTML = songRatings.entries.length
+    ? songRatings.entries.slice(-20).reverse().map(item => '<div class="song-rating-entry"><span>' + escapeHtml(item.title) + '</span><strong>' + item.rating + '/5</strong></div>').join('')
+    : '<p class="section-subtitle">No ratings yet. We’ll ask after an unrated song finishes on this device.</p>';
+  renderCurrentSongScore();
+}
+
+function renderCurrentSongScore() {
+  initializeSongRatings();
+  const rated = state.current_track && songRatings.entries.find(item => item.id === state.current_track.id);
+  document.getElementById('full-song-score').textContent = rated ? 'Your rating: ' + rated.rating + '/5 · This browser' : '';
+}
+
+function clearSongRatings() {
+  songRatings.entries = [];
+  try { localStorage.removeItem(songRatingsKey); songRatings.storageAvailable = true; }
+  catch (_) { songRatings.storageAvailable = false; }
+  renderSongRatings();
+  songFeedback(songRatings.storageAvailable ? 'Song ratings cleared. Finished songs may ask for a rating again.'
+    : 'Cleared for this page only. Browser storage could not be cleared; old ratings may return after reload.');
+}
+
+
+let searchGeneration = 0;
+function showMessage(message) {
+  document.getElementById('app-message').textContent = message || '';
+}
+
+function showLoading(containerId) {
+  const container = document.getElementById(containerId);
+  container.setAttribute('aria-busy', 'true');
+  container.innerHTML = Array.from({ length: 4 }, () => '<div class="skeleton-card" aria-hidden="true"></div>').join('');
+}
+
+async function searchMusic(q) {
+  q = String(q || '').trim();
+  if (!q) return;
+  switchTab('explore', { load: false });
+  document.getElementById('search-input').value = q;
+  return searchTracks(q, 'Results for “' + q + '”');
+}
+
+async function searchTracks(query, label) {
+  const generation = ++searchGeneration;
+  document.getElementById('explore-title').textContent = label;
+  showLoading('explore-cards');
+  showMessage('');
+  try {
+    const result = await api('GET', '/api/search?q=' + encodeURIComponent(query));
+    if (generation !== searchGeneration) return;
+    renderGrid(Array.isArray(result) ? result : [], 'explore-cards', true);
+  } catch (error) {
+    if (generation === searchGeneration) {
+      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again to retry.</div>';
+      showMessage(error.message);
+    }
+  } finally {
+    if (generation === searchGeneration) document.getElementById('explore-cards').setAttribute('aria-busy', 'false');
+  }
+}
+
+async function fetchCategory(cat, sourceEvent) {
+  document.querySelectorAll('.chips-row .chip').forEach(chip => chip.classList.remove('active'));
+  if (sourceEvent && sourceEvent.target) sourceEvent.target.classList.add('active');
+  return searchTracks(cat + ' songs', cat);
+}
+
+async function loadHome() {
+  showLoading('quick-picks');
+  const picks = await api('GET', '/api/search?q=Aysha%20love%20songs');
+  document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
+  const pt = Array.isArray(picks) ? picks : (picks.results || []);
+  renderGrid(pt, 'quick-picks', true);
+  await refreshFavorites();
+  renderGrid(state.liked, 'recent-history', true);
+  loadQueue();
+}
+
+async function loadLiked() {
+  renderSongRatings();
+  await refreshFavorites();
+  renderGrid(state.liked, 'full-history', true);
+  loadQueue();
+}
+
+async function loadQueue() {
+  const q = await api('GET', '/api/queue');
+  const tracks = Array.isArray(q) ? q : (q.results || []);
+  state.queue = tracks;
+  renderGrid(tracks, 'queue-list', true);
+}
+
+async function queueAdd(t) {
+  await api('POST', '/api/queue_add', t);
+  state.queue = state.queue || [];
+  if (!state.queue.some(q => q.id === t.id)) {
+    state.queue.push(t);
+  }
+  loadQueue();
+}
+
+async function queueClear() {
+  await api('POST', '/api/queue_clear');
+  state.queue = [];
+  loadQueue();
+}
+
+async function loadBluetooth() {
+  try {
+    const st = await api('GET', '/api/bt/status');
+    document.getElementById('bt-status-text').textContent = st.connected ? 'Status: Connected' : 'Status: Disconnected';
+    document.getElementById('bt-device-text').textContent = st.error || st.device || 'No device active';
+    document.getElementById('bt-list').innerHTML = st.connected ?
+      '<div class="bt-card"><div><strong>' + escapeHtml(st.device) + '</strong><small>' + escapeHtml(st.mac) + '</small></div><button class="chip" onclick="disconnectBT()">Disconnect</button></div>' :
+      '<div class="empty-msg">Configured JBL is not connected. Power it on and check pairing.</div>';
+  } catch (error) {
+    document.getElementById('bt-status-text').textContent = error.message;
+  }
+}
+
+async function disconnectBT() {
+  try {
+    const result = await api('POST', '/api/bt/disconnect');
+    if (result.error) throw new Error(result.error);
+    await loadBluetooth();
+  } catch (error) {
+    document.getElementById('bt-device-text').textContent = error.message;
+  }
+}
+
+async function scanBluetooth() {
+  document.getElementById('bt-status-text').textContent = 'Connecting configured JBL...';
+  try {
+    const result = await api('POST', '/api/bt/connect');
+    if (result.error) throw new Error(result.error);
+    await loadBluetooth();
+  } catch (error) {
+    document.getElementById('bt-status-text').textContent = 'Connection failed';
+    document.getElementById('bt-device-text').textContent = error.message;
+  }
+}
+
+// Original, local messages. Only explicit choices are stored; never viewing time.
+const quoteCategories = { love: 'Love', rest: 'Rest', kindness: 'Kindness', courage: 'Courage' };
+const comfortQuotes = [
+  ['love-1', 'love', 'You don’t have to earn tenderness by having a perfect day.'],
+  ['love-2', 'love', 'There is room for the real you, not just the version that has everything together.'],
+  ['love-3', 'love', 'A gentle moment together can be enough. It doesn’t have to be perfect.'],
+  ['love-4', 'love', 'You deserve affection that leaves room for your voice, your choices, and your own pace.'],
+  ['love-5', 'love', 'Being cared for doesn’t mean you have to stop being yourself.'],
+  ['love-6', 'love', 'You are more than what you can do for someone. Your company is a gift, too.'],
+  ['rest-1', 'rest', 'A small pause is allowed. You don’t have to finish everything today.'],
+  ['rest-2', 'rest', 'For this moment, it is enough to be here. The next thing can wait a little.'],
+  ['rest-3', 'rest', 'Rest is not something you have to deserve. You are allowed to need it.'],
+  ['rest-4', 'rest', 'You can put one thing down without giving up on everything.'],
+  ['rest-5', 'rest', 'A slower day can still be a meaningful day.'],
+  ['rest-6', 'rest', 'There is no deadline for feeling ready. Let this moment be small.'],
+  ['kindness-1', 'kindness', 'You deserve kindness on the days that feel untidy, too.'],
+  ['kindness-2', 'kindness', 'Try speaking to yourself as gently as you would to someone you love.'],
+  ['kindness-3', 'kindness', 'Your feelings don’t need a perfect explanation to deserve care.'],
+  ['kindness-4', 'kindness', 'One difficult moment is not the whole story of who you are.'],
+  ['kindness-5', 'kindness', 'It is okay to ask for company, and it is okay to ask for space.'],
+  ['kindness-6', 'kindness', 'You can be a work in progress and worthy of warmth at the same time.'],
+  ['courage-1', 'courage', 'One small step counts, even when nobody else notices it.'],
+  ['courage-2', 'courage', 'You are free to say what you need, and to take your time.'],
+  ['courage-3', 'courage', 'Starting again can be quiet. It can be as small as trying one thing differently.'],
+  ['courage-4', 'courage', 'You don’t have to feel certain before asking someone you trust for support.'],
+  ['courage-5', 'courage', 'Changing your mind can be a way of listening to yourself.'],
+  ['courage-6', 'courage', 'Today’s effort doesn’t have to look like yesterday’s to matter.'],
+].map(([id, category, text]) => ({ id, category, text }));
+const quoteStorageKey = 'aysha.comfort.v1';
+const quoteState = { loaded: false, category: 'all', currentId: 'love-1', saved: [], more: {}, personalize: false, storageAvailable: true };
+
+function initializeQuotes() {
+  if (!quoteState.loaded) {
+    quoteState.loaded = true;
+    try {
+      const raw = localStorage.getItem(quoteStorageKey);
+      if (raw && raw.length <= 8000) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.version === 1) {
+          const validIds = new Set(comfortQuotes.map(q => q.id));
+          quoteState.saved = Array.isArray(saved.saved)
+            ? [...new Set(saved.saved.filter(id => validIds.has(id)))].slice(0, comfortQuotes.length) : [];
+          quoteState.personalize = saved.personalize === true;
+          for (const category of Object.keys(quoteCategories)) {
+            const count = saved.more && saved.more[category];
+            if (Number.isInteger(count) && count >= 0 && count <= 8) quoteState.more[category] = count;
+          }
+        }
+      }
+    } catch (_) { quoteState.storageAvailable = false; }
+  }
+  renderQuote();
+}
+
+function persistQuoteChoices() {
+  try {
+    localStorage.setItem(quoteStorageKey, JSON.stringify({ version: 1, saved: quoteState.saved, more: quoteState.more, personalize: quoteState.personalize }));
+    quoteState.storageAvailable = true;
+  } catch (_) { quoteState.storageAvailable = false; }
+}
+
+function quoteWeight(quote) {
+  if (!quoteState.personalize || quoteState.category !== 'all') return 1;
+  const savedInCategory = quoteState.saved.filter(id => comfortQuotes.find(q => q.id === id)?.category === quote.category).length;
+  return 1 + Math.min(8, savedInCategory * 2 + (quoteState.more[quote.category] || 0));
+}
+
+function quotePool() {
+  return comfortQuotes.filter(q => quoteState.category === 'all' ||
+    (quoteState.category === 'saved' ? quoteState.saved.includes(q.id) : q.category === quoteState.category));
+}
+
+function nextQuote(random = Math.random) {
+  let pool = quotePool();
+  if (pool.length > 1) pool = pool.filter(q => q.id !== quoteState.currentId);
+  if (!pool.length) { quoteState.currentId = null; renderQuote(); return; }
+  const total = pool.reduce((sum, q) => sum + quoteWeight(q), 0);
+  let pick = Math.max(0, Math.min(0.999999, random())) * total;
+  let chosen = pool[pool.length - 1];
+  for (const quote of pool) {
+    pick -= quoteWeight(quote);
+    if (pick < 0) { chosen = quote; break; }
+  }
+  quoteState.currentId = chosen.id;
+  renderQuote();
+}
+
+function filterQuotes(category) {
+  if (!['all', 'saved', ...Object.keys(quoteCategories)].includes(category)) return;
+  quoteState.category = category;
+  nextQuote();
+}
+
+function renderQuote() {
+  const quote = comfortQuotes.find(q => q.id === quoteState.currentId);
+  const saved = !!quote && quoteState.saved.includes(quote.id);
+  document.getElementById('quote-category-label').textContent = quote ? quoteCategories[quote.category] : 'Your saved words';
+  document.getElementById('quote-text').textContent = quote ? quote.text : 'A little collection of kindness, ready when you are. Save a message from any category to find it here.';
+  document.getElementById('quote-save').disabled = !quote;
+  document.getElementById('quote-save').setAttribute('aria-pressed', String(saved));
+  document.getElementById('quote-save-label').textContent = saved ? 'Saved' : 'Save quote';
+  document.getElementById('quote-saved-count').textContent = quoteState.saved.length;
+  document.getElementById('quote-next').disabled = quotePool().length === 0;
+  document.getElementById('quote-more').disabled = !quote || !quoteState.personalize;
+  document.getElementById('quote-personalize').checked = quoteState.personalize;
+  document.getElementById('quote-selection-note').textContent = quoteState.personalize
+    ? 'The “For you” mix favors categories you explicitly save or choose, with a little variety. No mood or viewing tracking.'
+    : 'An untailored mix of gentle messages. Enable optional personalization below to use “More like this”.';
+  document.getElementById('quote-storage-status').textContent = quoteState.storageAvailable
+    ? '' : 'Browser storage is unavailable or could not be read. Your choices work on this page, but may not survive a reload.';
+  document.querySelectorAll('[data-quote-category]').forEach(button => {
+    const active = button.dataset.quoteCategory === quoteState.category;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function toggleQuoteSave() {
+  const quote = comfortQuotes.find(q => q.id === quoteState.currentId);
+  if (!quote) return;
+  quoteState.saved = quoteState.saved.includes(quote.id)
+    ? quoteState.saved.filter(id => id !== quote.id) : [...quoteState.saved, quote.id];
+  persistQuoteChoices();
+  if (quoteState.category === 'saved' && !quoteState.saved.includes(quote.id)) nextQuote();
+  else renderQuote();
+}
+
+function setQuotePersonalization(enabled) {
+  quoteState.personalize = enabled === true;
+  persistQuoteChoices();
+  renderQuote();
+}
+
+function moreQuotesLikeThis() {
+  if (!quoteState.personalize) return;
+  const quote = comfortQuotes.find(q => q.id === quoteState.currentId);
+  if (!quote) return;
+  quoteState.more[quote.category] = Math.min(8, (quoteState.more[quote.category] || 0) + 1);
+  persistQuoteChoices();
+  renderQuote();
+  if (quoteState.storageAvailable) document.getElementById('quote-storage-status').textContent = 'More ' + quoteCategories[quote.category].toLowerCase() + ' in your “For you” mix. You can reset this anytime.';
+}
+
+function resetQuotePreferences() {
+  quoteState.saved = [];
+  quoteState.more = {};
+  quoteState.personalize = false;
+  quoteState.category = 'all';
+  quoteState.currentId = 'love-1';
+  try { localStorage.removeItem(quoteStorageKey); quoteState.storageAvailable = true; }
+  catch (_) { quoteState.storageAvailable = false; }
+  renderQuote();
+  document.getElementById('quote-storage-status').textContent = quoteState.storageAvailable
+    ? 'Saved quotes and preferences deleted. Personalization is off.'
+    : 'Reset for this page only. Browser storage could not be cleared; saved choices may return after reload.';
+}
+
+const appTabs = ['home', 'explore', 'library', 'quotes', 'bluetooth'];
+let currentTab = 'home';
+const tabScroll = new Map();
+const loadedTabs = new Set();
+
+function renderTab(tab, options = {}) {
+  if (!appTabs.includes(tab)) tab = 'home';
+  const content = document.getElementById('content-area');
+  tabScroll.set(currentTab, content.scrollTop || 0);
+  document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(nav => { nav.classList.remove('active'); nav.removeAttribute('aria-current'); });
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).setAttribute('aria-current', 'page');
+  currentTab = tab;
+  content.scrollTop = tabScroll.get(tab) || 0;
+  showMessage('');
+  if (tab === 'quotes') { initializeQuotes(); return; }
+  // After reloading a deep link, Back may enter a tab this document has never
+  // loaded. Preserve existing views, but fetch missing content on that return.
+  if (options.load === false && loadedTabs.has(tab)) return;
+  let work;
+  if (tab === 'bluetooth') work = loadBluetooth();
+  else if (tab === 'library') work = loadLiked();
+  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Jazz');
+  loadedTabs.add(tab);
+  if (work) Promise.resolve(work).catch(error => {
+    loadedTabs.delete(tab);
+    document.querySelectorAll('[aria-busy="true"]').forEach(el => el.setAttribute('aria-busy', 'false'));
+    showMessage(error.message + ' — tap the tab to retry.');
+  });
+}
+
+function switchTab(tab, options = {}) {
+  if (!appTabs.includes(tab)) return;
+  if (currentTab !== tab) {
+    const depth = (history.state && history.state.ayshaDepth || 0) + 1;
+    history.pushState({ ayshaTab: tab, ayshaDepth: depth }, '', '#' + tab);
+  }
+  renderTab(tab, options);
+}
+
+function goBack() {
+  if (history.state && history.state.ayshaDepth > 0) history.back();
+  else if (currentTab !== 'home') {
+    history.replaceState({ ayshaTab: 'home', ayshaDepth: 0 }, '', '#home');
+    renderTab('home');
+  } else showMessage('You’re home. Choose a song or explore something new.');
+}
+
+function formatClock(value) {
+  if (!Number.isFinite(value) || value < 0) return '0:00';
+  return Math.floor(value / 60) + ':' + String(Math.floor(value % 60)).padStart(2, '0');
+}
+
+function syncNowPlaying() {
+  const track = state.current_track;
+  const audio = document.getElementById('audio-player');
+  renderFavoriteState();
+  renderCurrentSongScore();
+  document.getElementById('full-title').textContent = track ? track.title : 'Your next favorite is waiting.';
+  document.getElementById('full-artist').textContent = track ? track.artist : 'Choose a song from Home or Explore.';
+  document.getElementById('full-output').textContent = state.playMode === 'bt' ? 'Home Bluetooth speaker' : 'This device';
+  const artwork = document.getElementById('hero-art').src;
+  if (document.getElementById('full-art').src !== artwork) document.getElementById('full-art').src = artwork;
+  document.getElementById('full-elapsed').textContent = formatClock(audio.currentTime);
+  document.getElementById('full-duration').textContent = Number.isFinite(audio.duration) ? formatClock(audio.duration) : 'Streaming audio';
+  document.getElementById('full-progress').style.width = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.min(100, audio.currentTime / audio.duration * 100) + '%' : '0%';
+  document.getElementById('full-volume').value = state.volume;
+}
+
+function openNowPlaying() {
+  const dialog = document.getElementById('now-playing');
+  if (dialog.open) return;
+  syncNowPlaying();
+  history.pushState({ ayshaTab: currentTab, ayshaDepth: (history.state && history.state.ayshaDepth || 0) + 1, ayshaPlayer: true }, '', '#' + currentTab + '/playing');
+  dialog.showModal();
+  renderRatingPrompt();
+  if (state.current_track && !favoritesLoaded) refreshFavorites().catch(error => songFeedback('Could not load favorites: ' + error.message));
+}
+
+function closeNowPlaying() {
+  if (history.state && history.state.ayshaPlayer) history.back();
+  else document.getElementById('now-playing').close();
+}
+
+function queueFromPlayer() {
+  document.getElementById('now-playing').close();
+  history.replaceState({ ayshaTab: 'library', ayshaDepth: history.state && history.state.ayshaDepth || 0 }, '', '#library');
+  renderTab('library');
+}
+
+function initializeNavigation() {
+  const requested = location.hash.slice(1).split('/')[0];
+  const tab = appTabs.includes(requested) ? requested : 'home';
+  history.replaceState({ ayshaTab: tab, ayshaDepth: 0 }, '', '#' + tab);
+  window.addEventListener('popstate', event => {
+    const dialog = document.getElementById('now-playing');
+    const next = event.state || { ayshaTab: 'home' };
+    if (dialog.open && !next.ayshaPlayer) dialog.close();
+    renderTab(next.ayshaTab || 'home', { load: false });
+    if (next.ayshaPlayer && !dialog.open) { syncNowPlaying(); dialog.showModal(); }
+    renderRatingPrompt();
+  });
+  document.getElementById('now-playing').addEventListener('cancel', event => { event.preventDefault(); closeNowPlaying(); });
+  renderTab(tab);
+}
+
+async function pollStatus() {
+  try {
+    const st = await api('GET', '/api/status');
+    // Global server metadata is not evidence that this browser has an audio
+    // source. Never replace an existing local selection with another device's.
+    if (st.current_track && !state.current_track) {
+      state.current_track = st.current_track;
+      state.playMode = 'browser';
+      state.stopped = true;
+      renderSelection(state.current_track);
+      saveSelection();
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = 'Press Play to start on this device';
+    } else if (state.playMode === 'bt' && !state.stopped && st.current_track &&
+               st.current_track.id === state.current_track.id) {
+      state.volume = st.volume * 100;
+      setPlayingState(st.is_playing);
+    }
+    if (st.queue_len !== undefined) {
+      document.getElementById('queue-count').textContent = st.queue_len;
+    }
+
+    syncNowPlaying();
+    // Read playback position from the HTML5 audio element (client-side)
+    const audio = document.getElementById('audio-player');
+    if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+      durationSec = audio.duration;
+      const pct = (audio.currentTime / audio.duration) * 100;
+      document.getElementById('progress-bar').style.width = pct + '%';
+      const m1 = Math.floor(audio.currentTime / 60), s1 = Math.floor(audio.currentTime % 60);
+      const m2 = Math.floor(audio.duration / 60), s2 = Math.floor(audio.duration % 60);
+      document.getElementById('time-display').textContent = m1 + ':' + (s1 < 10 ? '0' : '') + s1 + ' / ' + m2 + ':' + (s2 < 10 ? '0' : '') + s2;
+
+    } else if (state.is_playing && !audio.error) {
+      document.getElementById('time-display').textContent = 'Loading...';
+    }
+  } catch (e) {}
+}
+setInterval(pollStatus, 400);
+
+document.getElementById('audio-player').addEventListener('ended', function() {
+  if (state.playMode === 'browser' && !state.stopped) {
+    askForSongRating(state.current_track);
+    setPlayingState(false);
+    nextTrack();
+  }
+});
+
+document.getElementById('audio-player').addEventListener('error', function() {
+  if (state.playMode !== 'browser') return;
+  if (state.stopped) return;
+  ++playbackAttempt;
+  state.stopped = true;
+  setPlayingState(false);
+  const code = this.error ? this.error.code : 'unknown';
+  document.getElementById('time-display').textContent = 'Audio error ' + code + ' on this device. Retry Play; if it fails, run the browser playback diagnostic.';
+});
+
+document.getElementById('now-playing').addEventListener('close', renderRatingPrompt);
+
+// PWA + MediaSession init
+if ('mediaSession' in navigator) {
+  updateMediaSession();
+}
+
+// Restore synchronously before navigation/polling; never start media on load.
+restoreSelection();
+
+// Start
+initializeNavigation();
+</script>
+</body>
+</html>

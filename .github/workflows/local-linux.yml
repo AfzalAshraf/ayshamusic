@@ -1,0 +1,159 @@
+name: Local Linux checks
+on:
+  push:
+    branches: [arena/a850fb0d-ayshamusic]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # rodio/cpal link ALSA on Linux; the runner image does not ship the headers.
+      - name: Audio dev libraries
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - name: Rust regression tests
+        run: cargo test
+      - name: Build local server
+        run: cargo build --release
+      - name: Python checker tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Embedded frontend regression tests
+        run: node --test tests/frontend.test.cjs tests/vercel-preview.test.cjs
+      - name: Linux script syntax
+        run: bash -n scripts/install_local.sh scripts/diagnose_local.sh
+  rust-audio-prototype:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prototype build and test-only media dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config ffmpeg
+      - name: Test isolated Rust audio prototype
+        run: cargo test --manifest-path prototypes/rust-audio/Cargo.toml
+      - name: Build isolated prototype
+        run: cargo build --release --manifest-path prototypes/rust-audio/Cargo.toml
+      - name: Decode fixtures and exercise null audio output
+        run: |
+          set +e
+          bash tests/rust_audio_smoke.sh prototypes/rust-audio/target/release/aysha-audio-prototype > prototype-smoke.log 2>&1
+          result=$?
+          set -e
+          cat prototype-smoke.log
+          if [[ $result -ne 0 ]]; then
+            detail=$(tail -c 8000 prototype-smoke.log)
+            detail="${detail//'%'/'%25'}"
+            detail="${detail//$'\r'/'%0D'}"
+            detail="${detail//$'\n'/'%0A'}"
+            printf '::error title=Prototype smoke failure::%s\n' "$detail"
+          fi
+          exit "$result"
+      - name: Retain resolved prototype dependency lock for reproducibility
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-audio-lock
+          path: prototypes/rust-audio/Cargo.lock
+  mobile-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test-only browser tools outside the repository
+        run: npm install --prefix "$RUNNER_TEMP/aysha-browser" --no-audit --no-fund playwright-core@1.65.0 @sparticuz/chromium@153.0.0
+      - name: Portrait layout and browser navigation
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/mobile.browser.cjs
+
+      - name: Generated Vercel static preview browser checks
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs
+
+  rust-extract-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recreate the reported existing-lock ICU conflict
+        run: bash tests/rust_extract_dependency_upgrade.sh seed
+      - name: Test isolated native extraction candidate (offline tests)
+        run: cargo test --manifest-path prototypes/rust-extract/Cargo.toml
+      - name: Verify the existing-lock dependency migration
+        run: bash tests/rust_extract_dependency_upgrade.sh verify
+      - name: Build isolated extraction candidate
+        run: cargo build --release --manifest-path prototypes/rust-extract/Cargo.toml
+      - name: Strict CLI smoke without upstream network
+        run: |
+          prototypes/rust-extract/target/release/aysha-extract-prototype --help
+          if prototypes/rust-extract/target/release/aysha-extract-prototype --video-id invalid; then exit 1; fi
+      - name: Retain prototype dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-extract-lock
+          path: prototypes/rust-extract/Cargo.lock
+
+  rust-direct-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test bounded direct-request prototype
+        run: |
+          set +e
+          cargo test --manifest-path prototypes/rust-direct/Cargo.toml > "$RUNNER_TEMP/direct-tests.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/direct-tests.log"
+          if test "$code" -ne 0; then
+            TEST_LOG="$RUNNER_TEMP/direct-tests.log" python3 - <<'PY'
+          import os
+          from pathlib import Path
+          # Offline fixture/compiler output only, never real provider data.
+          text = Path(os.environ['TEST_LOG']).read_text(errors='replace')[-2500:]
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print('::error title=Direct prototype offline test failure::' + text)
+          PY
+          fi
+          exit "$code"
+      - name: Build bounded direct-request prototype
+        run: cargo build --release --locked --manifest-path prototypes/rust-direct/Cargo.toml
+      - name: Verify dependency graph excludes extractor and JS engines
+        run: |
+          cargo tree --locked --manifest-path prototypes/rust-direct/Cargo.toml > direct-dependencies.txt
+          if grep -E 'boa_|rusty_ytdl|rquickjs|quick-js' direct-dependencies.txt; then exit 1; fi
+          prototypes/rust-direct/target/release/aysha-direct-prototype --help
+          if prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid; then exit 1; fi
+      - name: Strict opt-in context CLI smoke (offline only)
+        run: |
+          set +e
+          result=$(prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid --standard-context)
+          code=$?
+          set -e
+          test "$code" -eq 2
+          RESULT="$result" python3 - <<'PY'
+          import json, os
+          value = json.loads(os.environ['RESULT'])
+          assert value['status'] == 'fail' and value['code'] == 'invalid_arguments'
+          PY
+      # No automatic live requests: v2 host/CI stop condition was already met.
+      # V2/V3 are stopped. Approved V4 is one explicit target-host trial, not a CI live loop.
+      - name: Bootstrap CLI invalid input stays offline
+        run: |
+          set +e
+          result=$(prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid --watch-bootstrap)
+          code=$?
+          set -e
+          test "$code" -eq 2
+          RESULT="$result" python3 - <<'PY'
+          import json, os
+          value = json.loads(os.environ['RESULT'])
+          assert value['status'] == 'fail' and value['code'] == 'invalid_arguments'
+          PY
+      - name: Watch-inspect invalid input stays offline
+        run: |
+          set +e
+          prototypes/rust-direct/target/release/aysha-direct-prototype --video-id invalid --watch-inspect
+          code=$?
+          set -e
+          test "$code" -eq 2
+      - name: Retain direct prototype dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-direct-lock
+          path: prototypes/rust-direct/Cargo.lock

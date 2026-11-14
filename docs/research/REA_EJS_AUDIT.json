@@ -1,0 +1,81 @@
+{
+  "tool": {
+    "name": "rea-agents",
+    "version": "6.9.0",
+    "runtime": "Node 26.12.1",
+    "mode": "static analyze-javascript-application",
+    "installed_scope": "isolated agent research workspace, not production or host"
+  },
+  "target": {
+    "repository": "https://github.com/yt-dlp/ejs",
+    "revision": "d48c6303a5a6455a42ef9e0b445149cadea51279",
+    "selection": "package.json plus nine src TS files excluding tests; dependencies not installed/executed",
+    "artifact_sha256": "935df75cfa571c29c75fceb9627689602f50eee5f0a74f397728ab1e92d9d3cd"
+  },
+  "evidence": {
+    "parent_evidence_id": "ev_22a13a5d6a72a10a6f74a1aca0aa38192e94effc2662edac4a247e3d2e9a4cc7",
+    "statistics": {
+      "relevant_files": 10,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 14642,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 9,
+      "skipped_javascript_files": 0,
+      "visited_ast_nodes": 1895,
+      "findings": 66,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 452,
+    "source_or_bundle_execution": false
+  },
+  "limits": [
+    "Static syntax observations do not prove runtime equivalence or successful source acquisition.",
+    "Zero reconstructed modules in reported statistics; do not claim a complete dependency graph.",
+    "Selected input omits external JS dependencies and test helpers, so imports may be unresolved.",
+    "This is not the source of the user installed yt-dlp/EJS revision; host execution stages remain unobserved.",
+    "No raw local logs, cookies, signed URLs or credentials are included."
+  ],
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "44a3fdde63f957ce8bdf3e5e40af3fcee5075e84badcda5946531b0d35b83cc3"
+    },
+    {
+      "path": "src/types.ts",
+      "sha256": "ba963c5c4afd3a75783fc8821e2b8e2b96f2733bdfee0ee6774467ff09a388db"
+    },
+    {
+      "path": "src/utils.ts",
+      "sha256": "3391b11201e4567aa5bd049672c311750f22a386c480c55ea4ecc926569b9982"
+    },
+    {
+      "path": "src/yt/solver/dynamic.lib.ts",
+      "sha256": "655bdf420e5d46f47510d2b63cc7a613be7f96919319e1c05e288689bd1cb21c"
+    },
+    {
+      "path": "src/yt/solver/extract.ts",
+      "sha256": "3d947526e68795c9dfcfd7fea75a7f1d2cc265b5812280422f5f3bdd0fe9ad6f"
+    },
+    {
+      "path": "src/yt/solver/lib.ts",
+      "sha256": "27d61cf1f76474cee962f3980fde7da48e258d60ee2260a1c785eca2daac2b1e"
+    },
+    {
+      "path": "src/yt/solver/main.ts",
+      "sha256": "2c55d3c85d515d020bf677857ffcfab29737aae3de0e66cc0176b9151788c2e8"
+    },
+    {
+      "path": "src/yt/solver/nsig.ts",
+      "sha256": "3ff5bafded695ea85b86ce98d1d663ed556bbfd7b227e5e29526c0238dacf6ea"
+    },
+    {
+      "path": "src/yt/solver/setup.ts",
+      "sha256": "e8a6c930853be0e5a515df3cceb271c0d9ab6e139438660d4267913f6de6aca1"
+    },
+    {
+      "path": "src/yt/solver/solvers.ts",
+      "sha256": "f1bec5945a4c8184e5a06abc9c2e76520109285c076934dca0d16f4105b99aea"
+    }
+  ]
+}

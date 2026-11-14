@@ -1,0 +1,396 @@
+{
+  "schema": 1,
+  "scope": "user_supplied_target_host_observations_not_a_live_probe",
+  "video_id": "Jm7Satp7Zqk",
+  "latest_native": {
+    "source_revision": "04e3f8b",
+    "candidate": "aysha-direct-v5.1-static-wrapper",
+    "debug_build_passed": true,
+    "build_profile": "debug",
+    "debug_build_seconds": 3.16,
+    "status": "fail",
+    "code": "watch_visitor_missing",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 10632,
+    "watch_parser_only": false,
+    "player_requested": false,
+    "media_requested": false,
+    "production_ready": false,
+    "watch_observation": {
+      "config_objects": 1,
+      "config_visitor_present": false,
+      "context_visitor_present": false,
+      "ignored_script_tails": 35,
+      "initial_players": 1,
+      "inline_scripts": 38,
+      "player_visitor_present": false,
+      "skipped_script_attributes": 10,
+      "wrapped_config_blocks": 0
+    }
+  },
+  "previous_native": {
+    "source_revision": "39dd9fe",
+    "candidate": "aysha-direct-v5-data-literals",
+    "debug_build_passed": true,
+    "build_profile": "debug",
+    "debug_build_seconds": 1.64,
+    "status": "fail",
+    "code": "watch_visitor_missing",
+    "stage": "watch",
+    "external_tools": false,
+    "peak_rss_kib": 10884,
+    "watch_parser_only": false,
+    "player_requested": false,
+    "media_requested": false,
+    "production_ready": false
+  },
+  "baseline_trace": {
+    "source_revision": "93c7849",
+    "status": "pass",
+    "bytes": 65536,
+    "total_ms": 4242.01,
+    "sampled_group_peak_rss_kib": 98672,
+    "client_request_markers": [
+      "visionos"
+    ],
+    "webpage_request_marker_seen": true,
+    "js_provider_markers": [],
+    "classification_truncated": false
+  },
+  "stop_identical_native_trials": true,
+  "limits": "Historical attempts, not simultaneous controlled comparison. Failed-request RSS is not successful extraction, playback or whole-server memory. Baseline markers do not prove selected-media client or absence of JS. Bootstrap cause/solution unproved.",
+  "approved_experiment": {
+    "candidate": "aysha-direct-v5.1-static-wrapper",
+    "approval_recorded": true,
+    "status": "completed_failed_stop_live_retries",
+    "host_result_recorded": true,
+    "scope": "same_approved_bounded_anonymous_chain_with_exact_static_wrapper_scaffold_and_value_free_observations_no_execution"
+  },
+  "historical_native": [
+    {
+      "candidate": "aysha-direct-v2-visionos",
+      "status": "fail",
+      "code": "player_bot_check",
+      "peak_rss_kib": 4404
+    },
+    {
+      "source_revision": "b2efd81",
+      "candidate": "aysha-direct-v3-standard-context",
+      "tests_passed": 11,
+      "release_build_passed": true,
+      "status": "fail",
+      "code": "player_bot_check",
+      "peak_rss_kib": 4404,
+      "production_ready": false
+    },
+    {
+      "source_revision": "120c5fe",
+      "candidate": "aysha-direct-v4-watch-bootstrap",
+      "tests_passed": 21,
+      "release_build_passed": true,
+      "release_build_seconds": 18.45,
+      "status": "fail",
+      "code": "watch_literal_invalid",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 5764,
+      "production_ready": false
+    },
+    {
+      "source_revision": "5dd69ff",
+      "candidate": "aysha-direct-v4.1-watch-literals",
+      "tests_passed": 25,
+      "release_build_passed": true,
+      "release_build_seconds": 18.6,
+      "status": "fail",
+      "code": "watch_config_invalid",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 6016,
+      "production_ready": false
+    },
+    {
+      "source_revision": "39dd9fe",
+      "candidate": "aysha-direct-v5-data-literals",
+      "debug_build_passed": true,
+      "build_profile": "debug",
+      "debug_build_seconds": 1.64,
+      "status": "fail",
+      "code": "watch_visitor_missing",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10884,
+      "watch_parser_only": false,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
+    }
+  ],
+  "pending_diagnostic": {
+    "candidate": "aysha-direct-v5.2-coverage-only",
+    "status": "completed_no_new_request_authorized",
+    "scope": "ONE_approved_watch_GET_with_fixed_coverage_counts_never_player_or_media",
+    "external_tools": false
+  },
+  "latest_diagnostic": {
+    "source_revision": "3839d5c",
+    "candidate": "aysha-direct-v5.2-coverage-only",
+    "debug_build_passed": true,
+    "debug_build_seconds": 1.62,
+    "build_profile": "debug",
+    "status": "fail",
+    "code": "watch_visitor_missing",
+    "external_tools": false,
+    "media_requested": false,
+    "peak_rss_kib": 11104,
+    "player_requested": false,
+    "production_ready": false,
+    "stage": "watch",
+    "watch_parser_only": true,
+    "watch_observation": {
+      "config_objects": 1,
+      "config_visitor_present": false,
+      "context_visitor_present": false,
+      "initial_players": 1,
+      "player_visitor_present": false,
+      "inline_scripts": 38,
+      "ignored_script_tails": 35,
+      "skipped_script_attributes": 11,
+      "wrapped_config_blocks": 0,
+      "coverage": {
+        "declaration_prefixes": 5,
+        "parenthesis_prefixes": 8,
+        "window_prefixes": 3,
+        "other_prefixes": 19,
+        "ignored_tails": {
+          "inspected": 35,
+          "nonempty": 35,
+          "with_raw_visitor_name": 2,
+          "with_raw_ytcfg_name": 4
+        },
+        "parsed_config_objects": {
+          "inspected": 1,
+          "nonempty": 1,
+          "with_raw_visitor_name": 0,
+          "with_raw_ytcfg_name": 0
+        },
+        "parsed_initial_players": {
+          "inspected": 1,
+          "nonempty": 1,
+          "with_raw_visitor_name": 0,
+          "with_raw_ytcfg_name": 0
+        },
+        "skipped_attribute_bodies": {
+          "inspected": 11,
+          "nonempty": 3,
+          "with_raw_visitor_name": 0,
+          "with_raw_ytcfg_name": 0
+        }
+      }
+    }
+  },
+  "historical_diagnostics": [
+    {
+      "source_revision": "1bae4b4",
+      "candidate": "aysha-direct-v4.2-config-diagnostic",
+      "tests_passed": 28,
+      "build_profile": "debug",
+      "debug_build_passed": true,
+      "status": "fail",
+      "code": "watch_config_json_syntax",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10848,
+      "watch_parser_only": true,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
+    },
+    {
+      "source_revision": "127817d",
+      "candidate": "aysha-direct-v4.3-syntax-diagnostic",
+      "debug_build_passed": true,
+      "build_profile": "debug",
+      "status": "fail",
+      "code": "watch_config_json_expected_value",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10964,
+      "watch_parser_only": true,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
+    },
+    {
+      "source_revision": "5142200",
+      "candidate": "aysha-direct-v4.4-metadata-guard",
+      "debug_build_passed": true,
+      "build_profile": "debug",
+      "debug_build_seconds": 1.55,
+      "status": "fail",
+      "code": "watch_config_js_single_quote",
+      "stage": "watch",
+      "external_tools": false,
+      "peak_rss_kib": 10928,
+      "watch_parser_only": true,
+      "player_requested": false,
+      "media_requested": false,
+      "production_ready": false
+    }
+  ],
+  "review_required": {
+    "status": "offline_only",
+    "next": "offline_reproduce_ignored_watch_source_before_native_replacement",
+    "reason": "raw_visitor_names_only_in_ignored_tails_no_trusted_visitor_and_working_service_budget_failed",
+    "native_bootstrap_retry_authorized": false
+  },
+  "latest_offline_host_review": {
+    "source_revision": "efde115",
+    "status": "blocked",
+    "code": "native_acquisition_not_demonstrated",
+    "network_executed": false,
+    "native_executed": false,
+    "next": "offline_source_coverage_review_no_live_retry",
+    "host_result_recorded": true
+  },
+  "prepared_diagnostic": {
+    "candidate": "aysha-direct-v5.2-coverage-only",
+    "status": "completed_watch_visitor_missing_no_live_retry",
+    "approval_recorded": true,
+    "scope": "one_additional_watch_only_GET_fixed_region_marker_counts_no_player_media_raw_output_or_parser_relaxation",
+    "guide": "docs/research/WATCH_COVERAGE_DIAGNOSTIC.md",
+    "verification": {
+      "source_revision": "02e1173",
+      "ci_run": 43415804715,
+      "ci_jobs_passed": 5,
+      "rust_tests_passed": 62,
+      "python_tests_passed": 84
+    },
+    "host_fixture_verification": {
+      "source_revision": "f207206",
+      "command_kind": "cargo_test_filter_coverage_",
+      "status": "pass",
+      "tests_passed": 7,
+      "tests_failed": 0,
+      "tests_filtered_out": 55,
+      "compile_seconds": 2.54,
+      "test_seconds": 0.12,
+      "provider_requests": false,
+      "player_requested": false,
+      "media_requested": false,
+      "normal_cli_binary_build_verified": false,
+      "cached_repeat": {
+        "tests_passed": 7,
+        "tests_failed": 0,
+        "tests_filtered_out": 55,
+        "compile_seconds": 0.1,
+        "test_seconds": 0.12,
+        "provider_requests": false
+      }
+    },
+    "approval_basis": "user_explicitly_requests_real_server_download_play_stream_and_budget_checks_after_fixture_results; limited_to_prepared_one_watch_only_request_and_read_only_running_service_sampling",
+    "host_result_recorded": true
+  },
+  "requested_budget_check": {
+    "scope": "read_only_service_cgroup_and_descendants_during_user_controlled_normal_playback_lower_bound_only",
+    "upper_limits_bytes": {
+      "15_MB": 15000000,
+      "15_MiB": 15728640
+    },
+    "boundary_and_units_finalized": false,
+    "playback_started_by_checker": false,
+    "host_result_recorded": true,
+    "verification": {
+      "source_revision": "891b1c9",
+      "ci_run": 43417518725,
+      "ci_jobs_passed": 5,
+      "python_tests_passed": 100,
+      "rust_direct_tests_passed": 62,
+      "host_budget_result_recorded": true
+    },
+    "checkout_revision": "3839d5c",
+    "installed_running_revision_verified": false,
+    "host_observations": [
+      {
+        "schema": 1,
+        "candidate": "aysha-service-playback-budget-v1",
+        "status": "fail",
+        "code": "service_cgroup_alone_exceeds_both_15_MB_and_15_MiB",
+        "measurement_scope": "aysha_music_service_cgroup_and_descendants_only",
+        "samples_completed": 20,
+        "samples_requested": 20,
+        "spacing_seconds": 2,
+        "service_identity_stable": true,
+        "process_inventory_incomplete": false,
+        "audible_output_verified": false,
+        "download_or_decode_verified": false,
+        "native_acquisition_verified": false,
+        "whole_stack_accepted": false,
+        "historical_peak_bytes": 218480640,
+        "starts_playback": false,
+        "upstream_requested": false,
+        "builds_run": false,
+        "playing_flag_start": false,
+        "playing_flag_end": true,
+        "sampled_max_current_bytes": 100941824,
+        "sampled_max_swap_bytes": 913408,
+        "process_rss_buckets": {
+          "music-server": {
+            "max_count": 1,
+            "max_rss_bytes": 13381632
+          },
+          "yt-dlp": {
+            "max_count": 1,
+            "max_rss_bytes": 71188480
+          },
+          "other": {
+            "max_count": 1,
+            "max_rss_bytes": 4542464
+          }
+        }
+      },
+      {
+        "schema": 1,
+        "candidate": "aysha-service-playback-budget-v1",
+        "status": "fail",
+        "code": "service_cgroup_alone_exceeds_both_15_MB_and_15_MiB",
+        "measurement_scope": "aysha_music_service_cgroup_and_descendants_only",
+        "samples_completed": 20,
+        "samples_requested": 20,
+        "spacing_seconds": 2,
+        "service_identity_stable": true,
+        "process_inventory_incomplete": false,
+        "audible_output_verified": false,
+        "download_or_decode_verified": false,
+        "native_acquisition_verified": false,
+        "whole_stack_accepted": false,
+        "historical_peak_bytes": 218480640,
+        "starts_playback": false,
+        "upstream_requested": false,
+        "builds_run": false,
+        "playing_flag_start": true,
+        "playing_flag_end": true,
+        "sampled_max_current_bytes": 101171200,
+        "sampled_max_swap_bytes": 905216,
+        "process_rss_buckets": {
+          "music-server": {
+            "max_count": 1,
+            "max_rss_bytes": 13381632
+          },
+          "yt-dlp": {
+            "max_count": 1,
+            "max_rss_bytes": 71299072
+          }
+        }
+      }
+    ]
+  },
+  "replacement_request": {
+    "user_requests_all_rust_upgrade": true,
+    "installation_condition": "only_after_actual_native_acquisition_decode_audio_controls_discovery_recovery_and_whole_budget_acceptance",
+    "replacement_authorized_now": false,
+    "current_candidate_ready": false,
+    "working_service_preserved": true
+  }
+}
