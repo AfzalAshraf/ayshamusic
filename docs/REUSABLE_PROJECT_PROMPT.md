@@ -114,3 +114,34 @@ https://github.com/AfzalAshraf/ayshamusic/actions/runs/43592475037/artifacts/141
 Extract `app-release.apk`; open **Aysha Music Audio Fix**. Physical-phone crash
 resolution and audibility remain unverified. Recheck current repository/CI if this
 prompt is reused later; artifact links expire and are not production releases.
+
+## Subsequent requirements — supersedes the earlier handoff's current task
+
+A later screenshot of9f7f9d0 shows `audio decode failed: The format of the data has
+not been recognized.` The Reset learning explanation/button was rejected and
+removed. Keep learning invisible on Now Playing.
+
+The user has now explicitly approved a Rust Telegram user-account feature:
+**Saved Messages**, save every complete downloaded selected song **even after a
+skip**, replay from Telegram first with **automatic YouTube fallback**, and
+**guided in-app setup** for the user's own developer API credentials. Do not ask
+for API hashes, login codes or passwords in chat. Configuration/login goes in
+Library → Telegram account. No bot, another user's chat or hosted Aysha helper.
+
+Sources de0ab69/77f0584/9873765/99972a3 reconnect bounded seekable MP4/AAC range
+input and ready-PCM decoding, preserve Android context/R8 and the main media client
+fix, add private in-app account setup and Saved Messages upload/search/message-ID
+index/range replay, bound cache/retry/connection work, and honor Stop during source
+preparation. Full archive downloads may duplicate a transfer and continue after
+skips as approved; account status exposes pending/failed work. Do not silently add
+unlimited disk/data use. See docs/TELEGRAM_SAVED_MESSAGES.md for exact limits and
+startup-vs-midstream fallback behavior. Read the latest QA ledger for current CI
+and APK links; older artifacts above do not contain these changes. Physical phone
+sound and real account upload/replay still require actual verification.
+
+Latest delivered integration artifact: source99972a3, **Aysha Music Telegram
+1.3.0-preview/code8**, Android43594634691PASS, Linux43594634703all5PASS,
+98Node/137PythonPASS. Download:
+https://github.com/AfzalAshraf/ayshamusic/actions/runs/43594634691/artifacts/14113683577
+Phone sound and actual account save/replay remain unverified. No public release
+was overwritten. Setup details are in docs/TELEGRAM_SAVED_MESSAGES.md.

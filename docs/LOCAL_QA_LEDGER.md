@@ -2178,3 +2178,141 @@ has not been recognized.** The displayed error is no longer the older no-AAC
 resolver report. The app is open in this screenshot, but this is not proof all
 crashes are fixed or audio works. This scoped UI edit does not change the decoder,
 provider or media path, and does not hide the error. Decode failure remains OPEN.
+
+## Follow-up — seekable AAC input and approved Telegram user-account archive
+
+**Active department: QA/debugging and scoped implementation of the approved flow.**
+User requests the actual fixed APK, further playback correction, personal Telegram
+storage/replay and explicitly says to ask instead of assume. Existing screenshot
+`image-3.png` identifies9f7f9d0 and an unrecognized-format decode error. Not audible
+acceptance. No new crash stack or song response bytes were supplied.
+
+### Explicit user choices (ask_user)
+
+- `telegram_destination=saved_messages`: own Saved Messages, no bot/channel.
+- `telegram_save_trigger=every_selected`: complete selected downloads and save even
+  after a skip; additional data/temporary storage explained in the question.
+- `telegram_fallback=youtube_fallback`: prefer saved Telegram media, otherwise
+  automatically try YouTube.
+- `telegram_credentials=guided_setup`: in-app guidance and credential entry, not an
+  assumption of bundled API credentials. No secret/code/password requested in chat.
+
+An Arena Telegram connector lookup returned unsupported. The app feature does not
+use/require an Arena connector: it uses the already-approved Rust grammers MTProto
+client directly on the phone. No external Aysha service, Java extractor or bot.
+
+### Decoder correction and evidence
+
+The 1.2.1 integration had left old branch range/PCM modules unwired and used main's
+nonseekable FIFO input. Main's successful full-file/Cursor decode test was not proof
+that its FIFO could demux tail-index MP4. Reconnected `range_media`/`pcm_stream`,
+known byte length/seekable AAC decoding, dedicated network/decode threads and bounded
+ready-PCM queue. Starvation inserts silence without advancing music position.
+Canceling a full PCM queue releases its worker. Status generations prevent stale
+work replacing current state; Stop cancels source handoff even during resolution.
+
+Android CI now generates real front-index and tail-index AAC fixtures. Its test
+reproduces the old nonseekable tail-index failure, then decodes non-silent samples
+through the new seekable range reader. This is a reproduced defect with real AAC,
+not a confirmed inspection of the phone's selected-song bytes. Both initial draft
+and final host-Rust CI steps passed; final full build outcome recorded below.
+
+Main1.2.1 persistent visitor/resolver and API/media-client separation are preserved.
+Native playback now uses validated64KiB range requests, with a12s per-request
+budget, not a12s whole-track timer. Full archive downloads use main's no-total-
+timeout media client, with a separate15minute archive-operation budget. No live
+provider/watch/client-version/auth/proof experiments or codecs/helpers added.
+The old FIFO pump is an opt-in diagnostic only; native playback does not use it.
+Android context/GlobalRef/R8 fixes retained. Default Linux source/service unchanged.
+
+### Telegram implementation and bounds
+
+- Library-only account dialog: official my.telegram.org/apps guidance, in-app
+  API ID/hash save, phone/code/optional2FA sign-in, connection/upload status and
+  disconnect. No player reset-learning block or mood picker. API/hash/code/password
+  fields are not saved in browser storage and sensitive inputs clear after requests
+  and modal close, including failure paths. No secrets logged/committed.
+- API credentials/session private atomic0600 writes, backup disabled. MTProto auth
+  session persists, not the login code or 2FA password. App-private JSON is not
+  Android Keystore encryption; Saved Messages is not end-to-end encrypted.
+- Validated video ID → persisted Saved Messages message-ID index; fetch fresh message
+  references first. Bounded search fallback accepts only exact first-line
+  `#yt_<video_id>` markers, in self-user Saved Messages. Never search another chat.
+- Telegram media aligned-chunk fetching implements the same seekable-reader trait;
+  no full-file-in-RAM replay. Connection/search is within a15s budget. Startup
+  lookup/read/decode failure falls back to normal YouTube. Mid-track read failures
+  remain visible; seamless mid-track source resume is not implemented/claimed.
+- Successfully prepared YouTube tracks enqueue metadata. A sequential persistent
+  worker waits for account setup/authorization, checks duplicate saves, downloads
+  the full file (even after skips), verifies length/decodability and uploads the
+  exact AAC file as a Saved Messages document. It can download a second full copy;
+  this data cost is disclosed in the account dialog and guide.
+- 400MiB cache retained,64MiB per-file guard, at most20 pending/uploading tracks;
+  queue-full/error warning exposed in account status. App limiter18uploads/hour,
+  minimum12s between files, actual FloodWait handling, at most3retries. Not a claim
+  of Telegram's permitted throughput. Pending files protected; completed files can
+  be evicted/reserve space for new downloads. Startup removes old partial files.
+  Partial/truncated/undecodable files are never uploaded as successful saves.
+- Saved message IDs recorded on success; deleted saves can be recreated, completed/
+  failed queue records requeued on a later explicit play. Revocation on disconnect
+  is attempted before clearing local session/queue/index; uploaded messages are
+  not deleted. A failed revocation is reported, with work paused for retry.
+  Remaining disk cache/API developer settings may remain app-private.
+- Every selected song cannot be guaranteed a cloud save when quota/storage/queue/
+  provider/account/background restrictions prevent it; these are visible states,
+  not silently fabricated successful uploads. No OS background/force-stop guarantee.
+
+### Source and local checks
+
+Implementation de0ab69, message-index/cache/privacy tests77f0584, PCM/source-order
+contracts9873765, bounded connection and Stop-handoff correction99972a3.
+**98 Node tests PASS / 137 Python tests PASS**, diffcheckPASS. Added front/tail AAC,
+seek/range contract, callback starvation/cancellation, private setup without network,
+Saved Messages exact match/index/deleted-save requeue/cache reservation, source
+ordering, credential routing/clearing and Stop-during-prepare checks. Host fixture
+and static tests do not constitute a real Telegram login/upload/replay or phone
+speaker test. Reusable prompt/current guide updated. User guide:
+`docs/TELEGRAM_SAVED_MESSAGES.md`.
+
+### Final candidate build manifest (source99972a3)
+
+- **Android43594634691 SUCCESS**, job132446482742,3m39s. Host phone Rust tests with
+  generated real front/tail AAC fixtures passed, Linux binary check passed, Android
+  Rust/JNI/Gradle/R8 compiled, size gate passed, artifact uploaded and Android website
+  contracts passed. No live provider/authentication/device audio in those tests.
+- **Linux43594634703 SUCCESS, all five jobs**: main Rust/server/checkers/frontend/
+  scripts, Rust audio/extract/direct prototypes and mobile/static-preview browser.
+- Final local rerun **98 Node PASS / 137 Python PASS / diffcheck PASS**. No fresh
+  physical-phone or native account-dialog visual inspection. Browser fixtures do
+  not certify real account integration, phone audio focus or background operation.
+- **1.3.0-preview/code8**, launcher **Aysha Music Telegram**, package
+  **com.afzal.ayshamusic.telegram8**, ARM64/Android8+, receipt **99972a3**. Separate
+  test package preserves old apps/data despite ephemeral CI signer; existing
+  Telegram sessions are not migrated/imported. No production signing or store claim.
+- Artifact **14113683577**, **ayshamusic-arm64-release**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43594634691/artifacts/14113683577
+  Extract `app-release.apk`. Sign-in/repository access may be required, retention14d.
+  GitHub-reported archive **4,099,582bytes**, ZIP SHA256
+  `f3c4aad1298836550b87a4b6076e412d123053cd8ed71d0204a51f0fcd43d69d`.
+  These are ZIP metadata, not APK installed size or RAM. Download attempted once
+  for this artifact; sandbox external redirect failed. No independent local APK
+  badging/signature/binary inspection claimed. No stale/partial binary attached.
+- QA **3/5**: meaningful offline decoder/range/privacy/queue and build evidence,
+  but phone audibility/provider coverage/real Telegram login-upload-stream-replay
+  and production release remain OPEN. It would be false to promise every failure
+  is solved, seamless mid-track failover, universally available songs, or store
+  readiness based on this build. Phone RAM NOT MEASURED; Linux RAM not remeasured.
+- No user Linux service install/restart, live provider/auth probe, public main APK
+  replacement, bot/account access or source bypass. Unrelated tracked pyc deletion
+  remains unstaged/preserved. Prior intermediate Android builds were canceled by
+  newer source pushes; the successful source above is the one to deliver.
+
+Phone steps: install/open the correctly named candidate; account setup is in
+Library → Telegram account, with API guidance and code/optional2FA inside the app.
+Never paste secrets here. Playback acceptance means audible music with advancing
+position, not merely native-ready. Telegram acceptance requires a real saved file
+in the user's Saved Messages and a subsequent Telegram-source replay; startup
+failure should visibly/operationally fall back to YouTube as documented. If a new
+error occurs, retain receipt and exact wrapped message rather than repeat unchanged
+installs or unrelated client/watch experiments. Old packages and main release are
+untouched for recovery; uploaded user messages are never deleted by disconnect.

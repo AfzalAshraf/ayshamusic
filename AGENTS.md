@@ -68,3 +68,22 @@ block or relocate it to another screen without a request. Screenshot9f7f9d0 now
 shows `audio decode failed: The format of the data has not been recognized.` This
 is unresolved playback evidence, not audible acceptance; this UI-only change does
 not fix or conceal that error.
+
+## Approved Telegram account archive + seekable decoder follow-up
+
+The user explicitly chose Saved Messages / save every downloaded selected song even
+when skipped / automatic YouTube fallback / guided in-app API credential setup.
+Keep strict Rust MTProto, not a bot, Arena connector or external Aysha resolver.
+Never request API hashes, codes, passwords or sessions in chat/Git. Setup lives in
+Library, not Now Playing. See docs/TELEGRAM_SAVED_MESSAGES.md for behavior/limits.
+
+Latest source reconnects range_media/pcm_stream: real seekable MP4/AAC input, bounded
+ready PCM and cancellable workers. Main1.2.1 API/media client separation and Android
+context/R8 fixes remain. Stop cancels pending source handoff. CI front/tail AAC
+fixtures reproduce FIFO failure and test corrected decoding, not phone audibility.
+Telegram lookup/connection is bounded; startup errors fall back to YouTube. Mid-track
+Telegram failure is surfaced, not a claimed seamless resume. Archive work may fetch
+a second full copy, continues after skips, and has explicit queue/disk/file limits.
+Do not call login/upload/download or music-provider access live-tested from offline
+contracts. Candidate is1.3.0-preview/code8/Aysha Music Telegram; latest ledger has
+actual verified source/run/artifact, not earlier known-failing APK links.
