@@ -1110,3 +1110,26 @@ test('player contains no learning controls or explanatory clutter', () => {
   const catalog = fs.readFileSync(path.join(__dirname, '../src/android_catalog.rs'), 'utf8');
   assert.match(catalog, /listening\.lock\(\)\.unwrap\(\)\.preferences\(\)/);
 });
+
+test('Telegram credentials go only to the in-app API and secrets are cleared', async () => {
+  const h = harness();
+  h.element('tg-api-id').value = '12345';
+  h.element('tg-api-hash').value = 'a'.repeat(32);
+  h.element('tg-code').value = '12345';
+  h.element('tg-password').value = 'private-password';
+  await h.context.configureTelegram();
+  const request = h.calls.find(call => call.url === '/api/tg/configure');
+  assert.deepEqual(JSON.parse(request.opts.body), { api_id:12345, api_hash:'a'.repeat(32) });
+  assert.ok(h.calls.every(call => call.url.startsWith('/api/')));
+  for (const id of ['tg-api-hash','tg-code','tg-password']) assert.equal(h.element(id).value, '');
+  assert.equal(h.storage.size, 0); assert.equal(h.quoteStorage.size, 0);
+});
+
+test('Telegram login clears code and password even when its API fails', async () => {
+  const h = harness();
+  h.element('tg-code').value = '12345'; h.element('tg-password').value = 'private-password';
+  h.context.fetch = async () => { throw new Error('Network unavailable'); };
+  await h.context.telegramLogin('code');
+  assert.equal(h.element('tg-code').value, ''); assert.equal(h.element('tg-password').value, '');
+  assert.equal(h.element('telegram-feedback').textContent, 'Network unavailable');
+});

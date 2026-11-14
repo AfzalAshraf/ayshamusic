@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS upload_history (
 );
 CREATE INDEX IF NOT EXISTS idx_upload_history_uploaded_at ON upload_history(uploaded_at);
 
+CREATE TABLE IF NOT EXISTS saved_tracks (video_id TEXT PRIMARY KEY, message_id INTEGER NOT NULL);
+
 CREATE TABLE IF NOT EXISTS tg_meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -216,7 +218,9 @@ impl TelegramCacheManager {
         let changed = conn.execute(
             "INSERT OR IGNORE INTO upload_queue
                  (video_id, file_path, title, artist, caption, status, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)",
+             VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)
+             ON CONFLICT(video_id) DO UPDATE SET status='pending', retry_count=0, last_error=NULL, updated_at=excluded.updated_at
+             WHERE upload_queue.status IN ('done','failed')",
             params![
                 video_id,
                 file_path.to_string_lossy(),
@@ -230,7 +234,10 @@ impl TelegramCacheManager {
     }
 
     /// Number of tracks still waiting for Telegram.
-    pub fn clear_pending(&self)->Result<()> { self.conn().execute("DELETE FROM upload_queue WHERE status IN ('pending','uploading','failed')",[])?;Ok(()) }
+    pub fn clear_pending(&self)->Result<()> { self.conn().execute("DELETE FROM upload_queue",[])?; self.conn().execute("DELETE FROM saved_tracks",[])?;Ok(()) }
+    pub fn saved_message(&self,id:&str)->Result<Option<i32>> {Ok(self.conn().query_row("SELECT message_id FROM saved_tracks WHERE video_id=?1",[id],|r|r.get(0)).optional()?)}
+    pub fn remember_saved(&self,id:&str,message:i32)->Result<()> {self.conn().execute("INSERT INTO saved_tracks(video_id,message_id) VALUES(?1,?2) ON CONFLICT(video_id) DO UPDATE SET message_id=excluded.message_id",params![id,message])?;Ok(())}
+    pub fn forget_saved(&self,id:&str)->Result<()> {self.conn().execute("DELETE FROM saved_tracks WHERE video_id=?1",[id])?;Ok(())}
     pub fn failed_tracks(&self)->Result<u32> { Ok(self.conn().query_row("SELECT COUNT(*) FROM upload_queue WHERE status='failed'",[],|row|row.get(0))?) }
     pub fn queued_tracks(&self) -> Result<u32> {
         let conn = self.conn();
@@ -479,7 +486,13 @@ impl TelegramCacheManager {
 
     /// Deletes the oldest cached files until the budget is met.
     /// Files still present in `upload_queue` are never deleted.
-    pub fn evict_lru(&self) -> Result<EvictionReport> {
+    pub fn evict_lru(&self) -> Result<EvictionReport> { self.evict_to(self.max_cache_bytes) }
+    pub fn make_room(&self,needed:u64)->Result<bool> {
+        if needed>self.max_cache_bytes {return Ok(false);}
+        let target=self.max_cache_bytes-needed;
+        Ok(self.evict_to(target)?.remaining_bytes<=target)
+    }
+    fn evict_to(&self,target:u64) -> Result<EvictionReport> {
         let protected: HashSet<String> = {
             let conn = self.conn();
             let mut statement = conn.prepare("SELECT file_path FROM upload_queue WHERE status IN ('pending','uploading')")?;
@@ -507,13 +520,13 @@ impl TelegramCacheManager {
             remaining_bytes: total,
             ..EvictionReport::default()
         };
-        if total <= self.max_cache_bytes {
+        if total <= target {
             return Ok(report);
         }
 
         files.sort_by(|left, right| left.2.cmp(&right.2).then_with(|| left.0.cmp(&right.0)));
         for (path, bytes, _) in files {
-            if total <= self.max_cache_bytes {
+            if total <= target {
                 break;
             }
             if protected.contains(&path.to_string_lossy().to_string()) {
@@ -586,6 +599,32 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.root);
         }
+    }
+
+    #[test]
+    fn archive_makes_room_without_evicting_pending_uploads() {
+        let dirs=TempManager::new("room",100,0);
+        let old=dirs.write_cache_file("abcdefghijk",50);
+        let pending=dirs.write_cache_file("12345678901",40);
+        dirs.manager.enqueue("12345678901",&pending,"Song","").unwrap();
+        assert!(dirs.manager.make_room(50).unwrap());
+        assert!(!old.exists());assert!(pending.exists());
+        assert!(!dirs.manager.make_room(70).unwrap());
+    }
+
+    #[test]
+    fn saved_message_index_is_private_to_connection_and_retry_is_explicit() {
+        let dirs=TempManager::new("saved-index",100,0);
+        let cache=&dirs.manager;
+        cache.remember_saved("abcdefghijk",42).unwrap();
+        assert_eq!(cache.saved_message("abcdefghijk").unwrap(),Some(42));
+        cache.forget_saved("abcdefghijk").unwrap();assert_eq!(cache.saved_message("abcdefghijk").unwrap(),None);
+        let path=cache.cached_path("abcdefghijk");
+        assert!(cache.enqueue("abcdefghijk",&path,"Song","").unwrap());
+        assert!(!cache.enqueue("abcdefghijk",&path,"Song","").unwrap());
+        let item=cache.take_next_pending().unwrap().unwrap();cache.mark_done(item.id).unwrap();
+        assert!(cache.enqueue("abcdefghijk",&path,"Song","").unwrap(),"a deleted remote message must be replaceable");
+        cache.clear_pending().unwrap();assert_eq!(cache.queued_tracks().unwrap(),0);
     }
 
     #[test]

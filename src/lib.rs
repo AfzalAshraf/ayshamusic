@@ -481,6 +481,7 @@ async fn start_track(
           else { "queue_error" };
     }
 
+    if matches!(archive,"queue_full"|"queue_error") {tg_storage::warn("The save queue is full or unavailable. This song is playing but was not queued for Telegram.");}
     Ok(json!({
         "status": "playing",
         "video_id": audio.video_id,

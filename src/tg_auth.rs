@@ -383,6 +383,21 @@ fn parse_credentials_file(text: &str) -> Option<Credentials> {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn in_app_setup_validates_and_saves_privately_without_network() {
+        let root=std::env::temp_dir().join(format!("aysha-config-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&root).unwrap();
+        let auth=TelegramAuth::new(&root);
+        assert!(auth.configure(0,&"a".repeat(32)).await.is_err());
+        assert!(auth.configure(12345,"bad hash").await.is_err());
+        auth.configure(12345,&"a".repeat(32)).await.unwrap();
+        assert!(auth.is_configured());
+        assert!(!root.join(SESSION_FILE).exists(),"setup must not contact Telegram or create login state");
+        #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;assert_eq!(std::fs::metadata(root.join(CREDENTIALS_FILE)).unwrap().permissions().mode()&0o777,0o600);}
+        assert!(TelegramAuth::new(&root).is_configured());
+        let _=std::fs::remove_dir_all(root);
+    }
+
     #[test]
     fn missing_credentials_keep_the_manager_unconfigured() {
         let root = std::env::temp_dir().join(format!(
