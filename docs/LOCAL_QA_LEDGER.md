@@ -1991,3 +1991,35 @@ Evidence:
 
 Not verified: audible playback, a real Next/Previous transition, and any tap on a
 device. Favorites/Queue/Bluetooth remain Linux-only (404 on the phone).
+
+## 2026-11-14 (f) — Playback: media client split, audio path proven (v1.2.1)
+
+Root cause of "resolves but never plays": `youtube::http_client()` sets a **12 s
+total request timeout**, and `pump_media` streamed audio with that same client.
+Every track therefore died roughly twelve seconds in with
+`error decoding response body` — reproduced here at 376,832 bytes.
+
+Fix:
+- `youtube::media_client()` — connect timeout 10 s, `read_timeout` 30 s, no
+  overall timeout. `pump_media` and `/api/selftest` use it; the API client keeps
+  its 12 s cap for InnerTube calls. `re_resolve` still takes the API client.
+
+Evidence (host, same code the APK runs):
+- `/api/selftest` -> 200, `media_status: 206`, `media_content_type: audio/mp4`,
+  `bytes_fetched: 65536`, itag 140, ANDROID.
+- Range `bytes=0-2047` -> 206, 2048 bytes, `content-type: audio/mp4`,
+  `content-range: bytes 0-2047/3449447`.
+- Full pump to EOF -> 3,449,447 bytes in 107.6 s, exactly the declared
+  `content_length` (before the fix it aborted at 376,832).
+- `/tmp/aysha_full_track.m4a`: ffprobe 7.0.2 -> `aac`, 44100 Hz, 2 ch,
+  duration 213.089524 s, size 3449447; `ffmpeg -f null -` decodes every packet
+  (`FFMPEG_DECODE_OK`); header `ftyp dash / iso6 / mp41 / moov`.
+- In-test decode via rodio (the app's own decoder): 48,000 samples, 44.1 kHz,
+  stereo, non-silent.
+- `cargo test --lib` -> 37 passed, 3 ignored; frontend 73 pass.
+
+Still blocked here: any video except dQw4w9WgXcQ returns
+`LOGIN_REQUIRED — "Sign in to confirm you're not a bot"` for ANDROID, IOS and
+TV from this IP (fresh visitors do not help), so music-catalogue tracks cannot
+be resolved from this host at all; that happens before a media URL exists, so
+there is nothing to proxy. On-device speaker playback remains unverified.

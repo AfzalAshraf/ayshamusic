@@ -157,6 +157,20 @@ pub fn http_client() -> Result<Client, reqwest::Error> {
         .build()
 }
 
+/// Client for `googlevideo` bytes.
+///
+/// A track streams for minutes, so it must not inherit the API client's 12 s
+/// total timeout: that cap silently cut every song off after ~12 seconds of
+/// audio. Stalled reads are still bounded so a dead connection cannot hang the
+/// playback thread forever.
+pub fn media_client() -> Result<Client, reqwest::Error> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .read_timeout(Duration::from_secs(30))
+        .pool_max_idle_per_host(2)
+        .build()
+}
+
 const VISITOR_URL: &str = "https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false";
 const WEB_VERSION: &str = "2.20241126.01.00";
 const WEB_USER_AGENT: &str =

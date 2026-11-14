@@ -68,6 +68,15 @@ fn http_client() -> Option<&'static reqwest::Client> {
         .as_ref()
 }
 
+/// Streams media bytes. Unlike `http_client` it has no total request timeout,
+/// because a track streams for minutes and a 12 s cap cut every song off.
+fn media_client() -> Option<&'static reqwest::Client> {
+    static MEDIA_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    MEDIA_CLIENT
+        .get_or_init(|| youtube::media_client().ok())
+        .as_ref()
+}
+
 /// Shared cache handle. `None` means the cache/queue could not be opened, in
 /// which case the Telegram endpoints report `unavailable` instead of failing.
 pub type SharedCache = Arc<Option<Arc<TelegramCacheManager>>>;
@@ -680,12 +689,18 @@ async fn pump_media(
 ) {
     use futures_util::StreamExt;
 
+    let Some(media) = media_client() else {
+        send_stream_error(&tx, "could not build media HTTP client".into());
+        return;
+    };
     let mut url = initial_url;
     let mut refreshed = false;
     let mut delivered: usize = 0;
 
     loop {
-        let response = match client
+        // Media client, not the API client: the API client's 12 s total timeout
+        // truncated playback roughly twelve seconds into every track.
+        let response = match media
             .get(&url)
             .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
             .send()
@@ -924,7 +939,14 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     };
     let resolve_ms = started.elapsed().as_millis() as u64;
 
-    let response = match client
+    let Some(media) = media_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build media HTTP client".into(),
+        );
+    };
+    let response = match media
         .get(&audio.url)
         .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
         .header(reqwest::header::RANGE, "bytes=0-65535")
@@ -1318,6 +1340,122 @@ mod api_tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+
+    /// Proves the bytes that reach the phone's decoder are real audio.
+    ///
+    /// Uses the same resolve, the same pump and the same decoder as `/api/play`
+    /// on the APK, then writes the bytes out so an external tool (ffprobe) can
+    /// inspect the very same file. Network test:
+    /// `cargo test --lib live_audio_pipeline -- --ignored --nocapture`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "hits youtubei and googlevideo"]
+    async fn live_audio_pipeline_delivers_decodable_audio() {
+        use rodio::Source;
+        use std::time::{Duration, Instant};
+
+        let Some(client) = http_client() else {
+            panic!("http client");
+        };
+        let visitor = visitor(client).await;
+        assert!(visitor.attached(), "no visitor id");
+
+        let audio = youtube::resolve_audio(&client, "dQw4w9WgXcQ", Some(visitor.value.as_str()))
+            .await
+            .unwrap_or_else(|error| panic!("resolve: {error}"));
+        eprintln!(
+            "resolved client={} itag={} mime={} declared_bytes={:?}",
+            audio.client, audio.itag, audio.mime, audio.content_length
+        );
+
+        // 1. Range request with the exact headers the pump uses.
+        let range = client
+            .get(&audio.url)
+            .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+            .header(reqwest::header::RANGE, "bytes=0-2047")
+            .send()
+            .await
+            .expect("range request");
+        let range_status = range.status();
+        let range_type = range
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let content_range = range
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let range_len = range.bytes().await.expect("range body").len();
+        eprintln!(
+            "range status={range_status} {range_len} bytes type={range_type:?} content-range={content_range:?}"
+        );
+        assert_eq!(range_status, StatusCode::PARTIAL_CONTENT);
+        assert!(range_type.starts_with("audio/"), "content-type {range_type}");
+        assert!(content_range.starts_with("bytes 0-2047/"), "{content_range}");
+
+        // 2. The pump `/api/play` spawns, read until it has a decodable prefix.
+        let (tx, rx) = player::stream_channel();
+        let pump = tokio::spawn(pump_media(
+            client.clone(),
+            audio.video_id.clone(),
+            None,
+            visitor.attached().then(|| visitor.value.clone()),
+            audio.url.clone(),
+            tx,
+        ));
+        // Read to EOF: the whole track must arrive. Before the media client was
+        // split out, the API client's 12 s total timeout killed this loop.
+        let mut bytes: Vec<u8> = Vec::new();
+        let started = Instant::now();
+        loop {
+            match rx.recv_timeout(Duration::from_secs(30)) {
+                Ok(Ok(chunk)) => bytes.extend_from_slice(&chunk),
+                Ok(Err(error)) => panic!("pump failed after {} bytes: {error}", bytes.len()),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(error) => panic!("pump stalled after {} bytes: {error}", bytes.len()),
+            }
+        }
+        pump.abort();
+        eprintln!(
+            "streamed {} bytes in {:?} (declared {:?})",
+            bytes.len(),
+            started.elapsed(),
+            audio.content_length
+        );
+        assert_eq!(
+            Some(bytes.len() as u64),
+            audio.content_length,
+            "stream ended before the declared length"
+        );
+        assert!(bytes.len() >= 128 * 1024, "only {} bytes pumped", bytes.len());
+        assert_eq!(
+            bytes.get(4..8),
+            Some(b"ftyp".as_slice()),
+            "not an MP4 container"
+        );
+
+        let path = std::env::temp_dir().join("aysha_full_track.m4a");
+        std::fs::write(&path, &bytes).expect("write probe");
+        eprintln!("wrote {}", path.display());
+
+        // 3. Decode with the exact decoder the player threads use.
+        let decoder = rodio::Decoder::new(std::io::Cursor::new(bytes)).expect("decoder");
+        let sample_rate = decoder.sample_rate();
+        let channels = decoder.channels();
+        let decoded: Vec<f32> = decoder.take(48_000).collect();
+        let non_silent = decoded.iter().any(|sample| sample.abs() > 0.001);
+        eprintln!(
+            "decoded {} samples, rate={sample_rate}, channels={channels}, non-silent={non_silent}",
+            decoded.len()
+        );
+        assert!(sample_rate.get() >= 8_000, "sample rate {sample_rate}");
+        assert!(decoded.len() > 4_000, "decoded {} samples", decoded.len());
+        assert!(non_silent, "decoded audio was silence");
     }
 
 }

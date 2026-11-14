@@ -104,7 +104,18 @@ jobs:
           tag_name: apk-latest
           name: Aysha Music APK (latest)
           body: |
-            Aysha Music 1.2.0 (versionCode 4), arm64-v8a, from ${{ github.sha }}.
+            Aysha Music 1.2.1 (versionCode 5), arm64-v8a, from ${{ github.sha }}.
+
+            Playback fix:
+            - Audio was cut off roughly 12 seconds into every track: the media
+              stream used the API HTTP client, whose 12 s total timeout aborted
+              the body mid-transfer. Media now uses its own client (connect
+              timeout + 30 s read-stall guard, no overall cap).
+            - Verified on the build host through the app's own code path: the
+              full track streamed to its declared 3,449,447 bytes, and both
+              ffprobe and ffmpeg decoded it (AAC, 44.1 kHz, stereo, 213.09 s).
+            - NOT verified: audio from a phone speaker. No device was available;
+              the release is published without a playback-on-device test.
 
             Library and navigation on Android:
             - /api/search is implemented (InnerTube search), so Home, Explore and
