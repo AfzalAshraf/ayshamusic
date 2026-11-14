@@ -11,6 +11,9 @@
 mod android_catalog;
 mod recommendations;
 mod listening;
+mod range_media;
+mod pcm_stream;
+mod tg_storage;
 
 pub mod player;
 pub mod tg_auth;
@@ -39,6 +42,8 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 
 /// Playback thread, started lazily on the first `/api/play`.
 static PLAYER: OnceLock<player::Player> = OnceLock::new();
+static TG_CACHE: OnceLock<Arc<TelegramCacheManager>> = OnceLock::new();
+fn cache_manager() -> Option<Arc<TelegramCacheManager>> { TG_CACHE.get().cloned() }
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
 /// Visitor identity for InnerTube, cached for the process and on disk.
@@ -132,6 +137,8 @@ fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Route
         .route("/api/tg/send_code", post(tg_send_code))
         .route("/api/tg/verify_code", post(tg_verify_code))
         .route("/api/tg/status", get(tg_status))
+        .route("/api/tg/configure", post(tg_configure))
+        .route("/api/tg/disconnect", post(tg_disconnect))
         .route("/api/play", post(play))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))
@@ -165,6 +172,10 @@ async fn serve(files_dir: String, cache_dir: String) {
     };
 
     let _ = PATHS.set((files_dir, cache_dir));
+    if let Some(cache)=&manager {
+        let _=TG_CACHE.set(cache.clone());
+        tokio::spawn(tg_storage::worker(cache.clone()));
+    }
     let phone = android_catalog::new_state();
     let sampling = phone.clone();
     tokio::spawn(async move {
@@ -244,7 +255,9 @@ async fn tg_send_code(
     let Some(manager) = state.as_ref() else {
         return unavailable();
     };
-    Json(manager.telegram().send_code(&body.phone).await.to_json())
+    let outcome=manager.telegram().send_code(&body.phone).await;
+    if outcome==TgOutcome::Authorized {tg_storage::pause(false);}
+    Json(outcome.to_json())
 }
 
 #[derive(Deserialize)]
@@ -271,7 +284,26 @@ async fn tg_verify_code(
         (None, Some(code)) => telegram.verify_code(code).await,
         (None, None) => TgOutcome::Error("code_or_password_required".to_string()),
     };
+    if outcome==TgOutcome::Authorized {tg_storage::pause(false);}
     Json(outcome.to_json())
+}
+
+#[derive(Deserialize)]
+struct TgConfigureBody {api_id:i32,api_hash:String}
+async fn tg_configure(State(state):State<SharedCache>,Json(body):Json<TgConfigureBody>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    match manager.telegram().configure(body.api_id,&body.api_hash).await {
+        Ok(())=>(StatusCode::OK,Json(json!({"status":"ok"}))),
+        Err(error)=>api_error(StatusCode::BAD_REQUEST,"telegram_setup",error),
+    }
+}
+async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    tg_storage::pause(true);
+    match manager.telegram().disconnect().await {
+        Ok(())=>{let _=manager.clear_pending();let _=started_player().map(player::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
+        Err(error)=>api_error(StatusCode::BAD_GATEWAY,"telegram_disconnect",error),
+    }
 }
 
 /// `GET /api/tg/status` - login state for the login modal / sidebar.
@@ -282,6 +314,10 @@ async fn tg_status(State(state): State<SharedCache>) -> Json<Value> {
 
     let status = manager.telegram().status().await;
     Json(json!({
+        "archive_error":tg_storage::last_error(),
+        "failed_tracks":manager.failed_tracks().unwrap_or(0),
+        "quota":manager.quota_status().ok(),
+        "destination":"Saved Messages",
         "authorized": status.authorized,
         "connected": status.connected,
         "needs_password": status.needs_password,
@@ -381,6 +417,16 @@ async fn start_track(
         ));
     }
 
+    if forced.is_none() {
+        if let Some(cache)=cache_manager() {
+            if let Ok(Some(media))=tg_storage::lookup(&cache,video_id).await {
+                if start_native(media).await.is_ok() {
+                    return Ok(json!({"status":"playing","video_id":video_id,"source":"telegram","telegram_archive":"saved"}));
+                }
+                // User approved YouTube fallback if Telegram lookup/read/decode fails.
+            }
+        }
+    }
     let visitor = visitor(client).await;
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
@@ -422,29 +468,17 @@ async fn start_track(
     };
 
     let duration_secs = duration_from(&audio);
-    let (tx, rx) = player::stream_channel();
-    tokio::spawn(pump_media(
-        client.clone(),
-        audio.video_id.clone(),
-        forced.map(|profile| profile.name),
-        visitor.attached().then(|| visitor.value.clone()),
-        audio.url.clone(),
-        tx,
-    ));
-
-    if let Err(error) = player().play(
-        &audio.video_id,
-        audio.title.clone(),
-        audio.client,
-        audio.itag,
-        duration_secs,
-        rx,
-    ) {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "playback_unavailable",
-            error,
-        ));
+    start_native(player::Media {
+        video_id:audio.video_id.clone(), title:audio.title.clone(), client:audio.client,
+        itag:audio.itag,url:audio.url.clone(),user_agent:youtube::ANDROID.user_agent,
+        content_length:audio.content_length,fetch:None,
+    }).await?;
+    let mut archive = "not_connected";
+    if let Some(cache)=cache_manager() {
+        let path=cache.cached_path(video_id);
+        archive=if cache.queued_tracks().unwrap_or(20)>=20 { "queue_full" }
+          else if cache.enqueue(video_id,&path,audio.title.as_deref().unwrap_or("YouTube track"),"").is_ok() { "queued" }
+          else { "queue_error" };
     }
 
     Ok(json!({
@@ -458,7 +492,18 @@ async fn start_track(
         "duration_secs": duration_secs,
         "client": audio.client,
         "forced": forced.is_some(),
+        "source":"youtube",
+        "telegram_archive":archive,
     }))
+}
+
+async fn start_native(media: player::Media) -> Result<(), (StatusCode, Json<Value>)> {
+    let ready=player().play(media).map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"playback_unavailable",e))?;
+    match tokio::time::timeout(std::time::Duration::from_secs(45),ready).await {
+        Ok(Ok(Ok(())))=>Ok(()),
+        Ok(Ok(Err(error)))=>Err(api_error(StatusCode::BAD_GATEWAY,"audio_prepare_failed",error)),
+        _=>{let _=player().stop();Err(api_error(StatusCode::GATEWAY_TIMEOUT,"audio_prepare_timeout","Audio preparation did not complete".into()))}
+    }
 }
 
 /// Streams the media URL into the playback ring.

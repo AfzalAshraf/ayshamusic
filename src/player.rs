@@ -1,277 +1,222 @@
-//! Audio playback: a dedicated rodio/cpal thread fed by a bounded in-memory
-//! ring buffer that is filled from the `googlevideo` HTTP stream.
-//!
-//! The transfer queue is bounded to eight compressed-media chunks; chunk sizes
-//! and decoder/device buffers also contribute to memory. This is not a measured
-//! whole-process RAM bound. The audio thread owns the cpal output stream.
-
+//! Phone-native playback. A bounded seekable HTTP source lets the MP4 demuxer
+//! read its index at either end of a file without downloading the whole song.
+//! Device and decoder setup run on a dedicated thread, never a Tokio worker.
+use crate::range_media::{HttpFetch, RangeReader};
 use rodio::stream::DeviceSinkBuilder;
-use rodio::{Decoder, Player as RodioPlayer};
+use rodio::{Decoder, Player as RodioPlayer, Source};
 use serde_json::{json, Value};
-use std::io::{self, Read, Seek, SeekFrom};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+// Retained only for the opt-in main media-pump diagnostic, not native playback.
+#[cfg(test)] use std::io::{self, Read, Seek, SeekFrom};
+use tokio::sync::oneshot;
 
-/// Number of 16 KiB chunks buffered ahead of the decoder (~128 KiB).
-const RING_CHUNKS: usize = 8;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlayState {
-    Idle,
-    Playing,
-    Paused,
-    Error,
+pub struct Media {
+    pub video_id: String,
+    pub title: Option<String>,
+    pub client: &'static str,
+    pub itag: u64,
+    pub url: String,
+    pub user_agent: &'static str,
+    pub content_length: Option<u64>,
+    pub fetch: Option<Box<dyn crate::range_media::Fetch>>,
 }
-
-impl PlayState {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Idle => "idle",
-            Self::Playing => "playing",
-            Self::Paused => "paused",
-            Self::Error => "error",
-        }
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct Status {
-    state: Option<PlayState>,
+    generation: u64,
+    state: &'static str,
     video_id: Option<String>,
     title: Option<String>,
     volume: f32,
     position_secs: f64,
-    duration_secs: f64,
+    duration_secs: Option<f64>,
     error: Option<String>,
-    client: Option<String>,
-    itag: Option<u64>,
 }
-
+type Ready = oneshot::Sender<Result<(), String>>;
 enum Command {
-    Play {
-        video_id: String,
-        title: Option<String>,
-        client: String,
-        itag: u64,
-        duration_secs: f64,
-        audio: Receiver<io::Result<Vec<u8>>>,
-    },
-    Pause,
-    Resume,
-    Stop,
-    Volume(f32),
+    Play { media: Media, generation: u64, cancel: Arc<AtomicBool>, ready: Ready },
+    Pause, Resume, Stop, Volume(f32),
 }
-
-/// Cheap, cloneable handle to the playback thread.
 #[derive(Clone)]
 pub struct Player {
     tx: SyncSender<Command>,
     status: Arc<Mutex<Status>>,
+    active: Arc<Mutex<Option<Arc<AtomicBool>>>>,
+    epoch: Arc<AtomicU64>,
 }
-
 impl Player {
-    /// Starts the playback thread. The device is opened there, so a missing
-    /// output (desktop CI) surfaces as an `error` status instead of a panic.
-    pub fn spawn() -> Player {
+    pub fn spawn() -> Self {
         let (tx, rx) = mpsc::sync_channel(4);
-        let status = Arc::new(Mutex::new(Status {
-            state: Some(PlayState::Idle),
-            volume: 1.0,
-            ..Status::default()
-        }));
-        let thread_status = Arc::clone(&status);
-
-        std::thread::Builder::new()
-            .name("ayshamusic-audio".into())
-            .spawn(move || audio_loop(rx, thread_status))
-            .expect("failed to spawn ayshamusic audio thread");
-
-        Self { tx, status }
+        let status = Arc::new(Mutex::new(Status { state: "idle", volume: 1.0, ..Status::default() }));
+        let thread_status = status.clone();
+        std::thread::Builder::new().name("aysha-audio".into())
+            .spawn(move || audio_loop(rx, thread_status)).expect("audio thread spawn");
+        Self { tx, status, active: Arc::new(Mutex::new(None)), epoch: Arc::new(AtomicU64::new(0)) }
     }
-
-    /// Starts playing a track from a byte stream, replacing whatever is playing.
-    pub fn play(
-        &self,
-        video_id: &str,
-        title: Option<String>,
-        client: &str,
-        itag: u64,
-        duration_secs: f64,
-        audio: Receiver<io::Result<Vec<u8>>>,
-    ) -> Result<(), String> {
-        // Reserve the status before handing over, so `/api/player` never shows
-        // the previous track while the new one is being set up.
+    pub fn play(&self, media: Media) -> Result<oneshot::Receiver<Result<(), String>>, String> {
+        let generation = self.epoch.fetch_add(1, Ordering::AcqRel) + 1;
+        let cancel = Arc::new(AtomicBool::new(false));
+        if let Some(old) = self.active.lock().unwrap().replace(cancel.clone()) { old.store(true, Ordering::Release); }
         {
-            let mut status = self.status.lock().unwrap();
-            status.video_id = Some(video_id.to_string());
-            status.title = title.clone();
-            status.client = Some(client.to_string());
-            status.itag = Some(itag);
-            status.position_secs = 0.0;
-            status.duration_secs = duration_secs;
-            status.error = None;
+            let mut state = self.status.lock().unwrap();
+            state.generation = generation;
+            state.state = "buffering";
+            state.video_id = Some(media.video_id.clone());
+            state.title = media.title.clone();
+            state.position_secs = 0.0;
+            state.duration_secs = None;
+            state.error = None;
         }
-        self.send(Command::Play {
-            video_id: video_id.to_string(),
-            title,
-            client: client.to_string(),
-            itag,
-            duration_secs,
-            audio,
-        })
+        let (ready, received) = oneshot::channel();
+        if let Err(error) = self.send(Command::Play { media, generation, cancel, ready }) {
+            set_error(&self.status, generation, error.clone());
+            return Err(error);
+        }
+        Ok(received)
     }
-
-    pub fn pause(&self) -> Result<(), String> {
-        self.send(Command::Pause)
-    }
-
-    pub fn resume(&self) -> Result<(), String> {
-        self.send(Command::Resume)
-    }
-
+    pub fn pause(&self) -> Result<(), String> { self.send(Command::Pause) }
+    pub fn resume(&self) -> Result<(), String> { self.send(Command::Resume) }
     pub fn stop(&self) -> Result<(), String> {
+        if let Some(old) = self.active.lock().unwrap().take() { old.store(true, Ordering::Release); }
+        let generation = self.epoch.fetch_add(1, Ordering::AcqRel) + 1;
+        {
+            let mut state = self.status.lock().unwrap();
+            state.generation = generation;
+            state.state = "idle"; state.position_secs = 0.0; state.error = None;
+        }
         self.send(Command::Stop)
     }
-
-    pub fn set_volume(&self, volume: f32) -> Result<(), String> {
-        self.send(Command::Volume(volume.clamp(0.0, 1.0)))
-    }
-
+    pub fn set_volume(&self, volume: f32) -> Result<(), String> { self.send(Command::Volume(volume.clamp(0.0, 1.0))) }
     pub fn snapshot(&self) -> Value {
-        let status = self.status.lock().unwrap();
-        json!({
-            "state": status.state.unwrap_or(PlayState::Idle).as_str(),
-            "video_id": status.video_id,
-            "title": status.title,
-            "volume": status.volume,
-            "position_secs": status.position_secs,
-            "duration_secs": status.duration_secs,
-            "error": status.error,
-            "client": status.client,
-            "itag": status.itag,
-        })
+        let state = self.status.lock().unwrap();
+        json!({"state":state.state,"video_id":state.video_id,"title":state.title,
+            "volume":state.volume,"position_secs":state.position_secs,"duration_secs":state.duration_secs,"error":state.error})
     }
-
     fn send(&self, command: Command) -> Result<(), String> {
-        self.tx
-            .send(command)
-            .map_err(|_| "player thread is not running".to_string())
+        self.tx.try_send(command).map_err(|error| match error {
+            mpsc::TrySendError::Full(_) => "player_busy",
+            mpsc::TrySendError::Disconnected(_) => "player_thread_unavailable",
+        }.to_string())
     }
 }
-
+fn set_error(status: &Arc<Mutex<Status>>, generation: u64, message: String) {
+    let mut state = status.lock().unwrap();
+    if state.generation == generation { state.state = "error"; state.error = Some(message); }
+}
 fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
-    // CPAL's Android backend calls ndk_context::android_context(), which panics
-    // when uninitialized. release panic=abort would terminate the whole APK.
-    // Check our initialization invariant before entering that dependency path.
-    #[cfg(target_os = "android")]
-    if !crate::android::audio_context_ready() {
-        set_error(&status, "Android audio context is not initialized; restart the app".into());
-        return;
-    }
-    // Keep the device sink alive for the whole thread; dropping it stops audio.
-    let device = match DeviceSinkBuilder::open_default_sink() {
-        Ok(device) => device,
-        Err(error) => {
-            let mut status = status.lock().unwrap();
-            status.state = Some(PlayState::Error);
-            status.error = Some(format!("audio output unavailable: {error}"));
-            return;
-        }
-    };
-    let sink = RodioPlayer::connect_new(device.mixer());
-
+    // Open lazily, keep alive, and allow another attempt after a device-open error.
+    let mut device = None;
+    let mut sink: Option<RodioPlayer> = None;
+    let mut playing_generation = 0;
+    let mut progress: Option<(Arc<crate::pcm_stream::Progress>, rodio::ChannelCount, rodio::SampleRate)> = None;
+    let mut health: Option<Arc<Mutex<Option<String>>>> = None;
     loop {
-        match rx.recv_timeout(Duration::from_millis(250)) {
-            Ok(Command::Play {
-                video_id,
-                title,
-                client,
-                itag,
-                duration_secs,
-                audio,
-            }) => {
-                sink.stop();
-                let source = match Decoder::builder()
-                    .with_data(ChannelReader::new(audio))
-                    .with_hint("m4a")
-                    .with_seekable(false)
-                    .build()
-                {
-                    Ok(source) => source,
-                    Err(error) => {
-                        set_error(&status, format!("audio decode failed: {error}"));
-                        continue;
+        match rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(Command::Play { media, generation, cancel, ready }) => {
+                if cancel.load(Ordering::Acquire) { let _ = ready.send(Err("playback_cancelled".into())); continue; }
+                if let Some(old) = &sink { old.stop(); }
+                let prepared = (|| -> Result<_, String> {
+                    let fetch: Box<dyn crate::range_media::Fetch> = match media.fetch {
+                        Some(fetch) => fetch,
+                        None => Box::new(HttpFetch::new(media.url, media.user_agent).map_err(|e| e.to_string())?),
+                    };
+                    let reader = RangeReader::new(fetch, media.content_length, cancel.clone()).map_err(|e| e.to_string())?;
+                    let len = reader.len();
+                    let errors = reader.health();
+                    let decoder = Decoder::builder().with_data(reader).with_byte_len(len)
+                        .with_hint("m4a").with_seekable(true).build()
+                        .map_err(|e| format!("audio_decode_failed: {e}"))?;
+                    let duration = decoder.total_duration().map(|d| d.as_secs_f64());
+                    let pcm = crate::pcm_stream::PcmSource::prepare(decoder, cancel.clone()).map_err(|e| e.to_string())?;
+                    if let Some(error) = errors.lock().unwrap().clone() { return Err(error); }
+                    if cancel.load(Ordering::Acquire) { return Err("playback_cancelled".into()); }
+                    #[cfg(target_os = "android")]
+                    if !crate::android::audio_context_ready() { return Err("Android audio context is not initialized; restart the app".into()); }
+                    if device.is_none() {
+                        device = Some(DeviceSinkBuilder::open_default_sink().map_err(|_| "audio_output_unavailable".to_string())?);
+                        sink = Some(RodioPlayer::connect_new(device.as_ref().unwrap().mixer()));
                     }
-                };
-                let volume = status.lock().unwrap().volume;
-                sink.set_volume(volume);
-                sink.append(source);
-                sink.play();
-
-                let mut status = status.lock().unwrap();
-                status.state = Some(PlayState::Playing);
-                status.video_id = Some(video_id);
-                status.title = title;
-                status.client = Some(client);
-                status.itag = Some(itag);
-                status.position_secs = 0.0;
-                status.duration_secs = duration_secs;
-                status.error = None;
+                    Ok((pcm, duration, errors))
+                })();
+                match prepared {
+                    Ok((pcm, duration, errors)) => {
+                        let mut state = status.lock().unwrap();
+                        if state.generation != generation || cancel.load(Ordering::Acquire) {
+                            let _ = ready.send(Err("playback_cancelled".into())); continue;
+                        }
+                        state.duration_secs = duration;
+                        progress = Some((pcm.progress.clone(), pcm.channels(), pcm.sample_rate()));
+                        health = Some(errors);
+                        let output = sink.as_ref().unwrap();
+                        output.set_volume(state.volume); output.append(pcm); output.play();
+                        playing_generation = generation;
+                        state.state = "playing"; state.error = None;
+                        // HTTP success now means decoder/output accepted the source,
+                        // not merely that a URL was resolved. Audibility is separate.
+                        let _ = ready.send(Ok(()));
+                    }
+                    Err(error) => { set_error(&status, generation, error.clone()); let _ = ready.send(Err(error)); }
+                }
             }
             Ok(Command::Pause) => {
-                sink.pause();
-                let mut status = status.lock().unwrap();
-                if status.state == Some(PlayState::Playing) {
-                    status.state = Some(PlayState::Paused);
-                }
+                if let Some(output) = &sink { output.pause(); }
+                let mut state = status.lock().unwrap(); if matches!(state.state, "playing" | "buffering") { state.state = "paused"; }
             }
             Ok(Command::Resume) => {
-                sink.play();
-                let mut status = status.lock().unwrap();
-                if status.state == Some(PlayState::Paused) {
-                    status.state = Some(PlayState::Playing);
+                if let Some(output) = &sink {
+                    let mut state = status.lock().unwrap();
+                    if state.state == "paused" { output.play(); state.state = "playing"; }
                 }
             }
-            Ok(Command::Stop) => {
-                sink.stop();
-                let mut status = status.lock().unwrap();
-                status.state = Some(PlayState::Idle);
-                status.position_secs = 0.0;
-                status.duration_secs = 0.0;
-            }
+            Ok(Command::Stop) => { if let Some(output) = &sink { output.stop(); } }
             Ok(Command::Volume(volume)) => {
-                sink.set_volume(volume);
+                if let Some(output) = &sink { output.set_volume(volume); }
                 status.lock().unwrap().volume = volume;
             }
-            Err(RecvTimeoutError::Disconnected) => {
-                sink.stop();
-                return;
-            }
-            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => { if let Some(output) = &sink { output.stop(); } return; }
+            Err(RecvTimeoutError::Timeout) => (),
         }
-
-        // Track ended on its own (decoder hit EOF / stream finished).
-        let mut status = status.lock().unwrap();
-        if status.state == Some(PlayState::Playing) {
-            status.position_secs = sink.get_pos().as_secs_f64();
-            if sink.empty() {
-                status.state = Some(PlayState::Idle);
-                status.position_secs = 0.0;
-                status.duration_secs = 0.0;
+        let mut state = status.lock().unwrap();
+        if state.generation == playing_generation && matches!(state.state, "playing" | "buffering" | "paused") {
+            if let Some(output) = &sink {
+                if let Some((samples, channels, rate)) = &progress {
+                    state.position_secs = samples.seconds(*channels, *rate);
+                    if state.state != "paused" {
+                        state.state = if samples.starving.load(Ordering::Acquire) { "buffering" } else { "playing" };
+                    }
+                }
+                if let Some(error) = health.as_ref().and_then(|h| h.lock().unwrap().clone()) {
+                    state.state = "error"; state.error = Some(error); output.stop();
+                } else if state.state != "paused" && output.empty() { state.state = "ended"; }
             }
-        } else if status.state == Some(PlayState::Paused) {
-            status.position_secs = sink.get_pos().as_secs_f64();
         }
     }
 }
 
-fn set_error(status: &Arc<Mutex<Status>>, message: String) {
-    let mut status = status.lock().unwrap();
-    status.state = Some(PlayState::Error);
-    status.error = Some(message);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn commands_fail_fast_instead_of_blocking_a_runtime_worker() {
+        let (tx, _rx) = mpsc::sync_channel(1);
+        let player = Player { tx, status:Arc::new(Mutex::new(Status::default())), active:Arc::new(Mutex::new(None)),epoch:Arc::new(AtomicU64::new(0)) };
+        player.pause().unwrap(); assert_eq!(player.resume().unwrap_err(), "player_busy");
+    }
+    #[test]
+    fn cancelled_decode_cannot_overwrite_new_track_or_stop_state() {
+        let status = Arc::new(Mutex::new(Status { generation: 2, state:"idle", ..Status::default() }));
+        set_error(&status, 1, "old error".into());
+        assert_eq!(status.lock().unwrap().state, "idle");
+        set_error(&status, 2, "new error".into());
+        assert_eq!(status.lock().unwrap().state, "error");
+    }
 }
 
+#[cfg(test)] mod fifo_diagnostic {
+use super::*;
+const RING_CHUNKS: usize = 8;
 /// Adapts the downloader's blocking channel into a `Read` for the decoder.
 ///
 /// `rodio`'s decoder wants `Read + Seek + Send + Sync`; the mutex makes the
@@ -378,3 +323,6 @@ mod tests {
         assert!(error.to_string().contains("403"));
     }
 }
+
+}
+#[cfg(test)] pub use fifo_diagnostic::stream_channel;

@@ -64,6 +64,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-morph{animation:heart-morph-out .35s ease-out both!important}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
+.tg-fields{display:grid;gap:12px;margin:16px 0}.tg-fields label{display:grid;gap:6px;color:var(--sub);font-size:14px}.tg-fields input{width:100%;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#211b24;color:var(--text);font:inherit}.tg-actions{display:flex;flex-wrap:wrap;gap:10px}#telegram-account p{line-height:1.6}#telegram-account a{color:var(--accent)}#telegram-account .chip{min-height:44px}#telegram-account-button{margin-bottom:20px}
 </style>
 </head>
 <body>
@@ -141,6 +142,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <div class="grid-cards" id="explore-cards"></div>
     </div>
     <div class="tab-page" id="tab-library">
+      <button type="button" id="telegram-account-button" class="chip" hidden onclick="openTelegramAccount()">Telegram account</button>
       <div class="section-title">Liked Songs <span class="liked-count" id="liked-count">0</span></div>
       <div class="grid-cards" id="full-history"></div>
       <div class="section-title">Queue <span id="queue-count">0</span> <button class="chip" onclick="queueClear()" style="float:right">Clear</button> <span style="color:var(--sub);font-size:11px">auto-plays next</span></div>
@@ -227,6 +229,27 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   <audio id="audio-player" crossorigin="anonymous"></audio>
 </div>
 
+<dialog class="now-dialog" id="telegram-account" aria-labelledby="telegram-heading">
+  <div class="now-header"><h2 id="telegram-heading">Your Telegram account</h2><button type="button" class="chip" onclick="closeTelegramAccount()">Close</button></div>
+  <p class="section-subtitle">Save selected songs to your Saved Messages, then stream saved songs from Telegram first. YouTube is the automatic fallback. Full downloads and uploads continue after skips and use internet data. Only save audio you have permission to store.</p>
+  <p id="telegram-status" role="status" aria-live="polite">Not connected</p>
+  <details><summary>First-time API setup</summary>
+    <p>Open <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer">my.telegram.org/apps</a> in your browser, sign in and create an application to get your API ID and API hash. Enter them only here. They stay in this app’s private storage. Never send us your codes or password.</p>
+    <form class="tg-fields" onsubmit="event.preventDefault(); configureTelegram()">
+      <label>API ID<input id="tg-api-id" inputmode="numeric" type="number" min="1" required autocomplete="off"></label>
+      <label>API hash<input id="tg-api-hash" type="password" maxlength="32" minlength="32" required autocomplete="off"></label>
+      <button class="chip" type="submit">Save API settings</button>
+    </form>
+  </details>
+  <div class="tg-fields">
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('phone')"><label>Phone number with country code<input id="tg-phone" type="tel" maxlength="30" autocomplete="tel" placeholder="+971…" required></label><button class="chip" type="submit">Send login code</button></form>
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('code')"><label>Telegram login code<input id="tg-code" inputmode="numeric" maxlength="12" autocomplete="off" required></label><button class="chip" type="submit">Verify code</button></form>
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('password')"><label>Two-step verification password (only if requested)<input id="tg-password" type="password" maxlength="256" autocomplete="off" required></label><button class="chip" type="submit">Verify password</button></form>
+  </div>
+  <p id="telegram-feedback" class="section-subtitle" role="status" aria-live="polite"></p>
+  <div class="tg-actions"><button class="chip" type="button" onclick="refreshTelegramAccount()">Refresh status</button><button class="chip" type="button" onclick="disconnectTelegram()">Disconnect account</button></div>
+  <p class="section-subtitle">Uploads are queued: at most 18/hour with flood-wait handling. Temporary cache: 400 MiB total, 64 MiB per track, up to 20 queued songs. Saves can be delayed or fail; check this status. Telegram cloud storage is not end-to-end encrypted.</p>
+</dialog>
 <dialog class="now-dialog" id="now-playing" aria-labelledby="full-title">
   <div id="heart-effects-player" class="heart-effects" aria-hidden="true"></div>
   <div class="now-header">
@@ -591,6 +614,55 @@ async function nativeJson(path, body) {
   }
   return data;
 }
+
+let telegramBusy = false;
+async function refreshTelegramAccount() {
+  const status = await api('GET', '/api/tg/status');
+  const queue = status.quota || {};
+  document.getElementById('telegram-status').textContent =
+    (status.authorized ? 'Connected · Saved Messages' : status.configured ? 'API configured · Sign in below' : 'Complete first-time API setup below') +
+    ' · Pending: ' + (queue.queued_tracks || 0) + ' · Failed: ' + (status.failed_tracks || 0) +
+    (queue.cooldown_seconds_left ? ' · Upload cooldown: ' + queue.cooldown_seconds_left + ' seconds' : '') +
+    (status.archive_error ? ' · ' + status.archive_error : '');
+}
+function clearTelegramSecrets() {
+  for (const id of ['tg-api-hash', 'tg-code', 'tg-password']) document.getElementById(id).value = '';
+}
+async function openTelegramAccount() {
+  if (!state.nativePlayback) return;
+  const dialog = document.getElementById('telegram-account');
+  if (!dialog.open) {
+    history.pushState({ ayshaTab: currentTab, ayshaDepth: (history.state && history.state.ayshaDepth || 0) + 1, ayshaTelegram: true }, '', '#' + currentTab + '/telegram');
+    dialog.showModal();
+  }
+  try { await refreshTelegramAccount(); } catch (_) { document.getElementById('telegram-status').textContent = 'Telegram status unavailable'; }
+}
+function closeTelegramAccount() {
+  clearTelegramSecrets();
+  if (history.state && history.state.ayshaTelegram) history.back();
+  else document.getElementById('telegram-account').close();
+}
+async function telegramAction(path, body) {
+  if (telegramBusy) return;
+  telegramBusy = true;
+  document.getElementById('telegram-feedback').textContent = 'Working…';
+  try {
+    const result = await nativeJson(path, body);
+    const messages = { ok:'Done', authorized:'Signed in. New songs will be queued for Saved Messages.', code_sent:'Code sent. Check your Telegram app; delivery is controlled by Telegram.', password_required:'Enter your two-step verification password.', invalid_code:'Invalid or expired code. Try again.', invalid_password:'Incorrect two-step verification password.' };
+    document.getElementById('telegram-feedback').textContent = messages[result.status] || result.error || 'Check your account details and try again.';
+    await refreshTelegramAccount();
+  } catch (error) { document.getElementById('telegram-feedback').textContent = error.message; }
+  finally { clearTelegramSecrets(); telegramBusy = false; }
+}
+async function configureTelegram() {
+  return telegramAction('/api/tg/configure', { api_id:Number(document.getElementById('tg-api-id').value), api_hash:document.getElementById('tg-api-hash').value });
+}
+async function telegramLogin(step) {
+  const key = step === 'phone' ? 'phone' : step === 'code' ? 'code' : 'password';
+  const value = document.getElementById('tg-' + key).value;
+  return telegramAction(step === 'phone' ? '/api/tg/send_code' : '/api/tg/verify_code', { [key]:value });
+}
+async function disconnectTelegram() { return telegramAction('/api/tg/disconnect', {}); }
 
 function nativeVideoId(t) {
   return ((t && (t.video_id || t.videoId || t.id)) || '').trim();
@@ -1467,11 +1539,16 @@ function initializeNavigation() {
     const dialog = document.getElementById('now-playing');
     const next = event.state || { ayshaTab: 'home' };
     if (dialog.open && !next.ayshaPlayer) dialog.close();
+    const account = document.getElementById('telegram-account');
+    if (account.open && !next.ayshaTelegram) { account.close(); clearTelegramSecrets(); }
+    if (next.ayshaTelegram && !account.open) account.showModal();
     renderTab(next.ayshaTab || 'home', { load: false });
     if (next.ayshaPlayer && !dialog.open) { syncNowPlaying(); dialog.showModal(); }
     renderRatingPrompt();
   });
   document.getElementById('now-playing').addEventListener('cancel', event => { event.preventDefault(); closeNowPlaying(); });
+  document.getElementById('telegram-account').addEventListener('cancel', event => { event.preventDefault(); closeTelegramAccount(); });
+  document.getElementById('telegram-account').addEventListener('close', clearTelegramSecrets);
   renderTab(tab);
 }
 
@@ -1480,6 +1557,7 @@ async function pollStatus() {
     const st = await api('GET', '/api/status');
     if (st && st.native_playback === true) {
       state.nativePlayback = true;
+      document.getElementById('telegram-account-button').hidden = false;
       const receipt = document.getElementById('native-build-receipt');
       receipt.hidden = false;
       receipt.textContent = 'Rust APK · ' + (/^[a-f0-9]{40}$/.test(st.build_id || '') ? st.build_id.slice(0, 7) : 'local build');

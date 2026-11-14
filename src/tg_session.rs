@@ -17,6 +17,17 @@ use std::{
     sync::Mutex,
 };
 
+/// Atomic app-private credentials/session writes; no world-readable auth keys.
+pub fn private_write(path:&Path, bytes:&[u8])->io::Result<()> {
+    use std::io::Write;
+    let tmp=path.with_extension("private.tmp");
+    let mut options=std::fs::OpenOptions::new();options.create(true).truncate(true).write(true);
+    #[cfg(unix)] {use std::os::unix::fs::OpenOptionsExt;options.mode(0o600);}
+    let mut file=options.open(&tmp)?;
+    #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;file.set_permissions(std::fs::Permissions::from_mode(0o600))?;}
+    file.write_all(bytes)?;file.sync_all()?;std::fs::rename(tmp,path)
+}
+
 /// On-disk shape. Kept as vectors so JSON has no non-string map keys.
 #[derive(Serialize, Deserialize)]
 struct PersistedSession {
@@ -104,9 +115,7 @@ impl FileSession {
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
 
         // Write-then-rename so a crash cannot truncate an existing session.
-        let tmp = self.path.with_extension("session.tmp");
-        std::fs::write(&tmp, &json)?;
-        std::fs::rename(&tmp, &self.path)
+        private_write(&self.path, &json)
     }
 
     fn mutate<F>(&self, update: F) -> io::Result<()>

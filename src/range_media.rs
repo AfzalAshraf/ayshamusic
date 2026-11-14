@@ -15,6 +15,9 @@ pub struct Block {
 pub trait Fetch: Send + Sync {
     fn fetch(&self, start: u64, end: u64) -> io::Result<Block>;
 }
+impl Fetch for Box<dyn Fetch> {
+    fn fetch(&self, start:u64, end:u64)->io::Result<Block> { (**self).fetch(start,end) }
+}
 pub struct HttpFetch {
     client: reqwest::blocking::Client,
     url: String,

@@ -12,8 +12,8 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.2.3"
+        versionCode = 8
+        versionName = "1.3.0"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -48,9 +48,9 @@ android {
             // CI test builds install alongside the old APK: ephemeral debug keys
             // must not force the user to uninstall it and lose local preferences.
             if (System.getenv("AYSHA_PREVIEW") == "1") {
-                applicationIdSuffix = ".context7"
+                applicationIdSuffix = ".telegram8"
                 versionNameSuffix = "-preview"
-                resValue("string", "app_name", "Aysha Music Audio Fix")
+                resValue("string", "app_name", "Aysha Music Telegram")
             }
             isMinifyEnabled = true
             isShrinkResources = true

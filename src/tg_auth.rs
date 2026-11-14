@@ -96,7 +96,7 @@ pub struct TgStatus {
 /// Login state machine shared by the `/api/tg/*` handlers.
 pub struct TelegramAuth {
     files_dir: PathBuf,
-    credentials: Option<Credentials>,
+    credentials: std::sync::RwLock<Option<Credentials>>,
     state: Mutex<AuthState>,
 }
 
@@ -104,14 +104,36 @@ impl TelegramAuth {
     pub fn new(files_dir: impl AsRef<Path>) -> Self {
         let files_dir = files_dir.as_ref().to_path_buf();
         Self {
-            credentials: load_credentials(&files_dir),
+            credentials: std::sync::RwLock::new(load_credentials(&files_dir)),
             files_dir,
             state: Mutex::new(AuthState::default()),
         }
     }
 
     pub fn is_configured(&self) -> bool {
-        self.credentials.is_some()
+        self.credentials.read().unwrap().is_some()
+    }
+
+    /// Configured only from the on-device setup screen; never returned by status.
+    pub async fn configure(&self, api_id:i32, api_hash:&str)->Result<(), String> {
+        if api_hash.trim().len()!=32 || !api_hash.trim().bytes().all(|b|b.is_ascii_hexdigit()) {return Err("API hash must be 32 hexadecimal characters".into());}
+        let credentials=parse_credentials_file(&json!({"api_id":api_id,"api_hash":api_hash}).to_string())
+            .ok_or("Enter a positive API ID and API hash")?;
+        let state=self.state.lock().await;
+        if state.client.is_some() {return Err("Disconnect Telegram before changing API credentials".into());}
+        let bytes=serde_json::to_vec(&json!({"api_id":credentials.api_id,"api_hash":credentials.api_hash})).map_err(|_|"Could not save credentials")?;
+        crate::tg_session::private_write(&self.files_dir.join(CREDENTIALS_FILE),&bytes).map_err(|_|"Could not save credentials")?;
+        *self.credentials.write().unwrap()=Some(credentials);
+        Ok(())
+    }
+    pub async fn disconnect(&self)->Result<(),String> {
+        let mut state=self.state.lock().await;
+        if let Some(client)=&state.client {
+            client.sign_out().await.map_err(|_|"Could not revoke Telegram session. Retry when connected.")?;
+        }
+        *state=AuthState::default();
+        match std::fs::remove_file(self.session_path()) {Ok(())=>(),Err(e) if e.kind()==std::io::ErrorKind::NotFound=>(),Err(_)=>return Err("Could not remove local session".into())}
+        Ok(())
     }
 
     pub fn session_path(&self) -> PathBuf {
@@ -125,9 +147,7 @@ impl TelegramAuth {
             return Ok((client.clone(), state.api_hash.clone()));
         }
 
-        let credentials = self
-            .credentials
-            .as_ref()
+        let credentials = self.credentials.read().unwrap().clone()
             .ok_or_else(|| "missing_credentials".to_string())?;
 
         let session = FileSession::open(self.session_path())
@@ -289,7 +309,7 @@ impl TelegramAuth {
 
         let authorized = match cached_authorized {
             Some(value) => value,
-            None if self.credentials.is_some() => match self.client().await {
+            None if self.is_configured() => match self.client().await {
                 Ok((client, _)) => match client.is_authorized().await {
                     Ok(value) => {
                         self.state.lock().await.authorized = Some(value);
@@ -308,14 +328,14 @@ impl TelegramAuth {
             connected,
             needs_password,
             pending_code,
-            configured: self.credentials.is_some(),
+            configured: self.is_configured(),
         }
     }
 
     /// Signed-in client for uploads/downloads, if the login already completed.
     pub async fn authorized_client(&self) -> Option<Arc<Client>> {
-        let authorized = self.state.lock().await.authorized;
-        if authorized != Some(true) {
+        let authorized = self.status().await.authorized;
+        if !authorized {
             return None;
         }
         self.client().await.ok().map(|(client, _)| client)

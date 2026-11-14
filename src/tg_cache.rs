@@ -230,6 +230,8 @@ impl TelegramCacheManager {
     }
 
     /// Number of tracks still waiting for Telegram.
+    pub fn clear_pending(&self)->Result<()> { self.conn().execute("DELETE FROM upload_queue WHERE status IN ('pending','uploading','failed')",[])?;Ok(()) }
+    pub fn failed_tracks(&self)->Result<u32> { Ok(self.conn().query_row("SELECT COUNT(*) FROM upload_queue WHERE status='failed'",[],|row|row.get(0))?) }
     pub fn queued_tracks(&self) -> Result<u32> {
         let conn = self.conn();
         let count: i64 = conn.query_row(
@@ -480,7 +482,7 @@ impl TelegramCacheManager {
     pub fn evict_lru(&self) -> Result<EvictionReport> {
         let protected: HashSet<String> = {
             let conn = self.conn();
-            let mut statement = conn.prepare("SELECT file_path FROM upload_queue")?;
+            let mut statement = conn.prepare("SELECT file_path FROM upload_queue WHERE status IN ('pending','uploading')")?;
             let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
             rows.collect::<std::result::Result<HashSet<_>, _>>()?
         };
