@@ -1031,3 +1031,43 @@ test('a rejected mobile play leaves a retryable selection and no fake playing st
   assert.equal(h.element('audio-player').src, '');
   assert.equal(h.element('hero-play-label').textContent, 'Play');
 });
+
+test('Android play uses native JSON including track metadata, not missing stream route', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback = true', h.context);
+  await h.context.playSong(track);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].url, '/api/play');
+  const body = JSON.parse(h.calls[0].opts.body);
+  assert.equal(body.video_id, track.id);
+  assert.equal(body.track.title, track.title);
+  assert.notEqual(h.element('audio-player').played, true);
+});
+
+test('Android navigation already starts playback and never creates a second play request', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback = true', h.context);
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({url, opts});
+    return { ok: true, json: async () => ({ status:'playing', track, mode:'native', already_started:true }) };
+  };
+  await h.context.nextTrack();
+  assert.deepEqual(h.calls.map(c => c.url), ['/api/next']);
+  assert.equal(h.element('hero-play-label').textContent, 'Pause');
+  assert.notEqual(h.element('audio-player').played, true);
+});
+
+test('native API logical errors cannot masquerade as successful playback', async () => {
+  const h = harness();
+  h.context.fetch = async () => ({ok: true, json: async () => ({ status:'error', detail:'device unavailable' })});
+  await assert.rejects(h.context.nativeJson('/api/resume'), /device unavailable/);
+});
+
+test('failed Explore search invalidates loaded state so tapping the tab retries', async () => {
+  const h = harness();
+  vm.runInContext("loadedTabs.add('explore')", h.context);
+  h.context.fetch = async () => ({ ok:false, status:502, text: async () => 'provider unavailable' });
+  await h.context.searchTracks('music', 'Music');
+  assert.equal(vm.runInContext("loadedTabs.has('explore')", h.context), false);
+  assert.match(h.element('explore-cards').innerHTML, /tap Explore to retry/);
+});

@@ -116,6 +116,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
           <div class="hero-controls">
             <button class="btn-hero" id="hero-toggle" aria-label="Play" onclick="togglePlay()"><svg id="hero-play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg><span id="hero-play-label">Play</span></button>
             <button class="btn-hero btn-stop" onclick="stopPlay()"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>Stop</button>
+            <button class="btn-hero" id="hero-selftest" aria-label="Run playback selftest" onclick="runSelftest()">Test</button>
           </div>
         </div>
       </div>
@@ -456,7 +457,7 @@ function startLoveIntro() {
 startLoveIntro();
 
 
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true, nativePlayback: false };
 let durationSec = 0;
 let playbackAttempt = 0;
 
@@ -570,6 +571,55 @@ async function checkBluetooth() {
   return st.connected || false;
 }
 
+// --- Native (Android Rust) playback -----------------------------------------
+// The Linux server streams through /api/stream?url=... and takes query params;
+// the Android build resolves and decodes inside Rust and exposes JSON
+// /api/play + /api/player. Probe once, then route controls accordingly.
+async function nativeJson(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.status === 'error' || data.status === 'failed') {
+    const attempts = (data.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
+    throw new Error(data.detail || attempts || data.error || ('HTTP ' + r.status));
+  }
+  return data;
+}
+
+function nativeVideoId(t) {
+  return ((t && (t.video_id || t.videoId || t.id)) || '').trim();
+}
+
+function fmtSecs(value) {
+  const total = Math.max(0, Math.floor(Number(value) || 0));
+  return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+}
+
+// One-tap proof that resolve + media fetch work on this phone.
+async function runSelftest() {
+  const label = document.getElementById('time-display');
+  const id = nativeVideoId(state.current_track) || 'dQw4w9WgXcQ';
+  label.textContent = 'Selftest: resolving ' + id + '...';
+  try {
+    const r = await fetch('/api/selftest?video_id=' + encodeURIComponent(id), { cache: 'no-store' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok || !body.ok) {
+      const attempts = (body.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
+      label.textContent = 'Selftest FAILED: ' + (attempts || body.detail || body.error || ('HTTP ' + r.status));
+      console.warn('aysha selftest', body);
+      return;
+    }
+    label.textContent = 'Selftest OK: ' + body.client + ' itag ' + body.itag + ', ' +
+      body.bytes_fetched + ' B in ' + body.elapsed_ms + ' ms';
+    console.info('aysha selftest', body);
+  } catch (error) {
+    label.textContent = 'Selftest error: ' + error.message;
+  }
+}
+
 function getStreamUrl(t) {
   // Assign the proxy URL directly to <audio>; never fetch audio through the JSON API helper.
   return '/api/stream?url=' + encodeURIComponent(t.url);
@@ -584,6 +634,27 @@ async function playSong(t, options = {}) {
   audio.pause();
   audio.removeAttribute('src');
   audio.load();
+
+  if (state.nativePlayback) {
+    state.playMode = 'native';
+    saveSelection();
+    setPlayingState(false);
+    document.getElementById('time-display').textContent = 'Resolving on this device...';
+    try {
+      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), track: t });
+      if (attempt !== playbackAttempt) return;
+      if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
+      state.stopped = false;
+      setPlayingState(true);
+      document.getElementById('time-display').textContent = 'Playing on this device...';
+    } catch (error) {
+      if (attempt !== playbackAttempt) return;
+      state.stopped = true;
+      setPlayingState(false);
+      document.getElementById('time-display').textContent = error.message.slice(0, 300);
+    }
+    return;
+  }
 
   // This device is the default. Bluetooth status never chooses an output.
   // Only an explicit caller request may start the server's speaker backend.
@@ -646,6 +717,16 @@ async function togglePlay() {
   if (state.stopped) {
     return playSong(state.current_track, { mode: state.playMode || 'browser' });
   }
+  if (state.nativePlayback) {
+    const shouldPlay = !state.is_playing;
+    try {
+      await nativeJson(shouldPlay ? '/api/resume' : '/api/pause');
+      setPlayingState(shouldPlay);
+    } catch (error) {
+      document.getElementById('time-display').textContent = error.message;
+    }
+    return;
+  }
   const shouldPlay = !state.is_playing;
   try {
     if (state.playMode === 'browser') {
@@ -661,6 +742,20 @@ async function togglePlay() {
 
 async function stopPlay() {
   ++playbackAttempt;
+  if (state.nativePlayback) {
+    try {
+      await nativeJson('/api/stop');
+    } catch (error) {
+      document.getElementById('time-display').textContent = 'Stopped on this device; server update failed: ' + error.message;
+    }
+    state.stopped = true;
+    state.pos = 0;
+    setPlayingState(false);
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('time-display').textContent = 'Stopped — press Play to start again';
+    updateMediaSession();
+    return;
+  }
   const bluetooth = state.playMode === 'bt';
   if (bluetooth) {
     try {
@@ -699,7 +794,16 @@ async function navigateTrack(direction) {
     const result = await api('POST', '/api/' + direction);
     if (!result.track) throw new Error('No track returned by server');
     // Navigation already updated server state. Do not add a second history entry.
-    await playSong(result.track, { notifyServer: false, mode: result.mode });
+    if (state.nativePlayback && result.already_started) {
+      state.current_track = result.track;
+      state.playMode = 'native';
+      state.stopped = false;
+      renderSelection(result.track);
+      saveSelection();
+      setPlayingState(true);
+    } else {
+      await playSong(result.track, { notifyServer: false, mode: result.mode });
+    }
   } catch (error) {
     document.getElementById('time-display').textContent = error.message;
   } finally {
@@ -724,7 +828,8 @@ async function changeVol(v) {
   const audio = document.getElementById('audio-player');
   audio.volume = v / 100;
   state.volume = Number(v);
-  await api('POST', '/api/volume?val=' + v);
+  if (state.nativePlayback) await nativeJson('/api/volume', { volume: Number(v) / 100 }).catch(() => {});
+  else await api('POST', '/api/volume?val=' + v);
   updateVolumeIcon(v);
 }
 
@@ -734,11 +839,13 @@ async function toggleMute() {
   if (audio.volume > 0) {
     audio.volume = 0;
     slider.value = 0;
-    await api('POST', '/api/volume?val=0');
+    if (state.nativePlayback) await nativeJson('/api/volume', { volume: 0 }).catch(() => {});
+    else await api('POST', '/api/volume?val=0');
   } else {
     audio.volume = 0.8;
     slider.value = 80;
-    await api('POST', '/api/volume?val=80');
+    if (state.nativePlayback) await nativeJson('/api/volume', { volume: 0.8 }).catch(() => {});
+    else await api('POST', '/api/volume?val=80');
   }
   state.volume = audio.volume * 100;
   updateVolumeIcon(state.volume);
@@ -996,7 +1103,8 @@ async function searchTracks(query, label) {
     renderGrid(Array.isArray(result) ? result : [], 'explore-cards', true);
   } catch (error) {
     if (generation === searchGeneration) {
-      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again to retry.</div>';
+      loadedTabs.delete('explore');
+      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again or tap Explore to retry.</div>';
       showMessage(error.message);
     }
   } finally {
@@ -1353,6 +1461,31 @@ function initializeNavigation() {
 async function pollStatus() {
   try {
     const st = await api('GET', '/api/status');
+    if (st && st.native_playback === true) state.nativePlayback = true;
+    if (state.nativePlayback) {
+      const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
+      if (player.error) {
+        document.getElementById('time-display').textContent = String(player.error).slice(0, 300);
+        if (player.state === 'error') setPlayingState(false);
+        return;
+      }
+      if (player.track && (!state.current_track || state.current_track.id !== player.track.id)) {
+        state.current_track = player.track;
+        state.playMode = 'native';
+        renderSelection(player.track);
+        saveSelection();
+      }
+      if (player.state === 'playing' || player.state === 'paused') {
+        state.stopped = false;
+        const playing = player.state === 'playing';
+        if (playing !== state.is_playing) setPlayingState(playing);
+      }
+      if (player.state === 'idle' && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
+      syncNowPlaying();
+      document.getElementById('time-display').textContent =
+        fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : '');
+      return;
+    }
     // Global server metadata is not evidence that this browser has an audio
     // source. Never replace an existing local selection with another device's.
     if (st.current_track && !state.current_track) {

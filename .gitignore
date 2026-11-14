@@ -13,3 +13,8 @@ __pycache__/
 
 /prototypes/rust-extract/target/
 /prototypes/rust-direct/target/
+
+/android-app/.gradle/
+/android-app/app/build/
+/android-app/app/src/main/jniLibs/
+/android-app/local.properties

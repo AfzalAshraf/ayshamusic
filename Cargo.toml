@@ -3,21 +3,61 @@ name = "aysha-music"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "ayshamusic"
+crate-type = ["cdylib", "rlib"]
+
 [[bin]]
 name = "music-server"
 path = "src/main.rs"
+
+[features]
+default = []
+# Enabled only when cross-compiling the Android library (see android-app/README notes).
+android = ["dep:jni"]
 
 [dependencies]
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", default-features = false, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "sync",
+    "time",
+    "fs",
+    "macros",
+    "process",
+    "signal",
+] }
 tower-http = { version = "0.5", features = ["cors"] }
-reqwest = { version = "0.12", features = ["json", "stream"] }
+# rustls avoids OpenSSL bloat and Android system-SSL certificate issues.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 futures-util = "0.3"
+# Playback: rodio drives cpal; `mp4` pulls symphonia's isomp4 + AAC decoders,
+# which is exactly what YouTube's audio/mp4 streams need. Other codecs are
+# intentionally off to keep the APK small.
+rodio = { version = "0.23", default-features = false, features = ["playback", "mp4"] }
+# Bundled SQLite (no system sqlite dependency on Android).
+rusqlite = { version = "0.32", features = ["bundled"] }
+# Pure-Rust Telegram client (MTProto) + SQLite-backed session storage.
+grammers-client = { version = "0.12", default-features = false }
+# serde enables Session trait type serialization; SQLite storage (libsql) is
+# intentionally NOT enabled - it bundles a second SQLite and collides with
+# rusqlite's bundled copy. See src/tg_session.rs for the JSON session file.
+grammers-session = { version = "0.12", default-features = false, features = ["serde"] }
+
+# Android-only JNI bindings (src/lib.rs).
+jni = { version = "0.21", optional = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 
 [profile.release]
 opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"
+strip = "symbols"

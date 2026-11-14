@@ -1,0 +1,102 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - "android-app/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android-app/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+
+# `write` lets the job publish the built APK as a release asset.
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MAX_APK_MB: "15"
+      WARN_APK_MB: "12"
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            platforms;android-35
+            build-tools;35.0.0
+            platform-tools
+            ndk;27.2.12479018
+            cmake;3.22.1
+
+      # rodio/cpal link ALSA on the Linux runner, which ships no dev headers.
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: android-arm64
+
+      - name: Rust checks (host)
+        run: |
+          cargo test --lib
+          cargo check --bin music-server
+
+      - name: Build Rust library + release APK
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          bash android-app/scripts/build_apk.sh
+
+      - name: Enforce APK size budget
+        run: |
+          bash android-app/scripts/measure_apk_size.sh \
+            android-app/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ayshamusic-arm64-release
+          path: android-app/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Android website contract regressions
+        run: node --test tests/android.test.cjs
+
+
+      # Branch fixes are test artifacts, never overwrite the public main release.

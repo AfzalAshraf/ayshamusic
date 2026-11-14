@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Aysha Music</string>
+    <string name="notification_channel_media">Media Playback</string>
+    <string name="notification_channel_sync">Telegram Sync</string>
+    <string name="notification_playing">Playing: %1$s</string>
+    <string name="notification_paused">Paused: %1$s</string>
+    <string name="notification_syncing">Syncing to Telegram…</string>
+    <string name="tg_login_prompt">Enter phone number to sync with Telegram</string>
+    <string name="tg_code_prompt">Enter the code sent to Telegram</string>
+    <string name="tg_2fa_prompt">Enter your 2FA password</string>
+</resources>
