@@ -11,6 +11,7 @@
 
 mod android_catalog;
 mod range_media;
+mod pcm_stream;
 pub mod player;
 pub mod tg_auth;
 pub mod tg_cache;

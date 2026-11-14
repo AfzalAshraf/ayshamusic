@@ -107,6 +107,8 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
     let mut device = None;
     let mut sink: Option<RodioPlayer> = None;
     let mut playing_generation = 0;
+    let mut progress: Option<(Arc<crate::pcm_stream::Progress>, rodio::ChannelCount, rodio::SampleRate)> = None;
+    let mut health: Option<Arc<Mutex<Option<String>>>> = None;
     loop {
         match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(Command::Play { media, generation, cancel, ready }) => {
@@ -116,25 +118,31 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                     let fetch = HttpFetch::new(media.url, media.user_agent).map_err(|e| e.to_string())?;
                     let reader = RangeReader::new(fetch, media.content_length, cancel.clone()).map_err(|e| e.to_string())?;
                     let len = reader.len();
+                    let errors = reader.health();
                     let decoder = Decoder::builder().with_data(reader).with_byte_len(len)
                         .with_hint("m4a").with_seekable(true).build()
                         .map_err(|e| format!("audio_decode_failed: {e}"))?;
+                    let duration = decoder.total_duration().map(|d| d.as_secs_f64());
+                    let pcm = crate::pcm_stream::PcmSource::prepare(decoder, cancel.clone()).map_err(|e| e.to_string())?;
+                    if let Some(error) = errors.lock().unwrap().clone() { return Err(error); }
                     if cancel.load(Ordering::Acquire) { return Err("playback_cancelled".into()); }
                     if device.is_none() {
                         device = Some(DeviceSinkBuilder::open_default_sink().map_err(|_| "audio_output_unavailable".to_string())?);
                         sink = Some(RodioPlayer::connect_new(device.as_ref().unwrap().mixer()));
                     }
-                    Ok(decoder)
+                    Ok((pcm, duration, errors))
                 })();
                 match prepared {
-                    Ok(decoder) => {
+                    Ok((pcm, duration, errors)) => {
                         let mut state = status.lock().unwrap();
                         if state.generation != generation || cancel.load(Ordering::Acquire) {
                             let _ = ready.send(Err("playback_cancelled".into())); continue;
                         }
-                        state.duration_secs = decoder.total_duration().map(|d| d.as_secs_f64());
+                        state.duration_secs = duration;
+                        progress = Some((pcm.progress.clone(), pcm.channels(), pcm.sample_rate()));
+                        health = Some(errors);
                         let output = sink.as_ref().unwrap();
-                        output.set_volume(state.volume); output.append(decoder); output.play();
+                        output.set_volume(state.volume); output.append(pcm); output.play();
                         playing_generation = generation;
                         state.state = "playing"; state.error = None;
                         // HTTP success now means decoder/output accepted the source,
@@ -146,7 +154,7 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
             }
             Ok(Command::Pause) => {
                 if let Some(output) = &sink { output.pause(); }
-                let mut state = status.lock().unwrap(); if state.state == "playing" { state.state = "paused"; }
+                let mut state = status.lock().unwrap(); if matches!(state.state, "playing" | "buffering") { state.state = "paused"; }
             }
             Ok(Command::Resume) => {
                 if let Some(output) = &sink {
@@ -163,10 +171,17 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
             Err(RecvTimeoutError::Timeout) => (),
         }
         let mut state = status.lock().unwrap();
-        if state.generation == playing_generation && matches!(state.state, "playing" | "paused") {
+        if state.generation == playing_generation && matches!(state.state, "playing" | "buffering" | "paused") {
             if let Some(output) = &sink {
-                state.position_secs = output.get_pos().as_secs_f64();
-                if state.state == "playing" && output.empty() { state.state = "ended"; }
+                if let Some((samples, channels, rate)) = &progress {
+                    state.position_secs = samples.seconds(*channels, *rate);
+                    if state.state != "paused" {
+                        state.state = if samples.starving.load(Ordering::Acquire) { "buffering" } else { "playing" };
+                    }
+                }
+                if let Some(error) = health.as_ref().and_then(|h| h.lock().unwrap().clone()) {
+                    state.state = "error"; state.error = Some(error); output.stop();
+                } else if state.state != "paused" && output.empty() { state.state = "ended"; }
             }
         }
     }

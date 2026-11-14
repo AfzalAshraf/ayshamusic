@@ -1,7 +1,7 @@
 //! Bounded, seekable compressed-media input for the native MP4/AAC decoder.
 //! MP4 may place its moov/index after mdat: an unseekable FIFO is not a file.
 use std::io::{self, Read, Seek, SeekFrom};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 
 pub const BLOCK: usize = 64 * 1024;
@@ -80,6 +80,7 @@ pub struct RangeReader<F: Fetch> {
     cache_start: u64,
     cache: Vec<u8>,
     requests: usize,
+    health: Arc<Mutex<Option<String>>>,
 }
 impl<F: Fetch> RangeReader<F> {
     pub fn new(fetch: F, expected: Option<u64>, cancel: Arc<AtomicBool>) -> io::Result<Self> {
@@ -88,15 +89,16 @@ impl<F: Fetch> RangeReader<F> {
         if block.total == 0 || block.total > MAX_MEDIA || block.bytes.len() != block.total.min(BLOCK as u64) as usize || expected.is_some_and(|n| n != block.total) {
             return Err(failure("media_length_rejected"));
         }
-        Ok(Self { fetch, cancel, total: block.total, position: 0, cache_start: 0, cache: block.bytes, requests: 1 })
+        Ok(Self { fetch, cancel, total: block.total, position: 0, cache_start: 0, cache: block.bytes, requests: 1, health: Arc::new(Mutex::new(None)) })
     }
     pub fn len(&self) -> u64 { self.total }
+    pub fn health(&self) -> Arc<Mutex<Option<String>>> { self.health.clone() }
     fn check_cancel(&self) -> io::Result<()> {
         if self.cancel.load(Ordering::Acquire) { Err(failure("playback_cancelled")) } else { Ok(()) }
     }
 }
-impl<F: Fetch> Read for RangeReader<F> {
-    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+impl<F: Fetch> RangeReader<F> {
+    fn read_inner(&mut self, out: &mut [u8]) -> io::Result<usize> {
         self.check_cancel()?;
         if out.is_empty() || self.position >= self.total { return Ok(0); }
         if self.position < self.cache_start || self.position >= self.cache_start + self.cache.len() as u64 {
@@ -114,6 +116,15 @@ impl<F: Fetch> Read for RangeReader<F> {
         out[..count].copy_from_slice(&self.cache[offset..offset + count]);
         self.position += count as u64;
         Ok(count)
+    }
+}
+impl<F: Fetch> Read for RangeReader<F> {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        let result = self.read_inner(out);
+        if let Err(error) = &result {
+            if !self.cancel.load(Ordering::Acquire) { *self.health.lock().unwrap() = Some(error.to_string()); }
+        }
+        result
     }
 }
 impl<F: Fetch> Seek for RangeReader<F> {
