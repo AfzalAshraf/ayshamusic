@@ -17,7 +17,7 @@ on:
       - "Cargo.lock"
   workflow_dispatch:
 
-# `write` lets the job publish the built APK as a release asset.
+# Build install-test artifacts only; publishing is a separate explicit operation.
 permissions:
   contents: read
 
@@ -74,7 +74,7 @@ jobs:
 
       - name: Rust checks (host)
         run: |
-          cargo test --lib
+          cargo test --lib --features phone
           cargo check --bin music-server
 
       - name: Build Rust library + release APK

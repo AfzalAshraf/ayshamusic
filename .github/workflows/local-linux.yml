@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install native library audio headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
       - name: Rust regression tests
         run: cargo test
       - name: Build local server

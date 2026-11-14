@@ -7,6 +7,8 @@
 //! Later phases wire in the pure-Rust YouTube extractor, the rodio player and
 //! the `/api/tg/quota` sidebar gauge in the player page.
 
+#![cfg(feature = "phone")]
+
 mod android_catalog;
 pub mod player;
 pub mod tg_auth;
