@@ -1980,3 +1980,84 @@ oldLinux6.4512MBcurrent/67.592192MBhistoricalpeak/0swapNOTREMEASURED/notAPKtotal
 NextdeviceowneropensRust4(checkSHA0d5f461),onePlayattempt; if400remains,stop/unaccepted,
 notmoreblindclientretry. OnlyafteraudibilitytestmoodNextwithEMPTYqueue; manualqueue
 orderseparately. Do not promisefullyfledgedpublicationwhileproviderrejectionunresolved.
+
+## Follow-up — Rust4 device refusal, main 1.2.1 integration, automatic local learning
+
+**Active department: QA/debugging.** Latest user screenshot shows installed Rust4
+`0d5f461` at 0:00 with Android/iOS **no audio-only AAC stream offered**. This is
+before media acquisition/decoding, not the older HTTP400. User explicitly rejects
+Romantic/Melody dropdown and requests inference from actual listening behavior.
+
+### Source and acceptance contract
+
+- Keep: approved page/dedication, strict-Rust standalone phone core, working Linux
+  mode, queue priority and Previous. No Java/Python/Node extractor or off-host helper.
+- Merge `efb0613` integrates main parent `7b09cdef26db88a97b03980717acd488c60e9955`.
+  Follow-up source `60837191f5e722271ec51d9d8ff8decde842d10a` adds stronger contracts
+  and clears stale native errors after successful Next. Merge fully resolved.
+- Main's separate API/media clients are retained: media has no whole-track 12s cap.
+  Main resolver/persistent visitor/FIFO player are the current playback baseline.
+  Old branch range/PCM modules are unwired; do not count old fixture results as
+  tests of this player. Old branch terminal400/version/visitor behavior was
+  superseded by main, not kept alongside it. No new live provider probes here.
+- Other agent's main ledger reports full 3,449,447B/107.6s transfer, AAC/ffmpeg and
+  non-silent rodio evidence for one video; other catalogue videos were bot-screened.
+  Main release 1.2.1 and CI metadata inspected, host measurements NOT rerun here.
+  The media timeout fix does NOT prove the screenshot's pre-media refusal cleared.
+- No mood picker/API. Rust five-second sampling uses real player progress; initial
+  baselines, pauses, position jumps, failed plays and searches are not listening.
+  At most 300 local profiles; seconds, short skips, likes and completions feed a
+  simple metadata style/channel heuristic. No trained model/audio fingerprinting.
+  No-history fallback is generic discovery, not forced Romantic.
+- Explicit queue first; one bounded aggregate-preference search when empty; filter
+  same-title variants and recent history. At most one selected candidate resolved.
+  Failure keeps queue/current/history. Previous uses session history. Natural-end
+  autoplay was not added; selection is automatic when Next is invoked.
+- Private, bounded, atomic profile file with Unix0600; Android backup already off.
+  Listening logs not uploaded; inferred style/favored channel goes in the normal
+  search query. Reset clears learned profile without clearing queue/favorite-list
+  UI. Learned like weight persists; favorite-list/queue/history remain session-only.
+  Periodic saves may lose recent samples on force-kill. See
+  `STRICT_RUST_PROVIDER_AND_NEXT.md` for exact scoring and acceptance boundaries.
+
+### Verification and build manifest
+
+- Local **91 Node tests PASS**, **137 Python tests PASS**, `git diff --check` PASS.
+- **Android CI 43591553488 at 6083719: SUCCESS**, job132437186497, 3m30s. All steps
+  passed: host Rust phone tests (including actual-progress/failed-play/seek/pause,
+  weighted preference, skip, bound, persistence/private permissions and route-reset
+  contracts), Linux binary check, Android Rust crosscompile/Gradle, APK-size gate,
+  upload and Android website contracts. Default suite does not hit live providers.
+  Test counts from unavailable redirected logs are not invented.
+- **Linux CI43591553492 at6083719: SUCCESS, all five jobs**: default Rust/server,
+  Rust-audio prototype, Rust-extract prototype, Rust-direct prototype and mobile
+  browser (including static preview). These do not establish device audibility.
+- Build: **1.2.2-preview/code6**, **com.afzal.ayshamusic.learn6**, launcher
+  **Aysha Music Listening**, Android8+/ARM64. Installs alongside old test packages;
+  no forced uninstall or profile import. CI uses preview/debug signing unless
+  production secrets are explicitly supplied; no publication or main-release change.
+- Download **ayshamusic-arm64-release** artifact **14112747190**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43591553488/artifacts/14112747190
+  GitHub-reported archive size **3,707,064B**, ZIP SHA256
+  `f544ca6056db5ab169a8cf91fce6bff1d94e2abcb8b867ff4e666ebe80d75c84`.
+  Size/digest refer to the artifact archive, NOT installed APK size or RAM. Extract
+  `app-release.apk`. GitHub sign-in/repository access may be needed; retention14days.
+- `gh run download` attempted once and failed EOF at the blocked Azure artifact
+  redirect. Artifact metadata and green CI are verified; no independent local APK
+  signature/badging/binary inspection. No stale/partial APK offered as this build.
+- No user Linux service install/restart, live provider call, phone/emulator audio
+  test, RAM measurement, store signing or public release performed. Unrelated
+  tracked pyc deletion remains unstaged/preserved.
+
+### Remaining gates / recovery
+
+QA **3/5**: build/offline/API/browser evidence green, device/provider evidence open.
+Phone playback/publication **not accepted**. The user need not run a Linux server;
+acceptance is actual audible output with advancing timer in the correctly identified
+candidate. If no-AAC/provider rejection remains, stop and retain that result, not
+repeat blind profile/watch/reinstall attempts or claim timeout fixed resolution.
+Only after playback works can listening history personalize Next; separately check
+empty-queue different-song selection, queue order, Previous and reset. Phone RAM
+**NOT MEASURED**; Linux RAM **not remeasured**, old service figures not APK totals.
+Recovery: old phone packages/data and main public1.2.1 release are untouched; source
+merge can be reverted on this branch without restarting the working Linux service.

@@ -1,95 +1,140 @@
-# Strict-Rust APK: provider400 and mood-based Next
+# Standalone Rust APK: playback baseline and automatic local recommendations
 
-## User evidence and decision
+## Current user correction and device evidence
 
-The screenshot shows ANDROID and IOS HTTP400 / failedPrecondition, followed by an
-unplayable TV-client result. This is a rejection of the resolver request BEFORE
-native range fetching/MP4 decoding. Real AAC decoder tests from the previous fix
-never established a successful live YouTube resolver. Do not call a decoder change
-a fix for this400 or declare this app fully working based on CI compilation.
+The user explicitly rejected the Romantic/Melody dropdown. Native Next must learn
+from actual listening, skips and likes, without using the current song title as
+its search seed. The approved Aysha page and dedication remain unchanged.
 
-The user explicitly chose strict_rust when asked about replacing the handwritten
-resolver with an on-device NewPipeExtractor. Do NOT add NewPipe/Java extraction,
-Python/Node/yt-dlp, a token service, proxy or hosted Aysha fallback without a new
-explicit decision. Android/Kotlin shell and embedded HTML/JS UI already exist;
-'Rust' here describes acquisition/transfer/decode/player core, not Android UI code.
-The APK does run these on the PHONE, not the user's Linux machine. Internet and
-provider availability are still required. Publication is not accepted yet.
+The latest device screenshot is **Rust APK 0d5f461**, 0:00, with ANDROID and IOS
+reporting **no audio-only AAC stream offered**. That is a failure to obtain a
+compatible direct media URL, before transfer or decoding. The old HTTP 400 report
+was an earlier failure; it is not the latest symptom. Rust4 is a failed device
+candidate, not a recommended install or a publication-ready APK.
 
-## Compatibility patch, not verified live acceptance
+The user chose strict Rust over NewPipeExtractor. No Java extractor,
+Python/Node/yt-dlp, hosted resolver, token service or external Aysha server has been
+added. Existing Kotlin/WebView UI is retained. The phone makes its own provider
+requests, transfers, decodes and plays audio; normal internet/provider access is
+still required. Linux server playback remains a separate, unchanged path.
 
-- Replaced the old19.xAndroid/iOS request metadata with matched21.26.364Android /
-  21.26.4iOS context/UA/OS fields. Added userAgent to the body, matching HTTP headers.
-  Profile facts checked against yt-dlp's current source snapshot:
-  https://github.com/yt-dlp/yt-dlp/blob/12ac9aca79671420724227aca37bc888c604a6f8/yt_dlp/extractor/youtube/_base.py
-  These are protocol field facts, NOT inclusion of Python or a claim that a newer
-  version string solves a provider refusal. This source also describes proof-token
-  requirements for media delivery: request acceptance would not prove CDN playback.
-- Reuses responseContext.visitorData ONLY if actually returned by ordinary YouTube
-  search/player JSON, sane/ASCII/16–1024bytes, in process memory for at most30minutes.
-  Matching header/body. No extra identity endpoint/watch probe, synthesized token,
-  cookie import, account login, disk identifier or visitor preview/logging added.
-- Bounded player JSON1MiB/12sper request, existing search2MiB/12s. Removed old embedded
-  TV profile from automatic fallbacks. Legacy explicit TV alias remains for caller
-  compatibility; it is not automatically tried or claimed to work.
-- Recognizes the supplied400precondition structure as terminal PreconditionFailed;
-  returns youtube_precondition_failed instead of repeatedly rotating profiles. Does
-  not retry other songs after a provider rejection. No removed content/login/age/
-  geo/proof guard or challenge-solving/bypass logic. No quality/codec downgrade.
-- Wrapped full-player error region separate from clock. Resolver errors survive idle
-  polling instead of disappearing because the player was never started. Build SHA
-  receipt identifies the actual installed source; stale player metadata cannot
-  replace a pending selection for another ID.
+## Preserve the other agent's 1.2.1 playback fix
 
-This is a justified compatibility candidate. Exact cause of the provider's400 beyond
-the supplied rejection remains unproven; actual acceptance/CDN/audio are NOT fixed
-by assertion. If still rejected, stop, retain the exact error, and do not publish or
-repeat many Test/profile/version attempts. A fully working all-Rust resolver is still
-an open gate until a real device receives, decodes and audibly plays a track.
+Merge parent `7b09cdef26db88a97b03980717acd488c60e9955` supplies the playback baseline:
 
-## Automatic Next: similar mood, not same song name
+- Separate API client (12-second whole-request timeout) and media client
+  (10-second connect / 30-second read timeout, **no whole-track timeout**).
+- Persistent anonymous visitor identity, acquired and cached by that baseline.
+- The baseline's Android/iOS/TV resolver, media pump and rodio FIFO decoder path.
+- Direct allowlisted AAC only; provider refusal remains an error, not fake playback
+  or a hidden server fallback. No new live profile/watch/auth experiments here.
 
-- Native Now Playing offers **Romantic** (default) and **Melody** controls.
-- Explicitly queued songs play FIRST, in user order. Previous uses actual successful
-  playback history; automatic mood choice does not replace those manual choices.
-- Empty queue: ONE bounded mood-only search ('romantic love melody songs' or
-  'soft soothing melody songs'), not '<current title> similar songs'. No private
-  liked-song titles are sent as query seeds. Search and playback slots remain bounded.
-- Scores mood words and locally liked artist/channel labels; preserves provider
-  result order for ties. Likes/history/current must be actual existing local state.
-- Filters currentID, normalized same-name alternate uploads/lyrics/covers/remixes/
-  slowed variants and last50played identities. No replacement means a clear message,
-  not knowingly replaying the seed. At most one selected candidate is resolved per
-  Next tap; failed play does not consume queue or mutate current/history.
-- This is a metadata heuristic, not audio fingerprinting, inferred emotion, a trained
-  recommender or a guarantee across all languages/transliterations. Liked YouTube
-  channels are not always the song artist. Queue/likes/mood are process-memory state,
-  not persistent account sync. Natural-end autoplay was not added in this patch.
+The other agent's main QA ledger reports a full 3,449,447-byte transfer over 107.6 s,
+AAC inspection, complete ffmpeg decode and non-silent rodio samples. The published
+main 1.2.1 release and successful build metadata were inspected here. Those host
+measurements were **not independently rerun** in this session and are not physical
+phone speaker proof. That agent also reports bot screening for four music-catalogue
+videos while one test video resolved. No claim of universal music availability.
 
-## Install-test build and evidence
+The timeout fix only applies **after resolution**. It does not establish that the
+latest screenshot's no-direct-AAC failure is resolved on the user's phone.
 
-Source0d5f461. Android43589877314PASS all steps2m57s: Rust tests including realAAC
-front/tail fixtures, request contracts, typed400, recommendation fixtures/route,
-Android crosscompile/Gradle,sizegate,artifactupload and websitecontracts.
-Linux CI43589877315also PASSED all5jobs. Locally137Python/91NodePASS and
-diffcheckPASS. Tests do not call live YouTube.
+The old branch range/PCM modules remain source files but are not wired into the
+current player. Do not cite their front/tail MP4 fixture tests as evidence for this
+candidate's FIFO decoder. Earlier Rust4 request-version/terminal-400/visitor contracts
+were superseded by the main baseline, not silently presented as retained features.
 
-Version1.0.3-preview/applicationcom.afzal.ayshamusic.rust4/launcherAysha Music Rust4.
-Download: https://github.com/AfzalAshraf/ayshamusic/actions/runs/43589877314/artifacts/14111903921
-Artifactayshamusic-arm64-release; ZIP3,709,490bytes (not APK installed size or RAM).
-GitHub-reported ZIP SHA256341dc12bd3b6c6828cc5834d9f88b716d51f8a1ece8102099504447a34d8ed2f.
-Sign-in/repository access may be required;14day retention. Extract app-release.apk,
-install and open **Aysha Music Rust4**, not an old Preview/StreamFix/main release.
-This separate test package preserves old app data despite ephemeral debug signer;
-no production signing or public apk-latest overwrite. Android8+/ARM64 only.
+## Automatic Next: what is implemented
 
-No Linux commands or server installation needed. Search/select one song once.
-Success requires audible audio and an advancing native timer. If HTTP400 remains,
-the provider gate remains blocked. Send the new wrapped message/build receipt only;
-no raw signed URLs, credentials, repeated provider Test taps or build/RAM loop.
-If playback succeeds, choose Romantic/Melody, test Next with empty queue and verify
-it chooses a genuinely different song. Then verify manual queue ordering separately.
+- **No mood dropdown or mood API.** Native Now Playing explains local learning and
+  has a Reset learning action.
+- A Rust task samples the actual player position every five seconds. UI polling,
+  searches, failed resolves and elapsed wall time do not count as listening.
+  Initial samples establish a baseline; pauses and position jumps are not credited.
+- Bounded profile: at most 300 tracks with title/channel metadata, played seconds,
+  short skips, completions and explicit likes. A completion requires observed
+  listening of at least 80% of the estimated duration. A successful manual Next or
+  replacement shortly after observed playback counts as a skip; Previous does not.
+- Weight per track: up to 20 points from seconds/30, +4 per completion, +8 if liked,
+  -3 per short skip. Nonpositive evidence does not create a positive preference.
+- Metadata cues infer broad styles (for example romantic, melody, dance,
+  instrumental or devotional); otherwise a favored artist/channel supplies the
+  search seed. No history means generic discovery, not a forced romantic default.
+- Next searches once using the inferred style or favored channel and ranks results
+  using the aggregate profile and current likes. Current/recent song IDs and
+  normalized title variants are excluded. Lyrics/covers/remixes of the same title
+  are filtered heuristically; this is not acoustic fingerprinting or a trained
+  model, and channels do not reliably identify the true artist or genre.
+- Explicit queue wins over recommendations; Previous keeps session history.
+  Failed resolution does not consume the queue or replace current/history. One
+  selected candidate is resolved per tap; no hidden loop across rejected songs.
+  If no different candidate survives, a clear message replaces same-song replay.
+- Profile is saved in app-private `listening-preferences.json` using atomic rename,
+  bounded reads and mode 0600 on Unix/Android. Flush roughly every six progress
+  updates, and on explicit likes/skips/stop/track changes. Force-kill can lose the
+  latest unsaved samples. Android backup is disabled by the existing manifest.
+- Listening logs are not uploaded. Normal YouTube search sends the inferred style
+  or favored channel as a query, not the full history, seconds/skips or private
+  favorite titles. Reset clears the saved model, not the queue/current favorites.
+- Queue/history/favorite-list display remain process-local, not account sync.
+  The learned like contribution persists in the profile; this does not claim a
+  fully persistent favorites library. Natural-end autoplay was not added here;
+  this change concerns automatic selection when Next is invoked.
 
-Phone RAM remains NOT MEASURED; old Linux service figures and ZIP size do not apply.
-The agent cannot download GitHub's log/artifact redirect hosts from this network;
-metadata/CI step states are evidence, not independent APK signature/device inspection.
+## Candidate identity and build procedure
+
+Source merge `efb0613`, follow-up contracts `6083719`. Version **1.2.2-preview**,
+code **6**, package **com.afzal.ayshamusic.learn6**, launcher **Aysha Music Listening**.
+ARM64 / Android 8+ only. A separate preview package avoids requiring removal of old
+apps with a different ephemeral CI signing key. Old app profiles are not imported.
+
+The workflow builds install-test artifacts only; it does not overwrite public
+`apk-latest`, sign for production or publish to a store. A candidate build must
+pass host Rust tests, Linux compile check, Android cross-compile/Gradle, size gate
+and website contracts before delivery. See the latest QA ledger for the actual
+run IDs/results and download link, rather than treating a queued build as success.
+
+For maintainers (**build**, not a phone install command):
+
+```sh
+cargo test --lib --features phone
+cargo check --bin music-server
+# With Android SDK/NDK/JDK installed:
+AYSHA_PREVIEW=1 bash android-app/scripts/build_apk.sh
+```
+
+The sandbox has no Rust/JDK/SDK toolchain; CI performs those checks. Local Node and
+Python regressions do not substitute for the Android build. No live provider or
+physical phone test was run in this session. Phone RAM and the Linux service RAM
+were **not remeasured**.
+
+## Acceptance boundary
+
+No Linux server install is needed. Open the correctly named candidate, verify the
+source receipt and play once. Actual acceptance requires audible sound and an
+advancing timer, not just a successful API response or downloaded bytes. If the
+same no-AAC/provider refusal remains, stop: the provider gate is still unresolved;
+do not prescribe repeated reinstalls or blind Test/profile rotations.
+
+Only after playback works can real listening personalize Next. Verify a different
+song with an empty queue, explicit queue order, Previous and reset separately.
+Production signing, actual phone/background/audio-focus behavior, resource usage
+and music-provider coverage remain open gates. Do not call this publish-ready based
+only on compilation, offline tests or the other agent's one-track host evidence.
+
+## Verified candidate download
+
+Android run **43591553488** at **6083719** passed all steps; Linux run
+**43591553492** passed all five jobs. Local **91 Node / 137 Python** tests passed.
+
+[Download the install-test artifact](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43591553488/artifacts/14112747190),
+extract `app-release.apk`, and open **Aysha Music Listening** after installation.
+This is a preview, not a newly published production release. GitHub sign-in and
+repository access may be required; artifact retention is 14 days.
+
+GitHub-reported ZIP size 3,707,064 bytes; archive SHA256
+`f544ca6056db5ab169a8cf91fce6bff1d94e2abcb8b867ff4e666ebe80d75c84`.
+These are archive metadata, not phone RAM or installed size. Download from the
+sandbox failed at the restricted Azure redirect; independent binary/signature and
+physical-device inspection remain unperformed. No claim that green CI resolves
+the user's no-AAC error or establishes audibility.
