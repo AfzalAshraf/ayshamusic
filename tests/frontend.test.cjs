@@ -1089,5 +1089,27 @@ test('native full player shows buffering and decoder errors rather than perpetua
   assert.match(h.element('full-duration').textContent, /Buffering/);
   vm.runInContext("state.nativeStage='error'; state.nativeError='media_range_http_403'", h.context);
   h.context.syncNowPlaying();
-  assert.equal(h.element('full-duration').textContent, 'media_range_http_403');
+  assert.equal(h.element('full-duration').textContent, 'Playback could not start');
+  assert.equal(h.element('full-error').textContent, 'media_range_http_403');
+});
+
+test('resolver rejection persists through idle polls and is separated from the clock', async () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='error'; state.nativeError='YouTube rejected this playback request (HTTP 400: failedPrecondition). Audio has not started.'", h.context);
+  h.context.fetch = async url => ({ ok: true, json: async () => url === '/api/status' ? { native_playback:true } : { state:'idle',error:null,position_secs:0 } });
+  await h.context.pollStatus();
+  assert.match(h.element('full-error').textContent, /HTTP 400/);
+  assert.equal(h.element('full-error').hidden, false);
+  assert.equal(h.element('full-elapsed').textContent, '0:00');
+  assert.doesNotMatch(h.element('full-duration').textContent, /ANDROID|failedPrecondition/);
+});
+
+test('mood selection only calls the on-phone preference endpoint', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback=true', h.context);
+  await h.context.setRecommendationMood('melody');
+  assert.deepEqual(h.calls.map(c=>c.url), ['/api/recommendation/mood']);
+  assert.equal(JSON.parse(h.calls[0].opts.body).mood, 'melody');
+  await h.context.setRecommendationMood('arbitrary');
+  assert.equal(h.calls.length, 1);
 });

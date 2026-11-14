@@ -25,16 +25,16 @@ pub struct InnertubeClient {
 
 pub const ANDROID: InnertubeClient = InnertubeClient {
     name: "ANDROID",
-    version: "19.44.38",
-    user_agent: "com.google.android.youtube/19.44.38 (Linux; U; Android 11) gzip",
+    version: "21.26.364",
+    user_agent: "com.google.android.youtube/21.26.364 (Linux; U; Android 11) gzip",
     extra: r#"{"androidSdkVersion":30,"osName":"Android","osVersion":"11"}"#,
 };
 
 pub const IOS: InnertubeClient = InnertubeClient {
     name: "IOS",
-    version: "19.45.4",
-    user_agent: "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X)",
-    extra: r#"{"deviceModel":"iPhone16,2","osName":"iPhone","osVersion":"18.1.0.22B83"}"#,
+    version: "21.26.4",
+    user_agent: "com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
+    extra: r#"{"deviceMake":"Apple","deviceModel":"iPhone16,2","osName":"iPhone","osVersion":"18.3.2.22D82"}"#,
 };
 
 pub const TVHTML5: InnertubeClient = InnertubeClient {
@@ -45,7 +45,7 @@ pub const TVHTML5: InnertubeClient = InnertubeClient {
 };
 
 /// Client profiles in the order they are tried.
-pub const CLIENTS: [InnertubeClient; 3] = [ANDROID, IOS, TVHTML5];
+pub const CLIENTS: [InnertubeClient; 2] = [ANDROID, IOS];
 
 /// The names accepted by `/api/play`'s optional `client` field.
 pub const CLIENT_ALIASES: [(&str, &str); 3] = [
@@ -62,12 +62,12 @@ pub fn client_by_name(name: &str) -> Option<InnertubeClient> {
         .find(|(alias, _)| *alias == needle)
         .map(|(_, canonical)| *canonical)
         .or_else(|| {
-            CLIENTS
+            [ANDROID, IOS, TVHTML5]
                 .iter()
                 .find(|client| client.name.eq_ignore_ascii_case(&needle))
                 .map(|client| client.name)
         })?;
-    CLIENTS.iter().copied().find(|client| client.name == canonical)
+    [ANDROID, IOS, TVHTML5].into_iter().find(|client| client.name == canonical)
 }
 
 pub fn client_alias_list() -> String {
@@ -107,6 +107,7 @@ impl ClientAttempt {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResolveError {
     InvalidVideoId,
+    PreconditionFailed,
     /// HTTP transport failure before YouTube was reached.
     Http(String),
     /// YouTube answered, but refused to play this video.
@@ -119,6 +120,7 @@ pub enum ResolveError {
 impl fmt::Display for ResolveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PreconditionFailed => write!(f, "YouTube rejected this playback request (HTTP 400: failedPrecondition). Audio has not started."),
             Self::InvalidVideoId => write!(f, "video_id must be 11 characters of [A-Za-z0-9_-]"),
             Self::Http(detail) => write!(f, "youtube request failed: {detail}"),
             Self::Unplayable(detail) => write!(f, "video is not playable: {detail}"),
@@ -194,6 +196,7 @@ async fn resolve_with_clients(
     for profile in profiles {
         match resolve_with(http, video_id, *profile).await {
             Ok(audio) => return Ok(audio),
+            Err(ResolveError::PreconditionFailed) => return Err(ResolveError::PreconditionFailed),
             Err(error) => attempts.push(ClientAttempt {
                 client: profile.name,
                 error: error.to_string(),
@@ -208,34 +211,58 @@ async fn resolve_with(
     video_id: &str,
     profile: InnertubeClient,
 ) -> Result<ResolvedAudio, ResolveError> {
-    let body = request_body(video_id, profile);
-    let response = http
-        .post(PLAYER_URL)
-        .timeout(Duration::from_secs(12))
+    let visitor = visitor_context();
+    let response = player_request(http, video_id, profile, visitor.as_deref())
+        .send().await.map_err(|_| ResolveError::Http("connection failed or timed out".into()))?;
+    let status = response.status().as_u16();
+    let bytes = bounded_body(response, 1024 * 1024).await?;
+    parse_wire_response(status, &bytes, video_id, profile.name)
+}
+
+fn player_request(http: &Client, video_id: &str, profile: InnertubeClient, visitor: Option<&str>) -> reqwest::RequestBuilder {
+    let mut body = request_body(video_id, profile);
+    let mut request = http.post(PLAYER_URL).timeout(Duration::from_secs(12))
         .header(reqwest::header::USER_AGENT, profile.user_agent)
         .header("X-YouTube-Client-Name", client_id(profile.name))
-        .header("X-YouTube-Client-Version", profile.version)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|error| ResolveError::Http(error.to_string()))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        // Keep YouTube's own words: HTTP 400/403 bodies explain the refusal
-        // (e.g. FAILED_PRECONDITION vs LOGIN_REQUIRED) and drive the next fix.
-        let text = response.text().await.unwrap_or_default();
-        return Err(ResolveError::Http(format!(
-            "HTTP {status}: {}",
-            summarize_error_body(&text)
-        )));
+        .header("X-YouTube-Client-Version", profile.version);
+    if let Some(visitor) = visitor {
+        body["context"]["client"]["visitorData"] = json!(visitor);
+        request = request.header("X-Goog-Visitor-Id", visitor);
     }
-    let json: Value = response
-        .json()
-        .await
-        .map_err(|error| ResolveError::Http(error.to_string()))?;
+    request.json(&body)
+}
+async fn bounded_body(response: reqwest::Response, limit: usize) -> Result<Vec<u8>, ResolveError> {
+    use futures_util::StreamExt;
+    let mut out = Vec::new(); let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|_| ResolveError::Http("response interrupted".into()))?;
+        if out.len() + chunk.len() > limit { return Err(ResolveError::Http("response exceeded size limit".into())); }
+        out.extend_from_slice(&chunk);
+    }
+    Ok(out)
+}
+fn parse_wire_response(status: u16, bytes: &[u8], video_id: &str, client: &'static str) -> Result<ResolvedAudio, ResolveError> {
+    let value: Value = serde_json::from_slice(bytes).map_err(|_| ResolveError::Http(format!("HTTP {status}: invalid JSON response")))?;
+    if status == 400 && (value["error"]["status"] == "FAILED_PRECONDITION" || value["error"]["errors"].as_array().is_some_and(|errors| errors.iter().any(|e| e["reason"] == "failedPrecondition"))) {
+        return Err(ResolveError::PreconditionFailed);
+    }
+    if !(200..300).contains(&status) {
+        return Err(ResolveError::Http(format!("HTTP {status}: {}", summarize_error_body(&String::from_utf8_lossy(bytes)))));
+    }
+    observe_visitor(&value);
+    parse_player_json(&value, video_id, client)
+}
 
-    parse_player_json(&json, video_id, profile.name)
+// Only reuse an anonymous context actually returned by YouTube. Never synthesize,
+// log, persist or fetch an extra identity just to try bypassing a refusal.
+static VISITOR: std::sync::OnceLock<std::sync::Mutex<Option<(String, std::time::Instant)>>> = std::sync::OnceLock::new();
+pub fn observe_visitor(value: &Value) {
+    if let Some(visitor) = value["responseContext"]["visitorData"].as_str().filter(|v| (16..=1024).contains(&v.len()) && v.is_ascii() && !v.bytes().any(|b| b.is_ascii_whitespace() || b == b'"' || b == b'\\')) {
+        *VISITOR.get_or_init(Default::default).lock().unwrap() = Some((visitor.to_owned(), std::time::Instant::now()));
+    }
+}
+fn visitor_context() -> Option<String> {
+    VISITOR.get_or_init(Default::default).lock().unwrap().as_ref().filter(|(_, time)| time.elapsed() < Duration::from_secs(30 * 60)).map(|(v,_)| v.clone())
 }
 
 fn client_id(name: &str) -> &'static str {
@@ -286,6 +313,7 @@ fn request_body(video_id: &str, profile: InnertubeClient) -> Value {
     let mut client = json!({
         "clientName": profile.name,
         "clientVersion": profile.version,
+        "userAgent": profile.user_agent,
         "hl": "en",
         "gl": "US",
         "utcOffsetMinutes": 0,
@@ -380,6 +408,34 @@ fn select_audio(formats: &[AdaptiveFormat]) -> Result<&AdaptiveFormat, ResolveEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn player_request_has_consistent_headers_body_and_observed_visitor() {
+        let http = http_client().unwrap();
+        for profile in CLIENTS {
+            let request = player_request(&http, "abcdefghijk", profile, Some("provider_context_fixture")).build().unwrap();
+            assert_eq!(request.headers()["user-agent"], profile.user_agent);
+            assert_eq!(request.headers()["x-youtube-client-version"], profile.version);
+            assert_eq!(request.headers()["x-youtube-client-name"], client_id(profile.name));
+            assert_eq!(request.headers()["x-goog-visitor-id"], "provider_context_fixture");
+            let value: Value = serde_json::from_slice(request.body().unwrap().as_bytes().unwrap()).unwrap();
+            assert_eq!(value["context"]["client"]["userAgent"], profile.user_agent);
+            assert_eq!(value["context"]["client"]["clientVersion"], profile.version);
+            assert_eq!(value["context"]["client"]["visitorData"], "provider_context_fixture");
+            assert_eq!(value["videoId"], "abcdefghijk");
+            assert_eq!(value["context"]["client"]["clientName"], profile.name);
+        }
+        assert!(!CLIENTS.iter().any(|c| c.name == TVHTML5.name));
+    }
+    #[test]
+    fn screenshot_precondition_is_a_terminal_typed_rejection_not_no_audio() {
+        let bytes = br#"{"error":{"code":400,"status":"FAILED_PRECONDITION","message":"Precondition check failed.","errors":[{"reason":"failedPrecondition"}]}}"#;
+        let error = parse_wire_response(400, bytes, "abcdefghijk", "ANDROID").unwrap_err();
+        assert_eq!(error, ResolveError::PreconditionFailed);
+        assert!(error.to_string().contains("HTTP 400"));
+        assert!(!error.to_string().contains("all clients failed"));
+        assert!(parse_wire_response(200, b"invalid", "abcdefghijk", "ANDROID").is_err());
+    }
 
     #[test]
     fn video_ids_are_strictly_shaped() {

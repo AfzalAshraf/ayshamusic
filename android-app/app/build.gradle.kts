@@ -12,8 +12,8 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -48,9 +48,9 @@ android {
             // CI test builds install alongside the old APK: ephemeral debug keys
             // must not force the user to uninstall it and lose local preferences.
             if (System.getenv("AYSHA_PREVIEW") == "1") {
-                applicationIdSuffix = ".streamfix"
+                applicationIdSuffix = ".rust4"
                 versionNameSuffix = "-preview"
-                resValue("string", "app_name", "Aysha Music Stream Fix")
+                resValue("string", "app_name", "Aysha Music Rust 4")
             }
             isMinifyEnabled = true
             isShrinkResources = true

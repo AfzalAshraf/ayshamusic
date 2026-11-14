@@ -33,6 +33,7 @@ pub struct Library {
     queue: Vec<Track>,
     history: Vec<Track>,
     liked: Vec<Track>,
+    mood: crate::recommendations::Mood,
 }
 impl Library {
     pub fn remember(&mut self, track: Track) {
@@ -65,6 +66,7 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/next", post(next))
         .route("/api/prev", post(previous))
         .route("/api/bt/status", get(bluetooth))
+        .route("/api/recommendation/mood", get(mood).post(set_mood))
 }
 async fn icons() -> impl axum::response::IntoResponse {
     ([(header::CONTENT_TYPE, "image/svg+xml; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], include_str!("icons.svg"))
@@ -104,6 +106,7 @@ async fn fetch_search(http: &reqwest::Client, q: &str) -> Result<Vec<Track>, &'s
         bytes.extend_from_slice(&chunk);
     }
     let value: Value = serde_json::from_slice(&bytes).map_err(|_| "Music provider returned invalid search data")?;
+    crate::youtube::observe_visitor(&value);
     parse_search(&value)
 }
 fn label(value: &Value) -> String {
@@ -161,15 +164,36 @@ async fn like(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (
 async fn unlike(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> Json<Value> {
     state.library.lock().unwrap().liked.retain(|t| t.id != track.id); Json(json!({"status":"ok"}))
 }
+async fn mood(Extension(state): Extension<Phone>) -> Json<Value> {
+    Json(json!({"mood":state.library.lock().unwrap().mood,"selection":"mood_and_local_likes"}))
+}
+#[derive(Deserialize)]
+struct MoodBody { mood: crate::recommendations::Mood }
+async fn set_mood(Extension(state): Extension<Phone>, Json(body): Json<MoodBody>) -> Json<Value> {
+    state.library.lock().unwrap().mood = body.mood;
+    Json(json!({"status":"ok","mood":body.mood}))
+}
 async fn next(Extension(state): Extension<Phone>) -> (StatusCode, Json<Value>) { navigate(state, false).await }
 async fn previous(Extension(state): Extension<Phone>) -> (StatusCode, Json<Value>) { navigate(state, true).await }
 async fn navigate(state: Phone, previous: bool) -> (StatusCode, Json<Value>) {
     let Ok(_permit) = state.operation_slot.try_acquire() else { return error(StatusCode::TOO_MANY_REQUESTS, "Track change already running"); };
-    let track = {
+    let (mut track, current, history, liked, mood) = {
         let library = state.library.lock().unwrap();
-        if previous { library.history.last().cloned() } else { library.queue.first().cloned() }
+        (if previous { library.history.last().cloned() } else { library.queue.first().cloned() },
+         library.current.clone(), library.history.clone(), library.liked.clone(), library.mood)
     };
-    let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "Queue is empty — add a song first" }); };
+    let queued = track.is_some();
+    if !previous && track.is_none() {
+        let Some(current) = current else { return error(StatusCode::CONFLICT, "Play or queue a song first"); };
+        let Ok(_search) = state.search_slot.try_acquire() else { return error(StatusCode::TOO_MANY_REQUESTS, "Search already running; retry shortly"); };
+        let Some(http) = crate::http_client() else { return error(StatusCode::SERVICE_UNAVAILABLE, "Search unavailable"); };
+        let candidates = match fetch_search(http, mood.query()).await {
+            Ok(tracks) => tracks,
+            Err(reason) => return error(StatusCode::BAD_GATEWAY, reason),
+        };
+        track = crate::recommendations::select(candidates, &current, &history, &liked, mood);
+    }
+    let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "No different song found for this mood. Try another mood or queue a song." }); };
     let result = crate::play_audio(crate::PlayBody { video_id: track.id.clone(), client: None, track: Some(track.clone()) }).await;
     if result.0.is_success() {
         let mut library = state.library.lock().unwrap();
@@ -178,7 +202,7 @@ async fn navigate(state: Phone, previous: bool) -> (StatusCode, Json<Value>) {
             if let Some(current) = library.current.take() { library.queue.insert(0, current); library.queue.truncate(200); }
             library.current = Some(track.clone());
         } else {
-            if library.queue.first().is_some_and(|t| t.id == track.id) { library.queue.remove(0); }
+            if queued && library.queue.first().is_some_and(|t| t.id == track.id) { library.queue.remove(0); }
             library.remember(track.clone());
         }
         return (StatusCode::OK, Json(json!({"status":"playing","track":track,"mode":"native","already_started":true})));

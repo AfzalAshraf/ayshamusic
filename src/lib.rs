@@ -10,6 +10,7 @@
 #![cfg(feature = "phone")]
 
 mod android_catalog;
+mod recommendations;
 mod range_media;
 mod pcm_stream;
 pub mod player;
@@ -167,6 +168,7 @@ async fn status() -> Json<Value> {
         // The page uses this to switch from <audio>/proxy streaming to the
         // in-app Rust player. The Linux server does not send it.
         "native_playback": true,
+        "build_id": option_env!("GITHUB_SHA").unwrap_or("local"),
     }))
 }
 
@@ -340,6 +342,9 @@ async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
         Err(error @ ResolveError::InvalidVideoId) => {
             return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
         }
+        Err(ResolveError::PreconditionFailed) => {
+            return api_error(StatusCode::BAD_GATEWAY, "youtube_precondition_failed", ResolveError::PreconditionFailed.to_string());
+        }
         Err(ResolveError::AllClientsFailed(attempts)) => {
             // Surface YouTube's own body for every client that was tried.
             let attempts_json: Vec<Value> =
@@ -495,6 +500,9 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         Ok(audio) => audio,
         Err(error @ ResolveError::InvalidVideoId) => {
             return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
+        }
+        Err(ResolveError::PreconditionFailed) => {
+            return api_error(StatusCode::BAD_GATEWAY, "youtube_precondition_failed", ResolveError::PreconditionFailed.to_string());
         }
         Err(ResolveError::AllClientsFailed(attempts)) => {
             let attempts_json: Vec<Value> =
@@ -821,6 +829,17 @@ mod api_tests {
     }
 
     #[tokio::test]
+    async fn native_mood_is_explicit_and_invalid_values_cannot_change_it() {
+        let app = router(Arc::new(None));
+        let response = app.clone().oneshot(post("/api/recommendation/mood", r#"{"mood":"melody"}"#)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = app.clone().oneshot(post("/api/recommendation/mood", r#"{"mood":"private query"}"#)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let response = app.oneshot(axum::http::Request::builder().uri("/api/recommendation/mood").body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(json_body(response).await["mood"], "melody");
+    }
+
+    #[tokio::test]
     async fn android_queue_and_likes_round_trip_without_provider_or_audio() {
         let app = router(Arc::new(None));
         let track = r#"{"id":"abcdefghijk","title":"Song","artist":"Artist","url":"http://private.invalid"}"#;
@@ -862,7 +881,7 @@ mod api_tests {
         }
         assert_eq!(body["error"], "unresolved");
         let attempts = body["attempts"].as_array().expect("attempts array");
-        assert_eq!(attempts.len(), 3, "one attempt per client");
+        assert_eq!(attempts.len(), youtube::CLIENTS.len(), "one attempt per configured client");
     }
 
     #[tokio::test]
