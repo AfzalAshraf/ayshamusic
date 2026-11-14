@@ -69,3 +69,29 @@ test('Android pins a global context once and guards CPAL audio initialization', 
 test('release shrinking preserves the Kotlin object and its JNI signatures', () => {
   assert.match(read('android-app/app/proguard-rules.pro'), /-keep class com\.afzal\.ayshamusic\.RustBridge \{[^}]*\*;\s*\}/);
 });
+
+
+test('native decoder input is seekable and PCM callback does not fetch network', () => {
+  const player = read('src/player.rs');
+  assert.match(player, /with_byte_len\(len\)/);
+  assert.match(player, /with_seekable\(true\)/);
+  assert.match(player, /PcmSource::prepare/);
+  assert.match(read('src/pcm_stream.rs'), /try_recv\(\)/);
+  assert.match(read('.github/workflows/android.yml'), /AYSHA_MEDIA_FIXTURES/);
+  assert.match(read('src/range_media.rs'), /old unseekable path must reproduce/);
+});
+
+test('Telegram account setup is in Library, not Now Playing, and source order is Telegram first', () => {
+  const html = read('src/index.html');
+  const library = html.slice(html.indexOf('id="tab-library"'), html.indexOf('id="tab-quotes"'));
+  assert.match(library, /openTelegramAccount/);
+  const player = html.slice(html.indexOf('id="now-playing"'), html.indexOf('<script>'));
+  assert.doesNotMatch(player, /Reset learning|tg-api-hash|tg-password/);
+  const lib = read('src/lib.rs');
+  const start = lib.slice(lib.indexOf('async fn start_track('));
+  assert.ok(start.indexOf('tg_storage::lookup') < start.indexOf('youtube::resolve_audio'));
+  const storage = read('src/tg_storage.rs');
+  assert.match(storage, /PeerId::self_user/);
+  assert.match(storage, /iter_download/); assert.match(storage, /upload_stream/);
+  assert.match(storage, /archive_incomplete/);
+});

@@ -210,7 +210,8 @@ async fn status() -> Json<Value> {
         // in-app Rust player. The Linux server does not send it.
         "native_playback": true,
         "build_id": option_env!("GITHUB_SHA").unwrap_or("local"),
-        "playback_baseline": "7b09cde-1.2.1",
+        "playback_baseline": "7b09cde-1.2.1-media-client",
+        "native_media_input":"seekable_aac_ranges",
     }))
 }
 
@@ -477,7 +478,7 @@ async fn start_track(
     if let Some(cache)=cache_manager() {
         let path=cache.cached_path(video_id);
         archive=if cache.queued_tracks().unwrap_or(20)>=20 { "queue_full" }
-          else if cache.enqueue(video_id,&path,audio.title.as_deref().unwrap_or("YouTube track"),"").is_ok() { "queued" }
+          else if cache.enqueue(video_id,&path,&audio.title.as_deref().unwrap_or("YouTube track").chars().take(300).collect::<String>(),"").is_ok() { "queued" }
           else { "queue_error" };
     }
 

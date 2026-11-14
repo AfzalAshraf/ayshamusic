@@ -43,12 +43,22 @@ impl PcmSource {
             let _worker = worker;
             while !flag.load(Ordering::Acquire) {
                 let chunk: Vec<f32> = decoder.by_ref().take(CHUNK).collect();
-                if chunk.is_empty() || flag.load(Ordering::Acquire) || tx.send(chunk).is_err() { return; }
+                if chunk.is_empty() || flag.load(Ordering::Acquire) { return; }
+                let mut pending=chunk;
+                loop {
+                    if flag.load(Ordering::Acquire) {return;}
+                    match tx.try_send(pending) {
+                        Ok(())=>break,
+                        Err(mpsc::TrySendError::Disconnected(_))=>return,
+                        Err(mpsc::TrySendError::Full(chunk))=>{pending=chunk;std::thread::park_timeout(Duration::from_millis(10));}
+                    }
+                }
             }
         })?;
         Ok(Self { rx:Mutex::new(rx), chunk:first, offset:0, channels, rate, cancel, progress:Arc::new(Progress::default()) })
     }
 }
+impl Drop for PcmSource {fn drop(&mut self) {self.cancel.store(true,Ordering::Release);}}
 impl Iterator for PcmSource {
     type Item = f32;
     fn next(&mut self) -> Option<f32> {
@@ -75,6 +85,23 @@ impl Source for PcmSource {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cancelling_a_full_pcm_queue_releases_its_decoder_worker() {
+        struct Endless(Arc<AtomicBool>);
+        impl Iterator for Endless {type Item=f32;fn next(&mut self)->Option<f32> {Some(0.2)}}
+        impl Source for Endless {
+            fn current_span_len(&self)->Option<usize>{None}
+            fn channels(&self)->ChannelCount{ChannelCount::new(1).unwrap()}
+            fn sample_rate(&self)->SampleRate{SampleRate::new(44100).unwrap()}
+            fn total_duration(&self)->Option<Duration>{None}
+        }
+        impl Drop for Endless {fn drop(&mut self){self.0.store(true,Ordering::Release);}}
+        let dropped=Arc::new(AtomicBool::new(false));let cancel=Arc::new(AtomicBool::new(false));
+        let _source=PcmSource::prepare(Endless(dropped.clone()),cancel.clone()).unwrap();
+        std::thread::sleep(Duration::from_millis(30));cancel.store(true,Ordering::Release);
+        for _ in 0..100 {if dropped.load(Ordering::Acquire) {return;}std::thread::sleep(Duration::from_millis(10));}
+        panic!("decoder worker remained blocked by a full queue after cancellation");
+    }
     #[test]
     fn starvation_never_blocks_audio_callback_or_advances_media_position() {
         let (_tx, rx) = mpsc::sync_channel(1);
