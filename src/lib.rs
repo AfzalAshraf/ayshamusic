@@ -14,7 +14,7 @@ pub mod tg_session;
 pub mod youtube;
 
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -105,6 +105,7 @@ pub fn router(state: SharedCache) -> Router {
         .route("/api/stop", post(stop))
         .route("/api/volume", post(volume))
         .route("/api/player", get(player_status))
+        .route("/api/selftest", get(selftest))
         .with_state(state)
 }
 
@@ -153,6 +154,9 @@ async fn status() -> Json<Value> {
         "phase": 2,
         "server": "ayshamusic",
         "backend": "rust",
+        // The page uses this to switch from <audio>/proxy streaming to the
+        // in-app Rust player. The Linux server does not send it.
+        "native_playback": true,
     }))
 }
 
@@ -530,6 +534,166 @@ async fn volume(Json(body): Json<VolumeBody>) -> Json<Value> {
     }
 }
 
+#[derive(Deserialize)]
+struct SelftestQuery {
+    #[serde(default)]
+    video_id: Option<String>,
+    #[serde(default)]
+    client: Option<String>,
+}
+
+/// `GET /api/selftest[?video_id=...&client=android]`
+///
+/// Proves the pipeline without opening an audio device: resolve the video, then
+/// range-fetch the first 64 KiB of the media URL. Returns timing, the chosen
+/// client/itag and, on failure, every client's own YouTube error body.
+async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value>) {
+    use std::time::Instant;
+    use youtube::ResolveError;
+
+    let video_id = query.video_id.as_deref().unwrap_or("dQw4w9WgXcQ").trim();
+    let forced = match query
+        .client
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        None => None,
+        Some(name) => match youtube::client_by_name(name) {
+            Some(profile) => Some(profile),
+            None => {
+                return api_error(
+                    StatusCode::BAD_REQUEST,
+                    "unknown_client",
+                    format!(
+                        "unknown client '{name}'; expected one of {}",
+                        youtube::client_alias_list()
+                    ),
+                )
+            }
+        },
+    };
+
+    let Some(client) = http_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build HTTP client".into(),
+        );
+    };
+
+    let started = Instant::now();
+    let resolved = match forced {
+        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
+        None => youtube::resolve_audio(client, video_id).await,
+    };
+    let audio = match resolved {
+        Ok(audio) => audio,
+        Err(error @ ResolveError::InvalidVideoId) => {
+            return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
+        }
+        Err(ResolveError::AllClientsFailed(attempts)) => {
+            let attempts_json: Vec<Value> =
+                attempts.iter().map(youtube::ClientAttempt::to_json).collect();
+            let detail = ResolveError::AllClientsFailed(attempts).to_string();
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "ok": false,
+                    "stage": "resolve",
+                    "error": "unresolved",
+                    "detail": detail,
+                    "attempts": attempts_json,
+                })),
+            );
+        }
+        Err(error) => {
+            return api_error(StatusCode::BAD_GATEWAY, "unresolved", error.to_string())
+        }
+    };
+    let resolve_ms = started.elapsed().as_millis() as u64;
+
+    let response = match client
+        .get(&audio.url)
+        .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+        .header(reqwest::header::RANGE, "bytes=0-65535")
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "ok": false,
+                    "stage": "media",
+                    "error": error.to_string(),
+                    "video_id": audio.video_id,
+                    "client": audio.client,
+                    "itag": audio.itag,
+                    "resolve_ms": resolve_ms,
+                })),
+            )
+        }
+    };
+
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    let media_host = reqwest::Url::parse(&audio.url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string));
+
+    use futures_util::StreamExt;
+    let mut fetched: usize = 0;
+    let mut stream = response.bytes_stream();
+    let mut stream_error: Option<String> = None;
+    while let Some(chunk) = stream.next().await {
+        match chunk {
+            Ok(bytes) => {
+                fetched += bytes.len();
+                if fetched >= 64 * 1024 {
+                    break;
+                }
+            }
+            Err(error) => {
+                stream_error = Some(error.to_string());
+                break;
+            }
+        }
+    }
+
+    let ok = status.is_success() && fetched > 0 && stream_error.is_none();
+    let payload = json!({
+        "ok": ok,
+        "video_id": audio.video_id,
+        "title": audio.title,
+        "client": audio.client,
+        "itag": audio.itag,
+        "mime": audio.mime,
+        "bitrate": audio.bitrate,
+        "content_length": audio.content_length,
+        "media_host": media_host,
+        "media_status": status.as_u16(),
+        "media_content_type": content_type,
+        "bytes_fetched": fetched,
+        "stream_error": stream_error,
+        "resolve_ms": resolve_ms,
+        "elapsed_ms": started.elapsed().as_millis() as u64,
+    });
+    (
+        if ok {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_GATEWAY
+        },
+        Json(payload),
+    )
+}
+
 /// `GET /api/player` - playback state for the now-playing UI.
 ///
 /// Does not start the audio thread: polling the UI must not open the device.
@@ -750,6 +914,22 @@ mod api_tests {
         assert_eq!(body["error"], "unresolved");
         let attempts = body["attempts"].as_array().expect("attempts array");
         assert_eq!(attempts.len(), 3, "one attempt per client");
+    }
+
+    #[tokio::test]
+    async fn selftest_rejects_malformed_ids_without_network() {
+        let app = router(Arc::new(None));
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/selftest?video_id=short")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(json_body(response).await["error"], "invalid_video_id");
     }
 
     #[tokio::test]
