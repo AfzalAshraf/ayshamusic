@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         private const val SERVER_URL = "http://127.0.0.1:5050"
     }
 
+    @Volatile private var destroyed = false
     private var webView: WebView? = null
     private var backCallbackRegistered = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
@@ -157,8 +158,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadServerUrl() {
-        webView!!.loadUrl(SERVER_URL)
-        Log.i(TAG, "Loading $SERVER_URL")
+        webView!!.loadData("<html><body style='background:#100d13;color:#fff;font-family:sans-serif;padding:32px'>Starting Aysha Music…</body></html>", "text/html", "UTF-8")
+        Thread {
+            var ready = false
+            for (attempt in 1..30) {
+                if (destroyed) return@Thread
+                if (MediaApi.get("/api/status") != null) { ready = true; break }
+                Thread.sleep(200)
+            }
+            runOnUiThread {
+                if (!destroyed) {
+                    if (ready) webView?.loadUrl(SERVER_URL)
+                    else webView?.loadData("<html><body style='background:#100d13;color:white;padding:32px'>Aysha could not start. Close and reopen the app to retry.</body></html>", "text/html", "UTF-8")
+                }
+            }
+        }.start()
     }
 
     // Predictive back gesture (Android 14+)
@@ -209,6 +223,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        destroyed = true
         // Clean up WebView
         webView?.apply {
             stopLoading()

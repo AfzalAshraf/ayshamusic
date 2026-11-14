@@ -143,7 +143,7 @@ impl std::error::Error for ResolveError {}
 pub fn http_client() -> Result<Client, reqwest::Error> {
     Client::builder()
         .connect_timeout(Duration::from_secs(8))
-        .timeout(Duration::from_secs(12))
+        .read_timeout(Duration::from_secs(20))
         .pool_max_idle_per_host(2)
         .build()
 }
@@ -211,6 +211,7 @@ async fn resolve_with(
     let body = request_body(video_id, profile);
     let response = http
         .post(PLAYER_URL)
+        .timeout(Duration::from_secs(12))
         .header(reqwest::header::USER_AGENT, profile.user_agent)
         .header("X-YouTube-Client-Name", client_id(profile.name))
         .header("X-YouTube-Client-Version", profile.version)

@@ -12,8 +12,8 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {

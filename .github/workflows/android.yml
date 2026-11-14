@@ -19,7 +19,7 @@ on:
 
 # `write` lets the job publish the built APK as a release asset.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-${{ github.ref }}
@@ -95,17 +95,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # A durable download that does not expire with artifacts. The tag is
-      # replaced on every build, so `apk-latest` always serves the newest APK.
-      - name: Publish APK release
-        if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: apk-latest
-          name: Aysha Music APK (latest)
-          body: |
-            arm64-v8a release build from ${{ github.sha }}.
-            Debug-signed, minSdk 26. Playback on a physical device is not
-            verified by CI.
-          files: android-app/app/build/outputs/apk/release/app-release.apk
-          make_latest: true
+      - name: Android website contract regressions
+        run: node --test tests/android.test.cjs
+
+
+      # Branch fixes are test artifacts, never overwrite the public main release.

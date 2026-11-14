@@ -1814,82 +1814,21 @@ QA3/5,measured performance1/5 unchanged until real workload resource acceptance.
 Next: host runs documented read-only monitor during ordinary listening and optionally
 one Next/Previous, sends summary and approximate tap times. Do not rerun native watch.
 
-## 2026-11-14 — Backend & Database: pure-Rust playback chain + APK repack
+## 2026-11-07 — Product & Architecture: inspect newer standalone Android work
 
-Scope: Android APK only. The Linux `music-server` path (`src/main.rs`, `src/index.html`)
-is untouched; no dependency, endpoint or service change affects installed Linux playback.
-
-Code manifest:
-- `src/youtube.rs` (new): InnerTube `player` resolution, client fallback
-  ANDROID -> IOS -> TVHTML5, highest-bitrate `audio/mp4` (AAC) only, HTTPS host
-  allow-list (`*.googlevideo.com`, no userinfo, port 443), strict 11-char video id.
-- `src/player.rs` (new): dedicated audio thread owning cpal/AAudio; rodio 0.23
-  (`playback`+`mp4`); 8-chunk (~128 KiB) bounded ring from `bytes_stream` ->
-  blocking `Read`; pause/resume/stop/volume/position; device error surfaces as
-  `state:"error"` instead of panic.
-- `src/lib.rs`: `/api/play`, `/api/pause`, `/api/resume`, `/api/stop`,
-  `/api/volume`, `/api/player`. Only `/api/play` opens the audio device; the
-  read/control endpoints never do (corrected after review).
-- Build: `rodio` dependency; `cargo ndk -P 26` (AAudio is API 26+); Gradle
-  `minSdk` 24 -> 26; Linux CI job installs `libasound2-dev pkg-config`.
-
-Evidence (agent workspace, not the user's phone):
-- `cargo test --lib` -> 25 passed, 0 failed, 1 ignored (`live_resolve_*`).
-- `cargo ndk -P 26 -t arm64-v8a ... build --release --lib --features android` -> OK.
-- `bash android-app/scripts/build_apk.sh` -> BUILD SUCCESSFUL.
-- APK 7,094,569 bytes (6.77 MB), gate 15 MB PASS. `libayshamusic.so` 6.09 MB,
-  Stored (uncompressed, mmap-friendly); `classes.dex` 0.70 MB.
-- `unzip -lv` confirms one native lib under `lib/arm64-v8a/`.
-
-Errors / open risks:
-- Live resolution from this datacenter IP failed: ANDROID and IOS returned HTTP 400
-  `FAILED_PRECONDITION`, TVHTML5 returned `UNPLAYABLE`. That is a source-egress
-  signal, NOT proof of device failure. Do not retry guessed client versions from
-  here; verify `/api/play` on a phone with mobile/Wi-Fi egress first.
-- No device or emulator: no audible playback, no MediaSession check, no RSS.
-  "Playing" is therefore unverified; do not report it as working.
-- `minSdk` 26 drops Android 7.x. Required by the AAudio backend; needs acceptance.
-- Server RAM not remeasured; no fresh cgroup value exists for this build.
-- Session file still stores the MTProto key in plaintext (unchanged, flagged earlier).
-
-Ratings unchanged: Backend 2/5 (playback unverified on target), QA 3/5,
-measured performance 1/5 until a real device RSS/audio run.
-
-Next: install the APK, `POST /api/play {"video_id":"dQw4w9WgXcQ"}`, then poll
-`GET /api/player`; run `android-app/scripts/measure_rss.sh --watch 60`. If
-`/api/play` fails on-device, capture the `detail` string before changing clients.
-
-## 2026-11-14 (b) — Backend & Database: per-client error bodies, forced client, 403 refresh
-
-Manifest:
-- `src/youtube.rs`: `ClientAttempt { client, error }`; `AllClientsFailed(Vec<ClientAttempt>)`;
-  `resolve_forced`; `client_by_name("android"|"ios"|"tv", name-insensitive)`;
-  `summarize_error_body` keeps YouTube's `error.message (reason)` (<=300 chars,
-  single line, never logs the URL); unplayable prefers `errorScreen...simpleText`.
-- `src/lib.rs`: `/api/play` accepts optional `"client"` (400 `unknown_client` otherwise);
-  failures return `{error:"unresolved", detail, attempts:[{client,error}...]}`;
-  `pump_media` re-resolves exactly once when the media URL 403s (or the stream
-  errors) *before any byte reaches the decoder*; post-byte failures are reported,
-  never silently restarted (restarting would corrupt the AAC stream).
-
-Evidence (agent workspace; egress is a datacenter IP):
-- `cargo test --lib` -> 30 passed, 0 failed, 1 ignored.
-- `cargo test --lib live_play -- --ignored --nocapture` -> 502 with all three
-  bodies: ANDROID/IOS `HTTP 400 Bad Request: Precondition check failed.
-  (failedPrecondition)`; TVHTML5 `video is not playable: YouTube is no longer
-  supported in this application or device.` Proves the new surface works; still
-  NOT proof the phone will fail (different egress).
-- `bash android-app/scripts/build_apk.sh` -> BUILD SUCCESSFUL, APK 7,105,625 bytes
-  (6.78 MB), 15 MB gate PASS.
-
-Decisions:
-- minSdk 26 accepted as the floor: cpal's only Android output backend is AAudio
-  (API 26); Android 8.0+ is the practical device population. No OpenSL fallback.
-- 403 refresh is pre-audio only; seamless mid-track recovery would need a
-  seekable disk spool and decoder restart, which is not implemented or claimed.
-
-Ratings unchanged: Backend 2/5, QA 3/5, measured performance 1/5 (no device run,
-no fresh RAM measurement).
-
-Next: on-phone `POST /api/play` (optionally `"client":"android"`), read the
-`attempts` array if it fails, then `android-app/scripts/measure_rss.sh --watch 60`.
+User redirects goal to publishable standalone APK, same website UI, no external
+Aysha server. Fetched origin/main bf37384 (no branch switch): it contains Android
+work absent from session HEAD eca0265. Android CI43584788099 success; apk-latest
+metadata7,108,929bytes explicitly debug-signed/physical playback unverified.
+Inspected JNI/library/router/UI/Kotlin/manifest/Gradle/workflow. Missing Android
+search/queue/likes/next/prev/icons routes remain referenced by UI/media service;
+startup race and WebView hardening/signing/publication issues documented in
+ANDROID_STANDALONE_REVIEW.md. APK compilation is not a working full website clone.
+Attempted gh release download: asset-host redirect blocked/EOF; no binary validation
+or APK fabricated. No main merge, remote host change, source/provider probe or
+publication. Existing approved audible Linux path untouched, trackedpyc deletion
+preserved. Pending publishing-channel choice Play versus direct APK. No code change
+or new test run claimed; audit uses exact source and CI metadata. Architecture2/5,
+Android feature completeness1/5,device/release acceptance0/5. Latest supplied Linux
+RAM not remeasured:6.4512MBcurrent/67.592192MBhistoricalpeak/0swap, rust-resolved;
+not phone memory. No fresh Android RAM measurement exists.

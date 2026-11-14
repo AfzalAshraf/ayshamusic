@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # rodio/cpal link ALSA on Linux; the runner image does not ship the headers.
-      - name: Audio dev libraries
+      - name: Install native library audio headers
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
       - name: Rust regression tests
         run: cargo test

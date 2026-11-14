@@ -7,6 +7,7 @@
 //! Later phases wire in the pure-Rust YouTube extractor, the rodio player and
 //! the `/api/tg/quota` sidebar gauge in the player page.
 
+mod android_catalog;
 pub mod player;
 pub mod tg_auth;
 pub mod tg_cache;
@@ -14,7 +15,7 @@ pub mod tg_session;
 pub mod youtube;
 
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -93,6 +94,7 @@ pub fn boot(files_dir: String, cache_dir: String) {
 /// Builds the HTTP router with the given cache handle.
 pub fn router(state: SharedCache) -> Router {
     Router::new()
+        .merge(android_catalog::routes())
         .route("/", get(index))
         .route("/api/status", get(status))
         .route("/api/tg/quota", get(tg_quota))
@@ -106,6 +108,8 @@ pub fn router(state: SharedCache) -> Router {
         .route("/api/volume", post(volume))
         .route("/api/player", get(player_status))
         .route("/api/selftest", get(selftest))
+        .layer(Extension(android_catalog::new_state()))
+        .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
         .with_state(state)
 }
 
@@ -144,8 +148,9 @@ async fn serve(files_dir: String, cache_dir: String) {
     }
 }
 
-async fn index() -> axum::response::Html<&'static str> {
-    axum::response::Html(INDEX_HTML)
+async fn index() -> axum::response::Html<String> {
+    // Native mode must be known before the first tap, not after a polling race.
+    axum::response::Html(INDEX_HTML.replace("nativePlayback: false", "nativePlayback: true"))
 }
 
 async fn status() -> Json<Value> {
@@ -253,6 +258,8 @@ struct PlayBody {
     /// Optional: `android`, `ios` or `tv`. Omit to fall back across all three.
     #[serde(default)]
     client: Option<String>,
+    #[serde(default)]
+    track: Option<android_catalog::Track>,
 }
 
 fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Json<Value>) {
@@ -266,7 +273,21 @@ fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Js
 /// YouTube's own body per client. Resolves the audio URL, then streams the
 /// media through a bounded ring buffer into the rodio/cpal playback thread;
 /// returns once playback has been handed over, not when the track ends.
-async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
+async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
+    let Ok(_permit) = phone.operation_slot.try_acquire() else {
+        return api_error(StatusCode::TOO_MANY_REQUESTS, "play_busy", "Track change already running".into());
+    };
+    let id = body.video_id.trim().to_owned();
+    let track = body.track.clone().filter(|t| t.id == id).and_then(|t| t.normalized().ok());
+    let result = play_audio(body).await;
+    if result.0.is_success() {
+        let title = result.1.0["title"].as_str().map(str::to_owned);
+        phone.library.lock().unwrap().remember(track.unwrap_or_else(|| android_catalog::Track::from_id(&id, title)));
+    }
+    result
+}
+
+async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
     use youtube::ResolveError;
 
     let video_id = body.video_id.trim();
@@ -435,8 +456,14 @@ async fn pump_media(
                 Ok(bytes) => {
                     delivered += bytes.len();
                     // Blocks when the ring is full: backpressure, not buffering.
-                    if tx.send(Ok(bytes.to_vec())).is_err() {
-                        return;
+                    for piece in bytes.chunks(16 * 1024) {
+                        let sender = tx.clone();
+                        let piece = piece.to_vec();
+                        // Backpressure belongs on the blocking pool, not either
+                        // of the two Tokio workers needed by the UI/network.
+                        if !matches!(tokio::task::spawn_blocking(move || sender.send(Ok(piece))).await, Ok(Ok(()))) {
+                            return;
+                        }
                     }
                 }
                 Err(error) => {
@@ -490,7 +517,9 @@ fn send_stream_error(
     tx: &std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
     message: String,
 ) {
-    let _ = tx.send(Err(std::io::Error::other(message)));
+    // Never block a Tokio worker while a paused decoder has a full ring.
+    let sender = tx.clone();
+    tokio::task::spawn_blocking(move || { let _ = sender.send(Err(std::io::Error::other(message))); });
 }
 
 async fn pause() -> Json<Value> {
@@ -697,8 +726,8 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
 /// `GET /api/player` - playback state for the now-playing UI.
 ///
 /// Does not start the audio thread: polling the UI must not open the device.
-async fn player_status() -> Json<Value> {
-    match started_player() {
+async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
+    let mut result = match started_player() {
         Some(player) => Json(player.snapshot()),
         None => Json(json!({
             "state": "idle",
@@ -708,7 +737,9 @@ async fn player_status() -> Json<Value> {
             "position_secs": 0.0,
             "error": null,
         })),
-    }
+    };
+    result.0["track"] = json!(phone.library.lock().unwrap().current);
+    result
 }
 
 #[cfg(target_os = "android")]
@@ -890,6 +921,49 @@ mod api_tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = json_body(response).await;
         assert_eq!(body["error"], "invalid_video_id");
+    }
+
+    #[tokio::test]
+    async fn android_website_assets_and_local_routes_do_not_404() {
+        let app = router(Arc::new(None));
+        for path in ["/", "/icons.svg", "/api/queue", "/api/liked", "/api/bt/status", "/api/player"] {
+            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            if path == "/icons.svg" {
+                assert!(response.headers()["content-type"].to_str().unwrap().starts_with("image/svg+xml"));
+                let body = response.into_body().collect().await.unwrap().to_bytes();
+                assert!(std::str::from_utf8(&body).unwrap().contains("id=\"play\""));
+            }
+        }
+        for path in ["/api/next", "/api/prev"] {
+            let response = app.clone().oneshot(post(path, "{}")).await.unwrap();
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+        }
+        for path in ["/api/search?q=", "/api/search?q=%20"] {
+            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+    }
+
+    #[tokio::test]
+    async fn android_queue_and_likes_round_trip_without_provider_or_audio() {
+        let app = router(Arc::new(None));
+        let track = r#"{"id":"abcdefghijk","title":"Song","artist":"Artist","url":"http://private.invalid"}"#;
+        for path in ["/api/queue_add", "/api/like"] {
+            for _ in 0..2 { assert_eq!(app.clone().oneshot(post(path, track)).await.unwrap().status(), StatusCode::OK); }
+        }
+        for path in ["/api/queue", "/api/liked"] {
+            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
+            let body = json_body(response).await;
+            assert_eq!(body.as_array().unwrap().len(), 1);
+            assert_eq!(body[0]["url"], "https://www.youtube.com/watch?v=abcdefghijk");
+        }
+        assert_eq!(app.clone().oneshot(post("/api/queue_clear", "{}")).await.unwrap().status(), StatusCode::OK);
+        assert_eq!(app.clone().oneshot(post("/api/unlike", track)).await.unwrap().status(), StatusCode::OK);
+        for path in ["/api/queue", "/api/liked"] {
+            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(json_body(response).await, json!([]));
+        }
     }
 
     /// Live diagnostic (not in the default suite): shows exactly what each

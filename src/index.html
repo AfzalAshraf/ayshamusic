@@ -582,7 +582,7 @@ async function nativeJson(path, body) {
     body: JSON.stringify(body || {}),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
+  if (!r.ok || data.status === 'error' || data.status === 'failed') {
     const attempts = (data.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
     throw new Error(data.detail || attempts || data.error || ('HTTP ' + r.status));
   }
@@ -639,9 +639,9 @@ async function playSong(t, options = {}) {
     state.playMode = 'native';
     saveSelection();
     setPlayingState(false);
-    document.getElementById('time-display').textContent = 'Resolving on the server...';
+    document.getElementById('time-display').textContent = 'Resolving on this device...';
     try {
-      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t) });
+      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), track: t });
       if (attempt !== playbackAttempt) return;
       if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
       state.stopped = false;
@@ -794,7 +794,16 @@ async function navigateTrack(direction) {
     const result = await api('POST', '/api/' + direction);
     if (!result.track) throw new Error('No track returned by server');
     // Navigation already updated server state. Do not add a second history entry.
-    await playSong(result.track, { notifyServer: false, mode: result.mode });
+    if (state.nativePlayback && result.already_started) {
+      state.current_track = result.track;
+      state.playMode = 'native';
+      state.stopped = false;
+      renderSelection(result.track);
+      saveSelection();
+      setPlayingState(true);
+    } else {
+      await playSong(result.track, { notifyServer: false, mode: result.mode });
+    }
   } catch (error) {
     document.getElementById('time-display').textContent = error.message;
   } finally {
@@ -1094,7 +1103,8 @@ async function searchTracks(query, label) {
     renderGrid(Array.isArray(result) ? result : [], 'explore-cards', true);
   } catch (error) {
     if (generation === searchGeneration) {
-      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again to retry.</div>';
+      loadedTabs.delete('explore');
+      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again or tap Explore to retry.</div>';
       showMessage(error.message);
     }
   } finally {
@@ -1459,10 +1469,19 @@ async function pollStatus() {
         if (player.state === 'error') setPlayingState(false);
         return;
       }
+      if (player.track && (!state.current_track || state.current_track.id !== player.track.id)) {
+        state.current_track = player.track;
+        state.playMode = 'native';
+        renderSelection(player.track);
+        saveSelection();
+      }
       if (player.state === 'playing' || player.state === 'paused') {
+        state.stopped = false;
         const playing = player.state === 'playing';
         if (playing !== state.is_playing) setPlayingState(playing);
       }
+      if (player.state === 'idle' && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
+      syncNowPlaying();
       document.getElementById('time-display').textContent =
         fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : '');
       return;
