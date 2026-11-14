@@ -36,6 +36,21 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 static PLAYER: OnceLock<player::Player> = OnceLock::new();
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+/// Visitor identity for InnerTube, cached for the process and on disk.
+static VISITOR: OnceLock<youtube::Visitor> = OnceLock::new();
+
+/// `filesDir/yt_visitor.json` - survives app restarts once fetched.
+fn visitor_cache_path() -> Option<std::path::PathBuf> {
+    paths().map(|(files, _)| std::path::Path::new(files).join("yt_visitor.json"))
+}
+
+async fn visitor(client: &reqwest::Client) -> &'static youtube::Visitor {
+    if let Some(cached) = VISITOR.get() {
+        return cached;
+    }
+    let fetched = youtube::ensure_visitor(client, visitor_cache_path().as_deref()).await;
+    VISITOR.get_or_init(|| fetched)
+}
 
 /// Only `/api/play` may open the audio device. Read/control endpoints must
 /// never acquire hardware just because the UI polls them.
@@ -300,9 +315,19 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
         );
     };
 
+    if !youtube::valid_video_id(video_id) {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_video_id",
+            "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
+        );
+    }
+
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
+        None => youtube::resolve_audio(client, video_id, visitor_value).await,
     };
 
     let audio = match resolved {
@@ -335,6 +360,7 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
         client.clone(),
         audio.video_id.clone(),
         forced.map(|profile| profile.name),
+        visitor.attached().then(|| visitor.value.clone()),
         audio.url.clone(),
         tx,
     ));
@@ -375,6 +401,7 @@ async fn pump_media(
     client: reqwest::Client,
     video_id: String,
     forced: Option<&'static str>,
+    visitor: Option<String>,
     initial_url: String,
     tx: std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
 ) {
@@ -401,7 +428,7 @@ async fn pump_media(
         let status = response.status();
         if status == StatusCode::FORBIDDEN && !refreshed {
             refreshed = true;
-            match re_resolve(&client, &video_id, forced).await {
+            match re_resolve(&client, &video_id, forced, visitor.as_deref()).await {
                 Ok(fresh) => {
                     url = fresh.url;
                     continue;
@@ -442,7 +469,7 @@ async fn pump_media(
                 Err(error) => {
                     if delivered == 0 && !refreshed {
                         refreshed = true;
-                        match re_resolve(&client, &video_id, forced).await {
+                        match re_resolve(&client, &video_id, forced, visitor.as_deref()).await {
                             Ok(fresh) => {
                                 url = fresh.url;
                                 retry = true;
@@ -478,10 +505,11 @@ async fn re_resolve(
     client: &reqwest::Client,
     video_id: &str,
     forced: Option<&'static str>,
+    visitor: Option<&str>,
 ) -> Result<youtube::ResolvedAudio, String> {
     let resolved = match forced.and_then(youtube::client_by_name) {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor).await,
+        None => youtube::resolve_audio(client, video_id, visitor).await,
     };
     resolved.map_err(|error| error.to_string())
 }
@@ -582,10 +610,20 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         );
     };
 
+    if !youtube::valid_video_id(video_id) {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_video_id",
+            "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
+        );
+    }
+
     let started = Instant::now();
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
+        None => youtube::resolve_audio(client, video_id, visitor_value).await,
     };
     let audio = match resolved {
         Ok(audio) => audio,
@@ -681,6 +719,11 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         "media_content_type": content_type,
         "bytes_fetched": fetched,
         "stream_error": stream_error,
+        "visitor": {
+            "source": visitor.source.as_str(),
+            "attached": visitor.attached(),
+            "preview": visitor.preview(),
+        },
         "resolve_ms": resolve_ms,
         "elapsed_ms": started.elapsed().as_millis() as u64,
     });

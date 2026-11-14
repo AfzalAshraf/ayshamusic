@@ -104,8 +104,19 @@ jobs:
           tag_name: apk-latest
           name: Aysha Music APK (latest)
           body: |
-            arm64-v8a release build from ${{ github.sha }}.
-            Debug-signed, minSdk 26. Playback on a physical device is not
-            verified by CI.
+            Aysha Music 1.1.0 (versionCode 2), arm64-v8a, from ${{ github.sha }}.
+
+            Resolution changes:
+            - InnerTube client versions are current (Android 20.10.38 / iOS 20.10.4);
+              the previous 19.x versions returned HTTP 400 FAILED_PRECONDITION.
+            - A visitor id is fetched from /youtubei/v1/visitor_id, cached in
+              filesDir/yt_visitor.json and sent as X-Goog-Visitor-Id plus
+              client.visitorData on every player request.
+            - /api/selftest and /api/play failures report each attempt's client,
+              HTTP status, visitor-id attachment and YouTube's own body.
+
+            Honest limit: CI proves the APK builds, packages and fits the size
+            budget; it cannot prove audio comes out of a phone speaker.
+            Debug-signed, minSdk 26.
           files: android-app/app/build/outputs/apk/release/app-release.apk
           make_latest: true

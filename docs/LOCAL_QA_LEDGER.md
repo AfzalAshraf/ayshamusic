@@ -1893,3 +1893,38 @@ no fresh RAM measurement).
 
 Next: on-phone `POST /api/play` (optionally `"client":"android"`), read the
 `attempts` array if it fails, then `android-app/scripts/measure_rss.sh --watch 60`.
+
+## 2026-11-14 (c) — Backend & Database: visitor id + current InnerTube client versions (v1.1.0)
+
+Root cause found: the HTTP 400 `FAILED_PRECONDITION` was NOT the datacenter IP.
+Client versions 19.44.38 (ANDROID) and 19.45.4 (IOS) are rejected; 20.10.38 /
+20.10.4 return `playabilityStatus=OK` with direct audio URLs from the same host.
+
+Changes:
+- `src/youtube.rs`: ANDROID 20.10.38, IOS 20.10.4 (TVHTML5 unchanged, still a
+  fallback). Visitor id fetched from `/youtubei/v1/visitor_id`, validated,
+  cached to `filesDir/yt_visitor.json`, reused across restarts, sent both as
+  `X-Goog-Visitor-Id` and `client.visitorData`. `ClientAttempt` now carries
+  `status` and `visitor` fields beside YouTube's body.
+- `src/lib.rs`: visitor resolved once per process (`OnceLock`) before the first
+  resolve; `/api/play` and `/api/selftest` fail fast on malformed ids before any
+  network; selftest reports `visitor {source, attached, preview}`.
+- Page: attempt lines show `[status, visitor]`; selftest label shows visitor source.
+- Version: versionCode 2 / versionName 1.1.0.
+
+Evidence (this host, same egress that used to fail):
+- `cargo test --lib` -> 33 passed, 0 failed, 2 ignored.
+- `cargo test --lib live_resolve -- --ignored --nocapture` -> visitor
+  source=network attached=true; resolved ANDROID itag 140; media HTTP 206.
+- `cargo test --lib live_play -- --ignored --nocapture` -> `/api/play` HTTP 200,
+  `{"status":"playing","client":"ANDROID","itag":140,"content_length":3449447}`.
+- `build_apk.sh` -> BUILD SUCCESSFUL, 6.81 MB, gate PASS; badging shows
+  versionCode 2 / 1.1.0; `.so` contains `X-Goog-Visitor-Id`, `visitorData`,
+  `yt_visitor.json`, `20.10.38`.
+
+Still open: no device run (audible playback unverified), RSS not remeasured,
+debug-signed, MediaSession/queue/offline untouched by this pass.
+
+Device expectation: Test button -> `Selftest OK: ANDROID itag 140, <n> B in <ms>
+(visitor disk|network)`. If it fails, the message lists
+`ANDROID [<status>, visitor] <YouTube body>` per client.

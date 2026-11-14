@@ -583,7 +583,7 @@ async function nativeJson(path, body) {
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const attempts = (data.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
+    const attempts = (data.attempts || []).map(a => a.client + ' [' + (a.status || '?') + (a.visitor === 'attached' ? ', visitor' : '') + '] ' + a.error).join(' | ');
     throw new Error(data.detail || attempts || data.error || ('HTTP ' + r.status));
   }
   return data;
@@ -607,13 +607,14 @@ async function runSelftest() {
     const r = await fetch('/api/selftest?video_id=' + encodeURIComponent(id), { cache: 'no-store' });
     const body = await r.json().catch(() => ({}));
     if (!r.ok || !body.ok) {
-      const attempts = (body.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
+      const attempts = (body.attempts || []).map(a => a.client + ' [' + (a.status || '?') + (a.visitor === 'attached' ? ', visitor' : '') + '] ' + a.error).join(' | ');
       label.textContent = 'Selftest FAILED: ' + (attempts || body.detail || body.error || ('HTTP ' + r.status));
       console.warn('aysha selftest', body);
       return;
     }
     label.textContent = 'Selftest OK: ' + body.client + ' itag ' + body.itag + ', ' +
-      body.bytes_fetched + ' B in ' + body.elapsed_ms + ' ms';
+      body.bytes_fetched + ' B in ' + body.elapsed_ms + ' ms' +
+      (body.visitor ? ' (visitor ' + body.visitor.source + ')' : '');
     console.info('aysha selftest', body);
   } catch (error) {
     label.textContent = 'Selftest error: ' + error.message;
