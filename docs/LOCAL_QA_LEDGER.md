@@ -1832,3 +1832,51 @@ or new test run claimed; audit uses exact source and CI metadata. Architecture2/
 Android feature completeness1/5,device/release acceptance0/5. Latest supplied Linux
 RAM not remeasured:6.4512MBcurrent/67.592192MBhistoricalpeak/0swap, rust-resolved;
 not phone memory. No fresh Android RAM measurement exists.
+
+## 2026-11-07 — QA & Debugging: standalone APK icons/HTTP404 repair
+
+User reports APK UI looks nice but icons absent, music fails HTTP404/tap tab retry.
+Exact source defects in origin/main bf37384: Android router lacks /icons.svg and
+/api/search while embedded page requests both. No provider probe needed to identify
+missing local routes; not a CDN403/Linux failure. Merged newer main onto this fixed
+session branch (a4aed70merge), preserving Linux source/installation/UI regressions
+and unrelated pyc deletion; resolved shared Cargo/index/workflow/ignore/ledger files.
+
+Implemented android_catalog.rs: correct-MIME embedded SVG; fixed HTTPS search with
+one slot/12s/2MiB/query200/traversal/output20bounds, strictIDs/normalizedURLs, no shell/
+helper/hostedfallback; queue/likes/history bounded200and navigation routes, transactional
+on successful playback with one manual/nav operation at a time. Process-memory only,
+not persistent sync. No provider/autoplay-discovery experiment. Native flag embedded
+before first tap; JSONplay carries track metadata; native Next/Prev starts once, errors
+invalidate Explore loaded state; Android startup readiness wait. Media ring backpressure
+moved off Tokio workers/split16KiB; remove12stotal-songdeadline,retainidle/connecttimeout
+and resolver/search request deadlines. No codec/quality/client-rotation change.
+
+cb0b4bb gates phone audio/Telegram dependencies behind phone/android Cargo features,
+no default Linux ALSA/Telegram runtime requirement. Existing main Rustls configuration
+retained. 800427b packages version1.0.1-preview / com.afzal.ayshamusic.preview / Aysha
+Music Preview, installs alongside old app so ephemeral debug keys do not force data
+loss. Branch workflow read-only/artifact-only; DOES NOT overwrite public apk-latest
+or create production release. Keystores/APKs/buildoutputs ignored. No host reinstall.
+
+Verification: local137PythonPASS/87NodePASS(includes4newnativebehavior+4Androidcontract
+checks),shellsyntax/diffcheckPASS. CI43586093333(cb0b4bb)AndroidallstepsPASS; Linux
+43586093327all5PASS. FINALAndroid43586401555(800427b)allstepsPASS2m57s: phone-feature
+Rusttests,hostbincheck,Androidcrosscompile,GradleassembleRelease,APKgating/upload,route
+checks. Artifact14110452124nameayshamusic-arm64-release,ZIP3,665,841bytes (NOT APK
+size or RAM); GitHub-reported archiveSHA25662956cd2817450924cc688e572d4a00883bc393c5ed1e618511569897532a8f1.
+FinalLinux43586401622coretest/mobile/audio/directPASS,extractprototypependingatwrite.
+NetworkallowlistblocksGHAlog/assetredirecthosts->EOF; noAPKbinary/signatureinspection
+or physicaldeviceaudio fabricated. Manualworkflowdispatch403permissionsnotneeded:
+push builds ran successfully; no credential solicitation. Superseded inspection audit
+linked to ANDROID_APK_FIX.md with exact side-by-side install/artifact/device checks.
+
+Remaining: actual phone icons/search/audibility/sustained/background/control recovery;
+provider behavior/rights/store readiness and production signing unaccepted. New502
+search/resolve/provider errors need exact layer review, not raw logs/repeated Test or
+weakened validation. EmptyNext409requiresqueue,notmoreautomaticprovideracquisition.
+LegacyLinuxlisteninguntouched; AndroidRAMNOTMEASURED. Latest supplied Linux RAM not
+remeasured6.4512MBcurrent/67.592192MBhistoricalpeak/0swap,notphoneresourceproof.
+RatingsAndroidcontract2/5,QA3/5,device/releaseacceptance0/5untilhostreceipt. Next user
+opens Preview (not old app),checks symbols/search/tapqueuedtrack with Linuxserveroff;
+sends exact NEW error and stage only if it fails. No repeated diagnostic install loop.

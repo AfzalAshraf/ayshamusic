@@ -1,5 +1,10 @@
 # Standalone Android APK inspection
 
+**Historical inspection:** the user subsequently reproduced missing icons and HTTP404.
+The Android code has now been integrated and those API contracts patched; see
+[ANDROID_APK_FIX.md](ANDROID_APK_FIX.md) and the latest QA ledger for build evidence.
+The gaps below describe the inspected main artifact, not a claim that fixes are absent.
+
 ## Requested outcome
 
 An installable Android app preserving the approved Aysha website design, streaming
