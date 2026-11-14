@@ -42,6 +42,7 @@ struct Status {
     title: Option<String>,
     volume: f32,
     position_secs: f64,
+    duration_secs: f64,
     error: Option<String>,
     client: Option<String>,
     itag: Option<u64>,
@@ -53,6 +54,7 @@ enum Command {
         title: Option<String>,
         client: String,
         itag: u64,
+        duration_secs: f64,
         audio: Receiver<io::Result<Vec<u8>>>,
     },
     Pause,
@@ -95,6 +97,7 @@ impl Player {
         title: Option<String>,
         client: &str,
         itag: u64,
+        duration_secs: f64,
         audio: Receiver<io::Result<Vec<u8>>>,
     ) -> Result<(), String> {
         // Reserve the status before handing over, so `/api/player` never shows
@@ -106,6 +109,7 @@ impl Player {
             status.client = Some(client.to_string());
             status.itag = Some(itag);
             status.position_secs = 0.0;
+            status.duration_secs = duration_secs;
             status.error = None;
         }
         self.send(Command::Play {
@@ -113,6 +117,7 @@ impl Player {
             title,
             client: client.to_string(),
             itag,
+            duration_secs,
             audio,
         })
     }
@@ -141,6 +146,7 @@ impl Player {
             "title": status.title,
             "volume": status.volume,
             "position_secs": status.position_secs,
+            "duration_secs": status.duration_secs,
             "error": status.error,
             "client": status.client,
             "itag": status.itag,
@@ -174,6 +180,7 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                 title,
                 client,
                 itag,
+                duration_secs,
                 audio,
             }) => {
                 sink.stop();
@@ -201,6 +208,7 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                 status.client = Some(client);
                 status.itag = Some(itag);
                 status.position_secs = 0.0;
+                status.duration_secs = duration_secs;
                 status.error = None;
             }
             Ok(Command::Pause) => {
@@ -222,6 +230,7 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                 let mut status = status.lock().unwrap();
                 status.state = Some(PlayState::Idle);
                 status.position_secs = 0.0;
+                status.duration_secs = 0.0;
             }
             Ok(Command::Volume(volume)) => {
                 sink.set_volume(volume);
@@ -241,6 +250,7 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
             if sink.empty() {
                 status.state = Some(PlayState::Idle);
                 status.position_secs = 0.0;
+                status.duration_secs = 0.0;
             }
         } else if status.state == Some(PlayState::Paused) {
             status.position_secs = sink.get_pos().as_secs_f64();

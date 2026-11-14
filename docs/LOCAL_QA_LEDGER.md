@@ -1955,3 +1955,39 @@ Evidence:
   `.so` contains `renderNativePlayer`, `/api/player`, `api/play/pause/resume/stop`.
 
 Not verified: visual layout and real device taps (no device/emulator here).
+
+## 2026-11-14 (e) — Android backend: duration, search, Next/Previous (v1.2.0)
+
+- `src/player.rs`: `duration_secs` in the status/snapshot; set from the resolved
+  format and cleared on stop/stream-end. `/api/player` therefore reports length,
+  and the page fills the progress bar from it.
+- `src/lib.rs`: `/api/play` was refactored into `start_track()` shared with the
+  new `/api/next` and `/api/prev`; a 20-entry session history powers prev.
+  `/api/search?q=` now exists (Home, Explore and the search bar were returning
+  404 on the phone). `/api/next` seeds an InnerTube search with the playing
+  title, then `choose_candidates` drops the current video id and any candidate
+  that is the same song under another upload; it tries up to five candidates.
+- `src/youtube.rs`: `search()` + renderer parser (`videoRenderer` and the mobile
+  `compactVideoRenderer`), `normalized_title` / `same_song` (brackets and
+  upload noise stripped, exact match after that, so "Song 2" stays distinct).
+- Page: native Next/Previous adopt the player's new track, progress uses
+  `duration_secs`, Home tolerates the still-missing favorites/queue endpoints.
+
+Evidence:
+- `cargo test --lib` -> 37 passed, 0 failed, 2 ignored (offline).
+- `/api/search?q=romantic melody hindi songs` -> HTTP 200, 19 results
+  (first: zeVWTY31Vn8 "Top 30 Romantic Hindi Songs…").
+- `/api/play` -> 200, `duration_secs` 211.17 for dQw4w9WgXcQ.
+- `/api/next` -> 502 `no_related_playable` on this host: every candidate came
+  back `LOGIN_REQUIRED / "Sign in to confirm you're not a bot"` for ANDROID, IOS
+  and TV. Fresh visitors (three, separate) did not change it, and kJQP7kiw5Fk,
+  JGwWNGJdvx8, 3JZ_D3ELwOQ, zeVWTY31Vn8 all fail while dQw4w9WgXcQ succeeds,
+  so this is IP-level bot screening, not a client/version problem.
+- Candidate selection is proven offline: `next_skips_the_same_song_even_when_the_upload_differs`
+  drops "Tum Hi Ho (Official Video)", "Tum Hi Ho - Lyrical Video" and keeps
+  "Kesariya" and "Tum Hi Ho 2".
+- `build_apk.sh` -> BUILD SUCCESSFUL, 6.85 MB, gate PASS; badging 1.2.0 / code 4;
+  `.so` contains duration_secs, api/search, api/next, api/prev, compactVideoRenderer.
+
+Not verified: audible playback, a real Next/Previous transition, and any tap on a
+device. Favorites/Queue/Bluetooth remain Linux-only (404 on the phone).

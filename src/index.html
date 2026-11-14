@@ -589,6 +589,29 @@ async function nativeJson(path, body) {
   return data;
 }
 
+// The Rust side already started the new track, so adopt its metadata instead of
+// resolving again. Keeps the queue/history logic in one place (the player).
+function adoptNativeTrack(track) {
+  const id = nativeVideoId(track);
+  if (!id) throw new Error('No track returned by the player');
+  const previous = state.current_track;
+  state.current_track = {
+    id,
+    video_id: id,
+    title: track.title || 'Playing on this device',
+    artist: track.artist || (previous && previous.artist) || 'This device',
+    url: track.url || '',
+  };
+  state.playMode = 'native';
+  state.stopped = false;
+  state.pos = 0;
+  state.duration = Number(track.duration_secs) || 0;
+  renderSelection(state.current_track);
+  setPlayingState(true);
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('time-display').textContent = 'Playing on this device...';
+}
+
 function nativeVideoId(t) {
   return ((t && (t.video_id || t.videoId || t.id)) || '').trim();
 }
@@ -627,11 +650,18 @@ function renderNativePlayer(player) {
     state.stopped = false;
     if (playing !== state.is_playing) setPlayingState(playing);
     state.pos = Number(player.position_secs) || 0;
+    state.duration = Number(player.duration_secs) || 0;
+    const pct = state.duration > 0 ? Math.min(100, state.pos / state.duration * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
     document.getElementById('time-display').textContent =
-      fmtSecs(state.pos) + (name === 'paused' ? ' (paused)' : '');
+      (state.duration > 0 ? fmtSecs(state.pos) + ' / ' + fmtSecs(state.duration) : fmtSecs(state.pos)) +
+      (name === 'paused' ? ' (paused)' : '');
     if (document.getElementById('now-playing').open) {
       syncNowPlaying();
       document.getElementById('full-elapsed').textContent = formatClock(state.pos);
+      document.getElementById('full-duration').textContent =
+        state.duration > 0 ? formatClock(state.duration) : 'Streaming audio';
+      document.getElementById('full-progress').style.width = pct + '%';
     }
   } else if ((name === 'idle' || name === 'stopped') && state.is_playing) {
     setPlayingState(false);
@@ -839,6 +869,12 @@ async function navigateTrack(direction) {
   if (navigationBusy) return;
   navigationBusy = true;
   try {
+    if (state.nativePlayback) {
+      // Android has no server-side queue: the player picks the next song.
+      const info = await nativeJson('/api/' + direction, { video_id: nativeVideoId(state.current_track) || null });
+      adoptNativeTrack(info.track || info);
+      return;
+    }
     const result = await api('POST', '/api/' + direction);
     if (!result.track) throw new Error('No track returned by server');
     // Navigation already updated server state. Do not add a second history entry.
@@ -1162,16 +1198,16 @@ async function loadHome() {
   document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
   const pt = Array.isArray(picks) ? picks : (picks.results || []);
   renderGrid(pt, 'quick-picks', true);
-  await refreshFavorites();
+  await refreshFavorites().catch(() => []);
   renderGrid(state.liked, 'recent-history', true);
-  loadQueue();
+  loadQueue().catch(() => {});
 }
 
 async function loadLiked() {
   renderSongRatings();
-  await refreshFavorites();
+  await refreshFavorites().catch(() => []);
   renderGrid(state.liked, 'full-history', true);
-  loadQueue();
+  loadQueue().catch(() => {});
 }
 
 async function loadQueue() {

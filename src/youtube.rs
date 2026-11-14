@@ -13,6 +13,7 @@ use std::fmt;
 use std::time::Duration;
 
 const PLAYER_URL: &str = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const SEARCH_URL: &str = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false";
 
 /// One InnerTube client identity. `extra` is merged into the `client` object.
 #[derive(Clone, Copy, Debug)]
@@ -436,7 +437,7 @@ fn truncate(text: &str, limit: usize) -> String {
     truncated
 }
 
-fn request_body(video_id: &str, profile: InnertubeClient, visitor: Option<&str>) -> Value {
+fn client_context(profile: InnertubeClient, visitor: Option<&str>) -> Value {
     let extra: Value = serde_json::from_str(profile.extra).unwrap_or_else(|_| json!({}));
     let mut client = json!({
         "clientName": profile.name,
@@ -452,15 +453,182 @@ fn request_body(video_id: &str, profile: InnertubeClient, visitor: Option<&str>)
         }
     }
     json!({
-        "context": {
-            "client": client,
-            "user": { "lockedSafetyMode": false },
-            "request": { "useSsl": true },
-        },
+        "client": client,
+        "user": { "lockedSafetyMode": false },
+        "request": { "useSsl": true },
+    })
+}
+
+fn request_body(video_id: &str, profile: InnertubeClient, visitor: Option<&str>) -> Value {
+    json!({
+        "context": client_context(profile, visitor),
         "videoId": video_id,
         "contentCheckOk": true,
         "racyCheckOk": true,
     })
+}
+
+/// One search result: enough to show a card and resolve it later.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SearchHit {
+    pub video_id: String,
+    pub title: String,
+    pub channel: String,
+}
+
+/// InnerTube search (`/youtubei/v1/search`). Used by `/api/search` and by
+/// `/api/next`, which asks for songs similar to the one that is playing.
+pub async fn search(
+    http: &Client,
+    query: &str,
+    visitor: Option<&str>,
+    limit: usize,
+) -> Result<Vec<SearchHit>, ResolveError> {
+    let query = query.trim();
+    if query.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
+    let body = json!({
+        "context": client_context(ANDROID, visitor),
+        "query": query,
+    });
+    let mut request = http
+        .post(SEARCH_URL)
+        .header(reqwest::header::USER_AGENT, ANDROID.user_agent)
+        .header("X-YouTube-Client-Name", client_id(ANDROID.name))
+        .header("X-YouTube-Client-Version", ANDROID.version);
+    if let Some(visitor) = visitor {
+        request = request.header("X-Goog-Visitor-Id", visitor);
+    }
+    let response = request
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| ResolveError::Http(error.to_string()))?;
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(ResolveError::Http(format!(
+            "search HTTP {status}: {}",
+            summarize_error_body(&text)
+        )));
+    }
+    let json: Value = response
+        .json()
+        .await
+        .map_err(|error| ResolveError::Http(error.to_string()))?;
+    Ok(parse_search_json(&json, limit))
+}
+
+/// Walks any InnerTube search shape and keeps every video node. The web client
+/// answers with `videoRenderer`, the mobile client with `compactVideoRenderer`;
+/// both carry `videoId`, `title` and `longBylineText`.
+fn parse_search_json(json: &Value, limit: usize) -> Vec<SearchHit> {
+    let mut hits: Vec<SearchHit> = Vec::new();
+    collect_video_renderers(json, &mut hits, limit);
+    let mut seen = std::collections::HashSet::new();
+    hits.retain(|hit| seen.insert(hit.video_id.clone()));
+    hits
+}
+
+fn collect_video_renderers(value: &Value, out: &mut Vec<SearchHit>, limit: usize) {
+    if out.len() >= limit {
+        return;
+    }
+    match value {
+        Value::Object(map) => {
+            for key in ["videoRenderer", "compactVideoRenderer", "videoWithContextRenderer"] {
+                if let Some(renderer) = map.get(key) {
+                    if let Some(hit) = hit_from_renderer(renderer) {
+                        out.push(hit);
+                    }
+                }
+            }
+            for child in map.values() {
+                collect_video_renderers(child, out, limit);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                collect_video_renderers(child, out, limit);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn hit_from_renderer(renderer: &Value) -> Option<SearchHit> {
+    let video_id = renderer["videoId"].as_str()?.trim().to_string();
+    if !valid_video_id(&video_id) {
+        return None;
+    }
+    let title = renderer["title"]["runs"][0]["text"]
+        .as_str()
+        .or_else(|| renderer["title"]["simpleText"].as_str())?
+        .trim()
+        .to_string();
+    if title.is_empty() {
+        return None;
+    }
+    let channel = renderer["ownerText"]["runs"][0]["text"]
+        .as_str()
+        .or_else(|| renderer["longBylineText"]["runs"][0]["text"].as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    Some(SearchHit { video_id, title, channel })
+}
+
+/// Collapses a YouTube title to its song identity so re-uploads, lyric videos
+/// and "(Official Video)" copies compare equal. Used to keep `/api/next` from
+/// queueing the same song again under a different upload.
+pub fn normalized_title(title: &str) -> String {
+    let mut kept = String::with_capacity(title.len());
+    let mut depth = 0usize;
+    for ch in title.chars() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            '|' if depth == 0 => break,
+            _ if depth > 0 => {}
+            _ => {
+                if ch.is_alphanumeric() {
+                    kept.extend(ch.to_lowercase());
+                } else {
+                    kept.push(' ');
+                }
+            }
+        }
+    }
+    kept.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Upload noise that says nothing about which song it is.
+const TITLE_NOISE: [&str; 13] = [
+    "official", "video", "lyrics", "lyric", "lyrical", "audio", "song", "full", "hd", "4k",
+    "visualizer", "version", "music",
+];
+
+fn strip_title_noise(title: &str) -> String {
+    let mut words: Vec<&str> = title.split_whitespace().collect();
+    while words
+        .last()
+        .is_some_and(|word| TITLE_NOISE.contains(word))
+    {
+        words.pop();
+    }
+    words.join(" ")
+}
+
+/// True when `candidate` is the same song the player is already on, even if the
+/// upload title differs ("Song (Official Video)" vs "Song | Lyric Video").
+///
+/// Comparison is exact after noise removal, so a sequel ("Song 2") is a new
+/// song, while a re-upload is not.
+pub fn same_song(current: &str, candidate: &str) -> bool {
+    let current = strip_title_noise(&normalized_title(current));
+    let candidate = strip_title_noise(&normalized_title(candidate));
+    !current.is_empty() && current == candidate
 }
 
 #[derive(Deserialize)]
@@ -812,4 +980,36 @@ mod tests {
         assert_eq!(audio.content_length, Some(4_123_456));
         assert_eq!(audio.itag, 140);
     }
+
+    #[test]
+    fn titles_collapse_to_the_same_song() {
+        assert_eq!(normalized_title("Tum Hi Ho (Official Video)"), "tum hi ho");
+        assert_eq!(normalized_title("Tum Hi Ho | Lyrical"), "tum hi ho");
+        assert!(same_song("Tum Hi Ho", "Tum Hi Ho - Lyrical Video"));
+        assert!(same_song("Tum Hi Ho (Official Music Video)", "Tum Hi Ho"));
+        assert!(!same_song("Tum Hi Ho", "Tum Hi Ho 2"));
+        assert!(!same_song("Tum Hi Ho", "Kesariya"));
+    }
+
+    #[test]
+    fn search_json_collects_video_renderers() {
+        let json: Value = serde_json::from_str(
+            r#"{"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"videoRenderer":{"videoId":"dQw4w9WgXcQ","title":{"runs":[{"text":"A Song (Official Video)"}]},"ownerText":{"runs":[{"text":"A Channel"}]}}},{"videoRenderer":{"videoId":"too-short","title":{"runs":[{"text":"Ignored"}]}}}]}}]}}}}}"#,
+        )
+        .unwrap();
+        let hits = parse_search_json(&json, 10);
+        assert_eq!(hits.len(), 1);
+        let compact: Value = serde_json::from_str(
+            r#"{"contents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"compactVideoRenderer":{"videoId":"zeVWTY31Vn8","title":{"runs":[{"text":"Romantic Jukebox"}]},"longBylineText":{"runs":[{"text":"Sony Music India"}]}}}]}}]}}}"#,
+        )
+        .unwrap();
+        let mobile = parse_search_json(&compact, 10);
+        assert_eq!(mobile.len(), 1);
+        assert_eq!(mobile[0].video_id, "zeVWTY31Vn8");
+        assert_eq!(mobile[0].channel, "Sony Music India");
+        assert_eq!(hits[0].video_id, "dQw4w9WgXcQ");
+        assert_eq!(hits[0].title, "A Song (Official Video)");
+        assert_eq!(hits[0].channel, "A Channel");
+    }
+
 }

@@ -21,7 +21,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use tg_auth::TgOutcome;
 use tg_cache::TelegramCacheManager;
 
@@ -115,6 +115,9 @@ pub fn router(state: SharedCache) -> Router {
         .route("/api/tg/verify_code", post(tg_verify_code))
         .route("/api/tg/status", get(tg_status))
         .route("/api/play", post(play))
+        .route("/api/search", get(search_tracks))
+        .route("/api/next", post(next_track))
+        .route("/api/prev", post(prev_track))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))
         .route("/api/stop", post(stop))
@@ -282,31 +285,6 @@ fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Js
 /// media through a bounded ring buffer into the rodio/cpal playback thread;
 /// returns once playback has been handed over, not when the track ends.
 async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
-    use youtube::ResolveError;
-
-    let video_id = body.video_id.trim();
-    let forced = match body
-        .client
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-    {
-        None => None,
-        Some(name) => match youtube::client_by_name(name) {
-            Some(profile) => Some(profile),
-            None => {
-                return api_error(
-                    StatusCode::BAD_REQUEST,
-                    "unknown_client",
-                    format!(
-                        "unknown client '{name}'; expected one of {}",
-                        youtube::client_alias_list()
-                    ),
-                )
-            }
-        },
-    };
-
     let Some(client) = http_client() else {
         return api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -314,13 +292,71 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
             "could not build HTTP client".into(),
         );
     };
+    let forced = match forced_client(body.client.as_deref()) {
+        Ok(forced) => forced,
+        Err(response) => return response,
+    };
+    match start_track(client, body.video_id.trim(), forced).await {
+        Ok(payload) => (StatusCode::OK, Json(payload)),
+        Err(response) => response,
+    }
+}
+
+/// Resolves `android` / `ios` / `tv` for a request, or the API error to return.
+fn forced_client(name: Option<&str>) -> Result<Option<youtube::InnertubeClient>, (StatusCode, Json<Value>)> {
+    match name.map(str::trim).filter(|name| !name.is_empty()) {
+        None => Ok(None),
+        Some(name) => match youtube::client_by_name(name) {
+            Some(profile) => Ok(Some(profile)),
+            None => Err(api_error(
+                StatusCode::BAD_REQUEST,
+                "unknown_client",
+                format!(
+                    "unknown client '{name}'; expected one of {}",
+                    youtube::client_alias_list()
+                ),
+            )),
+        },
+    }
+}
+
+/// Track length from the audio format: bytes / (bits per second / 8).
+fn duration_from(audio: &youtube::ResolvedAudio) -> f64 {
+    match (audio.content_length, audio.bitrate) {
+        (Some(bytes), bitrate) if bitrate > 0 => bytes as f64 * 8.0 / bitrate as f64,
+        _ => 0.0,
+    }
+}
+
+/// Video ids started this session, newest last. `/api/prev` walks it back.
+static PLAYED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn remember_played(video_id: &str) {
+    let mut played = PLAYED.lock().unwrap();
+    played.retain(|seen| seen != video_id);
+    played.push(video_id.to_string());
+    let excess = played.len().saturating_sub(20);
+    played.drain(..excess);
+}
+
+fn last_played() -> Option<String> {
+    PLAYED.lock().unwrap().last().cloned()
+}
+
+/// Resolve + start one video. Shared by `/api/play`, `/api/next` and `/api/prev`.
+async fn start_track(
+    client: &reqwest::Client,
+    video_id: &str,
+    forced: Option<youtube::InnertubeClient>,
+) -> Result<Value, (StatusCode, Json<Value>)> {
+    use youtube::ResolveError;
 
     if !youtube::valid_video_id(video_id) {
-        return api_error(
+        return Err(api_error(
             StatusCode::BAD_REQUEST,
             "invalid_video_id",
             "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
-        );
+        ));
     }
 
     let visitor = visitor(client).await;
@@ -333,14 +369,18 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
     let audio = match resolved {
         Ok(audio) => audio,
         Err(error @ ResolveError::InvalidVideoId) => {
-            return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
+            return Err(api_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_video_id",
+                error.to_string(),
+            ))
         }
         Err(ResolveError::AllClientsFailed(attempts)) => {
             // Surface YouTube's own body for every client that was tried.
             let attempts_json: Vec<Value> =
                 attempts.iter().map(youtube::ClientAttempt::to_json).collect();
             let detail = ResolveError::AllClientsFailed(attempts).to_string();
-            return (
+            return Err((
                 StatusCode::BAD_GATEWAY,
                 Json(json!({
                     "status": "error",
@@ -348,13 +388,18 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
                     "detail": detail,
                     "attempts": attempts_json,
                 })),
-            );
+            ));
         }
         Err(error) => {
-            return api_error(StatusCode::BAD_GATEWAY, "unresolved", error.to_string())
+            return Err(api_error(
+                StatusCode::BAD_GATEWAY,
+                "unresolved",
+                error.to_string(),
+            ))
         }
     };
 
+    let duration_secs = duration_from(&audio);
     let (tx, rx) = player::stream_channel();
     tokio::spawn(pump_media(
         client.clone(),
@@ -370,25 +415,253 @@ async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
         audio.title.clone(),
         audio.client,
         audio.itag,
+        duration_secs,
         rx,
     ) {
-        return api_error(StatusCode::SERVICE_UNAVAILABLE, "playback_unavailable", error);
+        return Err(api_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "playback_unavailable",
+            error,
+        ));
+    }
+    remember_played(&audio.video_id);
+
+    Ok(json!({
+        "status": "playing",
+        "video_id": audio.video_id,
+        "title": audio.title,
+        "itag": audio.itag,
+        "mime": audio.mime,
+        "bitrate": audio.bitrate,
+        "content_length": audio.content_length,
+        "duration_secs": duration_secs,
+        "client": audio.client,
+        "forced": forced.is_some(),
+    }))
+}
+
+#[derive(Deserialize)]
+struct SearchQuery {
+    #[serde(default)]
+    q: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// `GET /api/search?q=...` - InnerTube search rendered as page track cards.
+async fn search_tracks(Query(query): Query<SearchQuery>) -> (StatusCode, Json<Value>) {
+    let Some(q) = query
+        .q
+        .as_deref()
+        .map(str::trim)
+        .filter(|q| !q.is_empty())
+        .map(str::to_string)
+    else {
+        return api_error(StatusCode::BAD_REQUEST, "missing_query", "q is required".into());
+    };
+    let Some(client) = http_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build HTTP client".into(),
+        );
+    };
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
+    let limit = query.limit.unwrap_or(20).clamp(1, 50);
+
+    match youtube::search(client, &q, visitor_value, limit).await {
+        Ok(hits) => {
+            let results: Vec<Value> = hits
+                .iter()
+                .map(|hit| {
+                    json!({
+                        "id": hit.video_id,
+                        "video_id": hit.video_id,
+                        "title": hit.title,
+                        "artist": if hit.channel.is_empty() { "YouTube" } else { &hit.channel },
+                        "url": format!("https://www.youtube.com/watch?v={}", hit.video_id),
+                        "thumbnail": format!("https://img.youtube.com/vi/{}/hqdefault.jpg", hit.video_id),
+                    })
+                })
+                .collect();
+            (
+                StatusCode::OK,
+                Json(json!({ "status": "ok", "query": q, "results": results })),
+            )
+        }
+        Err(error) => api_error(StatusCode::BAD_GATEWAY, "search_failed", error.to_string()),
+    }
+}
+
+#[derive(Deserialize, Default)]
+struct NavBody {
+    #[serde(default)]
+    video_id: Option<String>,
+}
+
+/// `POST /api/next` - play a *different* song in the same mood.
+///
+/// The seed is a search for songs similar to the current title; candidates that
+/// are the same video or the same song under another upload are skipped, so
+/// pressing Next never repeats what is playing.
+async fn next_track(Json(body): Json<NavBody>) -> (StatusCode, Json<Value>) {
+    let Some(client) = http_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build HTTP client".into(),
+        );
+    };
+    let current = body
+        .video_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| youtube::valid_video_id(id))
+        .map(str::to_string)
+        .or_else(last_played);
+    let Some(current) = current else {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "no_current_track",
+            "play a song first, or send video_id".into(),
+        );
+    };
+
+    let snapshot = player().snapshot();
+    let current_title = if snapshot["video_id"].as_str() == Some(current.as_str()) {
+        snapshot["title"].as_str().map(str::to_string)
+    } else {
+        None
+    };
+    let seed = current_title
+        .as_deref()
+        .map(youtube::normalized_title)
+        .filter(|title| !title.is_empty());
+    let query = match &seed {
+        Some(seed) => format!("{seed} similar songs"),
+        None => "romantic melody songs".to_string(),
+    };
+
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
+    let hits = match youtube::search(client, &query, visitor_value, 20).await {
+        Ok(hits) => hits,
+        Err(error) => return api_error(StatusCode::BAD_GATEWAY, "search_failed", error.to_string()),
+    };
+    let candidates = choose_candidates(hits, &current, current_title.as_deref(), 5);
+    if candidates.is_empty() {
+        return api_error(
+            StatusCode::BAD_GATEWAY,
+            "no_related",
+            format!("no different song found for '{query}'"),
+        );
     }
 
+    let mut failures: Vec<Value> = Vec::new();
+    for hit in candidates {
+        match start_track(client, &hit.video_id, None).await {
+            Ok(mut payload) => {
+                payload["query"] = json!(query);
+                payload["track"] = json!({
+                    "id": hit.video_id,
+                    "video_id": hit.video_id,
+                    "title": payload["title"].clone(),
+                    "artist": if hit.channel.is_empty() { "YouTube" } else { &hit.channel },
+                    "url": format!("https://www.youtube.com/watch?v={}", hit.video_id),
+                });
+                return (StatusCode::OK, Json(payload));
+            }
+            Err((_, Json(error))) => failures.push(error),
+        }
+    }
+
+    let detail = failures
+        .first()
+        .and_then(|failure| {
+            failure["detail"]
+                .as_str()
+                .or_else(|| failure["error"].as_str())
+        })
+        .map(|why| format!("related songs were found but none could be played: {why}"))
+        .unwrap_or_else(|| "related songs were found but none could be resolved".to_string());
     (
-        StatusCode::OK,
+        StatusCode::BAD_GATEWAY,
         Json(json!({
-            "status": "playing",
-            "video_id": audio.video_id,
-            "title": audio.title,
-            "itag": audio.itag,
-            "mime": audio.mime,
-            "bitrate": audio.bitrate,
-            "content_length": audio.content_length,
-            "client": audio.client,
-            "forced": forced.is_some(),
+            "status": "error",
+            "error": "no_related_playable",
+            "detail": detail,
+            "attempts": failures,
         })),
     )
+}
+
+/// Drops the song that is playing - by video id and by song identity - then
+/// keeps the first `limit` candidates. A different upload of the same song is
+/// still "the same song", which is the repeat the listener hears.
+fn choose_candidates(
+    hits: Vec<youtube::SearchHit>,
+    current_id: &str,
+    current_title: Option<&str>,
+    limit: usize,
+) -> Vec<youtube::SearchHit> {
+    hits.into_iter()
+        .filter(|hit| hit.video_id != current_id)
+        .filter(|hit| match current_title {
+            Some(title) => !youtube::same_song(title, &hit.title),
+            None => true,
+        })
+        .take(limit)
+        .collect()
+}
+
+/// `POST /api/prev` - step back through the tracks started this session.
+async fn prev_track(Json(body): Json<NavBody>) -> (StatusCode, Json<Value>) {
+    let Some(client) = http_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build HTTP client".into(),
+        );
+    };
+    let current = body
+        .video_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| youtube::valid_video_id(id))
+        .map(str::to_string)
+        .or_else(last_played);
+
+    let previous = {
+        let mut played = PLAYED.lock().unwrap();
+        if let Some(current) = &current {
+            while played.last() == Some(current) {
+                played.pop();
+            }
+        }
+        played.pop()
+    };
+    let Some(previous) = previous else {
+        return api_error(
+            StatusCode::NOT_FOUND,
+            "no_previous",
+            "no earlier track in this session".into(),
+        );
+    };
+
+    match start_track(client, &previous, None).await {
+        Ok(mut payload) => {
+            payload["track"] = json!({
+                "id": previous,
+                "video_id": previous,
+                "title": payload["title"].clone(),
+                "artist": "This device",
+                "url": format!("https://www.youtube.com/watch?v={previous}"),
+            });
+            (StatusCode::OK, Json(payload))
+        }
+        Err(response) => response,
+    }
 }
 
 /// Streams the media URL into the playback ring.
@@ -1012,4 +1285,39 @@ mod api_tests {
             .to_string();
         assert!(state == "idle" || state == "error", "unexpected state {state}");
     }
+
+    #[test]
+    fn next_skips_the_same_song_even_when_the_upload_differs() {
+        let hit = |id: &str, title: &str| youtube::SearchHit {
+            video_id: id.to_string(),
+            title: title.to_string(),
+            channel: "Channel".to_string(),
+        };
+        let hits = vec![
+            hit("aaaaaaaaaaa", "Tum Hi Ho (Official Video)"),
+            hit("bbbbbbbbbbb", "Tum Hi Ho - Lyrical Video"),
+            hit("ccccccccccc", "Kesariya"),
+            hit("ddddddddddd", "Tum Hi Ho 2"),
+            hit("eeeeeeeeeee", "Tum Hi Ho"),
+        ];
+        let picked = choose_candidates(hits, "fffffffffff", Some("Tum Hi Ho"), 5);
+        let ids: Vec<&str> = picked.iter().map(|hit| hit.video_id.as_str()).collect();
+        assert_eq!(ids, vec!["ccccccccccc", "ddddddddddd"]);
+    }
+
+    #[tokio::test]
+    async fn search_requires_a_query() {
+        let app = router(Arc::new(None));
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/search?q=")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
 }

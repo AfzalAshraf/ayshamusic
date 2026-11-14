@@ -104,7 +104,21 @@ jobs:
           tag_name: apk-latest
           name: Aysha Music APK (latest)
           body: |
-            Aysha Music 1.1.1 (versionCode 3), arm64-v8a, from ${{ github.sha }}.
+            Aysha Music 1.2.0 (versionCode 4), arm64-v8a, from ${{ github.sha }}.
+
+            Library and navigation on Android:
+            - /api/search is implemented (InnerTube search), so Home, Explore and
+              the search bar return real songs on the phone instead of 404.
+            - /api/next plays a *different* song: it searches for songs similar to
+              the current title and skips the same video and the same song under
+              another upload ("(Official Video)" vs "- Lyrical Video").
+            - /api/prev walks back through the tracks started this session.
+            - /api/player now includes duration_secs, so the progress bar fills.
+
+            Known limits: Favorites, Queue and Bluetooth are still Linux-server
+            features and return 404 on the phone. YouTube may answer
+            "Sign in to confirm you're not a bot" for label music videos from
+            datacenter IPs; the app shows that text instead of pretending to play.
 
             UI:
             - The page's play/pause/resume/stop/volume controls call the Rust
