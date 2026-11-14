@@ -1,7 +1,8 @@
 # Keep JNI bridge entry points
 -keep class com.afzal.ayshamusic.RustBridge {
-    native static void startServer(java.lang.String, java.lang.String);
-    static void startServer(android.content.Context);
+    # Kotlin object: native method is an instance method with a Context argument.
+    # Keep the object/INSTANCE and both entry points stable for JNI name lookup.
+    *;
 }
 
 # Keep MainActivity and Service entry points

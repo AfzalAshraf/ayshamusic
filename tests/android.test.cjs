@@ -64,3 +64,8 @@ test('Android pins a global context once and guards CPAL audio initialization', 
   assert.ok(loop.indexOf('if !crate::android::audio_context_ready()') < loop.indexOf('DeviceSinkBuilder::open_default_sink()'));
   assert.match(read('Cargo.toml'), /ndk-context = \{ version = "=0.1.1", optional = true \}/);
 });
+
+
+test('release shrinking preserves the Kotlin object and its JNI signatures', () => {
+  assert.match(read('android-app/app/proguard-rules.pro'), /-keep class com\.afzal\.ayshamusic\.RustBridge \{[^}]*\*;\s*\}/);
+});
