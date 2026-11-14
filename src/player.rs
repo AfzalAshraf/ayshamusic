@@ -1,9 +1,9 @@
 //! Audio playback: a dedicated rodio/cpal thread fed by a bounded in-memory
 //! ring buffer that is filled from the `googlevideo` HTTP stream.
 //!
-//! Only decoded audio is buffered (8 chunks of ~16 KiB = ~128 KiB), so RSS stays
-//! flat no matter how long the track is. The audio thread owns the cpal output
-//! stream; the HTTP layer only sends commands.
+//! The transfer queue is bounded to eight compressed-media chunks; chunk sizes
+//! and decoder/device buffers also contribute to memory. This is not a measured
+//! whole-process RAM bound. The audio thread owns the cpal output stream.
 
 use rodio::stream::DeviceSinkBuilder;
 use rodio::{Decoder, Player as RodioPlayer};
@@ -161,6 +161,14 @@ impl Player {
 }
 
 fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
+    // CPAL's Android backend calls ndk_context::android_context(), which panics
+    // when uninitialized. release panic=abort would terminate the whole APK.
+    // Check our initialization invariant before entering that dependency path.
+    #[cfg(target_os = "android")]
+    if !crate::android::audio_context_ready() {
+        set_error(&status, "Android audio context is not initialized; restart the app".into());
+        return;
+    }
     // Keep the device sink alive for the whole thread; dropping it stops audio.
     let device = match DeviceSinkBuilder::open_default_sink() {
         Ok(device) => device,

@@ -8,7 +8,7 @@ import android.util.Log
  * 
  * The native function signature must match:
  *   JNIEXPORT void JNICALL Java_com_afzal_ayshamusic_RustBridge_startServer(
- *       JNIEnv* env, jclass clazz, jstring filesDir, jstring cacheDir
+ *       JNIEnv* env, jobject receiver, jstring filesDir, jstring cacheDir, jobject context
  *   )
  */
 object RustBridge {
@@ -17,7 +17,7 @@ object RustBridge {
 
     // Native method declaration
     @Suppress("UNUSED_PARAMETER")
-    private external fun startServer(filesDir: String, cacheDir: String)
+    private external fun startServer(filesDir: String, cacheDir: String, context: Context)
 
     /**
      * Starts the Rust HTTP server on 127.0.0.1:5050.
@@ -35,7 +35,9 @@ object RustBridge {
         Log.i(TAG, "Starting Rust server with filesDir=$filesDir, cacheDir=$cacheDir")
         
         try {
-            startServer(filesDir, cacheDir)
+            // CPAL needs a JVM + long-lived application Context before audio opens.
+            // Never retain an Activity: it may be destroyed while playback continues.
+            startServer(filesDir, cacheDir, context.applicationContext)
             serverStarted = true
             Log.i(TAG, "Rust server start request sent successfully")
         } catch (e: UnsatisfiedLinkError) {

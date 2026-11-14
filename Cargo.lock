@@ -142,6 +142,7 @@ dependencies = [
  "grammers-session",
  "http-body-util",
  "jni 0.21.1",
+ "ndk-context",
  "reqwest",
  "rodio",
  "rusqlite",

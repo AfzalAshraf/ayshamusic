@@ -15,7 +15,7 @@ path = "src/main.rs"
 default = []
 # Enabled only when cross-compiling the Android library (see android-app/README notes).
 phone = ["reqwest/blocking", "dep:rodio", "dep:rusqlite", "dep:grammers-client", "dep:grammers-session"]
-android = ["phone", "dep:jni"]
+android = ["phone", "dep:jni", "dep:ndk-context"]
 
 [dependencies]
 axum = "0.8"
@@ -51,6 +51,11 @@ grammers-session = { version = "0.12", optional = true, default-features = false
 
 # Android-only JNI bindings (src/lib.rs).
 jni = { version = "0.21", optional = true }
+
+# CPAL already uses this exact crate. Share its process-wide context instead of
+# creating a second audio backend or introducing a non-Rust playback helper.
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = { version = "=0.1.1", optional = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

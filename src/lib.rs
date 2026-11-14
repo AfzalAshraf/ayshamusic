@@ -843,18 +843,50 @@ async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> J
 mod android {
     use super::boot;
     use jni::{
-        objects::{JObject, JString},
+        objects::{GlobalRef, JObject, JString},
         JNIEnv, JavaVM,
     };
-    use std::ffi::c_void;
+    use std::{ffi::c_void, sync::Mutex};
 
-    /// Caches the JavaVM for later callbacks (e.g. MediaSession updates).
+    // Pin the APPLICATION context, not a JNI local ref or a short-lived Activity.
+    // Its lifetime is the process lifetime, just like the native server/player.
+    // This mutex serializes initialization (ndk-context must be set exactly once).
+    static AUDIO_CONTEXT: Mutex<Option<GlobalRef>> = Mutex::new(None);
+
+    pub(super) fn audio_context_ready() -> bool {
+        AUDIO_CONTEXT.lock().map(|context| context.is_some()).unwrap_or(false)
+    }
+
+    fn initialize_audio_context(env: &mut JNIEnv<'_>, context: &JObject<'_>) -> Result<(), String> {
+        let mut stored = AUDIO_CONTEXT.lock().map_err(|_| "Android audio context lock unavailable")?;
+        if stored.is_some() {
+            return Ok(());
+        }
+        if context.is_null() {
+            return Err("Android application context is missing".into());
+        }
+        let vm = env.get_java_vm().map_err(|_| "Could not get Android JavaVM")?;
+        let global = env.new_global_ref(context).map_err(|_| "Could not retain Android application context")?;
+        // SAFETY: called once under AUDIO_CONTEXT before boot starts workers;
+        // JVM lives for this process, and the GlobalRef is retained for that same
+        // lifetime. Never release while a CPAL thread could still use the pointers.
+        unsafe {
+            ndk_context::initialize_android_context(
+                vm.get_java_vm_pointer().cast(),
+                global.as_obj().as_raw().cast(),
+            );
+        }
+        *stored = Some(global);
+        Ok(())
+    }
+
+    /// JNI version negotiation only. Context is supplied explicitly at startup.
     #[no_mangle]
     pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::sys::jint {
         jni::sys::JNI_VERSION_1_6
     }
 
-    /// Kotlin: `RustBridge.startServer(filesDir, cacheDir)`.
+    /// Kotlin: `RustBridge.startServer(filesDir, cacheDir, applicationContext)`.
     ///
     /// `RustBridge` is a Kotlin `object`, so the receiver is a `jobject`
     /// (not a `jclass`).
@@ -864,6 +896,7 @@ mod android {
         _receiver: JObject<'local>,
         files_dir: JString<'local>,
         cache_dir: JString<'local>,
+        context: JObject<'local>,
     ) {
         let files_dir: String = match env.get_string(&files_dir) {
             Ok(value) => value.into(),
@@ -874,6 +907,10 @@ mod android {
             Err(_) => return,
         };
 
+        if let Err(error) = initialize_audio_context(&mut env, &context) {
+            let _ = env.throw_new("java/lang/IllegalStateException", error);
+            return;
+        }
         boot(files_dir, cache_dir);
     }
 }
