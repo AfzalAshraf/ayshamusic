@@ -1071,3 +1071,23 @@ test('failed Explore search invalidates loaded state so tapping the tab retries'
   assert.equal(vm.runInContext("loadedTabs.has('explore')", h.context), false);
   assert.match(h.element('explore-cards').innerHTML, /tap Explore to retry/);
 });
+
+test('native full player uses Rust position/duration, not the unused HTML audio element', () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='playing'; state.pos=65; state.nativeDuration=120", h.context);
+  h.element('audio-player').currentTime = 0;
+  h.context.syncNowPlaying();
+  assert.equal(h.element('full-elapsed').textContent, '1:05');
+  assert.equal(h.element('full-duration').textContent, '2:00');
+  assert.ok(parseFloat(h.element('full-progress').style.width) > 50);
+});
+
+test('native full player shows buffering and decoder errors rather than perpetual Streaming audio', () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='buffering'", h.context);
+  h.context.syncNowPlaying();
+  assert.match(h.element('full-duration').textContent, /Buffering/);
+  vm.runInContext("state.nativeStage='error'; state.nativeError='media_range_http_403'", h.context);
+  h.context.syncNowPlaying();
+  assert.equal(h.element('full-duration').textContent, 'media_range_http_403');
+});

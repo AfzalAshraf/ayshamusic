@@ -457,7 +457,7 @@ function startLoveIntro() {
 startLoveIntro();
 
 
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true, nativePlayback: false };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true, nativePlayback: false, nativeStage: 'idle', nativeDuration: null, nativeError: '' };
 let durationSec = 0;
 let playbackAttempt = 0;
 
@@ -639,19 +639,23 @@ async function playSong(t, options = {}) {
     state.playMode = 'native';
     saveSelection();
     setPlayingState(false);
+    state.nativeStage = 'resolving'; state.nativeError = ''; state.pos = 0; state.nativeDuration = null;
+    syncNowPlaying();
     document.getElementById('time-display').textContent = 'Resolving on this device...';
     try {
       const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), track: t });
       if (attempt !== playbackAttempt) return;
       if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
-      state.stopped = false;
-      setPlayingState(true);
+      state.stopped = false; state.nativeStage = 'playing';
+      setPlayingState(true); syncNowPlaying();
       document.getElementById('time-display').textContent = 'Playing on this device...';
     } catch (error) {
       if (attempt !== playbackAttempt) return;
       state.stopped = true;
       setPlayingState(false);
-      document.getElementById('time-display').textContent = error.message.slice(0, 300);
+      state.nativeStage = 'error'; state.nativeError = error.message.slice(0, 300);
+      document.getElementById('time-display').textContent = state.nativeError;
+      syncNowPlaying();
     }
     return;
   }
@@ -748,7 +752,7 @@ async function stopPlay() {
     } catch (error) {
       document.getElementById('time-display').textContent = 'Stopped on this device; server update failed: ' + error.message;
     }
-    state.stopped = true;
+    state.stopped = true; state.nativeStage = 'idle'; state.nativeError = '';
     state.pos = 0;
     setPlayingState(false);
     document.getElementById('progress-bar').style.width = '0%';
@@ -1415,9 +1419,12 @@ function syncNowPlaying() {
   document.getElementById('full-output').textContent = state.playMode === 'bt' ? 'Home Bluetooth speaker' : 'This device';
   const artwork = document.getElementById('hero-art').src;
   if (document.getElementById('full-art').src !== artwork) document.getElementById('full-art').src = artwork;
-  document.getElementById('full-elapsed').textContent = formatClock(audio.currentTime);
-  document.getElementById('full-duration').textContent = Number.isFinite(audio.duration) ? formatClock(audio.duration) : 'Streaming audio';
-  document.getElementById('full-progress').style.width = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.min(100, audio.currentTime / audio.duration * 100) + '%' : '0%';
+  const position = state.nativePlayback ? state.pos : audio.currentTime;
+  const duration = state.nativePlayback ? state.nativeDuration : audio.duration;
+  const nativeLabel = ({ resolving: 'Resolving on this phone…', buffering: 'Buffering audio…', playing: 'Playing on this phone', paused: 'Paused', ended: 'Finished', idle: 'Ready — tap Play', error: state.nativeError || 'Playback failed — tap Play to retry' })[state.nativeStage];
+  document.getElementById('full-elapsed').textContent = formatClock(position);
+  document.getElementById('full-duration').textContent = state.nativePlayback && (state.nativeStage !== 'playing' || !Number.isFinite(duration)) ? nativeLabel : (Number.isFinite(duration) ? formatClock(duration) : 'Streaming audio');
+  document.getElementById('full-progress').style.width = Number.isFinite(duration) && duration > 0 ? Math.min(100, position / duration * 100) + '%' : '0%';
   document.getElementById('full-volume').value = state.volume;
 }
 
@@ -1464,10 +1471,19 @@ async function pollStatus() {
     if (st && st.native_playback === true) state.nativePlayback = true;
     if (state.nativePlayback) {
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
+      state.nativeStage = player.state;
+      state.pos = Number(player.position_secs) || 0;
+      state.nativeDuration = Number.isFinite(player.duration_secs) ? player.duration_secs : null;
       if (player.error) {
-        document.getElementById('time-display').textContent = String(player.error).slice(0, 300);
-        if (player.state === 'error') setPlayingState(false);
-        return;
+        state.nativeError = String(player.error).slice(0, 300);
+        state.stopped = true; setPlayingState(false);
+        document.getElementById('time-display').textContent = state.nativeError;
+        syncNowPlaying(); return;
+      }
+      state.nativeError = '';
+      if (player.state === 'buffering') {
+        document.getElementById('time-display').textContent = 'Buffering audio on this phone…';
+        syncNowPlaying(); return;
       }
       if (player.track && (!state.current_track || state.current_track.id !== player.track.id)) {
         state.current_track = player.track;
@@ -1480,7 +1496,7 @@ async function pollStatus() {
         const playing = player.state === 'playing';
         if (playing !== state.is_playing) setPlayingState(playing);
       }
-      if (player.state === 'idle' && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
+      if ((player.state === 'idle' || player.state === 'ended') && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
       syncNowPlaying();
       document.getElementById('time-display').textContent =
         fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : '');

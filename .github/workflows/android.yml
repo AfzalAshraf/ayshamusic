@@ -56,7 +56,7 @@ jobs:
 
       # rodio/cpal link ALSA on the Linux runner, which ships no dev headers.
       - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config ffmpeg
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,7 +75,10 @@ jobs:
 
       - name: Rust checks (host)
         run: |
-          cargo test --lib --features phone
+          mkdir -p "$RUNNER_TEMP/aysha-media"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=5' -c:a aac -b:a 192k "$RUNNER_TEMP/aysha-media/tail.m4a"
+          ffmpeg -hide_banner -loglevel error -i "$RUNNER_TEMP/aysha-media/tail.m4a" -c copy -movflags +faststart "$RUNNER_TEMP/aysha-media/front.m4a"
+          AYSHA_MEDIA_FIXTURES="$RUNNER_TEMP/aysha-media" cargo test --lib --features phone
           cargo check --bin music-server
 
       - name: Build Rust library + release APK

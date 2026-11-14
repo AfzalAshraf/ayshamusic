@@ -10,6 +10,7 @@
 #![cfg(feature = "phone")]
 
 mod android_catalog;
+mod range_media;
 pub mod player;
 pub mod tg_auth;
 pub mod tg_cache;
@@ -37,6 +38,7 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 
 /// Playback thread, started lazily on the first `/api/play`.
 static PLAYER: OnceLock<player::Player> = OnceLock::new();
+static PLAY_REQUEST_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
 
@@ -293,6 +295,10 @@ async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
     use youtube::ResolveError;
 
     let video_id = body.video_id.trim();
+    if !youtube::valid_video_id(video_id) {
+        return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", "Invalid video ID".into());
+    }
+    let request_epoch = PLAY_REQUEST_EPOCH.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
     let forced = match body
         .client
         .as_deref()
@@ -353,23 +359,24 @@ async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
         }
     };
 
-    let (tx, rx) = player::stream_channel();
-    tokio::spawn(pump_media(
-        client.clone(),
-        audio.video_id.clone(),
-        forced.map(|profile| profile.name),
-        audio.url.clone(),
-        tx,
-    ));
-
-    if let Err(error) = player().play(
-        &audio.video_id,
-        audio.title.clone(),
-        audio.client,
-        audio.itag,
-        rx,
-    ) {
-        return api_error(StatusCode::SERVICE_UNAVAILABLE, "playback_unavailable", error);
+    if PLAY_REQUEST_EPOCH.load(std::sync::atomic::Ordering::Acquire) != request_epoch {
+        return api_error(StatusCode::CONFLICT, "playback_cancelled", "Playback cancelled".into());
+    }
+    let user_agent = youtube::client_by_name(audio.client).map(|p| p.user_agent).unwrap_or(youtube::ANDROID.user_agent);
+    let ready = match player().play(player::Media {
+        video_id: audio.video_id.clone(), title: audio.title.clone(), client: audio.client,
+        itag: audio.itag, url: audio.url.clone(), user_agent, content_length: audio.content_length,
+    }) {
+        Ok(ready) => ready,
+        Err(error) => return api_error(StatusCode::SERVICE_UNAVAILABLE, "playback_unavailable", error),
+    };
+    match tokio::time::timeout(std::time::Duration::from_secs(40), ready).await {
+        Ok(Ok(Ok(()))) => (),
+        Ok(Ok(Err(error))) => return api_error(StatusCode::BAD_GATEWAY, "playback_start_failed", error),
+        _ => {
+            let _ = player().stop();
+            return api_error(StatusCode::GATEWAY_TIMEOUT, "playback_start_timeout", "Audio startup timed out; tap Play to retry".into());
+        }
     }
 
     (
@@ -386,142 +393,6 @@ async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
             "forced": forced.is_some(),
         })),
     )
-}
-
-/// Streams the media URL into the playback ring.
-///
-/// A 403 (or a transport error) **before any audio reaches the decoder** triggers
-/// exactly one re-resolve; googlevideo URLs expire, and the player has not
-/// consumed a byte yet, so retrying is safe. Once bytes have flowed, restarting
-/// would corrupt the AAC stream, so that case is reported instead of faked.
-async fn pump_media(
-    client: reqwest::Client,
-    video_id: String,
-    forced: Option<&'static str>,
-    initial_url: String,
-    tx: std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
-) {
-    use futures_util::StreamExt;
-
-    let mut url = initial_url;
-    let mut refreshed = false;
-    let mut delivered: usize = 0;
-
-    loop {
-        let response = match client
-            .get(&url)
-            .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(error) => {
-                send_stream_error(&tx, format!("media request failed: {error}"));
-                return;
-            }
-        };
-
-        let status = response.status();
-        if status == StatusCode::FORBIDDEN && !refreshed {
-            refreshed = true;
-            match re_resolve(&client, &video_id, forced).await {
-                Ok(fresh) => {
-                    url = fresh.url;
-                    continue;
-                }
-                Err(error) => {
-                    send_stream_error(
-                        &tx,
-                        format!("media URL 403 and re-resolve failed: {error}"),
-                    );
-                    return;
-                }
-            }
-        }
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            send_stream_error(
-                &tx,
-                format!(
-                    "media HTTP {status}: {}",
-                    youtube::summarize_error_body(&body)
-                ),
-            );
-            return;
-        }
-
-        let mut stream = response.bytes_stream();
-        let mut retry = false;
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                Ok(bytes) if bytes.is_empty() => {}
-                Ok(bytes) => {
-                    delivered += bytes.len();
-                    // Blocks when the ring is full: backpressure, not buffering.
-                    for piece in bytes.chunks(16 * 1024) {
-                        let sender = tx.clone();
-                        let piece = piece.to_vec();
-                        // Backpressure belongs on the blocking pool, not either
-                        // of the two Tokio workers needed by the UI/network.
-                        if !matches!(tokio::task::spawn_blocking(move || sender.send(Ok(piece))).await, Ok(Ok(()))) {
-                            return;
-                        }
-                    }
-                }
-                Err(error) => {
-                    if delivered == 0 && !refreshed {
-                        refreshed = true;
-                        match re_resolve(&client, &video_id, forced).await {
-                            Ok(fresh) => {
-                                url = fresh.url;
-                                retry = true;
-                                break;
-                            }
-                            Err(refresh_error) => {
-                                send_stream_error(
-                                    &tx,
-                                    format!(
-                                        "media stream failed ({error}) and re-resolve failed: {refresh_error}"
-                                    ),
-                                );
-                                return;
-                            }
-                        }
-                    }
-                    send_stream_error(
-                        &tx,
-                        format!("media stream failed after {delivered} bytes: {error}"),
-                    );
-                    return;
-                }
-            }
-        }
-        if retry {
-            continue;
-        }
-        return;
-    }
-}
-
-async fn re_resolve(
-    client: &reqwest::Client,
-    video_id: &str,
-    forced: Option<&'static str>,
-) -> Result<youtube::ResolvedAudio, String> {
-    let resolved = match forced.and_then(youtube::client_by_name) {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
-    };
-    resolved.map_err(|error| error.to_string())
-}
-
-fn send_stream_error(
-    tx: &std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
-    message: String,
-) {
-    // Never block a Tokio worker while a paused decoder has a full ring.
-    let sender = tx.clone();
-    tokio::task::spawn_blocking(move || { let _ = sender.send(Err(std::io::Error::other(message))); });
 }
 
 async fn pause() -> Json<Value> {
@@ -541,6 +412,7 @@ async fn resume() -> Json<Value> {
 }
 
 async fn stop() -> Json<Value> {
+    PLAY_REQUEST_EPOCH.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     match started_player().map(player::Player::stop) {
         Some(Ok(())) => Json(json!({ "status": "stopped" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),

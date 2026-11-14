@@ -14,7 +14,7 @@ path = "src/main.rs"
 [features]
 default = []
 # Enabled only when cross-compiling the Android library (see android-app/README notes).
-phone = ["dep:rodio", "dep:rusqlite", "dep:grammers-client", "dep:grammers-session"]
+phone = ["reqwest/blocking", "dep:rodio", "dep:rusqlite", "dep:grammers-client", "dep:grammers-session"]
 android = ["phone", "dep:jni"]
 
 [dependencies]
