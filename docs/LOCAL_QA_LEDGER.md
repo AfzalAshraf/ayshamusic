@@ -2023,3 +2023,39 @@ Still blocked here: any video except dQw4w9WgXcQ returns
 TV from this IP (fresh visitors do not help), so music-catalogue tracks cannot
 be resolved from this host at all; that happens before a media URL exists, so
 there is nothing to proxy. On-device speaker playback remains unverified.
+
+## 2026-11-14 (g) — Bot-screening fallback + published SHA-256 (v1.3.0)
+
+- `src/youtube.rs`: when every InnerTube client fails with a screening message
+  (`looks_screened`: "not a bot" / LOGIN_REQUIRED / "sign in"), `resolve_audio`
+  now falls back to `resolve_via_public`, which asks public Invidious instances
+  for the title + formats and plays their `/latest_version?…&local=true` proxy.
+  Instances: `yt.chocolatemoo53.com`, `invidious.nerdvpn.de`, `yewtu.be`;
+  overridable at runtime with `AYSHA_INVIDIOUS="https://a,https://b"`.
+- Format choice prefers `audio/mp4`/`audio/aac` because this build ships only
+  rodio's `mp4` decoder; WebM/Opus would not decode. The public failure is added
+  to `attempts[]` as client `INVIDIOUS`, so diagnostics stay honest.
+- `.github/workflows/android.yml`: new "Hash the release APK" step publishes
+  SHA-256 and byte size in the release body.
+
+Evidence with a real, screened track (`kJQP7kiw5Fk` — Despacito):
+- InnerTube from this IP: ANDROID/IOS `LOGIN_REQUIRED "Sign in to confirm you're
+  not a bot"`, TVHTML5 "no longer supported"; also WEB, WEB_EMBEDDED_PLAYER,
+  WEB_REMIX, WEB_CREATOR, ANDROID_TESTSUITE, MWEB, ANDROID_VR, embed page, and
+  direct googlevideo fetch all refused (403/LOGIN_REQUIRED). Public instances
+  are refused too except yt.chocolatemoo53.com.
+- `resolve_audio` -> client INVIDIOUS, itag 140, title "Luis Fonsi - Despacito
+  ft. Daddy Yankee", content_length 4,557,665.
+- `POST /api/play` -> 200 `{"client":"INVIDIOUS","itag":140,"duration_secs":279.2}`.
+- `GET /api/selftest?video_id=kJQP7kiw5Fk` -> 200, `client=INVIDIOUS`,
+  `media_status=206`, `bytes_fetched=65536`.
+- Range bytes=0-2047 -> 206 `audio/mp4`, `content-range: bytes 0-2047/4557665`.
+- Full download 4,557,665 bytes in 1.43 s (== declared length).
+- ffprobe: `aac`, 44100 Hz, 2 ch, 281.565170 s, 4,557,665 bytes;
+  `ffmpeg -f null -` decodes every packet; rodio decodes 48,000 samples,
+  non-silent.
+- `cargo test --lib` -> 38 passed, 3 ignored; integration
+  `cargo test --test public_fallback -- --ignored` -> 2 passed; frontend 73.
+
+Not verified: speaker playback on a device. The fallback depends on a
+third-party instance, so it can move or rate-limit; `AYSHA_INVIDIOUS` covers that.

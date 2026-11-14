@@ -319,12 +319,198 @@ pub fn is_allowed_media_url(raw: &str) -> bool {
 }
 
 /// Resolves `video_id` to a decodable audio URL, falling back across clients.
+///
+/// When every InnerTube client is refused for bot screening ("Sign in to
+/// confirm you're not a bot"), a public Invidious resolver is tried, because it
+/// fetches from its own IP and proxies the audio bytes back to us.
 pub async fn resolve_audio(
     http: &Client,
     video_id: &str,
     visitor: Option<&str>,
 ) -> Result<ResolvedAudio, ResolveError> {
-    resolve_with_clients(http, video_id, &CLIENTS, visitor).await
+    match resolve_with_clients(http, video_id, &CLIENTS, visitor).await {
+        Err(ResolveError::AllClientsFailed(mut attempts)) if looks_screened(&attempts) => {
+            match resolve_via_public(http, video_id).await {
+                Ok(audio) => Ok(audio),
+                Err(error) => {
+                    attempts.push(ClientAttempt {
+                        client: "INVIDIOUS",
+                        status: None,
+                        visitor: "none",
+                        error: error.to_string(),
+                    });
+                    Err(ResolveError::AllClientsFailed(attempts))
+                }
+            }
+        }
+        other => other,
+    }
+}
+
+/// True when YouTube refused to talk to this IP rather than about the video.
+pub fn looks_screened(attempts: &[ClientAttempt]) -> bool {
+    attempts.iter().any(|attempt| {
+        let error = attempt.error.to_ascii_lowercase();
+        error.contains("not a bot") || error.contains("login_required") || error.contains("sign in")
+    })
+}
+
+/// Public resolvers, in order. `AYSHA_INVIDIOUS="https://a,https://b"` overrides
+/// them without a rebuild, for when an instance moves or is rate limited.
+fn invidious_bases() -> Vec<String> {
+    if let Ok(value) = std::env::var("AYSHA_INVIDIOUS") {
+        let configured: Vec<String> = value
+            .split(',')
+            .map(str::trim)
+            .filter(|base| base.starts_with("https://"))
+            .map(|base| base.trim_end_matches('/').to_string())
+            .collect();
+        if !configured.is_empty() {
+            return configured;
+        }
+    }
+    [
+        "https://yt.chocolatemoo53.com",
+        "https://invidious.nerdvpn.de",
+        "https://yewtu.be",
+    ]
+    .iter()
+    .map(|base| base.to_string())
+    .collect()
+}
+
+struct PublicAudio {
+    itag: u64,
+    mime: String,
+    bitrate: u64,
+    content_length: Option<u64>,
+}
+
+fn json_u64(value: &Value) -> Option<u64> {
+    value
+        .as_u64()
+        .or_else(|| value.as_str().and_then(|text| text.trim().parse().ok()))
+}
+
+/// Picks the best audio format the app can actually decode.
+///
+/// The player is built with rodio's `mp4` feature only (AAC), so an MP4 format
+/// always wins; WebM/Opus is kept as a last resort because it will decode
+/// nowhere in this binary.
+fn public_audio_format(json: &Value) -> Option<PublicAudio> {
+    let formats = json["adaptiveFormats"].as_array()?;
+    let mut best: Option<(bool, PublicAudio)> = None;
+    for format in formats {
+        let kind = format["type"].as_str().unwrap_or("");
+        if !kind.starts_with("audio/") {
+            continue;
+        }
+        let Some(itag) = json_u64(&format["itag"]) else {
+            continue;
+        };
+        let mime = kind.split(';').next().unwrap_or(kind).trim().to_string();
+        let playable = mime == "audio/mp4" || mime == "audio/aac";
+        let bitrate = json_u64(&format["bitrate"]).unwrap_or(128_000);
+        let content_length = json_u64(&format["clen"]).filter(|len| *len > 0);
+        let candidate = PublicAudio { itag, mime, bitrate, content_length };
+        let better = match &best {
+            None => true,
+            Some((current_playable, current)) => {
+                (playable, candidate.bitrate) > (*current_playable, current.bitrate)
+            }
+        };
+        if better {
+            best = Some((playable, candidate));
+        }
+    }
+    best.map(|(_, audio)| audio)
+}
+
+/// Resolves through a public instance and returns its `local=true` proxy URL,
+/// which is what makes the bytes reachable from a screened IP.
+pub async fn resolve_via_public(
+    http: &Client,
+    video_id: &str,
+) -> Result<ResolvedAudio, ResolveError> {
+    if !valid_video_id(video_id) {
+        return Err(ResolveError::InvalidVideoId);
+    }
+    let mut last_error = String::from("no public resolver configured");
+    for base in invidious_bases() {
+        match public_from_base(http, &base, video_id).await {
+            Ok(audio) => return Ok(audio),
+            Err(error) => last_error = format!("{base}: {error}"),
+        }
+    }
+    Err(ResolveError::Unplayable(format!(
+        "public resolvers failed: {last_error}"
+    )))
+}
+
+async fn public_from_base(
+    http: &Client,
+    base: &str,
+    video_id: &str,
+) -> Result<ResolvedAudio, ResolveError> {
+    let api = format!("{base}/api/v1/videos/{video_id}?fields=title,adaptiveFormats");
+    let response = http
+        .get(&api)
+        .header(reqwest::header::USER_AGENT, WEB_USER_AGENT)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .map_err(|error| ResolveError::Http(format!("{base}: {error}")))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(ResolveError::Unplayable(format!("{base} HTTP {status}")));
+    }
+    let json: Value = response
+        .json()
+        .await
+        .map_err(|error| ResolveError::Http(format!("{base}: {error}")))?;
+    let title = json["title"]
+        .as_str()
+        .map(|title| title.trim().to_string())
+        .filter(|title| !title.is_empty());
+    let audio = public_audio_format(&json).ok_or(ResolveError::NoAudio)?;
+    let url = format!(
+        "{base}/latest_version?id={video_id}&itag={}&local=true",
+        audio.itag
+    );
+    let content_length = match audio.content_length {
+        Some(len) => Some(len),
+        None => probe_content_length(http, &url).await,
+    };
+    Ok(ResolvedAudio {
+        video_id: video_id.to_string(),
+        title,
+        url,
+        itag: audio.itag,
+        mime: audio.mime,
+        bitrate: audio.bitrate,
+        content_length,
+        client: "INVIDIOUS",
+    })
+}
+
+/// Reads the total size from a one-byte range response.
+async fn probe_content_length(http: &Client, url: &str) -> Option<u64> {
+    let response = http
+        .get(url)
+        .header(reqwest::header::USER_AGENT, WEB_USER_AGENT)
+        .header(reqwest::header::RANGE, "bytes=0-0")
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let range = response
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)?
+        .to_str()
+        .ok()?;
+    range.rsplit('/').next()?.trim().parse().ok()
 }
 
 /// Resolves with exactly one client, so its real error is reported verbatim.
@@ -1003,6 +1189,36 @@ mod tests {
         assert!(same_song("Tum Hi Ho (Official Music Video)", "Tum Hi Ho"));
         assert!(!same_song("Tum Hi Ho", "Tum Hi Ho 2"));
         assert!(!same_song("Tum Hi Ho", "Kesariya"));
+    }
+
+    #[test]
+    fn public_formats_pick_the_best_audio() {
+        let json: Value = serde_json::from_str(
+            r#"{"title":"Despacito","adaptiveFormats":[
+                {"itag":140,"type":"audio/mp4; codecs=\"mp4a.40.2\"","bitrate":"128000","clen":"3449447"},
+                {"itag":251,"type":"audio/webm; codecs=\"opus\"","bitrate":160000},
+                {"itag":18,"type":"video/mp4; codecs=\"avc1\"","bitrate":500000}]}"#,
+        )
+        .unwrap();
+        // 251 has the higher bitrate but is WebM/Opus, which this build cannot
+        // decode; the AAC MP4 format must win.
+        let audio = public_audio_format(&json).expect("audio format");
+        assert_eq!(audio.itag, 140);
+        assert_eq!(audio.mime, "audio/mp4");
+        assert_eq!(audio.bitrate, 128_000);
+        assert_eq!(audio.content_length, Some(3_449_447));
+        assert!(!looks_screened(&[ClientAttempt {
+            client: "ANDROID",
+            status: Some(200),
+            visitor: "attached",
+            error: "video is not playable: age restricted".into(),
+        }]));
+        assert!(looks_screened(&[ClientAttempt {
+            client: "ANDROID",
+            status: Some(200),
+            visitor: "attached",
+            error: "video is not playable: Sign in to confirm you're not a bot".into(),
+        }]));
     }
 
     #[test]
