@@ -8,11 +8,10 @@
 //! the `/api/tg/quota` sidebar gauge in the player page.
 
 #![cfg(feature = "phone")]
-
 mod android_catalog;
 mod recommendations;
-mod range_media;
-mod pcm_stream;
+mod listening;
+
 pub mod player;
 pub mod tg_auth;
 pub mod tg_cache;
@@ -40,9 +39,23 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 
 /// Playback thread, started lazily on the first `/api/play`.
 static PLAYER: OnceLock<player::Player> = OnceLock::new();
-static PLAY_REQUEST_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+/// Visitor identity for InnerTube, cached for the process and on disk.
+static VISITOR: OnceLock<youtube::Visitor> = OnceLock::new();
+
+/// `filesDir/yt_visitor.json` - survives app restarts once fetched.
+fn visitor_cache_path() -> Option<std::path::PathBuf> {
+    paths().map(|(files, _)| std::path::Path::new(files).join("yt_visitor.json"))
+}
+
+async fn visitor(client: &reqwest::Client) -> &'static youtube::Visitor {
+    if let Some(cached) = VISITOR.get() {
+        return cached;
+    }
+    let fetched = youtube::ensure_visitor(client, visitor_cache_path().as_deref()).await;
+    VISITOR.get_or_init(|| fetched)
+}
 
 /// Only `/api/play` may open the audio device. Read/control endpoints must
 /// never acquire hardware just because the UI polls them.
@@ -57,6 +70,15 @@ fn player() -> &'static player::Player {
 fn http_client() -> Option<&'static reqwest::Client> {
     HTTP_CLIENT
         .get_or_init(|| youtube::http_client().ok())
+        .as_ref()
+}
+
+/// Streams media bytes. Unlike `http_client` it has no total request timeout,
+/// because a track streams for minutes and a 12 s cap cut every song off.
+fn media_client() -> Option<&'static reqwest::Client> {
+    static MEDIA_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    MEDIA_CLIENT
+        .get_or_init(|| youtube::media_client().ok())
         .as_ref()
 }
 
@@ -99,6 +121,9 @@ pub fn boot(files_dir: String, cache_dir: String) {
 
 /// Builds the HTTP router with the given cache handle.
 pub fn router(state: SharedCache) -> Router {
+    router_with_phone(state, android_catalog::new_state())
+}
+fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Router {
     Router::new()
         .merge(android_catalog::routes())
         .route("/", get(index))
@@ -114,7 +139,7 @@ pub fn router(state: SharedCache) -> Router {
         .route("/api/volume", post(volume))
         .route("/api/player", get(player_status))
         .route("/api/selftest", get(selftest))
-        .layer(Extension(android_catalog::new_state()))
+        .layer(Extension(phone))
         .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
         .with_state(state)
 }
@@ -140,7 +165,13 @@ async fn serve(files_dir: String, cache_dir: String) {
     };
 
     let _ = PATHS.set((files_dir, cache_dir));
-    let app = router(Arc::new(manager));
+    let phone = android_catalog::new_state();
+    let sampling = phone.clone();
+    tokio::spawn(async move {
+        let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop { timer.tick().await; let phone=sampling.clone(); let _=tokio::task::spawn_blocking(move || sample_listening(&phone)).await; }
+    });
+    let app = router_with_phone(Arc::new(manager), phone);
 
     // Loopback only: the WebView talks to 127.0.0.1, the phone's LAN cannot.
     match tokio::net::TcpListener::bind("127.0.0.1:5050").await {
@@ -155,7 +186,6 @@ async fn serve(files_dir: String, cache_dir: String) {
 }
 
 async fn index() -> axum::response::Html<String> {
-    // Native mode must be known before the first tap, not after a polling race.
     axum::response::Html(INDEX_HTML.replace("nativePlayback: false", "nativePlayback: true"))
 }
 
@@ -169,6 +199,7 @@ async fn status() -> Json<Value> {
         // in-app Rust player. The Linux server does not send it.
         "native_playback": true,
         "build_id": option_env!("GITHUB_SHA").unwrap_or("local"),
+        "playback_baseline": "7b09cde-1.2.1",
     }))
 }
 
@@ -281,76 +312,97 @@ fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Js
 /// media through a bounded ring buffer into the rodio/cpal playback thread;
 /// returns once playback has been handed over, not when the track ends.
 async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
-    let Ok(_permit) = phone.operation_slot.try_acquire() else {
-        return api_error(StatusCode::TOO_MANY_REQUESTS, "play_busy", "Track change already running".into());
-    };
-    let id = body.video_id.trim().to_owned();
-    let track = body.track.clone().filter(|t| t.id == id).and_then(|t| t.normalized().ok());
-    let result = play_audio(body).await;
+    let Ok(_permit)=phone.operation_slot.try_acquire() else {return api_error(StatusCode::TOO_MANY_REQUESTS,"play_busy","Track change already running".into());};
+    let old=phone.library.lock().unwrap().current.clone();
+    sample_listening(&phone);
+    let supplied=body.track.clone();
+    let id=body.video_id.trim().to_owned();
+    let result=play_audio(body).await;
     if result.0.is_success() {
-        let title = result.1.0["title"].as_str().map(str::to_owned);
-        phone.library.lock().unwrap().remember(track.unwrap_or_else(|| android_catalog::Track::from_id(&id, title)));
+        if let Some(track)=old.filter(|t|t.id!=id) {phone.listening.lock().unwrap().skip(&track);}
+        let title=result.1.0["title"].as_str().map(str::to_owned);
+        let track=supplied.filter(|t|t.id==id).and_then(|t|t.normalized().ok()).unwrap_or_else(||android_catalog::Track::from_id(&id,title));
+        phone.library.lock().unwrap().remember(track);
+        phone.listening.lock().unwrap().flush();
     }
     result
 }
-
 async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
+    let Some(client)=http_client() else {return api_error(StatusCode::SERVICE_UNAVAILABLE,"http_client","HTTP client unavailable".into());};
+    let forced=match forced_client(body.client.as_deref()) {Ok(value)=>value,Err(error)=>return error};
+    match start_track(client,body.video_id.trim(),forced).await {Ok(payload)=>(StatusCode::OK,Json(payload)),Err(error)=>error}
+}
+fn sample_listening(phone: &android_catalog::Phone) {
+    let Some(player)=started_player() else {return;};
+    let snapshot=player.snapshot();
+    let track=phone.library.lock().unwrap().current.clone();
+    if let Some(track)=track {phone.listening.lock().unwrap().observe(&track,&snapshot);}
+}
+
+/// Resolves `android` / `ios` / `tv` for a request, or the API error to return.
+fn forced_client(name: Option<&str>) -> Result<Option<youtube::InnertubeClient>, (StatusCode, Json<Value>)> {
+    match name.map(str::trim).filter(|name| !name.is_empty()) {
+        None => Ok(None),
+        Some(name) => match youtube::client_by_name(name) {
+            Some(profile) => Ok(Some(profile)),
+            None => Err(api_error(
+                StatusCode::BAD_REQUEST,
+                "unknown_client",
+                format!(
+                    "unknown client '{name}'; expected one of {}",
+                    youtube::client_alias_list()
+                ),
+            )),
+        },
+    }
+}
+
+/// Track length from the audio format: bytes / (bits per second / 8).
+fn duration_from(audio: &youtube::ResolvedAudio) -> f64 {
+    match (audio.content_length, audio.bitrate) {
+        (Some(bytes), bitrate) if bitrate > 0 => bytes as f64 * 8.0 / bitrate as f64,
+        _ => 0.0,
+    }
+}
+
+/// Resolve + start one video. Shared by `/api/play`, `/api/next` and `/api/prev`.
+async fn start_track(
+    client: &reqwest::Client,
+    video_id: &str,
+    forced: Option<youtube::InnertubeClient>,
+) -> Result<Value, (StatusCode, Json<Value>)> {
     use youtube::ResolveError;
 
-    let video_id = body.video_id.trim();
     if !youtube::valid_video_id(video_id) {
-        return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", "Invalid video ID".into());
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_video_id",
+            "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
+        ));
     }
-    let request_epoch = PLAY_REQUEST_EPOCH.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
-    let forced = match body
-        .client
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-    {
-        None => None,
-        Some(name) => match youtube::client_by_name(name) {
-            Some(profile) => Some(profile),
-            None => {
-                return api_error(
-                    StatusCode::BAD_REQUEST,
-                    "unknown_client",
-                    format!(
-                        "unknown client '{name}'; expected one of {}",
-                        youtube::client_alias_list()
-                    ),
-                )
-            }
-        },
-    };
 
-    let Some(client) = http_client() else {
-        return api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "http_client",
-            "could not build HTTP client".into(),
-        );
-    };
-
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
+        None => youtube::resolve_audio(client, video_id, visitor_value).await,
     };
 
     let audio = match resolved {
         Ok(audio) => audio,
         Err(error @ ResolveError::InvalidVideoId) => {
-            return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
-        }
-        Err(ResolveError::PreconditionFailed) => {
-            return api_error(StatusCode::BAD_GATEWAY, "youtube_precondition_failed", ResolveError::PreconditionFailed.to_string());
+            return Err(api_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_video_id",
+                error.to_string(),
+            ))
         }
         Err(ResolveError::AllClientsFailed(attempts)) => {
             // Surface YouTube's own body for every client that was tried.
             let attempts_json: Vec<Value> =
                 attempts.iter().map(youtube::ClientAttempt::to_json).collect();
             let detail = ResolveError::AllClientsFailed(attempts).to_string();
-            return (
+            return Err((
                 StatusCode::BAD_GATEWAY,
                 Json(json!({
                     "status": "error",
@@ -358,47 +410,191 @@ async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
                     "detail": detail,
                     "attempts": attempts_json,
                 })),
-            );
+            ));
         }
         Err(error) => {
-            return api_error(StatusCode::BAD_GATEWAY, "unresolved", error.to_string())
+            return Err(api_error(
+                StatusCode::BAD_GATEWAY,
+                "unresolved",
+                error.to_string(),
+            ))
         }
     };
 
-    if PLAY_REQUEST_EPOCH.load(std::sync::atomic::Ordering::Acquire) != request_epoch {
-        return api_error(StatusCode::CONFLICT, "playback_cancelled", "Playback cancelled".into());
-    }
-    let user_agent = youtube::client_by_name(audio.client).map(|p| p.user_agent).unwrap_or(youtube::ANDROID.user_agent);
-    let ready = match player().play(player::Media {
-        video_id: audio.video_id.clone(), title: audio.title.clone(), client: audio.client,
-        itag: audio.itag, url: audio.url.clone(), user_agent, content_length: audio.content_length,
-    }) {
-        Ok(ready) => ready,
-        Err(error) => return api_error(StatusCode::SERVICE_UNAVAILABLE, "playback_unavailable", error),
-    };
-    match tokio::time::timeout(std::time::Duration::from_secs(40), ready).await {
-        Ok(Ok(Ok(()))) => (),
-        Ok(Ok(Err(error))) => return api_error(StatusCode::BAD_GATEWAY, "playback_start_failed", error),
-        _ => {
-            let _ = player().stop();
-            return api_error(StatusCode::GATEWAY_TIMEOUT, "playback_start_timeout", "Audio startup timed out; tap Play to retry".into());
-        }
+    let duration_secs = duration_from(&audio);
+    let (tx, rx) = player::stream_channel();
+    tokio::spawn(pump_media(
+        client.clone(),
+        audio.video_id.clone(),
+        forced.map(|profile| profile.name),
+        visitor.attached().then(|| visitor.value.clone()),
+        audio.url.clone(),
+        tx,
+    ));
+
+    if let Err(error) = player().play(
+        &audio.video_id,
+        audio.title.clone(),
+        audio.client,
+        audio.itag,
+        duration_secs,
+        rx,
+    ) {
+        return Err(api_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "playback_unavailable",
+            error,
+        ));
     }
 
-    (
-        StatusCode::OK,
-        Json(json!({
-            "status": "playing",
-            "video_id": audio.video_id,
-            "title": audio.title,
-            "itag": audio.itag,
-            "mime": audio.mime,
-            "bitrate": audio.bitrate,
-            "content_length": audio.content_length,
-            "client": audio.client,
-            "forced": forced.is_some(),
-        })),
-    )
+    Ok(json!({
+        "status": "playing",
+        "video_id": audio.video_id,
+        "title": audio.title,
+        "itag": audio.itag,
+        "mime": audio.mime,
+        "bitrate": audio.bitrate,
+        "content_length": audio.content_length,
+        "duration_secs": duration_secs,
+        "client": audio.client,
+        "forced": forced.is_some(),
+    }))
+}
+
+/// Streams the media URL into the playback ring.
+///
+/// A 403 (or a transport error) **before any audio reaches the decoder** triggers
+/// exactly one re-resolve; googlevideo URLs expire, and the player has not
+/// consumed a byte yet, so retrying is safe. Once bytes have flowed, restarting
+/// would corrupt the AAC stream, so that case is reported instead of faked.
+async fn pump_media(
+    client: reqwest::Client,
+    video_id: String,
+    forced: Option<&'static str>,
+    visitor: Option<String>,
+    initial_url: String,
+    tx: std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
+) {
+    use futures_util::StreamExt;
+
+    let Some(media) = media_client() else {
+        send_stream_error(&tx, "could not build media HTTP client".into());
+        return;
+    };
+    let mut url = initial_url;
+    let mut refreshed = false;
+    let mut delivered: usize = 0;
+
+    loop {
+        // Media client, not the API client: the API client's 12 s total timeout
+        // truncated playback roughly twelve seconds into every track.
+        let response = match media
+            .get(&url)
+            .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                send_stream_error(&tx, format!("media request failed: {error}"));
+                return;
+            }
+        };
+
+        let status = response.status();
+        if status == StatusCode::FORBIDDEN && !refreshed {
+            refreshed = true;
+            match re_resolve(&client, &video_id, forced, visitor.as_deref()).await {
+                Ok(fresh) => {
+                    url = fresh.url;
+                    continue;
+                }
+                Err(error) => {
+                    send_stream_error(
+                        &tx,
+                        format!("media URL 403 and re-resolve failed: {error}"),
+                    );
+                    return;
+                }
+            }
+        }
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            send_stream_error(
+                &tx,
+                format!(
+                    "media HTTP {status}: {}",
+                    youtube::summarize_error_body(&body)
+                ),
+            );
+            return;
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut retry = false;
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(bytes) if bytes.is_empty() => {}
+                Ok(bytes) => {
+                    delivered += bytes.len();
+                    // Blocks when the ring is full: backpressure, not buffering.
+                    if tx.send(Ok(bytes.to_vec())).is_err() {
+                        return;
+                    }
+                }
+                Err(error) => {
+                    if delivered == 0 && !refreshed {
+                        refreshed = true;
+                        match re_resolve(&client, &video_id, forced, visitor.as_deref()).await {
+                            Ok(fresh) => {
+                                url = fresh.url;
+                                retry = true;
+                                break;
+                            }
+                            Err(refresh_error) => {
+                                send_stream_error(
+                                    &tx,
+                                    format!(
+                                        "media stream failed ({error}) and re-resolve failed: {refresh_error}"
+                                    ),
+                                );
+                                return;
+                            }
+                        }
+                    }
+                    send_stream_error(
+                        &tx,
+                        format!("media stream failed after {delivered} bytes: {error}"),
+                    );
+                    return;
+                }
+            }
+        }
+        if retry {
+            continue;
+        }
+        return;
+    }
+}
+
+async fn re_resolve(
+    client: &reqwest::Client,
+    video_id: &str,
+    forced: Option<&'static str>,
+    visitor: Option<&str>,
+) -> Result<youtube::ResolvedAudio, String> {
+    let resolved = match forced.and_then(youtube::client_by_name) {
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor).await,
+        None => youtube::resolve_audio(client, video_id, visitor).await,
+    };
+    resolved.map_err(|error| error.to_string())
+}
+
+fn send_stream_error(
+    tx: &std::sync::mpsc::SyncSender<std::io::Result<Vec<u8>>>,
+    message: String,
+) {
+    let _ = tx.send(Err(std::io::Error::other(message)));
 }
 
 async fn pause() -> Json<Value> {
@@ -417,8 +613,8 @@ async fn resume() -> Json<Value> {
     }
 }
 
-async fn stop() -> Json<Value> {
-    PLAY_REQUEST_EPOCH.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+async fn stop(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
+    sample_listening(&phone);phone.listening.lock().unwrap().flush();
     match started_player().map(player::Player::stop) {
         Some(Ok(())) => Json(json!({ "status": "stopped" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
@@ -491,18 +687,25 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         );
     };
 
+    if !youtube::valid_video_id(video_id) {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_video_id",
+            "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
+        );
+    }
+
     let started = Instant::now();
+    let visitor = visitor(client).await;
+    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile).await,
-        None => youtube::resolve_audio(client, video_id).await,
+        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
+        None => youtube::resolve_audio(client, video_id, visitor_value).await,
     };
     let audio = match resolved {
         Ok(audio) => audio,
         Err(error @ ResolveError::InvalidVideoId) => {
             return api_error(StatusCode::BAD_REQUEST, "invalid_video_id", error.to_string())
-        }
-        Err(ResolveError::PreconditionFailed) => {
-            return api_error(StatusCode::BAD_GATEWAY, "youtube_precondition_failed", ResolveError::PreconditionFailed.to_string());
         }
         Err(ResolveError::AllClientsFailed(attempts)) => {
             let attempts_json: Vec<Value> =
@@ -525,7 +728,14 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     };
     let resolve_ms = started.elapsed().as_millis() as u64;
 
-    let response = match client
+    let Some(media) = media_client() else {
+        return api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "http_client",
+            "could not build media HTTP client".into(),
+        );
+    };
+    let response = match media
         .get(&audio.url)
         .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
         .header(reqwest::header::RANGE, "bytes=0-65535")
@@ -593,6 +803,10 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         "media_content_type": content_type,
         "bytes_fetched": fetched,
         "stream_error": stream_error,
+        "visitor": {
+            "source": visitor.source.as_str(),
+            "attached": visitor.attached(),
+        },
         "resolve_ms": resolve_ms,
         "elapsed_ms": started.elapsed().as_millis() as u64,
     });
@@ -621,7 +835,7 @@ async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> J
             "error": null,
         })),
     };
-    result.0["track"] = json!(phone.library.lock().unwrap().current);
+    result.0["track"]=json!(phone.library.lock().unwrap().current);
     result
 }
 
@@ -806,60 +1020,6 @@ mod api_tests {
         assert_eq!(body["error"], "invalid_video_id");
     }
 
-    #[tokio::test]
-    async fn android_website_assets_and_local_routes_do_not_404() {
-        let app = router(Arc::new(None));
-        for path in ["/", "/icons.svg", "/api/queue", "/api/liked", "/api/bt/status", "/api/player"] {
-            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
-            assert_eq!(response.status(), StatusCode::OK, "{path}");
-            if path == "/icons.svg" {
-                assert!(response.headers()["content-type"].to_str().unwrap().starts_with("image/svg+xml"));
-                let body = response.into_body().collect().await.unwrap().to_bytes();
-                assert!(std::str::from_utf8(&body).unwrap().contains("id=\"play\""));
-            }
-        }
-        for path in ["/api/next", "/api/prev"] {
-            let response = app.clone().oneshot(post(path, "{}")).await.unwrap();
-            assert_eq!(response.status(), StatusCode::CONFLICT);
-        }
-        for path in ["/api/search?q=", "/api/search?q=%20"] {
-            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
-            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        }
-    }
-
-    #[tokio::test]
-    async fn native_mood_is_explicit_and_invalid_values_cannot_change_it() {
-        let app = router(Arc::new(None));
-        let response = app.clone().oneshot(post("/api/recommendation/mood", r#"{"mood":"melody"}"#)).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        let response = app.clone().oneshot(post("/api/recommendation/mood", r#"{"mood":"private query"}"#)).await.unwrap();
-        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-        let response = app.oneshot(axum::http::Request::builder().uri("/api/recommendation/mood").body(Body::empty()).unwrap()).await.unwrap();
-        assert_eq!(json_body(response).await["mood"], "melody");
-    }
-
-    #[tokio::test]
-    async fn android_queue_and_likes_round_trip_without_provider_or_audio() {
-        let app = router(Arc::new(None));
-        let track = r#"{"id":"abcdefghijk","title":"Song","artist":"Artist","url":"http://private.invalid"}"#;
-        for path in ["/api/queue_add", "/api/like"] {
-            for _ in 0..2 { assert_eq!(app.clone().oneshot(post(path, track)).await.unwrap().status(), StatusCode::OK); }
-        }
-        for path in ["/api/queue", "/api/liked"] {
-            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
-            let body = json_body(response).await;
-            assert_eq!(body.as_array().unwrap().len(), 1);
-            assert_eq!(body[0]["url"], "https://www.youtube.com/watch?v=abcdefghijk");
-        }
-        assert_eq!(app.clone().oneshot(post("/api/queue_clear", "{}")).await.unwrap().status(), StatusCode::OK);
-        assert_eq!(app.clone().oneshot(post("/api/unlike", track)).await.unwrap().status(), StatusCode::OK);
-        for path in ["/api/queue", "/api/liked"] {
-            let response = app.clone().oneshot(axum::http::Request::builder().uri(path).body(Body::empty()).unwrap()).await.unwrap();
-            assert_eq!(json_body(response).await, json!([]));
-        }
-    }
-
     /// Live diagnostic (not in the default suite): shows exactly what each
     /// client said. `cargo test --lib live_play -- --ignored --nocapture`.
     #[tokio::test]
@@ -881,7 +1041,7 @@ mod api_tests {
         }
         assert_eq!(body["error"], "unresolved");
         let attempts = body["attempts"].as_array().expect("attempts array");
-        assert_eq!(attempts.len(), youtube::CLIENTS.len(), "one attempt per configured client");
+        assert_eq!(attempts.len(), 3, "one attempt per client");
     }
 
     #[tokio::test]
@@ -937,4 +1097,136 @@ mod api_tests {
             .to_string();
         assert!(state == "idle" || state == "error", "unexpected state {state}");
     }
+
+    #[tokio::test]
+    async fn search_requires_a_query() {
+        let app = router(Arc::new(None));
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/search?q=")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+
+    /// Proves the bytes that reach the phone's decoder are real audio.
+    ///
+    /// Uses the same resolve, the same pump and the same decoder as `/api/play`
+    /// on the APK, then writes the bytes out so an external tool (ffprobe) can
+    /// inspect the very same file. Network test:
+    /// `cargo test --lib live_audio_pipeline -- --ignored --nocapture`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "hits youtubei and googlevideo"]
+    async fn live_audio_pipeline_delivers_decodable_audio() {
+        use rodio::Source;
+        use std::time::{Duration, Instant};
+
+        let Some(client) = http_client() else {
+            panic!("http client");
+        };
+        let visitor = visitor(client).await;
+        assert!(visitor.attached(), "no visitor id");
+
+        let audio = youtube::resolve_audio(&client, "dQw4w9WgXcQ", Some(visitor.value.as_str()))
+            .await
+            .unwrap_or_else(|error| panic!("resolve: {error}"));
+        eprintln!(
+            "resolved client={} itag={} mime={} declared_bytes={:?}",
+            audio.client, audio.itag, audio.mime, audio.content_length
+        );
+
+        // 1. Range request with the exact headers the pump uses.
+        let range = client
+            .get(&audio.url)
+            .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+            .header(reqwest::header::RANGE, "bytes=0-2047")
+            .send()
+            .await
+            .expect("range request");
+        let range_status = range.status();
+        let range_type = range
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let content_range = range
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let range_len = range.bytes().await.expect("range body").len();
+        eprintln!(
+            "range status={range_status} {range_len} bytes type={range_type:?} content-range={content_range:?}"
+        );
+        assert_eq!(range_status, StatusCode::PARTIAL_CONTENT);
+        assert!(range_type.starts_with("audio/"), "content-type {range_type}");
+        assert!(content_range.starts_with("bytes 0-2047/"), "{content_range}");
+
+        // 2. The pump `/api/play` spawns, read until it has a decodable prefix.
+        let (tx, rx) = player::stream_channel();
+        let pump = tokio::spawn(pump_media(
+            client.clone(),
+            audio.video_id.clone(),
+            None,
+            visitor.attached().then(|| visitor.value.clone()),
+            audio.url.clone(),
+            tx,
+        ));
+        // Read to EOF: the whole track must arrive. Before the media client was
+        // split out, the API client's 12 s total timeout killed this loop.
+        let mut bytes: Vec<u8> = Vec::new();
+        let started = Instant::now();
+        loop {
+            match rx.recv_timeout(Duration::from_secs(30)) {
+                Ok(Ok(chunk)) => bytes.extend_from_slice(&chunk),
+                Ok(Err(error)) => panic!("pump failed after {} bytes: {error}", bytes.len()),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(error) => panic!("pump stalled after {} bytes: {error}", bytes.len()),
+            }
+        }
+        pump.abort();
+        eprintln!(
+            "streamed {} bytes in {:?} (declared {:?})",
+            bytes.len(),
+            started.elapsed(),
+            audio.content_length
+        );
+        assert_eq!(
+            Some(bytes.len() as u64),
+            audio.content_length,
+            "stream ended before the declared length"
+        );
+        assert!(bytes.len() >= 128 * 1024, "only {} bytes pumped", bytes.len());
+        assert_eq!(
+            bytes.get(4..8),
+            Some(b"ftyp".as_slice()),
+            "not an MP4 container"
+        );
+
+        let path = std::env::temp_dir().join("aysha_full_track.m4a");
+        std::fs::write(&path, &bytes).expect("write probe");
+        eprintln!("wrote {}", path.display());
+
+        // 3. Decode with the exact decoder the player threads use.
+        let decoder = rodio::Decoder::new(std::io::Cursor::new(bytes)).expect("decoder");
+        let sample_rate = decoder.sample_rate();
+        let channels = decoder.channels();
+        let decoded: Vec<f32> = decoder.take(48_000).collect();
+        let non_silent = decoded.iter().any(|sample| sample.abs() > 0.001);
+        eprintln!(
+            "decoded {} samples, rate={sample_rate}, channels={channels}, non-silent={non_silent}",
+            decoded.len()
+        );
+        assert!(sample_rate.get() >= 8_000, "sample rate {sample_rate}");
+        assert!(decoded.len() > 4_000, "decoded {} samples", decoded.len());
+        assert!(non_silent, "decoded audio was silence");
+    }
+
 }

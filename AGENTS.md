@@ -44,8 +44,8 @@ The user now targets a self-contained phone APK, preserving the Aysha UI. They
 explicitly chose `strict_rust` over NewPipeExtractor: keep acquisition/transfer/
 decode/player core Rust; no Java extractor, Python/Node/yt-dlp, hosted resolver or
 proxy fallback without new explicit approval. Existing Kotlin shell/HTML UI remain.
-Screenshot HTTP400 failedPrecondition is a provider request rejection before decode;
+Latest Rust4 screenshot says no audio-only AAC stream offered for Android/iOS, before decode;
 do not call fixture decoding/green CI a verified fix or publish-ready playback.
-For automatic Next use Romantic/Melody mood and local likes, NOT the current song
-name; filter same-song variants/recent history, preserve explicit queue/Previous.
+For automatic Next infer from actual local listening time, skips and likes; no
+Romantic/Melody dropdown and NOT the current song name; filter same-song variants/recent history, preserve explicit queue/Previous.
 See docs/STRICT_RUST_PROVIDER_AND_NEXT.md and the latest QA ledger for evidence.

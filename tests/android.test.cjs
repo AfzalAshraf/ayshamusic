@@ -10,7 +10,7 @@ test('Android router serves every website catalogue/library/navigation/icon depe
   }
   const lib = read('src/lib.rs');
   assert.match(lib, /merge\(android_catalog::routes\(\)\)/);
-  assert.match(lib, /layer\(Extension\(android_catalog::new_state\(\)\)\)/);
+  assert.match(lib, /layer\(Extension\(phone\)\)/);
   assert.match(routes, /image\/svg\+xml/);
   assert.match(routes, /include_str!\("icons.svg"\)/);
 });
@@ -26,7 +26,7 @@ test('Android branch APK build never overwrites the main public release', () => 
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
   assert.match(workflow, /AYSHA_PREVIEW: "1"/);
-  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.rust4"/);
+  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.learn6"/);
 });
 
 test('startup waits for the on-phone API and retains external-server independence', () => {
@@ -35,5 +35,5 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.get\("\/api\/status"\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 4/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 6/);
 });

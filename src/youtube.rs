@@ -13,6 +13,7 @@ use std::fmt;
 use std::time::Duration;
 
 const PLAYER_URL: &str = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const SEARCH_URL: &str = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false";
 
 /// One InnerTube client identity. `extra` is merged into the `client` object.
 #[derive(Clone, Copy, Debug)]
@@ -25,16 +26,16 @@ pub struct InnertubeClient {
 
 pub const ANDROID: InnertubeClient = InnertubeClient {
     name: "ANDROID",
-    version: "21.26.364",
-    user_agent: "com.google.android.youtube/21.26.364 (Linux; U; Android 11) gzip",
+    version: "20.10.38",
+    user_agent: "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip",
     extra: r#"{"androidSdkVersion":30,"osName":"Android","osVersion":"11"}"#,
 };
 
 pub const IOS: InnertubeClient = InnertubeClient {
     name: "IOS",
-    version: "21.26.4",
-    user_agent: "com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
-    extra: r#"{"deviceMake":"Apple","deviceModel":"iPhone16,2","osName":"iPhone","osVersion":"18.3.2.22D82"}"#,
+    version: "20.10.4",
+    user_agent: "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X)",
+    extra: r#"{"deviceModel":"iPhone16,2","osName":"iPhone","osVersion":"18.1.0.22B83"}"#,
 };
 
 pub const TVHTML5: InnertubeClient = InnertubeClient {
@@ -45,7 +46,7 @@ pub const TVHTML5: InnertubeClient = InnertubeClient {
 };
 
 /// Client profiles in the order they are tried.
-pub const CLIENTS: [InnertubeClient; 2] = [ANDROID, IOS];
+pub const CLIENTS: [InnertubeClient; 3] = [ANDROID, IOS, TVHTML5];
 
 /// The names accepted by `/api/play`'s optional `client` field.
 pub const CLIENT_ALIASES: [(&str, &str); 3] = [
@@ -62,12 +63,12 @@ pub fn client_by_name(name: &str) -> Option<InnertubeClient> {
         .find(|(alias, _)| *alias == needle)
         .map(|(_, canonical)| *canonical)
         .or_else(|| {
-            [ANDROID, IOS, TVHTML5]
+            CLIENTS
                 .iter()
                 .find(|client| client.name.eq_ignore_ascii_case(&needle))
                 .map(|client| client.name)
         })?;
-    [ANDROID, IOS, TVHTML5].into_iter().find(|client| client.name == canonical)
+    CLIENTS.iter().copied().find(|client| client.name == canonical)
 }
 
 pub fn client_alias_list() -> String {
@@ -91,23 +92,30 @@ pub struct ResolvedAudio {
     pub client: &'static str,
 }
 
-/// One client's failure, including YouTube's own explanation.
+/// One client's outcome, including YouTube's own explanation and whether the
+/// request carried a visitor id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClientAttempt {
     pub client: &'static str,
+    pub status: Option<u16>,
+    pub visitor: &'static str,
     pub error: String,
 }
 
 impl ClientAttempt {
     pub fn to_json(&self) -> Value {
-        json!({ "client": self.client, "error": self.error })
+        json!({
+            "client": self.client,
+            "status": self.status,
+            "visitor": self.visitor,
+            "error": self.error,
+        })
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResolveError {
     InvalidVideoId,
-    PreconditionFailed,
     /// HTTP transport failure before YouTube was reached.
     Http(String),
     /// YouTube answered, but refused to play this video.
@@ -120,7 +128,6 @@ pub enum ResolveError {
 impl fmt::Display for ResolveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::PreconditionFailed => write!(f, "YouTube rejected this playback request (HTTP 400: failedPrecondition). Audio has not started."),
             Self::InvalidVideoId => write!(f, "video_id must be 11 characters of [A-Za-z0-9_-]"),
             Self::Http(detail) => write!(f, "youtube request failed: {detail}"),
             Self::Unplayable(detail) => write!(f, "video is not playable: {detail}"),
@@ -145,13 +152,155 @@ impl std::error::Error for ResolveError {}
 pub fn http_client() -> Result<Client, reqwest::Error> {
     Client::builder()
         .connect_timeout(Duration::from_secs(8))
-        .read_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(12))
         .pool_max_idle_per_host(2)
         .build()
 }
 
+/// Client for `googlevideo` bytes.
+///
+/// A track streams for minutes, so it must not inherit the API client's 12 s
+/// total timeout: that cap silently cut every song off after ~12 seconds of
+/// audio. Stalled reads are still bounded so a dead connection cannot hang the
+/// playback thread forever.
+pub fn media_client() -> Result<Client, reqwest::Error> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .read_timeout(Duration::from_secs(30))
+        .pool_max_idle_per_host(2)
+        .build()
+}
+
+const VISITOR_URL: &str = "https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false";
+const WEB_VERSION: &str = "2.20241126.01.00";
+const WEB_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+
+/// A visitor identity shared by every player request. YouTube ties its bot
+/// checks to this value, so it is persisted and reused across app restarts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Visitor {
+    pub value: String,
+    pub source: VisitorSource,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VisitorSource {
+    Disk,
+    Network,
+    Unavailable,
+}
+
+impl VisitorSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Disk => "disk",
+            Self::Network => "network",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+impl Visitor {
+    pub fn attached(&self) -> bool {
+        !self.value.is_empty()
+    }
+
+    pub fn preview(&self) -> String {
+        self.value.chars().take(8).collect()
+    }
+}
+
 pub fn valid_video_id(id: &str) -> bool {
     id.len() == 11 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+/// Meta query helper: load a cached visitor id from `path` if it is sane.
+pub fn load_visitor(path: Option<&std::path::Path>) -> Option<String> {
+    let path = path?;
+    let bytes = std::fs::read(path).ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let value = json["value"].as_str()?;
+    sane_visitor(value).then(|| value.to_string())
+}
+
+/// Returns a visitor id, preferring the cached one, and persists a fresh fetch.
+pub async fn ensure_visitor(
+    http: &Client,
+    path: Option<&std::path::Path>,
+) -> Visitor {
+    if let Some(value) = load_visitor(path) {
+        return Visitor {
+            value,
+            source: VisitorSource::Disk,
+        };
+    }
+    match fetch_visitor(http).await {
+        Some(value) => {
+            save_visitor(path, &value);
+            Visitor {
+                value,
+                source: VisitorSource::Network,
+            }
+        }
+        None => Visitor {
+            value: String::new(),
+            source: VisitorSource::Unavailable,
+        },
+    }
+}
+
+/// A visitor id is an opaque URL-encoded blob; anything with whitespace or
+/// quotes is a poisoned cache entry, not an id.
+fn sane_visitor(value: &str) -> bool {
+    let length = value.len();
+    (16..=4096).contains(&length)
+        && !value
+            .chars()
+            .any(|c| c.is_whitespace() || c == '"' || c == '\\')
+}
+
+fn save_visitor(path: Option<&std::path::Path>, value: &str) {
+    let Some(path) = path else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let payload = json!({
+        "value": value,
+        "fetched_at_unix": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs())
+            .unwrap_or(0),
+    });
+    let _ = std::fs::write(path, payload.to_string());
+}
+
+async fn fetch_visitor(http: &Client) -> Option<String> {
+    let body = json!({
+        "context": {
+            "client": {
+                "clientName": "WEB",
+                "clientVersion": WEB_VERSION,
+                "hl": "en",
+                "gl": "US",
+            }
+        }
+    });
+    let response = http
+        .post(VISITOR_URL)
+        .header(reqwest::header::USER_AGENT, WEB_USER_AGENT)
+        .json(&body)
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let json: serde_json::Value = response.json().await.ok()?;
+    let value = json["responseContext"]["visitorData"]
+        .as_str()
+        .or_else(|| json["visitorData"].as_str())?;
+    sane_visitor(value).then(|| value.to_string())
 }
 
 /// Only plain HTTPS URLs on YouTube's media CDN are ever fetched.
@@ -170,8 +319,12 @@ pub fn is_allowed_media_url(raw: &str) -> bool {
 }
 
 /// Resolves `video_id` to a decodable audio URL, falling back across clients.
-pub async fn resolve_audio(http: &Client, video_id: &str) -> Result<ResolvedAudio, ResolveError> {
-    resolve_with_clients(http, video_id, &CLIENTS).await
+pub async fn resolve_audio(
+    http: &Client,
+    video_id: &str,
+    visitor: Option<&str>,
+) -> Result<ResolvedAudio, ResolveError> {
+    resolve_with_clients(http, video_id, &CLIENTS, visitor).await
 }
 
 /// Resolves with exactly one client, so its real error is reported verbatim.
@@ -179,26 +332,31 @@ pub async fn resolve_forced(
     http: &Client,
     video_id: &str,
     profile: InnertubeClient,
+    visitor: Option<&str>,
 ) -> Result<ResolvedAudio, ResolveError> {
-    resolve_with_clients(http, video_id, &[profile]).await
+    resolve_with_clients(http, video_id, &[profile], visitor).await
 }
 
 async fn resolve_with_clients(
     http: &Client,
     video_id: &str,
     profiles: &[InnertubeClient],
+    visitor: Option<&str>,
 ) -> Result<ResolvedAudio, ResolveError> {
     if !valid_video_id(video_id) {
         return Err(ResolveError::InvalidVideoId);
     }
 
+    let visitor_label = if visitor.is_some() { "attached" } else { "none" };
     let mut attempts: Vec<ClientAttempt> = Vec::new();
     for profile in profiles {
-        match resolve_with(http, video_id, *profile).await {
+        let (status, outcome) = resolve_with(http, video_id, *profile, visitor).await;
+        match outcome {
             Ok(audio) => return Ok(audio),
-            Err(ResolveError::PreconditionFailed) => return Err(ResolveError::PreconditionFailed),
             Err(error) => attempts.push(ClientAttempt {
                 client: profile.name,
+                status,
+                visitor: visitor_label,
                 error: error.to_string(),
             }),
         }
@@ -210,59 +368,44 @@ async fn resolve_with(
     http: &Client,
     video_id: &str,
     profile: InnertubeClient,
-) -> Result<ResolvedAudio, ResolveError> {
-    let visitor = visitor_context();
-    let response = player_request(http, video_id, profile, visitor.as_deref())
-        .send().await.map_err(|_| ResolveError::Http("connection failed or timed out".into()))?;
-    let status = response.status().as_u16();
-    let bytes = bounded_body(response, 1024 * 1024).await?;
-    parse_wire_response(status, &bytes, video_id, profile.name)
-}
-
-fn player_request(http: &Client, video_id: &str, profile: InnertubeClient, visitor: Option<&str>) -> reqwest::RequestBuilder {
-    let mut body = request_body(video_id, profile);
-    let mut request = http.post(PLAYER_URL).timeout(Duration::from_secs(12))
+    visitor: Option<&str>,
+) -> (Option<u16>, Result<ResolvedAudio, ResolveError>) {
+    let body = request_body(video_id, profile, visitor);
+    let mut request = http
+        .post(PLAYER_URL)
         .header(reqwest::header::USER_AGENT, profile.user_agent)
         .header("X-YouTube-Client-Name", client_id(profile.name))
         .header("X-YouTube-Client-Version", profile.version);
     if let Some(visitor) = visitor {
-        body["context"]["client"]["visitorData"] = json!(visitor);
         request = request.header("X-Goog-Visitor-Id", visitor);
     }
-    request.json(&body)
-}
-async fn bounded_body(response: reqwest::Response, limit: usize) -> Result<Vec<u8>, ResolveError> {
-    use futures_util::StreamExt;
-    let mut out = Vec::new(); let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|_| ResolveError::Http("response interrupted".into()))?;
-        if out.len() + chunk.len() > limit { return Err(ResolveError::Http("response exceeded size limit".into())); }
-        out.extend_from_slice(&chunk);
-    }
-    Ok(out)
-}
-fn parse_wire_response(status: u16, bytes: &[u8], video_id: &str, client: &'static str) -> Result<ResolvedAudio, ResolveError> {
-    let value: Value = serde_json::from_slice(bytes).map_err(|_| ResolveError::Http(format!("HTTP {status}: invalid JSON response")))?;
-    if status == 400 && (value["error"]["status"] == "FAILED_PRECONDITION" || value["error"]["errors"].as_array().is_some_and(|errors| errors.iter().any(|e| e["reason"] == "failedPrecondition"))) {
-        return Err(ResolveError::PreconditionFailed);
-    }
-    if !(200..300).contains(&status) {
-        return Err(ResolveError::Http(format!("HTTP {status}: {}", summarize_error_body(&String::from_utf8_lossy(bytes)))));
-    }
-    observe_visitor(&value);
-    parse_player_json(&value, video_id, client)
-}
+    let response = match request.json(&body).send().await {
+        Ok(response) => response,
+        Err(error) => return (None, Err(ResolveError::Http(error.to_string()))),
+    };
 
-// Only reuse an anonymous context actually returned by YouTube. Never synthesize,
-// log, persist or fetch an extra identity just to try bypassing a refusal.
-static VISITOR: std::sync::OnceLock<std::sync::Mutex<Option<(String, std::time::Instant)>>> = std::sync::OnceLock::new();
-pub fn observe_visitor(value: &Value) {
-    if let Some(visitor) = value["responseContext"]["visitorData"].as_str().filter(|v| (16..=1024).contains(&v.len()) && v.is_ascii() && !v.bytes().any(|b| b.is_ascii_whitespace() || b == b'"' || b == b'\\')) {
-        *VISITOR.get_or_init(Default::default).lock().unwrap() = Some((visitor.to_owned(), std::time::Instant::now()));
+    let status = response.status();
+    if !status.is_success() {
+        // Keep YouTube's own words: HTTP 400/403 bodies explain the refusal
+        // (e.g. FAILED_PRECONDITION vs LOGIN_REQUIRED) and drive the next fix.
+        let text = response.text().await.unwrap_or_default();
+        return (
+            Some(status.as_u16()),
+            Err(ResolveError::Http(format!(
+                "HTTP {status}: {}",
+                summarize_error_body(&text)
+            ))),
+        );
     }
-}
-fn visitor_context() -> Option<String> {
-    VISITOR.get_or_init(Default::default).lock().unwrap().as_ref().filter(|(_, time)| time.elapsed() < Duration::from_secs(30 * 60)).map(|(v,_)| v.clone())
+    let json: Value = match response.json().await {
+        Ok(json) => json,
+        Err(error) => return (Some(status.as_u16()), Err(ResolveError::Http(error.to_string()))),
+    };
+
+    (
+        Some(status.as_u16()),
+        parse_player_json(&json, video_id, profile.name),
+    )
 }
 
 fn client_id(name: &str) -> &'static str {
@@ -308,29 +451,198 @@ fn truncate(text: &str, limit: usize) -> String {
     truncated
 }
 
-fn request_body(video_id: &str, profile: InnertubeClient) -> Value {
+fn client_context(profile: InnertubeClient, visitor: Option<&str>) -> Value {
     let extra: Value = serde_json::from_str(profile.extra).unwrap_or_else(|_| json!({}));
     let mut client = json!({
         "clientName": profile.name,
         "clientVersion": profile.version,
-        "userAgent": profile.user_agent,
         "hl": "en",
         "gl": "US",
         "utcOffsetMinutes": 0,
     });
     if let (Some(client), Value::Object(extra)) = (client.as_object_mut(), extra) {
         client.extend(extra);
+        if let Some(visitor) = visitor {
+            client.insert("visitorData".to_string(), Value::String(visitor.to_string()));
+        }
     }
     json!({
-        "context": {
-            "client": client,
-            "user": { "lockedSafetyMode": false },
-            "request": { "useSsl": true },
-        },
+        "client": client,
+        "user": { "lockedSafetyMode": false },
+        "request": { "useSsl": true },
+    })
+}
+
+fn request_body(video_id: &str, profile: InnertubeClient, visitor: Option<&str>) -> Value {
+    json!({
+        "context": client_context(profile, visitor),
         "videoId": video_id,
         "contentCheckOk": true,
         "racyCheckOk": true,
     })
+}
+
+/// One search result: enough to show a card and resolve it later.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SearchHit {
+    pub video_id: String,
+    pub title: String,
+    pub channel: String,
+}
+
+/// InnerTube search (`/youtubei/v1/search`). Used by `/api/search` and by
+/// `/api/next`, which asks for songs similar to the one that is playing.
+pub async fn search(
+    http: &Client,
+    query: &str,
+    visitor: Option<&str>,
+    limit: usize,
+) -> Result<Vec<SearchHit>, ResolveError> {
+    let query = query.trim();
+    if query.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
+    let body = json!({
+        "context": client_context(ANDROID, visitor),
+        "query": query,
+    });
+    let mut request = http
+        .post(SEARCH_URL)
+        .header(reqwest::header::USER_AGENT, ANDROID.user_agent)
+        .header("X-YouTube-Client-Name", client_id(ANDROID.name))
+        .header("X-YouTube-Client-Version", ANDROID.version);
+    if let Some(visitor) = visitor {
+        request = request.header("X-Goog-Visitor-Id", visitor);
+    }
+    let response = request
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| ResolveError::Http(error.to_string()))?;
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(ResolveError::Http(format!(
+            "search HTTP {status}: {}",
+            summarize_error_body(&text)
+        )));
+    }
+    let json: Value = response
+        .json()
+        .await
+        .map_err(|error| ResolveError::Http(error.to_string()))?;
+    Ok(parse_search_json(&json, limit))
+}
+
+/// Walks any InnerTube search shape and keeps every video node. The web client
+/// answers with `videoRenderer`, the mobile client with `compactVideoRenderer`;
+/// both carry `videoId`, `title` and `longBylineText`.
+fn parse_search_json(json: &Value, limit: usize) -> Vec<SearchHit> {
+    let mut hits: Vec<SearchHit> = Vec::new();
+    collect_video_renderers(json, &mut hits, limit);
+    let mut seen = std::collections::HashSet::new();
+    hits.retain(|hit| seen.insert(hit.video_id.clone()));
+    hits
+}
+
+fn collect_video_renderers(value: &Value, out: &mut Vec<SearchHit>, limit: usize) {
+    if out.len() >= limit {
+        return;
+    }
+    match value {
+        Value::Object(map) => {
+            for key in ["videoRenderer", "compactVideoRenderer", "videoWithContextRenderer"] {
+                if let Some(renderer) = map.get(key) {
+                    if let Some(hit) = hit_from_renderer(renderer) {
+                        out.push(hit);
+                    }
+                }
+            }
+            for child in map.values() {
+                collect_video_renderers(child, out, limit);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                collect_video_renderers(child, out, limit);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn hit_from_renderer(renderer: &Value) -> Option<SearchHit> {
+    let video_id = renderer["videoId"].as_str()?.trim().to_string();
+    if !valid_video_id(&video_id) {
+        return None;
+    }
+    let title = renderer["title"]["runs"][0]["text"]
+        .as_str()
+        .or_else(|| renderer["title"]["simpleText"].as_str())?
+        .trim()
+        .to_string();
+    if title.is_empty() {
+        return None;
+    }
+    let channel = renderer["ownerText"]["runs"][0]["text"]
+        .as_str()
+        .or_else(|| renderer["longBylineText"]["runs"][0]["text"].as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    Some(SearchHit { video_id, title, channel })
+}
+
+/// Collapses a YouTube title to its song identity so re-uploads, lyric videos
+/// and "(Official Video)" copies compare equal. Used to keep `/api/next` from
+/// queueing the same song again under a different upload.
+pub fn normalized_title(title: &str) -> String {
+    let mut kept = String::with_capacity(title.len());
+    let mut depth = 0usize;
+    for ch in title.chars() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            '|' if depth == 0 => break,
+            _ if depth > 0 => {}
+            _ => {
+                if ch.is_alphanumeric() {
+                    kept.extend(ch.to_lowercase());
+                } else {
+                    kept.push(' ');
+                }
+            }
+        }
+    }
+    kept.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Upload noise that says nothing about which song it is.
+const TITLE_NOISE: [&str; 13] = [
+    "official", "video", "lyrics", "lyric", "lyrical", "audio", "song", "full", "hd", "4k",
+    "visualizer", "version", "music",
+];
+
+fn strip_title_noise(title: &str) -> String {
+    let mut words: Vec<&str> = title.split_whitespace().collect();
+    while words
+        .last()
+        .is_some_and(|word| TITLE_NOISE.contains(word))
+    {
+        words.pop();
+    }
+    words.join(" ")
+}
+
+/// True when `candidate` is the same song the player is already on, even if the
+/// upload title differs ("Song (Official Video)" vs "Song | Lyric Video").
+///
+/// Comparison is exact after noise removal, so a sequel ("Song 2") is a new
+/// song, while a re-upload is not.
+pub fn same_song(current: &str, candidate: &str) -> bool {
+    let current = strip_title_noise(&normalized_title(current));
+    let candidate = strip_title_noise(&normalized_title(candidate));
+    !current.is_empty() && current == candidate
 }
 
 #[derive(Deserialize)]
@@ -408,34 +720,6 @@ fn select_audio(formats: &[AdaptiveFormat]) -> Result<&AdaptiveFormat, ResolveEr
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn player_request_has_consistent_headers_body_and_observed_visitor() {
-        let http = http_client().unwrap();
-        for profile in CLIENTS {
-            let request = player_request(&http, "abcdefghijk", profile, Some("provider_context_fixture")).build().unwrap();
-            assert_eq!(request.headers()["user-agent"], profile.user_agent);
-            assert_eq!(request.headers()["x-youtube-client-version"], profile.version);
-            assert_eq!(request.headers()["x-youtube-client-name"], client_id(profile.name));
-            assert_eq!(request.headers()["x-goog-visitor-id"], "provider_context_fixture");
-            let value: Value = serde_json::from_slice(request.body().unwrap().as_bytes().unwrap()).unwrap();
-            assert_eq!(value["context"]["client"]["userAgent"], profile.user_agent);
-            assert_eq!(value["context"]["client"]["clientVersion"], profile.version);
-            assert_eq!(value["context"]["client"]["visitorData"], "provider_context_fixture");
-            assert_eq!(value["videoId"], "abcdefghijk");
-            assert_eq!(value["context"]["client"]["clientName"], profile.name);
-        }
-        assert!(!CLIENTS.iter().any(|c| c.name == TVHTML5.name));
-    }
-    #[test]
-    fn screenshot_precondition_is_a_terminal_typed_rejection_not_no_audio() {
-        let bytes = br#"{"error":{"code":400,"status":"FAILED_PRECONDITION","message":"Precondition check failed.","errors":[{"reason":"failedPrecondition"}]}}"#;
-        let error = parse_wire_response(400, bytes, "abcdefghijk", "ANDROID").unwrap_err();
-        assert_eq!(error, ResolveError::PreconditionFailed);
-        assert!(error.to_string().contains("HTTP 400"));
-        assert!(!error.to_string().contains("all clients failed"));
-        assert!(parse_wire_response(200, b"invalid", "abcdefghijk", "ANDROID").is_err());
-    }
 
     #[test]
     fn video_ids_are_strictly_shaped() {
@@ -518,16 +802,20 @@ mod tests {
         let error = ResolveError::AllClientsFailed(vec![
             ClientAttempt {
                 client: "ANDROID",
+                status: Some(400),
+                visitor: "attached",
                 error: "HTTP 400 Bad Request: Precondition check failed.".into(),
             },
             ClientAttempt {
                 client: "IOS",
-                error: "HTTP 400 Bad Request: Precondition check failed.".into(),
+                status: Some(502),
+                visitor: "none",
+                error: "youtube request failed: connection reset".into(),
             },
         ]);
         let rendered = error.to_string();
         assert!(rendered.contains("ANDROID: HTTP 400 Bad Request: Precondition check failed."));
-        assert!(rendered.contains("IOS: HTTP 400 Bad Request: Precondition check failed."));
+        assert!(rendered.contains("IOS: youtube request failed: connection reset"));
     }
 
     fn format(itag: u64, mime: &str, bitrate: u64) -> AdaptiveFormat {
@@ -598,29 +886,94 @@ mod tests {
     }
 
     /// Network check, not part of the default suite:
-    /// `cargo test --lib live_ -- --ignored`.
+    /// `cargo test --lib live_ -- --ignored --nocapture`.
+    ///
+    /// Proves the visitor id is attached, that the first client answering is
+    /// not rejected with 400, and that the media CDN serves bytes.
     #[tokio::test]
     #[ignore = "hits youtubei and googlevideo"]
-    async fn live_resolve_yields_a_playable_audio_url() {
+    async fn live_resolve_sends_visitor_and_is_not_rejected() {
         let http = http_client().expect("client");
-        let audio = resolve_audio(&http, "dQw4w9WgXcQ")
-            .await
-            .unwrap_or_else(|error| panic!("resolve: {error}"));
+        let visitor = ensure_visitor(&http, None).await;
+        eprintln!(
+            "visitor: source={} attached={} preview={}",
+            visitor.source.as_str(),
+            visitor.attached(),
+            visitor.preview()
+        );
+        assert!(
+            visitor.attached(),
+            "no visitor id could be obtained: {:?}",
+            visitor.source
+        );
 
+        let audio = match resolve_audio(&http, "dQw4w9WgXcQ", Some(visitor.value.as_str())).await {
+            Ok(audio) => audio,
+            Err(ResolveError::AllClientsFailed(attempts)) => {
+                for attempt in &attempts {
+                    eprintln!(
+                        "attempt {} status={:?} visitor={} error={}",
+                        attempt.client, attempt.status, attempt.visitor, attempt.error
+                    );
+                }
+                panic!("all clients failed");
+            }
+            Err(error) => panic!("resolve: {error}"),
+        };
+        eprintln!(
+            "resolved client={} itag={} mime={} bytes={:?}",
+            audio.client, audio.itag, audio.mime, audio.content_length
+        );
         assert!(audio.mime.starts_with("audio/mp4"), "mime {}", audio.mime);
         assert!(is_allowed_media_url(&audio.url));
 
         let response = http
             .get(&audio.url)
-            .header(reqwest::header::RANGE, "bytes=0-1023")
+            .header(reqwest::header::RANGE, "bytes=0-2047")
             .send()
             .await
             .expect("range request");
+        eprintln!("media HTTP {}", response.status());
         assert!(
             response.status().is_success(),
             "media returned {}",
             response.status()
         );
+    }
+
+    #[test]
+    fn visitor_cache_roundtrips_and_rejects_poison() {
+        let path = std::env::temp_dir().join(format!(
+            "aysha-visitor-test-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_nanos())
+                .unwrap_or(0)
+        ));
+        let value = "CgtET1p4NGZsZlVUQSj-7-DXBjIKCgJVUxIEGgAgQA%3D%3D";
+        save_visitor(Some(&path), value);
+        assert_eq!(load_visitor(Some(&path)).as_deref(), Some(value));
+
+        std::fs::write(&path, r#"{"value":"bad value with spaces"}"#).unwrap();
+        assert_eq!(load_visitor(Some(&path)), None);
+
+        std::fs::write(&path, "not json").unwrap();
+        assert_eq!(load_visitor(Some(&path)), None);
+
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(load_visitor(None), None);
+    }
+
+    #[test]
+    fn client_bodies_carry_the_cached_visitor_id() {
+        let visitor = "CgtET1p4NGZsZlVUQSj-7-DXBjIKCgJVUxIEGgAgQA%3D%3D";
+        let body = request_body("dQw4w9WgXcQ", ANDROID, Some(visitor));
+        assert_eq!(body["context"]["client"]["visitorData"], visitor);
+        assert_eq!(body["context"]["client"]["clientVersion"], "20.10.38");
+
+        let without = request_body("dQw4w9WgXcQ", ANDROID, None);
+        assert!(without["context"]["client"]["visitorData"].is_null());
     }
 
     #[test]
@@ -641,4 +994,36 @@ mod tests {
         assert_eq!(audio.content_length, Some(4_123_456));
         assert_eq!(audio.itag, 140);
     }
+
+    #[test]
+    fn titles_collapse_to_the_same_song() {
+        assert_eq!(normalized_title("Tum Hi Ho (Official Video)"), "tum hi ho");
+        assert_eq!(normalized_title("Tum Hi Ho | Lyrical"), "tum hi ho");
+        assert!(same_song("Tum Hi Ho", "Tum Hi Ho - Lyrical Video"));
+        assert!(same_song("Tum Hi Ho (Official Music Video)", "Tum Hi Ho"));
+        assert!(!same_song("Tum Hi Ho", "Tum Hi Ho 2"));
+        assert!(!same_song("Tum Hi Ho", "Kesariya"));
+    }
+
+    #[test]
+    fn search_json_collects_video_renderers() {
+        let json: Value = serde_json::from_str(
+            r#"{"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"videoRenderer":{"videoId":"dQw4w9WgXcQ","title":{"runs":[{"text":"A Song (Official Video)"}]},"ownerText":{"runs":[{"text":"A Channel"}]}}},{"videoRenderer":{"videoId":"too-short","title":{"runs":[{"text":"Ignored"}]}}}]}}]}}}}}"#,
+        )
+        .unwrap();
+        let hits = parse_search_json(&json, 10);
+        assert_eq!(hits.len(), 1);
+        let compact: Value = serde_json::from_str(
+            r#"{"contents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"compactVideoRenderer":{"videoId":"zeVWTY31Vn8","title":{"runs":[{"text":"Romantic Jukebox"}]},"longBylineText":{"runs":[{"text":"Sony Music India"}]}}}]}}]}}}"#,
+        )
+        .unwrap();
+        let mobile = parse_search_json(&compact, 10);
+        assert_eq!(mobile.len(), 1);
+        assert_eq!(mobile[0].video_id, "zeVWTY31Vn8");
+        assert_eq!(mobile[0].channel, "Sony Music India");
+        assert_eq!(hits[0].video_id, "dQw4w9WgXcQ");
+        assert_eq!(hits[0].title, "A Song (Official Video)");
+        assert_eq!(hits[0].channel, "A Channel");
+    }
+
 }

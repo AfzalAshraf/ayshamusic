@@ -1104,12 +1104,11 @@ test('resolver rejection persists through idle polls and is separated from the c
   assert.doesNotMatch(h.element('full-duration').textContent, /ANDROID|failedPrecondition/);
 });
 
-test('mood selection only calls the on-phone preference endpoint', async () => {
+test('learning reset only calls the on-phone reset endpoint and there is no mood dropdown', async () => {
   const h = harness();
   vm.runInContext('state.nativePlayback=true', h.context);
-  await h.context.setRecommendationMood('melody');
-  assert.deepEqual(h.calls.map(c=>c.url), ['/api/recommendation/mood']);
-  assert.equal(JSON.parse(h.calls[0].opts.body).mood, 'melody');
-  await h.context.setRecommendationMood('arbitrary');
-  assert.equal(h.calls.length, 1);
+  await h.context.resetListeningPreferences();
+  assert.deepEqual(h.calls.map(c=>c.url), ['/api/recommendation/reset']);
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  assert.doesNotMatch(html, /id="next-mood"|setRecommendationMood/);
 });

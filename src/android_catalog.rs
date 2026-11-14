@@ -33,7 +33,6 @@ pub struct Library {
     queue: Vec<Track>,
     history: Vec<Track>,
     liked: Vec<Track>,
-    mood: crate::recommendations::Mood,
 }
 impl Library {
     pub fn remember(&mut self, track: Track) {
@@ -48,10 +47,11 @@ pub struct PhoneState {
     pub library: Mutex<Library>,
     search_slot: Semaphore,
     pub operation_slot: Semaphore,
+    pub listening: Mutex<crate::listening::Listening>,
 }
 pub type Phone = Arc<PhoneState>;
 pub fn new_state() -> Phone {
-    Arc::new(PhoneState { library: Mutex::new(Library::default()), search_slot: Semaphore::new(1), operation_slot: Semaphore::new(1) })
+    Arc::new(PhoneState { library: Mutex::new(Library::default()), search_slot: Semaphore::new(1), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
 }
 pub fn routes() -> Router<crate::SharedCache> {
     Router::new()
@@ -66,7 +66,8 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/next", post(next))
         .route("/api/prev", post(previous))
         .route("/api/bt/status", get(bluetooth))
-        .route("/api/recommendation/mood", get(mood).post(set_mood))
+        .route("/api/recommendation/profile", get(profile_status))
+        .route("/api/recommendation/reset", post(reset_learning))
 }
 async fn icons() -> impl axum::response::IntoResponse {
     ([(header::CONTENT_TYPE, "image/svg+xml; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], include_str!("icons.svg"))
@@ -91,28 +92,19 @@ async fn search(Extension(state): Extension<Phone>, Query(query): Query<Search>)
     }
 }
 async fn fetch_search(http: &reqwest::Client, q: &str) -> Result<Vec<Track>, &'static str> {
-    use futures_util::StreamExt;
-    let response = http.post("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
-        .timeout(std::time::Duration::from_secs(12))
-        .header(reqwest::header::USER_AGENT, "Mozilla/5.0")
-        .json(&json!({"context":{"client":{"clientName":"WEB","clientVersion":"2.20241120.01.00","hl":"en"}},"query":q,"params":"EgIQAQ%3D%3D"}))
-        .send().await.map_err(|_| "Music provider search connection failed; tap the tab to retry")?;
-    if !response.status().is_success() { return Err("Music provider refused search; retry later"); }
-    let mut stream = response.bytes_stream();
-    let mut bytes = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|_| "Music provider search interrupted")?;
-        if bytes.len() + chunk.len() > 2 * 1024 * 1024 { return Err("Search response exceeded its size limit"); }
-        bytes.extend_from_slice(&chunk);
-    }
-    let value: Value = serde_json::from_slice(&bytes).map_err(|_| "Music provider returned invalid search data")?;
-    crate::youtube::observe_visitor(&value);
-    parse_search(&value)
+    let visitor = crate::visitor(http).await;
+    let value = visitor.attached().then_some(visitor.value.as_str());
+    crate::youtube::search(http, q, value, 20).await.map(|hits| hits.into_iter().filter_map(|hit| Track {
+        id:hit.video_id,title:hit.title,artist:hit.channel,thumbnail:String::new(),url:String::new()
+    }.normalized().ok()).collect()).map_err(|_| "YouTube search unavailable; try again later")
 }
+
+#[cfg(test)]
 fn label(value: &Value) -> String {
     if let Some(text) = value["simpleText"].as_str() { return text.chars().take(300).collect(); }
     value["runs"].as_array().map(|runs| runs.iter().take(20).filter_map(|r| r["text"].as_str()).collect::<String>().chars().take(300).collect()).unwrap_or_default()
 }
+#[cfg(test)]
 fn parse_search(value: &Value) -> Result<Vec<Track>, &'static str> {
     if !value.get("contents").is_some_and(Value::is_object) { return Err("Music provider search format unavailable"); }
     let mut out = Vec::new();
@@ -157,45 +149,51 @@ async fn like(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (
     let mut library = state.library.lock().unwrap();
     if !library.liked.iter().any(|t| t.id == track.id) {
         if library.liked.len() >= 200 { return error(StatusCode::CONFLICT, "Favorites are full"); }
-        library.liked.push(track);
+        library.liked.push(track.clone());
     }
+    state.listening.lock().unwrap().like(&track,true);
     (StatusCode::OK, Json(json!({"status":"ok"})))
 }
 async fn unlike(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> Json<Value> {
-    state.library.lock().unwrap().liked.retain(|t| t.id != track.id); Json(json!({"status":"ok"}))
+    state.library.lock().unwrap().liked.retain(|t| t.id != track.id);
+    state.listening.lock().unwrap().like(&track,false); Json(json!({"status":"ok"}))
 }
-async fn mood(Extension(state): Extension<Phone>) -> Json<Value> {
-    Json(json!({"mood":state.library.lock().unwrap().mood,"selection":"mood_and_local_likes"}))
+async fn profile_status(Extension(state): Extension<Phone>) -> Json<Value> {
+    let model=state.listening.lock().unwrap();
+    Json(json!({"local_only":true,"learned_tracks":model.preferences().observations,"saved_on_device":model.durable}))
 }
-#[derive(Deserialize)]
-struct MoodBody { mood: crate::recommendations::Mood }
-async fn set_mood(Extension(state): Extension<Phone>, Json(body): Json<MoodBody>) -> Json<Value> {
-    state.library.lock().unwrap().mood = body.mood;
-    Json(json!({"status":"ok","mood":body.mood}))
+async fn reset_learning(Extension(state): Extension<Phone>) -> (StatusCode, Json<Value>) {
+    let mut model=state.listening.lock().unwrap();
+    if !model.reset() {return error(StatusCode::SERVICE_UNAVAILABLE,"Could not clear saved preferences");}
+    (StatusCode::OK,Json(json!({"status":"ok","saved_on_device":model.durable})))
 }
 async fn next(Extension(state): Extension<Phone>) -> (StatusCode, Json<Value>) { navigate(state, false).await }
 async fn previous(Extension(state): Extension<Phone>) -> (StatusCode, Json<Value>) { navigate(state, true).await }
 async fn navigate(state: Phone, previous: bool) -> (StatusCode, Json<Value>) {
     let Ok(_permit) = state.operation_slot.try_acquire() else { return error(StatusCode::TOO_MANY_REQUESTS, "Track change already running"); };
-    let (mut track, current, history, liked, mood) = {
+    crate::sample_listening(&state);
+    let (mut track, current, history, liked) = {
         let library = state.library.lock().unwrap();
         (if previous { library.history.last().cloned() } else { library.queue.first().cloned() },
-         library.current.clone(), library.history.clone(), library.liked.clone(), library.mood)
+         library.current.clone(), library.history.clone(), library.liked.clone())
     };
+    let preferences = state.listening.lock().unwrap().preferences();
+    let old_current = current.clone();
     let queued = track.is_some();
     if !previous && track.is_none() {
         let Some(current) = current else { return error(StatusCode::CONFLICT, "Play or queue a song first"); };
         let Ok(_search) = state.search_slot.try_acquire() else { return error(StatusCode::TOO_MANY_REQUESTS, "Search already running; retry shortly"); };
         let Some(http) = crate::http_client() else { return error(StatusCode::SERVICE_UNAVAILABLE, "Search unavailable"); };
-        let candidates = match fetch_search(http, mood.query()).await {
+        let candidates = match fetch_search(http, &preferences.query()).await {
             Ok(tracks) => tracks,
             Err(reason) => return error(StatusCode::BAD_GATEWAY, reason),
         };
-        track = crate::recommendations::select(candidates, &current, &history, &liked, mood);
+        track = crate::recommendations::select(candidates, &current, &history, &liked, &preferences);
     }
-    let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "No different song found for this mood. Try another mood or queue a song." }); };
+    let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "No different recommendation found yet. Queue a song or explore more music." }); };
     let result = crate::play_audio(crate::PlayBody { video_id: track.id.clone(), client: None, track: Some(track.clone()) }).await;
     if result.0.is_success() {
+        if !previous { if let Some(old)=old_current {state.listening.lock().unwrap().skip(&old);} }
         let mut library = state.library.lock().unwrap();
         if previous {
             library.history.pop();
@@ -205,6 +203,8 @@ async fn navigate(state: Phone, previous: bool) -> (StatusCode, Json<Value>) {
             if queued && library.queue.first().is_some_and(|t| t.id == track.id) { library.queue.remove(0); }
             library.remember(track.clone());
         }
+        drop(library);
+        state.listening.lock().unwrap().flush();
         return (StatusCode::OK, Json(json!({"status":"playing","track":track,"mode":"native","already_started":true})));
     }
     result
