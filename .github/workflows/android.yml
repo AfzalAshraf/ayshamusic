@@ -17,8 +17,9 @@ on:
       - "Cargo.lock"
   workflow_dispatch:
 
+# `write` lets the job publish the built APK as a release asset.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-${{ github.ref }}
@@ -51,6 +52,10 @@ jobs:
             platform-tools
             ndk;27.2.12479018
             cmake;3.22.1
+
+      # rodio/cpal link ALSA on the Linux runner, which ships no dev headers.
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -89,3 +94,18 @@ jobs:
           path: android-app/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      # A durable download that does not expire with artifacts. The tag is
+      # replaced on every build, so `apk-latest` always serves the newest APK.
+      - name: Publish APK release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Aysha Music APK (latest)
+          body: |
+            arm64-v8a release build from ${{ github.sha }}.
+            Debug-signed, minSdk 26. Playback on a physical device is not
+            verified by CI.
+          files: android-app/app/build/outputs/apk/release/app-release.apk
+          make_latest: true
