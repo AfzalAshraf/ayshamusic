@@ -106,7 +106,7 @@ async function checkInteractiveSandbox(context) {
 }
 
 // Actual local HTTP servers: reproduce WebView/Chromium's blocked SIP port,
-// then navigate both replacement ports. No provider or external server involved.
+// then navigate the retained Media3 port. No provider or external server involved.
 async function checkStandalonePorts(context) {
   const http = require('node:http');
   const servers = [];
@@ -114,7 +114,7 @@ async function checkStandalonePorts(context) {
   try {
     const gradle = fs.readFileSync(path.join(root,'android-app/app/build.gradle.kts'),'utf8');
     const ports = [...gradle.matchAll(/"API_PORT", "(\d+)"/g)].map(match => Number(match[1]));
-    assert.equal(ports.length,2);
+    assert.deepEqual(ports,[17652]);
     assert.ok(ports.every(port => port !== 5061 && port !== 5060));
     for (const port of [5061, ...ports]) {
       page = await context.newPage();
@@ -137,7 +137,7 @@ async function checkStandalonePorts(context) {
       }
       await page.close();
     }
-    console.log('PASS real loopback navigation: old5061 ERR_UNSAFE_PORT, new17651/17652 accessible');
+    console.log('PASS real loopback navigation: old5061 ERR_UNSAFE_PORT, retained Media3 port17652 accessible');
   } finally {
     if (page && !page.isClosed()) await page.close();
     for (const server of servers) {server.closeAllConnections();await new Promise(resolve => server.close(resolve));}

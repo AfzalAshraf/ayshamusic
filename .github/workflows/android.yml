@@ -116,7 +116,7 @@ jobs:
     # User authorized GitHub source checks. Exact-parent gate, first attempt only;
     # no schedule, PR trigger, workflow-dispatch input or automatic retry.
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && github.event.before == '2bf4756bcf1e95a88b0cdfac5ad939c9072db4f6' && startsWith(github.event.head_commit.message, 'Media3 repair: approved production source check') && github.run_attempt == 1
+      github.event_name == 'push' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && github.event.before == '64e40b74b25dab1f794bde4c23ffcc6404d683b3' && startsWith(github.event.head_commit.message, 'Media3 repair: approved production source check') && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -126,12 +126,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Offline build and range regressions first
         run: |
-          if ! (cargo test --locked --lib --features phone range_media && cargo build --locked --bin media3-source-check --features phone) > "$RUNNER_TEMP/proof-build.log" 2>&1; then
+          if ! (cargo test --lib --features phone range_media && cargo build --locked --bin media3-source-check --features phone) > "$RUNNER_TEMP/proof-build.log" 2>&1; then
             cat "$RUNNER_TEMP/proof-build.log"
             python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/proof-build.log").read()[-14000:]; print("::error title=Offline source-proof build::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
             exit 1
           fi
           target/debug/media3-source-check
+          python3 -c 'import subprocess; s=subprocess.check_output(["git","diff","--","Cargo.lock"],text=True); print("::notice title=Resolved dependency diff::"+s[:12000].replace("%","%25").replace("\n","%0A"))'
       - name: One bounded production-path live proof
         env:
           AYSHA_MEDIA3_SOURCE_APPROVAL: media3-production-once
@@ -151,7 +152,9 @@ jobs:
         if: always()
         with:
           name: media3-production-source-evidence
-          path: diagnostics/media3-production-source.json
+          path: |
+            diagnostics/media3-production-source.json
+            Cargo.lock
           if-no-files-found: warn
 
   media3-emulator-fixture:
@@ -165,7 +168,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
       - name: Enable emulator acceleration and generate AAC fixture
         run: |
           sudo chmod 666 /dev/kvm
