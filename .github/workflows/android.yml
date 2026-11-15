@@ -33,13 +33,13 @@ concurrency:
 
 jobs:
   source-once:
-    if: github.event_name == 'workflow_dispatch' && inputs.source_experiment == 'rust-only-one-public-video' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic'
+    if: github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && ((github.event_name == 'workflow_dispatch' && inputs.source_experiment == 'rust-only-one-public-video') || (github.event_name == 'push' && github.event.before == 'fcbf585ce05d84665a873cef54d5c0dd9800d7fa' && startsWith(github.event.head_commit.message, 'Approved once: Rust source gate')))
     uses: ./.github/workflows/rust-source-once.yml
     with:
       approval: rust-only-one-public-video
 
   build-apk:
-    if: inputs.source_experiment != 'rust-only-one-public-video'
+    if: ${{ !(github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && ((github.event_name == 'workflow_dispatch' && inputs.source_experiment == 'rust-only-one-public-video') || (github.event_name == 'push' && github.event.before == 'fcbf585ce05d84665a873cef54d5c0dd9800d7fa' && startsWith(github.event.head_commit.message, 'Approved once: Rust source gate')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

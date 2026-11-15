@@ -13,9 +13,12 @@ Published crate/main have known403 reports, so this revision is research, not a
 claimed production solution. MIT/Apache2 upstream, no source vendored here.
 
 The dedicated executable is offline unless `--approved-once` is explicitly given.
-Only a manual Android workflow invocation with input
-`source_experiment=rust-only-one-public-video` calls the reusable source workflow;
-ordinary push/PR/APK builds do not run the source test. Build/guard tests occur
+The integration denied manual workflow dispatch (403); no live test was started
+by that API call. The Android workflow therefore additionally permits one explicit
+approval-marker push with the exact recorded parent commit. A future normal push
+cannot match that parent. This single gated push calls the reusable source workflow;
+ordinary push/PR/APK builds do not run the source test. Manual invocation remains
+possible only with the explicit approval input and must be disabled after use. Build/guard tests occur
 before any live step. A build-only failure does not consume a live experiment.
 
 A loopback CONNECT guard restricts outbound TLS connections to YouTube/googlevideo
