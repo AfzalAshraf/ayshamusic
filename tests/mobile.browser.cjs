@@ -149,6 +149,7 @@ async function checkNativeSettings(context) {
   for (const engine of ['rust', 'media3']) {
     const page = await context.newPage();
     const errors = [];
+    let configuredId = null;
     page.on('pageerror', e => errors.push(e.message));
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -157,11 +158,18 @@ async function checkNativeSettings(context) {
       let data = {status:'ok'};
       if (url.pathname === '/api/status') data = {native_playback:true,audio_engine:engine,build_id:'abcdef0'.padEnd(40, '1')};
       else if (url.pathname === '/api/player') data = {state:'idle',video_id:null,position_secs:0,error:null};
-      else if (url.pathname === '/api/tg/status') data = {configured:false,authorized:false,quota:{queued_tracks:0},failed_tracks:0};
+      else if (url.pathname === '/api/tg/status') data = {configured:configuredId!==null,authorized:false,quota:{queued_tracks:0},failed_tracks:0};
+      else if (url.pathname === '/api/tg/configure') {
+        const body = route.request().postDataJSON();
+        assert.equal(body.api_hash,'a'.repeat(32));configuredId=body.api_id;
+        data = {status:'ok',configured:true,saved:true,api_id:configuredId};
+      }
+      else if (url.pathname === '/api/tg/configuration') data = {configured:configuredId!==null,saved:configuredId!==null,api_id:configuredId};
       else if (url.pathname === '/api/search' || url.pathname === '/api/liked' || url.pathname === '/api/queue') data = [];
       return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
     });
     for (const viewport of [{width:320,height:740},{width:390,height:844},{width:844,height:390}]) {
+      configuredId = null;
       await page.setViewportSize(viewport);
       await page.goto('about:blank');
       await page.goto('https://native-settings.test/#bluetooth');
@@ -189,6 +197,19 @@ async function checkNativeSettings(context) {
       assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
       await page.goForward();
       await page.locator('#telegram-account').waitFor({state:'visible'});
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.locator('#tg-api-id').fill('12345');
+      await page.locator('#tg-api-hash').fill('a'.repeat(32));
+      await page.locator('#tg-api-save').click();
+      await page.waitForFunction(() => document.getElementById('telegram-api-save-status').textContent.includes('saved on this device'));
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      assert.match(await page.locator('#telegram-api-save-status').textContent(),/12345.*hidden/);
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      await add.click();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      await page.waitForFunction(() => document.getElementById('telegram-api-save-status').textContent.includes('saved on this device'));
+      assert.match(await page.locator('#tg-api-hash').getAttribute('placeholder'),/Saved in app-private/);
       assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
       await page.keyboard.press('Escape');
       await page.locator('#telegram-account').waitFor({state:'hidden'});

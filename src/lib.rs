@@ -147,6 +147,7 @@ fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Route
         .route("/api/tg/verify_code", post(tg_verify_code))
         .route("/api/tg/status", get(tg_status))
         .route("/api/tg/configure", post(tg_configure))
+        .route("/api/tg/configuration", get(tg_configuration))
         .route("/api/tg/disconnect", post(tg_disconnect))
         .route("/api/play", post(play))
         .route("/api/pause", post(pause))
@@ -306,8 +307,14 @@ struct TgConfigureBody {api_id:i32,api_hash:String}
 async fn tg_configure(State(state):State<SharedCache>,Json(body):Json<TgConfigureBody>)->(StatusCode,Json<Value>) {
     let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
     match manager.telegram().configure(body.api_id,&body.api_hash).await {
-        Ok(())=>(StatusCode::OK,Json(json!({"status":"ok"}))),
+        Ok(())=>{let mut receipt=manager.telegram().configuration();receipt["status"]=json!("ok");(StatusCode::OK,Json(receipt))},
         Err(error)=>api_error(StatusCode::BAD_REQUEST,"telegram_setup",error),
+    }
+}
+async fn tg_configuration(State(state):State<SharedCache>)->(StatusCode,Json<Value>) {
+    match state.as_ref() {
+        Some(manager)=>(StatusCode::OK,Json(manager.telegram().configuration())),
+        None=>(StatusCode::SERVICE_UNAVAILABLE,unavailable()),
     }
 }
 async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>) {
@@ -1123,6 +1130,21 @@ mod api_tests {
             .await
             .unwrap();
         assert_eq!(json_body(response).await["status"], "unavailable");
+    }
+
+    #[tokio::test]
+    async fn telegram_configuration_save_has_a_local_persistent_hash_free_receipt() {
+        let dirs=TempDirs::new("configuration-receipt");
+        let manager=Arc::new(dirs.manager());let app=router(Arc::new(Some(manager.clone())));
+        let request=json!({"api_id":12345,"api_hash":"a".repeat(32)}).to_string();
+        let response=app.clone().oneshot(post("/api/tg/configure",&request)).await.unwrap();
+        assert_eq!(response.status(),StatusCode::OK);
+        let saved=json_body(response).await;assert_eq!(saved["saved"],true);assert_eq!(saved["api_id"],12345);
+        assert!(!saved.to_string().contains("api_hash"));assert!(!saved.to_string().contains(&"a".repeat(32)));
+        let restarted=Arc::new(dirs.manager());let app=router(Arc::new(Some(restarted)));
+        let response=app.oneshot(axum::http::Request::builder().uri("/api/tg/configuration").body(Body::empty()).unwrap()).await.unwrap();
+        let receipt=json_body(response).await;assert_eq!(receipt["saved"],true);assert_eq!(receipt["api_id"],12345);
+        assert!(!dirs.root.join("files").join(tg_auth::SESSION_FILE).exists(),"saving and verifying must not connect or create Telegram session");
     }
 
     #[tokio::test]

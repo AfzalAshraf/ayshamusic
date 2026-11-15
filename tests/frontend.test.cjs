@@ -1113,6 +1113,10 @@ test('player contains no learning controls or explanatory clutter', () => {
 
 test('Telegram credentials go only to the in-app API and secrets are cleared', async () => {
   const h = harness();
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({url,opts});
+    return {ok:true,json:async () => ({status:'ok',saved:true,api_id:12345,configured:true})};
+  };
   h.element('tg-api-id').value = '12345';
   h.element('tg-api-hash').value = 'a'.repeat(32);
   h.element('tg-code').value = '12345';
@@ -1171,4 +1175,34 @@ test('tapping during native preparation cancels and a late successful response c
   release({ok:true,json:async () => ({status:'playing'})});await starting;
   assert.equal(vm.runInContext('state.stopped',h.context),true);
   assert.equal(h.element('play-toggle').attributes['aria-label'],'Play');
+});
+
+
+test('Telegram setup retains the entered hash on save failure, with visible feedback beside Save', async () => {
+  const h=harness();h.element('tg-api-id').value='12345';h.element('tg-api-hash').value='a'.repeat(32);
+  h.context.fetch=async () => ({ok:false,status:400,json:async () => ({status:'error',detail:'Could not save credentials'})});
+  await h.context.configureTelegram();
+  assert.equal(h.element('tg-api-hash').value,'a'.repeat(32));
+  assert.match(h.element('telegram-api-save-status').textContent,/Could not save credentials.*retained/);
+  assert.equal(h.element('tg-api-save').disabled,false);
+  h.context.clearTelegramSecrets();assert.equal(h.element('tg-api-hash').value,'');
+});
+
+test('Telegram setup does not clear the hash or claim success without a matching local read-back receipt', async () => {
+  const h=harness();h.element('tg-api-id').value='12345';h.element('tg-api-hash').value='b'.repeat(32);
+  h.context.fetch=async url => ({ok:true,json:async () => ({status:'ok',saved:true,api_id:url==='/api/tg/configure'?12345:99999})});
+  await h.context.configureTelegram();
+  assert.equal(h.element('tg-api-hash').value,'b'.repeat(32));
+  assert.match(h.element('telegram-api-save-status').textContent,/could not be verified/);
+});
+
+test('Telegram saved API receipt restores visible status after reopening without requesting or returning the hash', async () => {
+  const h=harness();h.element('tg-api-id').value='';h.element('tg-api-hash').value='';
+  h.context.fetch=async (url,opts) => {h.calls.push({url,opts});return {ok:true,json:async () => ({saved:true,api_id:12345,configured:true})};};
+  await h.context.refreshTelegramConfiguration();
+  assert.equal(h.element('tg-api-id').value,'12345');assert.equal(h.element('tg-api-hash').required,false);
+  assert.match(h.element('telegram-api-save-status').textContent,/saved on this device.*12345.*hidden/);
+  assert.deepEqual(h.calls.map(c=>c.url),['/api/tg/configuration']);
+  await h.context.configureTelegram();
+  assert.ok(h.calls.every(c=>c.url==='/api/tg/configuration'));
 });

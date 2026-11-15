@@ -114,15 +114,36 @@ impl TelegramAuth {
         self.credentials.read().unwrap().is_some()
     }
 
+    /// Local durable configuration receipt. Never creates a client, connects to
+    /// Telegram, or returns any hash/session material.
+    pub fn configuration(&self)->Value {
+        let current=self.credentials.read().unwrap();
+        let disk=std::fs::read_to_string(self.files_dir.join(CREDENTIALS_FILE)).ok()
+            .and_then(|text|parse_credentials_file(&text));
+        let saved=match (current.as_ref(),disk.as_ref()) {
+            (Some(current),Some(disk))=>current.api_id==disk.api_id && current.api_hash==disk.api_hash,
+            _=>false,
+        };
+        json!({"configured":current.is_some(),"saved":saved,"api_id":current.as_ref().map(|c|c.api_id)})
+    }
+
     /// Configured only from the on-device setup screen; never returned by status.
     pub async fn configure(&self, api_id:i32, api_hash:&str)->Result<(), String> {
         if api_hash.trim().len()!=32 || !api_hash.trim().bytes().all(|b|b.is_ascii_hexdigit()) {return Err("API hash must be 32 hexadecimal characters".into());}
         let credentials=parse_credentials_file(&json!({"api_id":api_id,"api_hash":api_hash}).to_string())
             .ok_or("Enter a positive API ID and API hash")?;
         let state=self.state.lock().await;
-        if state.client.is_some() {return Err("Disconnect Telegram before changing API credentials".into());}
+        if state.client.is_some() {
+            let receipt=self.configuration();
+            let current=self.credentials.read().unwrap();
+            if receipt["saved"]==true && current.as_ref().is_some_and(|c|c.api_id==credentials.api_id && c.api_hash==credentials.api_hash) {return Ok(());}
+            return Err("Disconnect Telegram before changing API credentials".into());
+        }
         let bytes=serde_json::to_vec(&json!({"api_id":credentials.api_id,"api_hash":credentials.api_hash})).map_err(|_|"Could not save credentials")?;
         crate::tg_session::private_write(&self.files_dir.join(CREDENTIALS_FILE),&bytes).map_err(|_|"Could not save credentials")?;
+        let persisted=std::fs::read_to_string(self.files_dir.join(CREDENTIALS_FILE)).ok()
+            .and_then(|text|parse_credentials_file(&text)).ok_or("Could not verify saved API settings")?;
+        if persisted.api_id!=credentials.api_id || persisted.api_hash!=credentials.api_hash {return Err("Saved API settings did not match".into());}
         *self.credentials.write().unwrap()=Some(credentials);
         Ok(())
     }
@@ -294,8 +315,8 @@ impl TelegramAuth {
         }
     }
 
-    /// Current login state. Connects once (lazily) to learn whether the stored
-    /// session is still authorized.
+    /// Current login state. Network/session refresh is separate from the local
+    /// `/api/tg/configuration` save receipt.
     pub async fn status(&self) -> TgStatus {
         let cached = {
             let state = self.state.lock().await;
@@ -395,6 +416,14 @@ mod tests {
         assert!(!root.join(SESSION_FILE).exists(),"setup must not contact Telegram or create login state");
         #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;assert_eq!(std::fs::metadata(root.join(CREDENTIALS_FILE)).unwrap().permissions().mode()&0o777,0o600);}
         assert!(TelegramAuth::new(&root).is_configured());
+        let restarted=TelegramAuth::new(&root);
+        let receipt=restarted.configuration();
+        assert_eq!(receipt["saved"],true);assert_eq!(receipt["api_id"],12345);
+        assert!(!receipt.to_string().contains(&"a".repeat(32)));
+        assert!(!receipt.to_string().contains("api_hash"));
+        assert!(restarted.state.lock().await.client.is_none(),"read-back confirmation must not create a network client");
+        std::fs::write(root.join(CREDENTIALS_FILE),"broken").unwrap();
+        assert_eq!(restarted.configuration()["saved"],false,"a lost/corrupt file cannot be reported as saved");
         let _=std::fs::remove_dir_all(root);
     }
 
