@@ -1133,3 +1133,42 @@ test('Telegram login clears code and password even when its API fails', async ()
   assert.equal(h.element('tg-code').value, ''); assert.equal(h.element('tg-password').value, '');
   assert.equal(h.element('telegram-feedback').textContent, 'Network unavailable');
 });
+
+
+test('native source fallback does not leave an intermediate403 error over successful playback or break Pause', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback=true',h.context);
+  let release;
+  h.context.fetch = async (url,opts) => {
+    h.calls.push({url,opts});
+    if (url === '/api/play') return new Promise(resolve => {release = resolve;});
+    const data = url === '/api/status' ? {native_playback:true} : url === '/api/player'
+      ? {state:'error',video_id:track.id,error:'media_range_http_403'} : {status:'paused'};
+    return {ok:true,json:async () => data};
+  };
+  const starting = h.context.playSong(track);
+  await h.context.pollStatus();
+  assert.equal(vm.runInContext('state.nativeError',h.context),'');
+  release({ok:true,json:async () => ({status:'playing'})});
+  await starting;
+  assert.equal(vm.runInContext('state.nativeError',h.context),'');
+  await h.context.togglePlay();
+  assert.equal(h.calls.at(-1).url,'/api/pause');
+  assert.equal(h.element('play-toggle').attributes['aria-label'],'Play');
+});
+
+test('tapping during native preparation cancels and a late successful response cannot restart playback', async () => {
+  const h = harness();vm.runInContext('state.nativePlayback=true',h.context);
+  let release;
+  h.context.fetch = async (url,opts) => {
+    h.calls.push({url,opts});
+    if (url === '/api/play') return new Promise(resolve => {release=resolve;});
+    return {ok:true,json:async () => ({status:'stopped'})};
+  };
+  const starting=h.context.playSong(track);
+  await h.context.togglePlay();
+  assert.deepEqual(h.calls.map(c=>c.url),['/api/play','/api/stop']);
+  release({ok:true,json:async () => ({status:'playing'})});await starting;
+  assert.equal(vm.runInContext('state.stopped',h.context),true);
+  assert.equal(h.element('play-toggle').attributes['aria-label'],'Play');
+});

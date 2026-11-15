@@ -734,7 +734,7 @@ async function playSong(t, options = {}) {
       const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), track: t });
       if (attempt !== playbackAttempt) return;
       if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
-      state.stopped = false; state.nativeStage = 'playing';
+      state.stopped = false; state.nativeStage = 'playing'; state.nativeError = '';
       setPlayingState(true); syncNowPlaying();
       document.getElementById('time-display').textContent = 'Playing on this device...';
     } catch (error) {
@@ -806,6 +806,8 @@ async function togglePlay() {
     document.getElementById('time-display').textContent = 'Select a song first';
     return;
   }
+  // A second tap while preparing cancels instead of starting another request.
+  if (state.nativePlayback && state.nativeStarting) return stopPlay();
   // Stop releases the old stream/mpv process; Pause does not. Restart the
   // retained selection with /api/play instead of resuming an empty source.
   if (state.stopped) {
@@ -1582,6 +1584,9 @@ async function pollStatus() {
     }
     if (state.nativePlayback) {
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
+      // Preparation may be rejecting one profile and trying the next. Only the
+      // completed Play/Next transaction may publish a final error/success.
+      if (state.nativeStarting || navigationBusy) { syncNowPlaying(); return; }
       // A resolver refusal happens before there is a player error. Do not erase
       // it on the next idle poll, nor let an old track replace a pending selection.
       if (state.nativeError && !player.error) { syncNowPlaying(); return; }
