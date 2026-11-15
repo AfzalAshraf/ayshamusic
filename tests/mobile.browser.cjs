@@ -246,7 +246,7 @@ let activeViewport = 'startup';
         await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-home.png') });
       }
       // The fifth navigation item remains touchable on narrow phones.
-      for (const name of ['Home', 'Explore', 'Library', 'Quotes', 'Bluetooth']) {
+      for (const name of ['Home', 'Explore', 'Library', 'Quotes', 'Settings']) {
         const box = await page.getByRole('button', { name, exact: true }).boundingBox();
         assert.ok(box && box.width >= 44 && box.height >= 44, `${name} target at ${viewport.width}`);
         assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `${name} stays within viewport`);

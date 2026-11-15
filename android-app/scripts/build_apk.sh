@@ -57,11 +57,11 @@ else
   exit 1
 fi
 
-APK_DIR="$APP/app/build/outputs/apk/release"
-APK="$(find "$APK_DIR" -maxdepth 1 -name '*.apk' | head -n1)"
-[[ -n "$APK" ]] || { echo "error: no APK produced in $APK_DIR" >&2; exit 1; }
-
-echo
-echo "==> Built: $APK"
-ls -lh "$APK"
-"$APP/scripts/measure_apk_size.sh" "$APK"
+for VARIANT in rustAudio androidAudio; do
+  APK_DIR="$APP/app/build/outputs/apk/$VARIANT/release"
+  APK="$(find "$APK_DIR" -maxdepth 1 -name '*.apk' -print -quit)"
+  [[ -n "$APK" ]] || { echo "error: no APK produced in $APK_DIR" >&2; exit 1; }
+  echo "==> Built $VARIANT: $APK"
+  ls -lh "$APK"
+  "$APP/scripts/measure_apk_size.sh" "$APK"
+done

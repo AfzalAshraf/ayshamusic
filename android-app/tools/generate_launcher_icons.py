@@ -2,6 +2,7 @@
 
 Run from anywhere: python3 android-app/tools/generate_launcher_icons.py
 """
+import math
 import os
 import struct
 import zlib
@@ -17,41 +18,26 @@ def _chunk(kind, data):
 
 
 def write_png(path, size, round_icon):
-    bg = (3, 3, 3, 255)
-    red = (255, 0, 0, 255)
-    white = (255, 255, 255, 255)
+    # A full red disc with transparent corners in BOTH legacy variants. The old
+    # regular icon was a small square on an opaque black background.
+    red = (232, 45, 70)
     cx = cy = (size - 1) / 2.0
-    radius = size * 0.30
-    half = size * 0.30
-    note_r = size * 0.075
-    stem_w = max(1.0, size * 0.018)
-
+    radius = size * 0.47
     rows = []
     for y in range(size):
         row = bytearray([0])  # filter type 0
         for x in range(size):
-            dx, dy = x - cx, y - cy
-            if round_icon:
-                inside = (dx * dx + dy * dy) <= radius * radius
-            else:
-                inside = abs(dx) <= half and abs(dy) <= half
-            color = bg
-            if inside:
-                color = red
-                # two note heads
-                if ((x - (cx - size * 0.06)) ** 2 + (y - (cy + size * 0.12)) ** 2) <= note_r * note_r:
-                    color = white
-                elif ((x - (cx + size * 0.10)) ** 2 + (y - (cy + size * 0.06)) ** 2) <= note_r * note_r:
-                    color = white
-                # stems
-                elif abs(x - (cx - size * 0.06)) <= stem_w and cy - size * 0.10 <= y <= cy + size * 0.12:
-                    color = white
-                elif abs(x - (cx + size * 0.10)) <= stem_w and cy - size * 0.16 <= y <= cy + size * 0.06:
-                    color = white
-                # beam
-                elif cx - size * 0.06 <= x <= cx + size * 0.10 and abs(y - (cy - size * 0.14)) <= size * 0.02:
-                    color = white
-            row += bytes(color)
+            coverage = max(0.0, min(1.0, radius - math.hypot(x - cx, y - cy) + 0.5))
+            nx, ny = (x + 0.5) / size, (y + 0.5) / size
+            note = (
+                ((nx - 0.39) ** 2 + (ny - 0.66) ** 2 <= 0.075 ** 2)
+                or ((nx - 0.61) ** 2 + (ny - 0.60) ** 2 <= 0.075 ** 2)
+                or (0.435 <= nx <= 0.465 and 0.34 <= ny <= 0.66)
+                or (0.655 <= nx <= 0.685 and 0.28 <= ny <= 0.60)
+                or (0.435 <= nx <= 0.685 and 0.34 - (nx - 0.435) * 0.24 <= ny <= 0.39 - (nx - 0.435) * 0.24)
+            )
+            rgb = (255, 255, 255) if note and coverage else red
+            row += bytes((*rgb, round(255 * coverage)))
         rows.append(bytes(row))
 
     raw = b"".join(rows)

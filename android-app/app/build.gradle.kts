@@ -12,8 +12,8 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.3.0"
+        versionCode = 9
+        versionName = "1.3.1"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -43,14 +43,30 @@ android {
         }
     }
 
+    flavorDimensions += "audio"
+    productFlavors {
+        create("rustAudio") {
+            dimension = "audio"
+            applicationIdSuffix = ".rustaudio9"
+            resValue("string", "app_name", "Aysha Rust Audio")
+            buildConfigField("String", "AUDIO_ENGINE", "\"rust\"")
+            buildConfigField("int", "API_PORT", "5061")
+        }
+        create("androidAudio") {
+            dimension = "audio"
+            applicationIdSuffix = ".androidaudio9"
+            resValue("string", "app_name", "Aysha Android Audio")
+            buildConfigField("String", "AUDIO_ENGINE", "\"media3\"")
+            buildConfigField("int", "API_PORT", "5062")
+        }
+    }
+
     buildTypes {
         release {
             // CI test builds install alongside the old APK: ephemeral debug keys
             // must not force the user to uninstall it and lose local preferences.
             if (System.getenv("AYSHA_PREVIEW") == "1") {
-                applicationIdSuffix = ".telegram8"
                 versionNameSuffix = "-preview"
-                resValue("string", "app_name", "Aysha Music Telegram")
             }
             isMinifyEnabled = true
             isShrinkResources = true
@@ -86,6 +102,7 @@ android {
 
     // No ViewBinding, no DataBinding - keep it minimal
     buildFeatures {
+        buildConfig = true
         viewBinding = false
         dataBinding = false
     }
@@ -96,6 +113,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.media:media:1.6.0")  // MediaSessionCompat
+
+    "androidAudioImplementation"("androidx.media3:media3-exoplayer:1.8.0")
 
     // NO Jetpack Compose, NO Navigation, NO Room, NO WorkManager, NO Lifecycle, NO ConstraintLayout
 }

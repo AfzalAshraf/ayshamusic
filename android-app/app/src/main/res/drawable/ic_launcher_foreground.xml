@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original music-note geometry; stays inside the adaptive icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M46,43 L74,36 L74,62 C74,67 69,71 64,71 C59,71 56,68 56,64 C56,60 61,57 67,57 L68,57 L68,44 L52,48 L52,70 C52,75 47,79 42,79 C37,79 34,76 34,72 C34,68 39,65 45,65 L46,65 Z" />
+</vector>

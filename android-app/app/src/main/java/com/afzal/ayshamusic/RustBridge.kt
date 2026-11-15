@@ -17,10 +17,10 @@ object RustBridge {
 
     // Native method declaration
     @Suppress("UNUSED_PARAMETER")
-    private external fun startServer(filesDir: String, cacheDir: String, context: Context)
+    private external fun startServer(filesDir: String, cacheDir: String, context: Context, port: Int, engine: String, instance: String)
 
     /**
-     * Starts the Rust HTTP server on 127.0.0.1:5050.
+     * Starts the Rust HTTP server on the variant-specific loopback port.
      * Must be called once from MainActivity.onCreate().
      */
     fun startServer(context: Context) {
@@ -37,7 +37,8 @@ object RustBridge {
         try {
             // CPAL needs a JVM + long-lived application Context before audio opens.
             // Never retain an Activity: it may be destroyed while playback continues.
-            startServer(filesDir, cacheDir, context.applicationContext)
+            PlatformAudio.initialize(context.applicationContext)
+            startServer(filesDir, cacheDir, context.applicationContext, BuildConfig.API_PORT, BuildConfig.AUDIO_ENGINE, MediaApi.instanceId)
             serverStarted = true
             Log.i(TAG, "Rust server start request sent successfully")
         } catch (e: UnsatisfiedLinkError) {
@@ -49,5 +50,8 @@ object RustBridge {
     /**
      * Checks if the server has been started.
      */
+    @Suppress("unused")
+    fun platformCommand(command: String) { PlatformAudio.command(command) }
+
     fun isServerStarted(): Boolean = serverStarted
 }

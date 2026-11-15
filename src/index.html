@@ -64,7 +64,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-morph{animation:heart-morph-out .35s ease-out both!important}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
-.tg-fields{display:grid;gap:12px;margin:16px 0}.tg-fields label{display:grid;gap:6px;color:var(--sub);font-size:14px}.tg-fields input{width:100%;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#211b24;color:var(--text);font:inherit}.tg-actions{display:flex;flex-wrap:wrap;gap:10px}#telegram-account p{line-height:1.6}#telegram-account a{color:var(--accent)}#telegram-account .chip{min-height:44px}#telegram-account-button{margin-bottom:20px}
+.tg-fields{display:grid;gap:12px;margin:16px 0}.tg-fields label{display:grid;gap:6px;color:var(--sub);font-size:14px}.tg-fields input{width:100%;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#211b24;color:var(--text);font:inherit}.tg-actions{display:flex;flex-wrap:wrap;gap:10px}#telegram-account p{line-height:1.6}#telegram-account a{color:var(--accent)}#telegram-account .chip{min-height:44px}.settings-card{max-width:620px;margin:20px 0;padding:24px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,#361f2b,#211b24)}.settings-card h3{font-size:21px;margin:14px 0 10px}.settings-card p,.settings-card small{display:block;color:var(--sub);line-height:1.7}.settings-card small{font-size:12px}.settings-symbol{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:16px;background:#e82d4620;color:#fa667c}.settings-symbol .app-icon{width:26px;height:26px}.settings-primary{display:block;min-height:48px;max-width:100%;padding:12px 22px;margin:20px 0 14px;border:0;border-radius:15px;background:#e82d46;color:#fff;font:inherit;font-weight:700;cursor:pointer}.settings-card summary{cursor:pointer;min-height:44px;line-height:44px}.settings-primary:focus-visible{outline:2px solid #fff;outline-offset:4px}
 </style>
 </head>
 <body>
@@ -95,7 +95,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <button type="button" class="nav-item" id="nav-explore" aria-label="Explore" onclick="switchTab('explore')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#compass"></use></svg><span>Explore</span></button>
     <button type="button" class="nav-item" id="nav-library" aria-label="Library" onclick="switchTab('library')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#library"></use></svg><span>Library</span></button>
     <button type="button" class="nav-item" id="nav-quotes" aria-label="Quotes" onclick="switchTab('quotes')"><svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/icons.svg#heart"></use></svg><span>Quotes</span></button>
-    <button type="button" class="nav-item" id="nav-bluetooth" aria-label="Bluetooth" onclick="switchTab('bluetooth')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#bluetooth"></use></svg><span>Bluetooth</span></button>
+    <button type="button" class="nav-item" id="nav-settings" aria-label="Settings" onclick="switchTab('settings')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#settings"></use></svg><span>Settings</span></button>
   </div>
 </div>
 <div class="main-wrapper">
@@ -142,7 +142,6 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <div class="grid-cards" id="explore-cards"></div>
     </div>
     <div class="tab-page" id="tab-library">
-      <button type="button" id="telegram-account-button" class="chip" hidden onclick="openTelegramAccount()">Telegram account</button>
       <div class="section-title">Liked Songs <span class="liked-count" id="liked-count">0</span></div>
       <div class="grid-cards" id="full-history"></div>
       <div class="section-title">Queue <span id="queue-count">0</span> <button class="chip" onclick="queueClear()" style="float:right">Clear</button> <span style="color:var(--sub);font-size:11px">auto-plays next</span></div>
@@ -185,15 +184,26 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <p class="quote-storage" id="quote-storage-status" role="status" aria-live="polite"></p>
       <p class="quote-caption">A little encouragement, not a promise to make difficult feelings disappear. You can always return to your music.</p>
     </section>
-    <div class="tab-page" id="tab-bluetooth">
-      <div class="section-title">Bluetooth Settings</div>
-      <div class="bt-card" id="bt-status-card">
-        <div><b id="bt-status-text">Status: Checking...</b><small id="bt-device-text">--</small></div>
-        <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
-      </div>
-      <div class="section-title">Configured Speaker</div>
-      <div id="bt-list"></div>
-    </div>
+    <section class="tab-page" id="tab-settings" aria-labelledby="settings-heading">
+      <p class="page-eyebrow">MAKE YOURSELF AT HOME</p>
+      <h2 class="page-heading" id="settings-heading">Settings</h2>
+      <article class="settings-card" aria-labelledby="telegram-settings-heading">
+        <span class="settings-symbol" aria-hidden="true"><svg class="app-icon"><use href="/icons.svg#settings"></use></svg></span>
+        <h3 id="telegram-settings-heading">Your Telegram account</h3>
+        <p>Connect your account to save songs privately in your Saved Messages and stream them from there next time.</p>
+        <button type="button" id="telegram-account-button" class="settings-primary" onclick="openTelegramAccount()">Add Telegram account</button>
+        <small>API setup, sign-in, saved-song status and disconnect are all here. No bot or external Aysha server needed.</small>
+      </article>
+      <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
+      <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
+        <summary>Linux speaker controls</summary>
+        <div class="bt-card" id="bt-status-card">
+          <div><b id="bt-status-text">Status: Not checked</b><small id="bt-device-text">--</small></div>
+          <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
+        </div>
+        <div id="bt-list"></div>
+      </details>
+    </section>
     <div class="footer">Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</div>
   </main>
   <div class="player-bar" id="player-bar">
@@ -619,6 +629,7 @@ let telegramBusy = false;
 async function refreshTelegramAccount() {
   const status = await api('GET', '/api/tg/status');
   const queue = status.quota || {};
+  document.getElementById('telegram-account-button').textContent = status.authorized ? 'Manage Telegram account' : 'Add Telegram account';
   document.getElementById('telegram-status').textContent =
     (status.authorized ? 'Connected · Saved Messages' : status.configured ? 'API configured · Sign in below' : 'Complete first-time API setup below') +
     ' · Pending: ' + (queue.queued_tracks || 0) + ' · Failed: ' + (status.failed_tracks || 0) +
@@ -629,7 +640,7 @@ function clearTelegramSecrets() {
   for (const id of ['tg-api-hash', 'tg-code', 'tg-password']) document.getElementById(id).value = '';
 }
 async function openTelegramAccount() {
-  if (!state.nativePlayback) return;
+  if (!state.nativePlayback) { showMessage('Telegram account sign-in is available in the standalone Android app.'); return; }
   const dialog = document.getElementById('telegram-account');
   if (!dialog.open) {
     history.pushState({ ayshaTab: currentTab, ayshaDepth: (history.state && history.state.ayshaDepth || 0) + 1, ayshaTelegram: true }, '', '#' + currentTab + '/telegram');
@@ -1434,12 +1445,13 @@ function resetQuotePreferences() {
     : 'Reset for this page only. Browser storage could not be cleared; saved choices may return after reload.';
 }
 
-const appTabs = ['home', 'explore', 'library', 'quotes', 'bluetooth'];
+const appTabs = ['home', 'explore', 'library', 'quotes', 'settings'];
 let currentTab = 'home';
 const tabScroll = new Map();
 const loadedTabs = new Set();
 
 function renderTab(tab, options = {}) {
+  if (tab === 'bluetooth') tab = 'settings'; // Preserve old bookmarked links.
   if (!appTabs.includes(tab)) tab = 'home';
   const content = document.getElementById('content-area');
   tabScroll.set(currentTab, content.scrollTop || 0);
@@ -1456,7 +1468,7 @@ function renderTab(tab, options = {}) {
   // loaded. Preserve existing views, but fetch missing content on that return.
   if (options.load === false && loadedTabs.has(tab)) return;
   let work;
-  if (tab === 'bluetooth') work = loadBluetooth();
+  if (tab === 'settings') { loadedTabs.add(tab); return; }
   else if (tab === 'library') work = loadLiked();
   else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Jazz');
   loadedTabs.add(tab);
@@ -1468,6 +1480,7 @@ function renderTab(tab, options = {}) {
 }
 
 function switchTab(tab, options = {}) {
+  if (tab === 'bluetooth') tab = 'settings';
   if (!appTabs.includes(tab)) return;
   if (currentTab !== tab) {
     const depth = (history.state && history.state.ayshaDepth || 0) + 1;
@@ -1532,7 +1545,7 @@ function queueFromPlayer() {
 }
 
 function initializeNavigation() {
-  const requested = location.hash.slice(1).split('/')[0];
+  const requested = location.hash.slice(1).split('/')[0].replace(/^bluetooth$/, 'settings');
   const tab = appTabs.includes(requested) ? requested : 'home';
   history.replaceState({ ayshaTab: tab, ayshaDepth: 0 }, '', '#' + tab);
   window.addEventListener('popstate', event => {
@@ -1557,7 +1570,8 @@ async function pollStatus() {
     const st = await api('GET', '/api/status');
     if (st && st.native_playback === true) {
       state.nativePlayback = true;
-      document.getElementById('telegram-account-button').hidden = false;
+      document.getElementById('linux-speaker-settings').hidden = true;
+      document.getElementById('android-output-note').hidden = false;
       const receipt = document.getElementById('native-build-receipt');
       receipt.hidden = false;
       receipt.textContent = 'Rust APK · ' + (/^[a-f0-9]{40}$/.test(st.build_id || '') ? st.build_id.slice(0, 7) : 'local build');

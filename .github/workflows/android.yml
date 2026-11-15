@@ -94,14 +94,23 @@ jobs:
 
       - name: Enforce APK size budget
         run: |
-          bash android-app/scripts/measure_apk_size.sh \
-            android-app/app/build/outputs/apk/release/app-release.apk
+          for variant in rustAudio androidAudio; do
+            bash android-app/scripts/measure_apk_size.sh android-app/app/build/outputs/apk/$variant/release/*.apk
+          done
 
-      - name: Upload APK
+      - name: Upload Rust Audio APK
         uses: actions/upload-artifact@v4
         with:
-          name: ayshamusic-arm64-release
-          path: android-app/app/build/outputs/apk/release/*.apk
+          name: ayshamusic-rust-audio-arm64
+          path: android-app/app/build/outputs/apk/rustAudio/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Android Audio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ayshamusic-android-audio-arm64
+          path: android-app/app/build/outputs/apk/androidAudio/release/*.apk
           if-no-files-found: error
           retention-days: 14
 

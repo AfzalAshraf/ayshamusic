@@ -13,6 +13,8 @@ mod recommendations;
 mod listening;
 mod range_media;
 mod pcm_stream;
+mod audio_engine;
+mod platform_audio;
 mod tg_storage;
 
 pub mod player;
@@ -39,9 +41,13 @@ const INDEX_HTML: &str = include_str!("index.html");
 /// `(files_dir, cache_dir)` supplied by Android on startup.
 static PATHS: OnceLock<(String, String)> = OnceLock::new();
 static SERVER_STARTED: OnceLock<()> = OnceLock::new();
+static STARTUP: OnceLock<(u16, String, String)> = OnceLock::new();
+fn api_port()->u16 { STARTUP.get().map(|s|s.0).unwrap_or(5050) }
+fn audio_engine_name()->&'static str { STARTUP.get().map(|s|s.1.as_str()).unwrap_or("rust") }
+fn instance_id()->&'static str { STARTUP.get().map(|s|s.2.as_str()).unwrap_or("host") }
 
 /// Playback thread, started lazily on the first `/api/play`.
-static PLAYER: OnceLock<player::Player> = OnceLock::new();
+static PLAYER: OnceLock<audio_engine::Player> = OnceLock::new();
 static TG_CACHE: OnceLock<Arc<TelegramCacheManager>> = OnceLock::new();
 // Serializes Stop with source handoff, including a Play still resolving remotely.
 static PLAY_TICKET: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
@@ -66,12 +72,12 @@ async fn visitor(client: &reqwest::Client) -> &'static youtube::Visitor {
 
 /// Only `/api/play` may open the audio device. Read/control endpoints must
 /// never acquire hardware just because the UI polls them.
-fn started_player() -> Option<&'static player::Player> {
+fn started_player() -> Option<&'static audio_engine::Player> {
     PLAYER.get()
 }
 
-fn player() -> &'static player::Player {
-    PLAYER.get_or_init(player::Player::spawn)
+fn player() -> &'static audio_engine::Player {
+    PLAYER.get_or_init(audio_engine::Player::spawn)
 }
 
 fn http_client() -> Option<&'static reqwest::Client> {
@@ -135,6 +141,8 @@ fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Route
         .merge(android_catalog::routes())
         .route("/", get(index))
         .route("/api/status", get(status))
+        .route("/api/platform/event", post(platform_audio::receive_event))
+        .route("/api/platform/media/{token}", get(platform_audio::media))
         .route("/api/tg/quota", get(tg_quota))
         .route("/api/tg/send_code", post(tg_send_code))
         .route("/api/tg/verify_code", post(tg_verify_code))
@@ -187,14 +195,14 @@ async fn serve(files_dir: String, cache_dir: String) {
     let app = router_with_phone(Arc::new(manager), phone);
 
     // Loopback only: the WebView talks to 127.0.0.1, the phone's LAN cannot.
-    match tokio::net::TcpListener::bind("127.0.0.1:5050").await {
+    match tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, api_port())).await {
         Ok(listener) => {
-            println!("ayshamusic: listening on http://127.0.0.1:5050");
+            println!("ayshamusic: listening on loopback port {} ({})", api_port(), audio_engine_name());
             if let Err(error) = axum::serve(listener, app).await {
                 eprintln!("ayshamusic: server stopped: {error}");
             }
         }
-        Err(error) => eprintln!("ayshamusic: bind 127.0.0.1:5050 failed: {error}"),
+        Err(error) => eprintln!("ayshamusic: bind loopback port {} failed: {error}", api_port()),
     }
 }
 
@@ -208,6 +216,9 @@ async fn status() -> Json<Value> {
         "phase": 2,
         "server": "ayshamusic",
         "backend": "rust",
+        "audio_engine": audio_engine_name(),
+        "instance_id": instance_id(),
+        "api_port": api_port(),
         // The page uses this to switch from <audio>/proxy streaming to the
         // in-app Rust player. The Linux server does not send it.
         "native_playback": true,
@@ -304,7 +315,7 @@ async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>
     let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
     tg_storage::pause(true);
     match manager.telegram().disconnect().await {
-        Ok(())=>{let _=manager.clear_pending();let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);let _=started_player().map(player::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
+        Ok(())=>{let _=manager.clear_pending();let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);let _=started_player().map(audio_engine::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
         Err(error)=>api_error(StatusCode::BAD_GATEWAY,"telegram_disconnect",error),
     }
 }
@@ -652,7 +663,7 @@ fn send_stream_error(
 }
 
 async fn pause() -> Json<Value> {
-    match started_player().map(player::Player::pause) {
+    match started_player().map(audio_engine::Player::pause) {
         Some(Ok(())) => Json(json!({ "status": "paused" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
@@ -660,7 +671,7 @@ async fn pause() -> Json<Value> {
 }
 
 async fn resume() -> Json<Value> {
-    match started_player().map(player::Player::resume) {
+    match started_player().map(audio_engine::Player::resume) {
         Some(Ok(())) => Json(json!({ "status": "playing" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
@@ -670,7 +681,7 @@ async fn resume() -> Json<Value> {
 async fn stop(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
     sample_listening(&phone);phone.listening.lock().unwrap().flush();
     let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);
-    match started_player().map(player::Player::stop) {
+    match started_player().map(audio_engine::Player::stop) {
         Some(Ok(())) => Json(json!({ "status": "stopped" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
@@ -907,6 +918,15 @@ mod android {
     // Its lifetime is the process lifetime, just like the native server/player.
     // This mutex serializes initialization (ndk-context must be set exactly once).
     static AUDIO_CONTEXT: Mutex<Option<GlobalRef>> = Mutex::new(None);
+    static PLATFORM: std::sync::OnceLock<(JavaVM, GlobalRef)> = std::sync::OnceLock::new();
+
+    pub(super) fn platform_command(text: &str)->Result<(),String> {
+        let (vm, bridge)=PLATFORM.get().ok_or("Android audio bridge unavailable")?;
+        let mut env=vm.attach_current_thread().map_err(|_|"Android audio thread attachment failed")?;
+        let text=env.new_string(text).map_err(|_|"Android audio command allocation failed")?;
+        let result=env.call_method(bridge.as_obj(),"platformCommand","(Ljava/lang/String;)V",&[jni::objects::JValue::Object(text.as_ref())]);
+        if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
+    }
 
     pub(super) fn audio_context_ready() -> bool {
         AUDIO_CONTEXT.lock().map(|context| context.is_some()).unwrap_or(false)
@@ -948,11 +968,23 @@ mod android {
     #[no_mangle]
     pub extern "system" fn Java_com_afzal_ayshamusic_RustBridge_startServer<'local>(
         mut env: JNIEnv<'local>,
-        _receiver: JObject<'local>,
+        receiver: JObject<'local>,
         files_dir: JString<'local>,
         cache_dir: JString<'local>,
         context: JObject<'local>,
+        port: jni::sys::jint,
+        engine: JString<'local>,
+        instance: JString<'local>,
     ) {
+        let engine: String=match env.get_string(&engine) {Ok(v)=>v.into(),Err(_)=>return};
+        let instance: String=match env.get_string(&instance) {Ok(v)=>v.into(),Err(_)=>return};
+        if !matches!((port,engine.as_str()),(5061,"rust")|(5062,"media3")) || instance.len()<16 || instance.len()>128 {
+            let _=env.throw_new("java/lang/IllegalArgumentException","Invalid backend identity");return;
+        }
+        let vm=match env.get_java_vm(){Ok(v)=>v,Err(_)=>return};
+        let bridge=match env.new_global_ref(&receiver){Ok(v)=>v,Err(_)=>return};
+        let _=PLATFORM.set((vm,bridge));
+        let _=super::STARTUP.set((port as u16,engine,instance));
         let files_dir: String = match env.get_string(&files_dir) {
             Ok(value) => value.into(),
             Err(_) => return,

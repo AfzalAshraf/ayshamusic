@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 
 /**
- * MainActivity - Ultra-minimal fullscreen WebView pointing to localhost:5050.
+ * MainActivity - Fullscreen WebView pointing to the verified variant-specific loopback server.
  * 
  * Key properties:
  * - No Jetpack Compose, no Navigation, no Fragments
@@ -30,7 +30,7 @@ import androidx.core.view.WindowCompat
 class MainActivity : AppCompatActivity() {
     private companion object {
         private const val TAG = "MainActivity"
-        private const val SERVER_URL = "http://127.0.0.1:5050"
+        private val SERVER_URL get() = MediaApi.baseUrl
     }
 
     @Volatile private var destroyed = false
@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
                     // Keep localhost navigation in WebView
-                    if (url.startsWith("http://127.0.0.1:5050") || url.startsWith("https://127.0.0.1:5050")) {
+                    if (request.url.scheme == "http" && request.url.host == "127.0.0.1" && request.url.port == BuildConfig.API_PORT) {
                         return false
                     }
                     // Open external links in browser
@@ -163,7 +163,7 @@ class MainActivity : AppCompatActivity() {
             var ready = false
             for (attempt in 1..30) {
                 if (destroyed) return@Thread
-                if (MediaApi.get("/api/status") != null) { ready = true; break }
+                if (MediaApi.verifyBackend()) { ready = true; break }
                 Thread.sleep(200)
             }
             runOnUiThread {
@@ -216,7 +216,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         // Handle deep links if needed
         intent.data?.let { uri ->
-            if (uri.toString().startsWith("http://127.0.0.1:5050")) {
+            if (uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && MediaApi.verifyBackend()) {
                 webView?.loadUrl(uri.toString())
             }
         }

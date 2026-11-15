@@ -127,7 +127,10 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                     let errors = reader.health();
                     let decoder = Decoder::builder().with_data(reader).with_byte_len(len)
                         .with_hint("m4a").with_seekable(true).build()
-                        .map_err(|e| format!("audio_decode_failed: {e}"))?;
+                        .map_err(|e| {
+                            let source=errors.lock().unwrap().clone();
+                            format!("audio_decode_failed: {e}{}", source.map(|s|format!("; input: {s}")).unwrap_or_default())
+                        })?;
                     let duration = decoder.total_duration().map(|d| d.as_secs_f64());
                     let pcm = crate::pcm_stream::PcmSource::prepare(decoder, cancel.clone()).map_err(|e| e.to_string())?;
                     if let Some(error) = errors.lock().unwrap().clone() { return Err(error); }

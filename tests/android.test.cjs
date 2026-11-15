@@ -26,23 +26,23 @@ test('Android branch APK build never overwrites the main public release', () => 
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
   assert.match(workflow, /AYSHA_PREVIEW: "1"/);
-  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.telegram8"/);
+  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.rustaudio9"/);
 });
 
 test('startup waits for the on-phone API and retains external-server independence', () => {
   const activity = read('android-app/app/src/main/java/com/afzal/ayshamusic/MainActivity.kt');
-  assert.match(activity, /http:\/\/127.0.0.1:5050/);
-  assert.match(activity, /MediaApi.get\("\/api\/status"\)/);
+  assert.match(activity, /MediaApi.baseUrl/);
+  assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 8/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 9/);
 });
 
 
 test('Android passes application context across JNI before starting Rust workers', () => {
   const bridge = read('android-app/app/src/main/java/com/afzal/ayshamusic/RustBridge.kt');
-  assert.match(bridge, /private external fun startServer\(filesDir: String, cacheDir: String, context: Context\)/);
-  assert.match(bridge, /startServer\(filesDir, cacheDir, context.applicationContext\)/);
+  assert.match(bridge, /private external fun startServer\(filesDir: String, cacheDir: String, context: Context, port: Int, engine: String, instance: String\)/);
+  assert.match(bridge, /startServer\(filesDir, cacheDir, context.applicationContext, BuildConfig.API_PORT, BuildConfig.AUDIO_ENGINE, MediaApi.instanceId\)/);
   const lib = read('src/lib.rs');
   assert.match(lib, /context: JObject<'local>/);
   const start = lib.slice(lib.indexOf('pub extern "system" fn Java_com_afzal_ayshamusic_RustBridge_startServer'));
@@ -81,10 +81,12 @@ test('native decoder input is seekable and PCM callback does not fetch network',
   assert.match(read('src/range_media.rs'), /old unseekable path must reproduce/);
 });
 
-test('Telegram account setup is in Library, not Now Playing, and source order is Telegram first', () => {
+test('Telegram account setup is in Settings, not Now Playing, and source order is Telegram first', () => {
   const html = read('src/index.html');
-  const library = html.slice(html.indexOf('id="tab-library"'), html.indexOf('id="tab-quotes"'));
-  assert.match(library, /openTelegramAccount/);
+  const settings = html.slice(html.indexOf('id="tab-settings"'), html.indexOf('<div class="footer">'));
+  assert.match(settings, /openTelegramAccount/);
+  assert.match(settings, />Add Telegram account</);
+  assert.doesNotMatch(settings, /id="telegram-account-button"[^>]*hidden/);
   const player = html.slice(html.indexOf('id="now-playing"'), html.indexOf('<script>'));
   assert.doesNotMatch(player, /Reset learning|tg-api-hash|tg-password/);
   const lib = read('src/lib.rs');
@@ -94,4 +96,31 @@ test('Telegram account setup is in Library, not Now Playing, and source order is
   assert.match(storage, /PeerId::self_user/);
   assert.match(storage, /iter_download/); assert.match(storage, /upload_stream/);
   assert.match(storage, /archive_incomplete/);
+});
+
+
+test('dual audio APKs isolate identities, ports and playback-only dependencies', () => {
+  const gradle = read('android-app/app/build.gradle.kts');
+  for (const suffix of ['rustaudio9', 'androidaudio9']) assert.ok(gradle.includes(`applicationIdSuffix = ".${suffix}"`));
+  for (const port of ['5061', '5062']) assert.ok(gradle.includes(`"API_PORT", "${port}"`));
+  assert.match(gradle, /"androidAudioImplementation"\("androidx.media3:media3-exoplayer:1.8.0"\)/);
+  const api = read('android-app/app/src/main/java/com/afzal/ayshamusic/MediaApi.kt');
+  assert.match(api, /UUID.randomUUID/);
+  for (const key of ['instance_id', 'audio_engine', 'api_port']) assert.ok(api.includes(`"${key}"`));
+  assert.match(api, /if \(!verified\) return/);
+  const native = read('android-app/app/src/androidAudio/java/com/afzal/ayshamusic/PlatformAudio.kt');
+  assert.match(native, /setHandleAudioBecomingNoisy\(true\)/);
+  assert.match(native, /setAudioAttributes/);
+  assert.match(native, /STATE_READY/);
+  assert.doesNotMatch(native, /youtube\.com|googlevideo\.com|my\.telegram\.org/);
+  const workflow = read('.github/workflows/android.yml');
+  for (const name of ['ayshamusic-rust-audio-arm64', 'ayshamusic-android-audio-arm64']) assert.ok(workflow.includes(name));
+});
+
+test('red launcher supports both adaptive masks and legacy round icons without recoloring Play', () => {
+  assert.match(read('android-app/app/src/main/res/values/colors.xml'), /#E82D46/);
+  for (const icon of ['ic_launcher', 'ic_launcher_round']) {
+    assert.match(read(`android-app/app/src/main/res/mipmap-anydpi-v26/${icon}.xml`), /adaptive-icon/);
+  }
+  assert.doesNotMatch(read('src/index.html'), /--accent: ?#e82d46/i);
 });
