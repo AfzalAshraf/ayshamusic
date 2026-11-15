@@ -7,6 +7,23 @@
 
 ## Build11 source and artifacts
 
+### Latest sealed build (recommended download for icon/Telegram update only)
+
+Source**10a46e6**, [Android43740368278](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43740368278)
+**SUCCESS**; Linux43740368277 **SUCCESS all six jobs**. No live source job ran;
+renewed permission was already consumed and disabled. Both APKs remain build11:
+
+- [Rust Audio11 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43740368278/artifacts/14172287438)
+  —4,451,276bytes; ZIP SHA256a1acbbda37959bfa6f794335ac395b7f79a86fcabc189004271a259af776bc7c.
+- [Android Audio11 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43740368278/artifacts/14172127833)
+  —4,965,527bytes; ZIP SHA256e942420cfa2defd75d9185b9a3706618eaaa736a1f6a34ae88e567c85df07dde.
+
+GitHub artifact metadata verified; no claim of local binary inspection, valid
+production signing, restored YouTube playback or physical-phone acceptance.
+Local final regressions:105Node and140Python PASS (includes3 launcher tests).
+
+### Earlier image9 experiment build (historical)
+
 Source938b364, Android run43739826775: **build-apk job132890296348 SUCCESS**,
 both ARM64 APKs uploaded and size gates passed. The overall workflow is red because
 the separate one-off source research job correctly failed its validation gate.

@@ -2517,3 +2517,16 @@ Linux43739826787 **SUCCESS all six jobs**, including offline source guards.
 
 Renewed allowance now consumed and sealed again; no retries. New offline launcher
 resource checks added (PNG dimensions/alpha and matching adaptive resources).
+
+
+### Final sealed build11 artifacts
+
+Source10a46e6: **Android43740368278 SUCCESS** (build job132891981138), **Linux
+43740368277 SUCCESS all six jobs**. No additional live experiment. Local final
+**105Node/140Python PASS**, YAML parse/diff checks PASS. Latest ZIP artifacts:
+Rust14172287438 (4,451,276bytes, SHA256a1acbbda37959bfa6f794335ac395b7f79a86fcabc189004271a259af776bc7c),
+Android14172127833 (4,965,527bytes, SHA256e942420cfa2defd75d9185b9a3706618eaaa736a1f6a34ae88e567c85df07dde).
+GitHub metadata verified; no binary re-download claim. Sent as requested icon/
+Telegram save updates with explicit unresolved source warning, not "playback fixed".
+Both packages share previous code10 IDs; ephemeral signing may reject in-place
+updates, and uninstall erases app-private sessions. Device acceptance remains open.
