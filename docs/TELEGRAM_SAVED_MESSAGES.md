@@ -12,6 +12,19 @@ The user explicitly selected these options in this session:
 This is an in-app Rust MTProto feature, not an Arena connector. No Telegram
 credentials, account codes or passwords should be sent in chat or committed to Git.
 
+## Save-feedback correction on the working branch
+
+Installed code10 cleared the hash after every request, including failures; a blank
+field therefore did not prove whether saving succeeded. The working branch now
+verifies the app-private file and a separate local configuration receipt before
+clearing the hash. On failure it retains the entry until retry/dialog close. A
+saved/API-ID/hash-hidden confirmation appears beside Save and on reopening; the
+hash is never returned or stored in browser storage. This is not real account
+validation and has **not yet been delivered as a new playback-fixed APK**.
+
+Code10 music playback remains blocked; see `PLAYBACK_BLOCKER.md`. Do not interpret
+the prior green build/artifact links as successful device playback.
+
 ## Phone setup
 
 1. Install either identified candidate: **Aysha Rust Audio** or **Aysha Android Audio**.

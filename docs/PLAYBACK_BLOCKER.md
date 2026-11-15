@@ -36,12 +36,13 @@ Source-only investigation (no YouTube requests):
   problems; https://github.com/Mithronn/rusty_ytdl/pull/62 proposes another client.
   These are not proof that changing libraries would solve the phone's problem.
 
-Ask whether a Rust-only replacement (possibly Rust-implemented JS runtime) is
-approved, or whether an established Android extractor fallback may be considered.
-Separately ask permission for one bounded public-video CI source test. Prior
-single live-watch experiment approval was already consumed. A CI source success
-would not establish phone/network/region acceptance. No credentials/account
-access, external Aysha helper, Python/Node runtime or source bypass is implied.
+The user subsequently selected **Rust-only replacement research**, including a
+Rust-implemented JS runtime if needed, and **one bounded CI experiment** on one
+public video:12requests/8MiB/60seconds/two small media ranges. No Android extractor
+fallback was approved. That new experiment is now **consumed**; see the result
+below. Prior single live-watch approval was separate and already consumed too.
+No credentials/account access, external Aysha helper, Python/Node runtime or
+source bypass was approved or used.
 
 ## Telegram save confirmation correction (not a playback fix)
 
@@ -67,3 +68,35 @@ Implemented on the working branch:
 Local tests:105NodePASS,137PythonPASS, six native Settings/browser save-confirmation
 fixtures plus actual loopback-port regression PASS. CI compilation status must be
 recorded separately. No new playback-fix APK is being delivered from this change.
+
+
+## Approved experiment result — NOT a working replacement
+
+Source7fe2ab2, [run43737916216](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43737916216),
+job132884517889. The fuller Rust candidate plus guard tests compiled. The live
+step then failed the gate with `candidate_media_host_rejected`, at metadata stage:
+
+- **3** guarded HTTPS requests; **1,389,875** transport bytes reserved/used;
+  **1,453ms** elapsed. **Zero media-range requests** reached program execution.
+- The selected URL did not pass the strict HTTPS/googlevideo/no-userinfo/default-
+  port check. The report intentionally did not retain its signed URL, so this is
+  **not proof of a specific host, empty-URL cause or HTTP403 from this candidate**.
+- No first/tail source-range, AAC decode, Android compilation or phone-acceptance
+  gate was passed by the candidate. It remains isolated from the APK Cargo graph.
+- Sanitized annotation transcribed in `research/rust-source-once-result.json`.
+  Artifact14170963008 contains the original JSON and generated Cargo.lock (ZIP
+  20,158bytes, SHA256a2e5100529450544f6d5f019cd0b814e7b274dc4aff0a8a96caab15b94374208).
+  Metadata verified through the API; no restricted binary-download retry.
+- API manual dispatch was denied (403); that call started no live run. A narrowly
+  parent-SHA/approval-message gated push was used instead. An initial YAML syntax
+  failure had no jobs/network; the corrected run above is the sole live attempt.
+- **Do not retry.** The parent/message gate and manual source input have been
+  removed from the Android workflow. The reusable live workflow job is disabled.
+  `LIVE_APPROVAL_AVAILABLE=false` makes even `--approved-once` return offline.
+  Offline guard tests assert that the consumed permission stays disabled.
+
+Telegram correction separately passed Android43736467314 and Linux43736467342
+(all five jobs), source540c8c7. These prove build/fixture/read-back behavior, not
+that the user's particular credentials were lost, valid, or accepted by Telegram.
+No further APK is being represented as a playback fix. The installed code10
+artifacts failed device acceptance; do not resend those links as known-working.

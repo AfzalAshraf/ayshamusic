@@ -6,6 +6,9 @@ use serde_json::{json,Value};
 use std::{io,sync::{Arc,atomic::{AtomicUsize,Ordering}},time::{Duration,Instant}};
 use tokio::{io::{AsyncRead,AsyncReadExt,AsyncWrite,AsyncWriteExt},net::{TcpListener,TcpStream}};
 
+// The approved experiment was consumed by run43737916216. Re-enabling this
+// requires a new explicit user approval; even --approved-once is now offline.
+const LIVE_APPROVAL_AVAILABLE:bool=false;
 const LIMIT:usize=8*1024*1024;
 const REQUESTS:usize=12;
 const VIDEO:&str="dQw4w9WgXcQ";
@@ -119,8 +122,8 @@ async fn experiment(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static st
 }
 #[tokio::main(flavor="current_thread")]
 async fn main(){
-    if std::env::args().skip(1).collect::<Vec<_>>()!=["--approved-once"] {
-        println!("{}",json!({"status":"offline","code":"explicit_approval_required"}));return;
+    if !LIVE_APPROVAL_AVAILABLE || std::env::args().skip(1).collect::<Vec<_>>()!=["--approved-once"] {
+        println!("{}",json!({"status":"offline","code":"approval_consumed"}));return;
     }
     // Third-party error messages/panic payloads can include signed URLs. Never
     // print them. Only controlled classifications/counts reach the CI artifact.
@@ -140,6 +143,8 @@ async fn main(){
     #[test]fn guard_refuses_untrusted_hosts_accounts_non443_and_credentials(){
         for raw in ["localhost:443","youtube.com.evil.test:443","127.0.0.1:443","accounts.google.com:443","www.youtube.com:80","user@www.youtube.com:443"]{assert!(authority(raw).is_none());}
         assert_eq!(authority("www.youtube.com:443"),Some("www.youtube.com"));assert!(authority("r1---sn.googlevideo.com:443").is_some());
+        assert!(allowed_media("https://r1---sn.googlevideo.com/videoplayback?expire=123&itag=140"));
+        assert!(!LIVE_APPROVAL_AVAILABLE,"the consumed one-off permission must stay disabled");
         assert!(!allowed_media("https://www.youtube.com/watch"));assert!(!allowed_media("https://u:p@r.googlevideo.com/a"));
     }
     #[test]fn budgets_are_hard_bounds(){let budget=Budget::new();for _ in 0..REQUESTS{budget.request().unwrap();}assert!(budget.request().is_err());let n=budget.reserve(LIMIT+1).unwrap();assert_eq!(n,LIMIT);assert!(budget.reserve(1).is_err());}

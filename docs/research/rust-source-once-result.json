@@ -1,0 +1,22 @@
+{
+  "apk_integration": false,
+  "candidate": "rusty_ytdl_PR62_research_only",
+  "code": "candidate_media_host_rejected",
+  "elapsed_ms": 1453,
+  "limits": {
+    "http_requests": 12,
+    "media_ranges": 2,
+    "seconds": 60,
+    "transport_bytes": 8388608
+  },
+  "phone_acceptance": false,
+  "requests": 3,
+  "revision": "b390352a5db4b57aa630e8dc7b427fb560feccd5",
+  "stage": "candidate_metadata",
+  "status": "blocked",
+  "transport_bytes_reserved_or_used": 1389875,
+  "video_id": "dQw4w9WgXcQ",
+  "evidence_run": 43737916216,
+  "evidence_job": 132884517889,
+  "live_permission_consumed": true
+}

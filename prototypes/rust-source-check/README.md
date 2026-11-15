@@ -1,3 +1,9 @@
+> **LIVE APPROVAL CONSUMED.** Run43737916216 failed the media-URL gate after3
+> metadata requests; no media requests were made. The APK dependency graph is
+> unchanged. The binary is now hard-disabled for live use, the reusable workflow
+> job is disabled, and the Android workflow no longer exposes its approval input.
+> Only offline guard tests run automatically. See `docs/PLAYBACK_BLOCKER.md`.
+
 # Isolated Rust extractor gate — ONE approved live experiment
 
 Not an APK dependency, playback fix or installed player. The user approved Rust-
@@ -12,13 +18,12 @@ in the fuller Rust extractor. It uses Boa (Rust JS engine); no Python/Node runti
 Published crate/main have known403 reports, so this revision is research, not a
 claimed production solution. MIT/Apache2 upstream, no source vendored here.
 
-The dedicated executable is offline unless `--approved-once` is explicitly given.
+The historical executable required `--approved-once`; current code remains offline even with that argument because the live allowance has been consumed.
 The integration denied manual workflow dispatch (403); no live test was started
 by that API call. The Android workflow therefore additionally permits one explicit
 approval-marker push with the exact recorded parent commit. A future normal push
 cannot match that parent. This single gated push calls the reusable source workflow;
-ordinary push/PR/APK builds do not run the source test. Manual invocation remains
-possible only with the explicit approval input and must be disabled after use. Build/guard tests occur
+ordinary push/PR/APK builds do not run the source test. That gate and the manual approval input have now been removed after use. Build/guard tests occur
 before any live step. A build-only failure does not consume a live experiment.
 
 A loopback CONNECT guard restricts outbound TLS connections to YouTube/googlevideo

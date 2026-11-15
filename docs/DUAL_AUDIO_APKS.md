@@ -1,5 +1,10 @@
 # Rust Audio and Android Audio install-test builds
 
+> **Code10 failed physical-phone playback acceptance.** Both variants still report
+> source403 failures. The downloads below are historical test artifacts, not a
+> recommended or working playback release. See `PLAYBACK_BLOCKER.md` for the
+> approved Rust-only investigation, exhausted one-shot test and Telegram save fix.
+
 ## Approved scope
 
 Two standalone Android APKs, same embedded page, Rust YouTube resolver/catalogue,

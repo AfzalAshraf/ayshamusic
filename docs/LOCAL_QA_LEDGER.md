@@ -2457,3 +2457,38 @@ Telegram auth/upload/replay and RAM remain unverified.
   Attempt to cancel redundant older Linux runs was denied by integration's actions
   permission (403); no retries/credential requests. Final above completed normally.
 - Local102Node/137PythonPASS; tracked unrelated pyc deletion remains unstaged.
+
+
+## Latest phone rejection and approved Rust-only source experiment
+
+Code10/source2267dba: user reports Rust no music, Media3 starts then stops on every
+song; screenshots image7/image8 show source403 (Rust ANDROID/IOS errors, truncated
+TV details; Media3 media_range_http_403). Prior green builds did not fix playback.
+User also reports API-hash disappearance; original UI cleared it on failure too,
+so persistence on that particular phone is not established either way.
+
+Source540c8c7 Telegram-only correction: verified app-private write/read-back receipt,
+local hash-free configuration endpoint, visible feedback beside Save, retained
+entry on failure, saved status on reopen and idempotent unchanged credentials.
+**105Node/137Python local PASS**, native Chromium six-case save/reopen/privacy
+fixtures PASS. **Android43736467314 SUCCESS**, **Linux43736467342 SUCCESS all five**.
+No real account validation/authentication or user session was accessed.
+
+User then explicitly chose Rust-only extractor work (Rust JS runtime allowed) and
+one bounded public-video CI experiment (12requests/8MiB/60s/two ranges). Rusty_ytdl
+PR62 revisionb390352a5db4b57aa630e8dc7b427fb560feccd5 isolated in
+`prototypes/rust-source-check`; never added as an APK dependency. Built and guard-
+tested in **43737916216**, source7fe2ab2, job132884517889. Sole live step failed:
+`candidate_media_host_rejected`, metadata stage, **3requests /1,389,875 transport
+bytes reserved-or-used /1,453ms**, **zero media GETs**. A rejected URL guard does
+not establish the exact URL issue or prove403 for this candidate. No range/decode/
+Android/phone gate passed. Sanitized result checked from the GitHub annotation,
+retained in docs/research/rust-source-once-result.json; external artifact metadata
+14170963008 verified. No raw signed URL/HTML/playerJS/account secret was retained.
+
+Manual API dispatch was permission-denied and started nothing. Initial explicit
+push failed YAML parse with zero jobs; corrected SHA/message gated run above is
+the **single** live experiment. Allowance is now CONSUMED; workflow gates removed/
+disabled, CLI live flag sealed false, automatic offline guard tests added. No live
+retry without new user approval. Playback remains BLOCKED; no further APK is
+being delivered as a playback fix. Preserve unstaged unrelated pyc deletion.
