@@ -132,3 +132,18 @@ test('supplied black and silver Aysha launcher supports adaptive and legacy icon
   }
   assert.doesNotMatch(read('src/index.html'), /--accent: ?#e82d46/i);
 });
+
+
+test('Media3 preflight retains first/tail before platform Play and source proof stays sealed', () => {
+  const platform = read('src/platform_audio.rs');
+  assert.ok(platform.indexOf('PreparedFetch::new') < platform.indexOf('"op":"play"'));
+  const source = read('src/range_media.rs');
+  assert.match(source, /media_redirect_target_rejected/);
+  assert.match(source, /media_redirect_limit/);
+  assert.match(source, /header\(reqwest::header::RANGE/);
+  assert.match(source, /Duration::from_secs\(12\)/);
+  assert.match(read('prototypes/media3-source-check.rs'), /LIVE_APPROVAL_AVAILABLE:bool=false/);
+  const workflow = read('.github/workflows/android.yml');
+  assert.doesNotMatch(workflow, /AYSHA_MEDIA3_SOURCE_APPROVAL|production-source-once:/);
+  assert.match(workflow, /media3-emulator-fixture:/);
+});

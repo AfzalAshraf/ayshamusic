@@ -79,13 +79,13 @@ jobs:
           ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=5' -c:a aac "$RUNNER_TEMP/aysha-media/tail.m4a"
           ffmpeg -hide_banner -loglevel error -i "$RUNNER_TEMP/aysha-media/tail.m4a" -c copy -movflags +faststart "$RUNNER_TEMP/aysha-media/front.m4a"
           export AYSHA_MEDIA_FIXTURES="$RUNNER_TEMP/aysha-media"
-          if ! cargo test --lib --features phone > "$RUNNER_TEMP/phone-tests.log" 2>&1; then
+          if ! cargo test --lib --features phone --locked > "$RUNNER_TEMP/phone-tests.log" 2>&1; then
             cat "$RUNNER_TEMP/phone-tests.log"
             python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/phone-tests.log").read()[-14000:]; print("::error title=Rust phone tests::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
             exit 1
           fi
           cat "$RUNNER_TEMP/phone-tests.log"
-          cargo check --bin music-server
+          cargo check --bin music-server --locked
 
       - name: Build Rust library + release APK
         run: |
@@ -112,50 +112,8 @@ jobs:
 
       # Branch fixes are test artifacts, never overwrite the public main release.
 
-  production-source-once:
-    # User authorized GitHub source checks. Exact-parent gate, first attempt only;
-    # no schedule, PR trigger, workflow-dispatch input or automatic retry.
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && github.event.before == '64e40b74b25dab1f794bde4c23ffcc6404d683b3' && startsWith(github.event.head_commit.message, 'Media3 repair: approved production source check') && github.run_attempt == 1
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
-      - uses: Swatinem/rust-cache@v2
-      - name: Offline build and range regressions first
-        run: |
-          if ! (cargo test --lib --features phone range_media && cargo build --locked --bin media3-source-check --features phone) > "$RUNNER_TEMP/proof-build.log" 2>&1; then
-            cat "$RUNNER_TEMP/proof-build.log"
-            python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/proof-build.log").read()[-14000:]; print("::error title=Offline source-proof build::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
-            exit 1
-          fi
-          target/debug/media3-source-check
-          python3 -c 'import subprocess; s=subprocess.check_output(["git","diff","--","Cargo.lock"],text=True); print("::notice title=Resolved dependency diff::"+s[:12000].replace("%","%25").replace("\n","%0A"))'
-      - name: One bounded production-path live proof
-        env:
-          AYSHA_MEDIA3_SOURCE_APPROVAL: media3-production-once
-        run: |
-          set -euo pipefail
-          mkdir -p diagnostics
-          echo '::notice title=Production source permission::Bounded live step started; inspect outcome before considering any new run.'
-          ulimit -v 2097152
-          timeout --signal=KILL 60s target/debug/media3-source-check --approved-ci | tee diagnostics/media3-production-source.json
-      - name: Publish sanitized evidence annotation
-        if: always()
-        run: |
-          if [ -s diagnostics/media3-production-source.json ]; then
-            python3 -c 'import json; r=json.load(open("diagnostics/media3-production-source.json")); print("::notice title=Production source result::"+json.dumps(r,separators=(",",":")))'
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: media3-production-source-evidence
-          path: |
-            diagnostics/media3-production-source.json
-            Cargo.lock
-          if-no-files-found: warn
+  # The explicit production-source proof was consumed by43743729439 and passed.
+  # Routine CI remains provider-offline; new live work needs a reviewed gate.
 
   media3-emulator-fixture:
     # Actual Android decoder/control validation; no YouTube/account access and

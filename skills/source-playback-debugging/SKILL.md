@@ -43,3 +43,19 @@ the supplied launcher artwork and the dedication. Do not request secrets in chat
 ECC references (inert pinned snapshot): search-first, rust-testing,
 security-review and verification-loop under vendor/ecc/skills. No hook installation
 or telemetry is necessary to use these principles.
+
+
+## CI follow-up lessons from this repair
+
+- Removing an APK flavor also requires updating browser tests that enumerate its
+  ports. Assert the remaining identity exactly; do not delete the unsafe-port test.
+- Reqwest blocking feature edges were missing from Cargo.lock even though package
+  versions were present. Record/apply the **Cargo-generated CI diff**, not a broad
+  dependency upgrade; restore --locked after resolving those edges.
+- A failed SDK/bootstrap or offline build is not a failed media-source test. The
+  first repair run never reached live access. Use the runner SDK for the emulator
+  rather than competing bootstrap actions; do not call missing XML a test pass.
+- A subsequent bounded production source pass (first/tail/two spaced blocks) and
+  three actual Android Media3 fixture passes establish separate gates. They do
+  NOT prove the screenshot's two tracks on the physical phone/network. No A/B
+  source measurement proves that this patch eliminated every403 cause.

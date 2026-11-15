@@ -1,4 +1,8 @@
-# Rust Audio and Android Audio install-test builds
+# Rust Audio and Android Audio install-test builds (historical dual delivery)
+
+> **Latest user decision: Media3-only.** Rust Audio flavor/build/upload removed
+> starting build12. See [the current repair/evidence](ANDROID_MEDIA3_REPAIR.md).
+> The dual-APK identities and links below are historical, not current delivery.
 
 > **Build11:** user-requested APKs with the supplied black/silver launcher icon
 > and verified Telegram save feedback. Not a proven playback fix: installed

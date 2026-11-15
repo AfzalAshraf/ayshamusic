@@ -2572,3 +2572,36 @@ up to12range operations across existing profiles, no credentials/new clients,
 no raw URL/provider body artifacts. Offline regressions/build first. Must inspect
 before any further attempt; remove live gate after consumption. Previous isolated
 Rust/Boa experiments remain disabled and are not APK dependencies.
+
+
+### Media3 repair validation — df47e72
+
+Android43743729439 **SUCCESS all3jobs**; Linux43743729437 **SUCCESS all6jobs**.
+Source proof132902322957 **PASS**, production resolver/HttpFetch/PreparedFetch,
+ANDROID/itag140/AAC3,449,447byte source, first/tail/2spaced later ranges; **6requests,
+493,636transport bytes reserved-or-used,420ms**. Exact safe JSON under docs/research.
+One CI public video only, not a baseline A/B measurement or proof for screenshot
+songs/phone region/full playback. No new client/extractor/access bypass introduced.
+
+Actual API29 Android instrumentation job132902323164 **all3tests PASS**: >2s
+continuity→pause/resume→end, pre-ready pause→resume, initial403→honest error. Test
+APKs installed on emulator, actual PlatformAudio/Media3; fixture excludes JNI/
+provider acquisition, so not complete release/phone/speaker acceptance. Report
+artifact14172808696; production source evidence14173701105. Media3-only release
+job132902323255 PASS, artifact14173548053. See ANDROID_MEDIA3_REPAIR.md for hashes.
+
+Previous attempt64e40b7 had a SUCCESS release/host regression job but source build
+blocked on existing incomplete Cargo.lock **before live execution** and redundant
+emulator SDK setup failed before boot. Browser failed an obsolete two-port count.
+Corrected only those setup/assertion conditions; then outcomes above. Applied the
+successful CI-generated two-edge lock diff (no dependency version changes), restored
+--locked production commands. Live CLI/job sealed after successful consumption.
+Local final **106Node/142Python PASS**, local browser seven-viewports/six native
+Settings and actual preview iframe controls PASS. New learning appended to project
+source-playback skill; pinned upstream skills were not executed or auto-installed.
+
+Build12 phone acceptance and screenshot-track playback are OPEN; do not promise
+all403s gone, ask for secrets, claim remote phone installation or repeat old
+broken APKs. Current source fix covers validated CDN redirects/preflight/cache,
+not arbitrary provider policy/challenge bypass. Source/QA evidence rating3/5;
+Linux/service RAM not remeasured (not the target-device budget measurement).

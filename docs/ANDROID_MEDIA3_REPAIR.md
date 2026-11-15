@@ -74,7 +74,7 @@ network behavior, screen lock/background/focus or physical-phone audibility.
   emulator-runner normally does), not a second competing SDK bootstrap.
 - Linux43743061385: five jobs PASS, browser failed its obsolete assertion expecting
   two flavors/ports. Updated to the single retained Media3 port, not weakened port
-  safety. Local browser check is rerunning; no production UI was changed.
+  safety. Local seven-viewport browser run subsequently PASS; no production UI changed.
 
 Initial local regressions105Node/142Python PASS. Rust phone/source fixture tests
 passed inside the Android build; actual source and emulator results still pending.
@@ -86,3 +86,54 @@ with license, file hashes and index. Relevant four reviewed; no hooks/installers
 observers executed and nothing added to APK resources/dependencies. See
 skills/source-playback-debugging/SKILL.md for durable, evidence-backed lessons.
 This is repository guidance, not permanent model learning or a playback fix.
+
+
+## Verified repair gates — source df47e72
+
+[Android run43743729439](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43743729439)
+**SUCCESS all three jobs**; Linux43743729437 **SUCCESS all six jobs**.
+
+### Actual production-path live source proof
+
+Job132902322957 **PASS**, one fixed public video, ANDROID/itag140/AAC, total
+3,449,447bytes. First/tail plus2spaced later reads passed strict byte contracts.
+**6HTTPS requests /493,636 transport bytes reserved-or-used /420ms**. Includes
+fresh visitor metadata and source acquisition, not merely the extractor metadata.
+No sign-in/bot/access bypass, credentials or raw source URLs used/retained. Result
+is `research/media3-production-source-result.json`. Proof artifact14173701105,
+ZIP SHA256069393b0d737e205477db30219ce8523e5353a02641d3fc828b08b70868ba91a.
+This proves one CI source path can supply ranges; it is not the screenshot videos,
+UAE/phone-network acceptance, sustained complete playback or a before/after proof
+that all403s were caused by the corrected redirect/cache defects.
+
+### Installed Android emulator audio-bridge checks
+
+Job132902323164 **PASS**, API29/x86_64, actual production PlatformAudio+Media3:
+
+- `actualMedia3ContinuesPastTwoSecondsPausesResumesAndEnds` **PASS**.
+- `pauseBeforeReadyIsHonoredThenResumeActuallyPlays` **PASS**.
+- `rejectedInputReportsErrorInsteadOfFalsePlaying` **PASS**.
+
+These installed debug/instrumentation APKs use generated AAC and local HTTP;
+JNI/provider backend is intentionally excluded. Report artifact14172808696,
+ZIP SHA256403f3fae713b3d1931911f0d7c77f596a8b66bde9a08d148f766f7f23f1e2de7.
+No physical-speaker or user's phone-install claim.
+
+### Release APK and reproducibility
+
+Build job132902323255 **PASS**, ARM64 Media3-only artifact14173548053,
+4,968,213ZIPbytes, SHA256094c44c227bf0089596316ddc6c460c2108fcbe21ecfa6cd1b35cf74d140b742.
+No Rust Audio artifact generated. Release-native/size/host-range tests PASS.
+GitHub metadata and annotations verified; no inaccessible blob-download retry or
+local APK byte-inspection claim.
+
+Cargo-generated lock delta from the successful proof is exactly two dependency
+edges (futures-channel→futures-sink, reqwest→futures-channel), no version changes.
+Applied that exact CI diff, restored --locked for production checks/build. The
+live proof entry was removed and its CLI hard-sealed after consumption. Later
+routine pushes cannot repeat it. Final local106Node/142Python PASS; last full
+local Chromium seven-viewports plus six native Settings fixtures PASS.
+
+Physical build12 playback acceptance, background/focus, real Telegram login/
+upload/replay and production signing remain OPEN. Source availability may still
+vary per video/session/network. QA evidence rating3/5, not whole-app certification.

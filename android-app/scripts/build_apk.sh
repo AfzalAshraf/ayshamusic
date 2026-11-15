@@ -36,7 +36,7 @@ if [[ "${SKIP_RUST:-0}" != "1" ]]; then
     cd "$ROOT"
     # NOTE: --features belongs to cargo, so it must follow the `build` subcommand.
     # API 26 is the floor: cpal's AAudio backend links libaaudio.so, added in 26.
-    cargo ndk -P 26 -t arm64-v8a -o "$JNI_DIR" build --release --lib --features android
+    cargo ndk -P 26 -t arm64-v8a -o "$JNI_DIR" build --release --lib --features android --locked
   )
   ls -lh "$JNI_DIR/arm64-v8a/libayshamusic.so"
 else

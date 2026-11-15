@@ -116,10 +116,11 @@ async fn check(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static str>{
 }
 #[tokio::main]
 async fn main(){
-    if std::env::var("AYSHA_MEDIA3_SOURCE_APPROVAL").as_deref()!=Ok("media3-production-once")
-        ||std::env::var("GITHUB_RUN_ATTEMPT").as_deref()!=Ok("1")
-        ||std::env::args().skip(1).collect::<Vec<_>>()!=["--approved-ci"]{
-        println!("{}",json!({"status":"offline","code":"explicit_approval_required"}));return;
+    // Consumed, successful source proof43743729439. All old flags/environment
+    // approvals are ignored. Re-enabling requires a reviewed explicit change.
+    const LIVE_APPROVAL_AVAILABLE:bool=false;
+    if !LIVE_APPROVAL_AVAILABLE {
+        println!("{}",json!({"status":"offline","code":"approval_consumed"}));return;
     }
     std::panic::set_hook(Box::new(|_|{}));
     let budget=Arc::new(Budget::new());
