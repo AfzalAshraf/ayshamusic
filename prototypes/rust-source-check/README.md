@@ -1,3 +1,8 @@
+> **IMAGE9 RECHECK ALSO CONSUMED.** Run43739826775 confirmed two AAC entries
+> with empty extracted URLs (3requests, no media requests). The renewed workflow
+> gate is removed, reusable live job disabled, and all CLI approval flags/tokens
+> ignored. No playback-ready APK integration. Later paragraphs describe history.
+
 > **LIVE APPROVAL CONSUMED.** Run43737916216 failed the media-URL gate after3
 > metadata requests; no media requests were made. The APK dependency graph is
 > unchanged. The binary is now hard-disabled for live use, the reusable workflow

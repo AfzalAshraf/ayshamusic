@@ -6,7 +6,7 @@ use serde_json::{json,Value};
 use std::{io,sync::{Arc,atomic::{AtomicUsize,Ordering}},time::{Duration,Instant}};
 use tokio::{io::{AsyncRead,AsyncReadExt,AsyncWrite,AsyncWriteExt},net::{TcpListener,TcpStream}};
 
-// The approved experiment was consumed by run43737916216. Re-enabling this
+// Live experiments were consumed by runs43737916216 and43739826775. Re-enabling this
 // requires a new explicit user approval; even --approved-once is now offline.
 const LIVE_APPROVAL_AVAILABLE:bool=false;
 const LIMIT:usize=8*1024*1024;
@@ -145,11 +145,9 @@ async fn experiment(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static st
 }
 #[tokio::main(flavor="current_thread")]
 async fn main(){
-    debug_assert!(!LIVE_APPROVAL_AVAILABLE);
-    let renewed = std::env::var("AYSHA_SOURCE_RECHECK_APPROVAL").as_deref()==Ok("image9-one-public-video")
-        &&std::env::var("GITHUB_RUN_ATTEMPT").as_deref()==Ok("1")
-        &&std::env::args().skip(1).collect::<Vec<_>>()==["--approved-recheck-once"];
-    if !renewed {
+    // Image9 renewed permission was consumed by43739826775. All live flags
+    // (including the old workflow environment token) are now ignored.
+    if !LIVE_APPROVAL_AVAILABLE {
         println!("{}",json!({"status":"offline","code":"approval_consumed"}));return;
     }
     // Third-party error messages/panic payloads can include signed URLs. Never

@@ -100,3 +100,39 @@ Telegram correction separately passed Android43736467314 and Linux43736467342
 that the user's particular credentials were lost, valid, or accepted by Telegram.
 No further APK is being represented as a playback fix. The installed code10
 artifacts failed device acceptance; do not resend those links as known-working.
+
+
+## User-requested image9 recheck and APKs — renewed allowance consumed
+
+The user explicitly said "if u need check again and make athe apk" and supplied
+image9 as the launcher icon. This authorized one new test under the same public-
+video/budget/no-account limits and fresh APKs; it did not authorize disguising
+source failure as a successful playback fix. The attached icon supersedes the
+prior red launcher-only artwork; player Play/design/dedication remain unchanged.
+
+Source938b364, [run43739826775](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43739826775),
+source job132890296562: build/offline guards passed. The **single** renewed live
+step returned `candidate_no_allowed_aac_url`:27formats,2AAC entries (139/140),
+both with content lengths but **empty extracted URL strings**. It used3requests,
+1,383,134transport bytes reserved/used,1,355ms; no media ranges were requested.
+Safe evidence: `research/rust-source-image9-recheck-result.json`.
+
+The experiment corrected local selection to exclude invalid URLs before AAC
+ranking and added safe per-format URL categories. Neither changed the underlying
+extractor/profile or weakened HTTPS/host/account checks. Thus the recheck resolves
+the previous ambiguous guard failure to **empty returned URLs**, but still does
+not establish whether URL loss originated in provider data, upstream parsing or
+challenge handling. No raw response or signed URL was retained; do not invent a
+more specific diagnosis. No candidate integration or phone-playback claim.
+
+Both new build11 APKs were explicitly requested and are produced with the image9
+launcher and existing Telegram receipt correction. Android build job132890296348
+**SUCCESS**, both artifacts present; Linux43739826787 **SUCCESS all six jobs**.
+The Android workflow overall is failure only because the independent research
+source gate failed. See `DUAL_AUDIO_APKS.md` for exact artifact identities.
+
+Renewed allowance CONSUMED. Exact-parent push gate removed again, reusable live
+job disabled, both old and renewed CLI flags/environment tokens ignored by the
+sealed binary. New user permission plus a justified code change is required for
+any further live source test. Fresh APKs are offered honestly as icon/Telegram
+updates, not another "everything fixed" reinstall loop.

@@ -2492,3 +2492,28 @@ the **single** live experiment. Allowance is now CONSUMED; workflow gates remove
 disabled, CLI live flag sealed false, automatic offline guard tests added. No live
 retry without new user approval. Playback remains BLOCKED; no further APK is
 being delivered as a playback fix. Preserve unstaged unrelated pyc deletion.
+
+
+## Build11 — user-requested image9 launcher, renewed bounded source recheck
+
+Source938b364. The user explicitly requested another check and both APKs, and
+changed the launcher to supplied image9. Cropped metallic A/AYSHA artwork, five
+legacy density pairs and a safe-zone adaptive foreground are generated from the
+checked-in master; no player UI/SVG/Play/dedication changes. Build11 (1.3.3-preview)
+retains existing code10 package IDs and safe ports; signing update caveat documented.
+Telegram receipt/retained-input fix is included. Local **105Node/137Python PASS**
+before adding3 launcher-resource tests. APKs are user-requested updates, not a
+claim of restored source playback.
+
+Run43739826775: **APK build job132890296348 SUCCESS**, both artifacts/size gates
+passed; separate source job132890296562 compiled then failed its single live gate.
+Revised local AAC selection excludes invalid URLs before ranking; safe categories
+report **27formats /2AAC (139,140) /both URLs empty**, despite content lengths.
+3requests/1,383,134bytes reserved-or-used/1,355ms; no media requests. Earlier
+ambiguous media-host rejection is now narrowed to empty extracted URL strings,
+not proof of a specific provider/parser/cipher root cause. Evidence JSON retained
+under docs/research. Research artifact14172625123; no APK dependency integration.
+Linux43739826787 **SUCCESS all six jobs**, including offline source guards.
+
+Renewed allowance now consumed and sealed again; no retries. New offline launcher
+resource checks added (PNG dimensions/alpha and matching adaptive resources).

@@ -1,9 +1,26 @@
 # Rust Audio and Android Audio install-test builds
 
-> **Code10 failed physical-phone playback acceptance.** Both variants still report
-> source403 failures. The downloads below are historical test artifacts, not a
-> recommended or working playback release. See `PLAYBACK_BLOCKER.md` for the
-> approved Rust-only investigation, exhausted one-shot test and Telegram save fix.
+> **Build11:** user-requested APKs with the supplied black/silver launcher icon
+> and verified Telegram save feedback. Not a proven playback fix: installed
+> code10 failed on source403 and the isolated fuller extractor still returned
+> empty AAC URLs. No replacement extractor was promoted into either APK.
+
+## Build11 source and artifacts
+
+Source938b364, Android run43739826775: **build-apk job132890296348 SUCCESS**,
+both ARM64 APKs uploaded and size gates passed. The overall workflow is red because
+the separate one-off source research job correctly failed its validation gate.
+Linux43739826787: **SUCCESS, all six jobs**. Metadata-verified build11 downloads:
+
+- [Rust Audio11 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43739826775/artifacts/14171603178)
+  (4,451,280bytes; SHA2560fff9b4dfd03858e3c6d9521bc0056996db812367b947e0df95afd30869346f1).
+- [Android Audio11 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43739826775/artifacts/14171109380)
+  (4,965,533bytes; SHA25619bd03f4401895061e2d648cbf40ac56e7a75647e6fac88bfaa27a92b706f19d).
+
+ZIPs contain the respective APK; use the matching engine. These are not a
+recommendation to repeat unsuccessful phone audio diagnostics. The user explicitly
+requested fresh APKs despite the source blocker. No device acceptance claimed.
+GitHub artifact binary contents have not been re-downloaded/inspected locally.
 
 ## Approved scope
 
@@ -13,26 +30,29 @@ resolver, yt-dlp, Python/Node runtime, NewPipe or replacement extractor added.
 Only the **Android Audio** variant uses AndroidX Media3/ExoPlayer for decoding and
 audio output (explicitly approved). The **Rust Audio** variant retains rodio/CPAL.
 
-Both have the rounded red launcher music-note icon, adaptive icons for modern
-Android launchers, Settings gear navigation, and a prominent **Add Telegram
-account** card in Settings. The player Play button has not been recolored. Android
-chooses the final adaptive launcher mask; legacy launcher PNGs have a red circle
-and transparent corners. Original dedication remains unchanged.
+Both now use the user's **black/silver metallic AYSHA artwork** for the launcher
+only (cropped from image9, not AI-redrawn). Adaptive/circular masks preserve the
+logo and AYSHA text. The player Play button, Settings account flow, approved
+player design and dedication remain unchanged. See `android-app/artwork/README.md`.
 
 ## Install identities
 
 | | Rust Audio | Android Audio |
 |---|---|---|
-| Launcher label | Aysha Rust Audio 10 | Aysha Android Audio 10 |
+| Launcher label | Aysha Rust Audio 11 | Aysha Android Audio 11 |
 | Application ID | `com.afzal.ayshamusic.rustaudio10` | `com.afzal.ayshamusic.androidaudio10` |
 | Local API port | 17651 | 17652 |
 | Audio engine | Rust rodio/CPAL | AndroidX Media3 ExoPlayer 1.8.0 |
 | CI artifact name | `ayshamusic-rust-audio-arm64` | `ayshamusic-android-audio-arm64` |
 | APK filename | `app-rustAudio-release.apk` | `app-androidAudio-release.apk` |
 
-Both: version **1.3.2-preview**, code **10**, Android **8+**, **ARM64** only. Each APK
+Both: version **1.3.3-preview**, code **11**, Android **8+**, **ARM64** only. Each APK
 contains its own Rust server and runs on the phone; no external Aysha server is
-needed. Both can be installed alongside each other and the previous test APKs.
+needed. Both can be installed alongside each other and older *different-package* APKs.
+Build11 deliberately retains code10 package IDs; it is NOT side-by-side with the
+same-engine code10 APK. CI fallback signing keys may differ between runs, which
+can prevent an in-place update. Uninstalling erases that app's private data; do not
+present uninstall/reinstall as preserving Telegram credentials or sessions.
 Their app-private Telegram sessions, queue and preferences are separate; nothing
 is copied from another install. These CI install-test builds use the debug-key
 fallback when release credentials are absent, not production/store signing.
