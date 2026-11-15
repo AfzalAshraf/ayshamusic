@@ -155,6 +155,32 @@ confusion with older apps and ephemeral CI signing keys. Close/stop older code9
 apps before comparing; the new package cannot control another package's audio.
 Each install retains separate account data; no session migration is claimed.
 
-Final code10 artifact links and CI gates are recorded below when built and in
+Final code10 artifact links and CI gates are recorded below and in
 `docs/LOCAL_QA_LEDGER.md`. Phone sound/pause/Telegram acceptance remains a distinct
 gate; offline/host fixtures do not prove a universal fix for YouTube rejections.
+
+## Download code10 — source2267dba
+
+| Install | GitHub artifact ZIP | Extract and install |
+|---|---|---|
+| **Aysha Rust Audio 10** (Rust decode/output) | [Rust Audio](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14169379011) | `app-rustAudio-release.apk` |
+| **Aysha Android Audio 10** (Media3 comparison) | [Android Audio](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14170310564) | `app-androidAudio-release.apk` |
+
+Both version1.3.2-preview/code10, Android8+/ARM64; all runtime logic is contained
+inside each APK. Normal internet access to music/Telegram services is still
+required. No separate server installation or remote Aysha helper is used.
+GitHub access/sign-in may be needed; CI artifacts expire after14days.
+
+[Android43734169086](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086)
+**SUCCESS**, all steps including host phone Rust fixtures, native/JNI, both release
+flavors/R8, size gates, uploads and Android contracts.
+[Linux43734169078](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169078)
+**SUCCESS, all five jobs**, including full browser/actual-port checks and existing
+Rust/server/prototype checks. Local102Node/137Python checks passed.
+
+Open the **10** launcher, preferably Rust Audio first. Stop/close older versions
+before comparing so a different installed package does not keep playing its own
+audio. Settings → Add Telegram account remains available with separate app data.
+These gates verify implementation/build/fixtures, not a physical-phone guarantee
+that every source403 is resolved, pause/background is accepted, or an account
+has logged in/uploaded/replayed real media.

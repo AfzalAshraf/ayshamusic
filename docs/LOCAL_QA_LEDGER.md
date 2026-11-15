@@ -2429,3 +2429,31 @@ output on failed replacement, stale pause/playing/error revisions and Stop.
 Android/host CI results follow when complete. Unrelated tracked pyc deletion
 preserved unstaged. Credentials never requested; real new phone behavior,
 Telegram auth/upload/replay and RAM remain unverified.
+
+
+### Final code10 artifact manifest — source2267dba
+
+- Android **43734169086 SUCCESS**, job132872987409,3m29s: host phone Rust tests
+  (including new source-selection/control fixtures), native/JNI, both Gradle/R8
+  APK builds, size gates, artifact uploads and Android contracts all succeeded.
+- Linux **43734169078 SUCCESS**, all five jobs, same source2267dba: full browser
+  suite includes real blocked5061/safe configured-port navigation, Settings and
+  existing layout/history/preview tests. Main Rust/server and all prototypes pass.
+- Rust Audio artifact **14169379011**, ZIP4,152,883bytes:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14169379011
+  SHA256 `3092e096314ebfa87e7fd6300d1e5a7b8bf7fbc34bc9570cd70b53f2478a615d`.
+- Android Audio artifact **14170310564**, ZIP4,665,896bytes:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14170310564
+  SHA256 `e862aa649652bf20d906df02ae215f1cd22ff6014daf59079d95a76fca976245`.
+- Metadata verified via GitHub API, both unexpired. Sizes/digests are ZIP archive
+  metadata, not installed size/RAM or locally inspected APK signatures. Prior
+  restricted artifact/log download behavior was not retried unchanged.
+- Offline tests additionally retain Pause intent before the first platform Play
+  command, not only after ready. Source-profile fallback does not imply bypassing
+  provider403 restrictions or live provider acceptance. New phone/user-account
+  acceptance remains OPEN; no external Aysha server, live extraction experiment,
+  public release replacement or production-signing claim.
+- Earlier Android builds were cancelled automatically by newer source pushes.
+  Attempt to cancel redundant older Linux runs was denied by integration's actions
+  permission (403); no retries/credential requests. Final above completed normally.
+- Local102Node/137PythonPASS; tracked unrelated pyc deletion remains unstaged.
