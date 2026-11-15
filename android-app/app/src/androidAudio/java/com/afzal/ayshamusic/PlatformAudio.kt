@@ -60,7 +60,7 @@ object PlatformAudio {
                     })
                     audio.setMediaItem(MediaItem.fromUri(uri))
                     audio.prepare()
-                    audio.playWhenReady = true
+                    audio.playWhenReady = command.optBoolean("play_when_ready", true)
                     handler.removeCallbacks(tick)
                     handler.post(tick)
                 } else if (incoming == token) {

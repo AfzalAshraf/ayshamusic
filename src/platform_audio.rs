@@ -21,7 +21,7 @@ impl Input {
     }
 }
 struct Active {
-    token:String,revision:u64,id:String,title:Option<String>,input:Option<Arc<Input>>,
+    token:String,revision:u64,wants_play:bool,id:String,title:Option<String>,input:Option<Arc<Input>>,
     state:String,error:Option<String>,position:f64,duration:f64,
     ready:Option<oneshot::Sender<Result<(),String>>>,
 }
@@ -46,7 +46,7 @@ impl Player {
                 if let Some(ready)=old.ready.take(){let _=ready.send(Err("playback_cancelled".into()));}
                 self.emit(json!({"op":"stop","token":old.token}))?;
             }
-            inner.active=Some(Active{token:token.clone(),revision:0,id:media.video_id.clone(),title:media.title.clone(),input:None,state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
+            inner.active=Some(Active{token:token.clone(),revision:0,wants_play:true,id:media.video_id.clone(),title:media.title.clone(),input:None,state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
         }
         let player=self.clone();
         let failed=token.clone();
@@ -65,8 +65,8 @@ impl Player {
                 // Check again under the same operation mutex used by Stop. A late
                 // prepare cannot issue a fresh Play after Stop has cleared it.
                 let inner=player.inner.lock().unwrap();
-                if !inner.active.as_ref().is_some_and(|a|a.token==token) {return Err("playback_cancelled".into());}
-                player.emit(json!({"op":"play","token":token,"revision":0,"url":format!("http://127.0.0.1:{}/api/platform/media/{}",crate::api_port(),token),"volume":volume}))?;
+                let active=inner.active.as_ref().filter(|a|a.token==token).ok_or("playback_cancelled")?;
+                player.emit(json!({"op":"play","token":token,"revision":active.revision,"play_when_ready":active.wants_play,"url":format!("http://127.0.0.1:{}/api/platform/media/{}",crate::api_port(),token),"volume":volume}))?;
                 drop(inner);
                 // This worker owns and drops the blocking client outside Tokio.
                 while let Ok((start,end,reply))=rx.recv() {
@@ -84,6 +84,7 @@ impl Player {
         let Some(active)=inner.active.as_mut() else {return Ok(());};
         if active.error.is_some(){return Err("playback_failed_select_track_again".into());}
         active.revision=active.revision.wrapping_add(1);
+        active.wants_play=op!="pause";
         self.emit(json!({"op":op,"token":active.token,"revision":active.revision}))?;
         if op=="pause" {active.state="paused".into();}
         Ok(())
@@ -198,7 +199,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
             };let _=reply.send(result);
         });
         let (ready,waiting)=oneshot::channel();
-        player.inner.lock().unwrap().active=Some(Active{token:"fixture".into(),revision:0,id:"dQw4w9WgXcQ".into(),title:None,
+        player.inner.lock().unwrap().active=Some(Active{token:"fixture".into(),revision:0,wants_play:true,id:"dQw4w9WgXcQ".into(),title:None,
             input:Some(Arc::new(Input{requests,len:200000})),state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
         (player,waiting)
     }
@@ -267,6 +268,27 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
         assert!(!player.event(Event{revision:2,token:"fixture".into(),state:"playing".into(),position:3.0,duration:5.0,ready:true,error:None}));
         let commands=log.lock().unwrap();assert_eq!(commands[0]["op"],"pause");assert_eq!(commands[0]["revision"],1);
         assert_eq!(commands[1]["op"],"resume");assert_eq!(commands[1]["revision"],2);assert_eq!(commands[2]["op"],"stop");
+    }
+
+    struct Waiting(std::sync::Mutex<std::sync::mpsc::Receiver<()>>);
+    impl Fetch for Waiting {
+        fn fetch(&self,_:u64,_:u64)->io::Result<crate::range_media::Block>{
+            self.0.lock().unwrap().recv_timeout(std::time::Duration::from_secs(2)).map_err(|_|io::Error::other("fixture_timeout"))?;
+            Ok(crate::range_media::Block{bytes:vec![0;100],total:100})
+        }
+    }
+    #[tokio::test] async fn pause_before_input_ready_is_retained_in_the_later_platform_play_command(){
+        let mut player=Player::new();
+        let (played,received)=oneshot::channel();let played=Mutex::new(Some(played));
+        player.dispatch=Arc::new(move |value|{
+            if value["op"]=="play" {if let Some(reply)=played.lock().unwrap().take(){let _=reply.send(value);}}Ok(())
+        });
+        let (release,waiting)=std::sync::mpsc::channel();
+        let _ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Waiting(Mutex::new(waiting)))))}).unwrap();
+        player.pause().unwrap();release.send(()).unwrap();
+        let command=tokio::time::timeout(std::time::Duration::from_secs(2),received).await.unwrap().unwrap();
+        assert_eq!(command["revision"],1);assert_eq!(command["play_when_ready"],false);
+        player.stop().unwrap();
     }
 
 }
