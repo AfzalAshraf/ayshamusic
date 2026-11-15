@@ -2605,3 +2605,23 @@ all403s gone, ask for secrets, claim remote phone installation or repeat old
 broken APKs. Current source fix covers validated CDN redirects/preflight/cache,
 not arbitrary provider policy/challenge bypass. Source/QA evidence rating3/5;
 Linux/service RAM not remeasured (not the target-device budget measurement).
+
+
+### Final Media3-only corrective APK — source6a17353
+
+Android43744233478 **SUCCESS both jobs**, release132903895012,
+emulator132903894729; all3production Kotlin Media3 fixture tests PASS again.
+Linux43744233521 **SUCCESS all6jobs**. Root Cargo.lock now matches CI-resolved
+feature edges; --locked host tests/check and ARM64 release build PASS. No additional
+live source request; source-proof CLI/job remain sealed. Production resolver/
+range/preflight/Kotlin bridge unchanged from passing df47e72 source proof.
+
+Deliverable Android/Media3 Audio12 ZIP artifact**14173776736**,4,968,212bytes,
+SHA256bdb7ac90e3347da51cb564def5a3297a3a47b7e3ac2028985283a8518015f069.
+Emulator report14174000304, SHA256e2a54d8e71d19561f0444e13e6116324d115a8fc7618b6697133a9e27f32700e.
+Metadata/annotations verified, not local binary inspection. User given tested
+corrective candidate with source6a17353 identity and explicit no-phone/no-all403-
+resolved claim; not asked to repeat the known-unmodified code11 install. Single
+Media3 APK only, Rust Audio Android flavor/upload gone, Linux Rust retained.
+No physical-phone/source-track/background/focus/Telegram-login/signing/RAM claims.
+Unrelated tracked pyc deletion intentionally unstaged.

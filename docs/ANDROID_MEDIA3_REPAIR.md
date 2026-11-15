@@ -1,5 +1,28 @@
 # Media3-only source repair
 
+## Latest download — sealed build12
+
+**[Android/Media3 Audio12 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43744233478/artifacts/14173776736)**
+
+Source**6a17353**, version1.3.4-preview/code12, ARM64/Android8+. ZIP4,968,212bytes,
+SHA256bdb7ac90e3347da51cb564def5a3297a3a47b7e3ac2028985283a8518015f069.
+Metadata verified; no claim of local APK byte inspection/production signing.
+Only one Android Audio artifact; Rust Audio delivery removed. Same supplied icon,
+Settings/Telegram receipt correction, design and dedication retained.
+
+Android43744233478 **SUCCESS both jobs** (APK132903895012, emulator132903894729),
+Linux43744233521 **SUCCESS all six jobs**. All3actual Media3 instrumentation tests
+passed again. Report artifact14174000304 (ZIP SHA256e2a54d8e71d19561f0444e13e6116324d115a8fc7618b6697133a9e27f32700e).
+No additional live source run after the successful proof below; production resolver/
+range/preflight and Kotlin bridge code are unchanged since that proof.
+
+**Acceptance limit:** the screenshot tracks and user's physical phone/network have
+not been retested here. A CI public-video range pass and emulator fixture pass do
+not prove every403 resolved. This is a tested corrective build, not whole-app or
+phone certification. Retains androidaudio10 package; debug-key signing changes
+may reject an update. Uninstalling deletes local Telegram settings/session; do not
+prescribe it blindly or ask for credentials in chat.
+
 ## Requested scope
 
 Latest user report is physical build11, receipt `10a46e6`:
