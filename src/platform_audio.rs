@@ -1,7 +1,7 @@
 //! Media3 variant: Rust owns media acquisition/Telegram; Kotlin owns audio only.
 //! ExoPlayer reads a token-scoped loopback range endpoint, never account secrets
 //! or signed provider URLs. Rust variant cannot accept platform playback events.
-use crate::{player::Media,range_media::{Fetch,HttpFetch,BLOCK}};
+use crate::{player::Media,range_media::{Fetch,HttpFetch,PreparedFetch,BLOCK}};
 use axum::{body::{Body,Bytes},extract::Path,http::{header,HeaderMap,Method,StatusCode},response::{IntoResponse,Response},Json};
 use serde::Deserialize;
 use serde_json::{json,Value};
@@ -54,13 +54,13 @@ impl Player {
             let _worker=worker;
             let result=(||->Result<(),String>{
                 let fetch:Box<dyn Fetch>=match media.fetch {Some(fetch)=>fetch,None=>Box::new(HttpFetch::new(media.url,media.user_agent).map_err(|e|e.to_string())?)};
-                let first=fetch.fetch(0,BLOCK as u64-1).map_err(|e|e.to_string())?;
-                if first.total==0 || first.total>512*1024*1024 || first.bytes.len() as u64!=first.total.min(BLOCK as u64) || media.content_length.is_some_and(|n|n!=first.total) {return Err("media3_input_length_rejected".into());}
+                let fetch=PreparedFetch::new(fetch,media.content_length).map_err(|e|e.to_string())?;
+                let total=fetch.len();
                 let (requests,rx)=std::sync::mpsc::sync_channel::<Request>(2);
                 let volume={
                     let mut inner=player.inner.lock().unwrap();
                     let active=inner.active.as_mut().filter(|a|a.token==token).ok_or("playback_cancelled")?;
-                    active.input=Some(Arc::new(Input{requests,len:first.total}));inner.volume
+                    active.input=Some(Arc::new(Input{requests,len:total}));inner.volume
                 };
                 // Check again under the same operation mutex used by Stop. A late
                 // prepare cannot issue a fresh Play after Stop has cleared it.

@@ -2,7 +2,7 @@
 //! MP4 may place its moov/index after mdat: an unseekable FIFO is not a file.
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const BLOCK: usize = 64 * 1024;
 const MAX_MEDIA: u64 = 512 * 1024 * 1024;
@@ -20,7 +20,7 @@ impl Fetch for Box<dyn Fetch> {
 }
 pub struct HttpFetch {
     client: reqwest::blocking::Client,
-    url: String,
+    url: Mutex<String>,
     user_agent: &'static str,
 }
 impl HttpFetch {
@@ -33,16 +33,28 @@ impl HttpFetch {
             .no_proxy()
             .pool_max_idle_per_host(1)
             .build().map_err(|_| failure("media_http_client_unavailable"))?;
-        Ok(Self { client, url, user_agent })
+        Self::with_client(url, user_agent, client)
+    }
+    /// For the bounded CI harness. Caller supplies a no-redirect HTTP client;
+    /// redirects are validated manually here, before any next request is sent.
+    pub(crate) fn with_client(url:String,user_agent:&'static str,client:reqwest::blocking::Client)->io::Result<Self>{
+        if !crate::youtube::is_allowed_media_url(&url){return Err(failure("media_url_rejected"));}
+        Ok(Self {client,url:Mutex::new(url),user_agent})
     }
 }
 impl Fetch for HttpFetch {
     fn fetch(&self, start: u64, end: u64) -> io::Result<Block> {
-        let response = self.client.get(&self.url)
-            .header(reqwest::header::USER_AGENT, self.user_agent)
-            .header(reqwest::header::ACCEPT_ENCODING, "identity")
-            .header(reqwest::header::RANGE, format!("bytes={start}-{end}"))
-            .send().map_err(|_| failure("media_range_connection_or_timeout"))?;
+        // A legitimate CDN handoff is not an audio failure. Never use automatic
+        // redirects: validate every destination, preserve Range/identity and cap
+        // the whole operation (not 12s per hop). Never retry a provider403 here.
+        let initial=self.url.lock().map_err(|_|failure("media_url_lock_failed"))?.clone();
+        let (response,current)=redirected_response(&initial,|current,timeout|{
+            self.client.get(current).timeout(timeout)
+                .header(reqwest::header::USER_AGENT,self.user_agent)
+                .header(reqwest::header::ACCEPT_ENCODING,"identity")
+                .header(reqwest::header::RANGE,format!("bytes={start}-{end}"))
+                .send().map_err(|_|failure("media_range_connection_or_timeout"))
+        })?;
         if response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
             return Err(failure(&format!("media_range_http_{}", response.status().as_u16())));
         }
@@ -59,9 +71,71 @@ impl Fetch for HttpFetch {
         let mut bytes = Vec::with_capacity(expected);
         response.take(expected as u64 + 1).read_to_end(&mut bytes).map_err(|_| failure("media_range_read_failed"))?;
         if bytes.len() != expected { return Err(failure("media_range_length_mismatch")); }
+        // Remember a validated successful CDN target for later sequential/seek
+        // blocks, without altering/re-signing its query or exposing it in errors.
+        *self.url.lock().map_err(|_|failure("media_url_lock_failed"))?=current;
         Ok(Block { bytes, total })
     }
 }
+fn redirected_response<F>(initial:&str,mut send:F)->io::Result<(reqwest::blocking::Response,String)>
+where F:FnMut(&str,Duration)->io::Result<reqwest::blocking::Response>{
+    let deadline=Instant::now()+Duration::from_secs(12);
+    let mut current=initial.to_string();let mut visited=vec![current.clone()];
+    loop {
+        let timeout=deadline.checked_duration_since(Instant::now()).ok_or_else(||failure("media_range_deadline"))?;
+        let response=send(&current,timeout)?;
+        if !matches!(response.status().as_u16(),301|302|303|307|308){return Ok((response,current));}
+        let location=response.headers().get(reqwest::header::LOCATION).and_then(|v|v.to_str().ok())
+            .filter(|v|v.len()<=8192).ok_or_else(||failure("media_redirect_location_rejected"))?;
+        let next=redirect_target(&current,location)?;
+        if visited.contains(&next){return Err(failure("media_redirect_loop"));}
+        if visited.len()>=4{return Err(failure("media_redirect_limit"));}
+        visited.push(next.clone());current=next;
+    }
+}
+
+fn redirect_target(current:&str,location:&str)->io::Result<String>{
+    let target=reqwest::Url::parse(current).and_then(|url|url.join(location))
+        .map_err(|_|failure("media_redirect_url_invalid"))?;
+    if !crate::youtube::is_allowed_media_url(target.as_str()){
+        return Err(failure("media_redirect_target_rejected"));
+    }
+    Ok(target.into())
+}
+
+/// Before Media3 can start, prove both the beginning and the MP4 tail/index can
+/// be read. Reuse those bytes instead of discarding the probe and downloading it
+/// again. Still bounded to 2*64KiB; not a claim of complete-file availability.
+pub struct PreparedFetch {fetch:Box<dyn Fetch>,first:Block,tail:Option<(u64,Block)>}
+impl PreparedFetch {
+    pub fn new(fetch:Box<dyn Fetch>,expected:Option<u64>)->io::Result<Self>{
+        let first=fetch.fetch(0,BLOCK as u64-1)?;
+        let total=first.total;
+        if total==0||total>MAX_MEDIA||first.bytes.len() as u64!=total.min(BLOCK as u64)
+            ||expected.is_some_and(|n|n!=total){return Err(failure("media3_input_length_rejected"));}
+        let tail=if total>BLOCK as u64 {
+            let start=total-BLOCK as u64;let tail=fetch.fetch(start,total-1)?;
+            if tail.total!=total||tail.bytes.len()!=BLOCK{return Err(failure("media3_input_tail_rejected"));}
+            Some((start,tail))
+        }else{None};
+        Ok(Self{fetch,first,tail})
+    }
+    pub fn len(&self)->u64{self.first.total}
+}
+impl Fetch for PreparedFetch {
+    fn fetch(&self,start:u64,end:u64)->io::Result<Block>{
+        if start>end||end>=self.len()||end-start>=BLOCK as u64{return Err(failure("media_range_bounds_rejected"));}
+        for (offset,block) in std::iter::once((0,&self.first)).chain(self.tail.as_ref().map(|(offset,block)|(*offset,block))){
+            if start>=offset&&end<offset+block.bytes.len() as u64 {
+                return Ok(Block{bytes:block.bytes[(start-offset) as usize..=(end-offset) as usize].to_vec(),total:self.len()});
+            }
+        }
+        let block=self.fetch.fetch(start,end)?;
+        if block.total!=self.len()||block.bytes.len() as u64!=end-start+1{return Err(failure("media_changed_or_truncated"));}
+        Ok(block)
+    }
+}
+
 fn content_range(raw: &str, start: u64, end: u64) -> io::Result<(u64, u64)> {
     let parse = || -> Option<(u64, u64, u64)> {
         let (range, total) = raw.strip_prefix("bytes ")?.split_once('/')?;
@@ -194,13 +268,70 @@ mod tests {
                 write!(socket, "HTTP/1.1 {status} fixture\r\nContent-Type: audio/mp4\r\n{range}Content-Length: 5\r\nConnection: close\r\n\r\nabcde").unwrap();
                 String::from_utf8(request).unwrap().to_lowercase()
             });
-            let fetch = HttpFetch { client: reqwest::blocking::Client::new(), url:format!("http://{address}/fixture"), user_agent:"fixture" };
+            let fetch = HttpFetch { client: reqwest::blocking::Client::new(), url:Mutex::new(format!("http://{address}/fixture")), user_agent:"fixture" };
             let reader = RangeReader::new(fetch, Some(5), Arc::new(AtomicBool::new(false)));
             assert_eq!(reader.is_ok(), okay);
             let request = server.join().unwrap();
             assert!(request.contains("range: bytes=0-65535"));
             assert!(request.contains("accept-encoding: identity"));
         }
+    }
+    #[test]
+    fn redirect_destinations_keep_https_cdn_boundary_and_signed_query(){
+        let base="https://r1.googlevideo.com/videoplayback?sig=one&n=a%2Bb";
+        assert_eq!(redirect_target(base,"//r2.googlevideo.com/videoplayback?sig=two&n=a%2Bb").unwrap(),"https://r2.googlevideo.com/videoplayback?sig=two&n=a%2Bb");
+        assert_eq!(redirect_target(base,"?sig=next").unwrap(),"https://r1.googlevideo.com/videoplayback?sig=next");
+        for target in ["http://r2.googlevideo.com/a","https://youtube.com/a","https://googlevideo.com.evil.test/a","https://127.0.0.1/a","https://user:pw@r.googlevideo.com/a","https://r.googlevideo.com:444/a","file:///tmp/test"]{
+            assert_eq!(redirect_target(base,target).unwrap_err().to_string(),"media_redirect_target_rejected");
+        }
+    }
+    // Real local HTTP responses, but logical provider URLs stay separate from
+    // fixture transport: no allowlist exception or external network in tests.
+    fn fixture_response(status:u16,location:Option<&str>)->reqwest::blocking::Response {
+        use std::io::Write;
+        let listener=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let addr=listener.local_addr().unwrap();
+        let location=location.map(|v|format!("Location: {v}\r\n")).unwrap_or_default();
+        let server=std::thread::spawn(move||{
+            let(mut socket,_)=listener.accept().unwrap();socket.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+            let mut raw=Vec::new();while !raw.ends_with(b"\r\n\r\n"){raw.push(socket.read_u8_fixture());assert!(raw.len()<8192);}
+            write!(socket,"HTTP/1.1 {status} fixture\r\n{location}Content-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        });
+        let response=reqwest::blocking::Client::builder().redirect(reqwest::redirect::Policy::none()).no_proxy().build().unwrap()
+            .get(format!("http://{addr}/")).send().unwrap();server.join().unwrap();response
+    }
+    trait FixtureRead{fn read_u8_fixture(&mut self)->u8;}
+    impl FixtureRead for std::net::TcpStream {fn read_u8_fixture(&mut self)->u8{let mut b=[0];self.read_exact(&mut b).unwrap();b[0]}}
+    #[test]
+    fn redirects_are_bounded_and_rejections_never_send_to_disallowed_targets(){
+        let base="https://r1.googlevideo.com/a";
+        let mut calls=Vec::new();
+        let (_,target)=redirected_response(base,|url,_|{calls.push(url.to_string());Ok(if calls.len()==1{fixture_response(302,Some("https://r2.googlevideo.com/b?sig=exact"))}else{fixture_response(206,None)})}).unwrap();
+        assert_eq!(target,"https://r2.googlevideo.com/b?sig=exact");assert_eq!(calls.len(),2);
+        for location in [None,Some("https://evil.test/x"),Some(base)]{
+            let mut calls=0;assert!(redirected_response(base,|_,_|{calls+=1;Ok(fixture_response(302,location))}).is_err());assert_eq!(calls,1);
+        }
+        let mut calls=0;
+        let error=redirected_response(base,|_,_|{calls+=1;Ok(fixture_response(307,Some(&format!("https://r1.googlevideo.com/{calls}"))))}).unwrap_err();
+        assert_eq!(error.to_string(),"media_redirect_limit");assert_eq!(calls,4);
+        let mut calls=0;let (response,_)=redirected_response(base,|_,_|{calls+=1;Ok(fixture_response(403,None))}).unwrap();assert_eq!(response.status().as_u16(),403);assert_eq!(calls,1);
+    }
+    struct Counted {calls:Arc<Mutex<Vec<(u64,u64)>>>,tail_fails:bool}
+    impl Fetch for Counted {fn fetch(&self,start:u64,end:u64)->io::Result<Block>{
+        self.calls.lock().unwrap().push((start,end));
+        if self.tail_fails&&start>0{return Err(failure("media_range_http_403"));}
+        let total=4*BLOCK as u64;let end=end.min(total-1);
+        Ok(Block{total,bytes:(start..=end).map(|n|(n%251) as u8).collect()})
+    }}
+    #[test]
+    fn media3_preflight_checks_tail_reuses_both_probes_and_does_not_hide_later_failures(){
+        let calls=Arc::new(Mutex::new(Vec::new()));
+        let prepared=PreparedFetch::new(Box::new(Counted{calls:calls.clone(),tail_fails:false}),Some(4*BLOCK as u64)).unwrap();
+        assert_eq!(calls.lock().unwrap().len(),2);
+        assert_eq!(prepared.fetch(0,99).unwrap().bytes,(0..100).map(|n|(n%251) as u8).collect::<Vec<_>>());
+        prepared.fetch(4*BLOCK as u64-100,4*BLOCK as u64-1).unwrap();assert_eq!(calls.lock().unwrap().len(),2);
+        prepared.fetch(BLOCK as u64,2*BLOCK as u64-1).unwrap();assert_eq!(calls.lock().unwrap().len(),3);
+        assert!(prepared.fetch(0,BLOCK as u64).is_err());
+        assert!(PreparedFetch::new(Box::new(Counted{calls:calls.clone(),tail_fails:true}),None).is_err());
     }
     // Required in Android CI: real AAC demux + decode, no sound device or YouTube.
     #[test]

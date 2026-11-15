@@ -11,6 +11,13 @@ crate-type = ["cdylib", "rlib"]
 name = "music-server"
 path = "src/main.rs"
 
+# Offline by default. Only the explicit bounded CI source-proof job authorizes
+# this diagnostic executable; it is never shipped in the Android library.
+[[bin]]
+name = "media3-source-check"
+path = "prototypes/media3-source-check.rs"
+required-features = ["phone"]
+
 [features]
 default = []
 # Enabled only when cross-compiling the Android library (see android-app/README notes).

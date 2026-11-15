@@ -28,3 +28,6 @@ __pycache__/
 *.jks
 
 /prototypes/rust-source-check/target/
+
+# Generated Android decoder test tone (CI ffmpeg fixture, not shipped)
+/android-app/app/src/androidTest/assets/tone.m4a

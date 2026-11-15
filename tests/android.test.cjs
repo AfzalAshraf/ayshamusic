@@ -26,7 +26,7 @@ test('Android branch APK build never overwrites the main public release', () => 
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
   assert.match(workflow, /AYSHA_PREVIEW: "1"/);
-  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.rustaudio10"/);
+  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.androidaudio10"/);
 });
 
 test('startup waits for the on-phone API and retains external-server independence', () => {
@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 11/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 12/);
 });
 
 
@@ -99,10 +99,11 @@ test('Telegram account setup is in Settings, not Now Playing, and source order i
 });
 
 
-test('dual audio APKs isolate identities, ports and playback-only dependencies', () => {
+test('Media3 is the only delivered Android flavor; Rust still owns source and identity', () => {
   const gradle = read('android-app/app/build.gradle.kts');
-  for (const suffix of ['rustaudio10', 'androidaudio10']) assert.ok(gradle.includes(`applicationIdSuffix = ".${suffix}"`));
-  for (const port of ['17651', '17652']) assert.ok(gradle.includes(`"API_PORT", "${port}"`));
+  assert.match(gradle, /applicationIdSuffix = "\.androidaudio10"/);
+  assert.doesNotMatch(gradle, /create\("rustAudio"\)/);
+  assert.ok(gradle.includes('"API_PORT", "17652"'));
   assert.match(gradle, /"androidAudioImplementation"\("androidx.media3:media3-exoplayer:1.8.0"\)/);
   const api = read('android-app/app/src/main/java/com/afzal/ayshamusic/MediaApi.kt');
   assert.match(api, /UUID.randomUUID/);
@@ -114,7 +115,11 @@ test('dual audio APKs isolate identities, ports and playback-only dependencies',
   assert.match(native, /STATE_READY/);
   assert.doesNotMatch(native, /youtube\.com|googlevideo\.com|my\.telegram\.org/);
   const workflow = read('.github/workflows/android.yml');
-  for (const name of ['ayshamusic-rust-audio-arm64', 'ayshamusic-android-audio-arm64']) assert.ok(workflow.includes(name));
+  assert.ok(workflow.includes('ayshamusic-android-audio-arm64'));
+  assert.doesNotMatch(workflow, /Upload Rust Audio APK|ayshamusic-rust-audio-arm64/);
+  const build = read('android-app/scripts/build_apk.sh');
+  assert.match(build, /assembleAndroidAudioRelease/);
+  assert.doesNotMatch(build, /for VARIANT in rustAudio/);
 });
 
 test('supplied black and silver Aysha launcher supports adaptive and legacy icons without recoloring Play', () => {

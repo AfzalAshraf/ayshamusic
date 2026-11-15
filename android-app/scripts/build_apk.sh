@@ -43,24 +43,28 @@ else
   echo "==> SKIP_RUST=1: reusing $JNI_DIR"
 fi
 
-echo "==> Gradle assembleRelease"
+echo "==> Gradle assembleAndroidAudioRelease"
 cd "$APP"
 if [[ -x ./gradlew ]]; then
-  ./gradlew --no-daemon assembleRelease
+  ./gradlew --no-daemon assembleAndroidAudioRelease
 elif command -v gradle >/dev/null 2>&1; then
   # Generate the wrapper once, then use it so local and CI builds match.
   # AGP 8.5 requires Gradle 8.7+.
   [[ -f gradle/wrapper/gradle-wrapper.jar ]] || gradle wrapper --gradle-version 8.9
-  ./gradlew --no-daemon assembleRelease
+  ./gradlew --no-daemon assembleAndroidAudioRelease
 else
   echo "error: neither ./gradlew nor gradle is available" >&2
   exit 1
 fi
 
-for VARIANT in rustAudio androidAudio; do
+for VARIANT in androidAudio; do
   APK_DIR="$APP/app/build/outputs/apk/$VARIANT/release"
   APK="$(find "$APK_DIR" -maxdepth 1 -name '*.apk' -print -quit)"
   [[ -n "$APK" ]] || { echo "error: no APK produced in $APK_DIR" >&2; exit 1; }
+  # Prevent test-only/no-JNI builds from being distributed as standalone APKs.
+  unzip -l "$APK" | grep 'lib/arm64-v8a/libayshamusic.so' >/dev/null || {
+    echo "error: production APK missing ARM64 Rust library" >&2; exit 1;
+  }
   echo "==> Built $VARIANT: $APK"
   ls -lh "$APK"
   "$APP/scripts/measure_apk_size.sh" "$APK"

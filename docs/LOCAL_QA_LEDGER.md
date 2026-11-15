@@ -2530,3 +2530,45 @@ GitHub metadata verified; no binary re-download claim. Sent as requested icon/
 Telegram save updates with explicit unresolved source warning, not "playback fixed".
 Both packages share previous code10 IDs; ephemeral signing may reject in-place
 updates, and uninstall erases app-private sessions. Device acceptance remains open.
+
+## Media3-only repair request — screenshot10/11, source10a46e6
+
+User rejected Rust Audio and requested Media3-only repair, research-first, ECC
+skills and authorized GitHub build/install/test work. Physical phone images:
+image10 Android Audio/Media3/10a46e6 starts1–2s then `media_range_http_403`;
+image11 never starts, ANDROID/IOS `media_range_http_302`, TV unsupported-client
+message. Do not infer decoder failure from these source errors. No direct phone
+access exists in this environment; authorization is not a device connection.
+
+Research through GitHub: NewPipeExtractor dev YoutubeStreamExtractor explicitly
+requires n transformation before accepting some stream URLs; yt-dlp _video.py
+handles advertised formats without URL as possible SABR-only responses. _base.py
+records mandatory Po-token policy for some VR HTTPS sources. These are compatibility
+findings, not an authorization to bypass provider access controls or add a Java/
+Python extractor. NewPipe/yt-dlp were reviewed as references, not integrated.
+ECC d2ef2680594f9a17526a6e1a2e18b3d242c5d17b pinned under vendor/ecc: all314 skills/
+620support files, MIT license/provenance/hashes retained, no hooks/installers/
+observers executed, no permanent-model-memory claim. Relevant search-first,
+rust-testing, security-review and verification-loop consulted. New project skill
+records failed hypotheses and source-read acceptance gates.
+
+Implemented before CI (outcomes pending): Media3-only flavor/artifact/script,
+build12/1.3.4-preview, same androidaudio10 package/port; Rust Linux/core preserved.
+HttpFetch manually follows at most3 validated HTTPS-googlevideo redirects with
+Range/UA/identity preserved, original query untouched, one12s deadline, no403
+retry; rejects downgrade/non-CDN/credentials/loops before next request. Media3
+preflights first and tail/index, retains at most128KiB of validated probes rather
+than redownloading/discarding the first block; later failures still visible.
+Added real HTTP redirect/strict range/cache regressions, and actual production
+Kotlin PlatformAudio instrumentation with a generated AAC loopback fixture for
+>2s continuity, pause/resume/end, pre-ready pause, and initial403. Emulator fixture
+mode excludes JNI/providers and refuses release tasks; it is not phone/sound or
+YouTube acceptance. Production release checks embedded ARM64 Rust .so exists.
+
+One exact-parent, attempt1 gated source diagnostic planned with the user's new
+GitHub testing authorization: SAME production resolver/HttpFetch/PreparedFetch,
+fixed public video, max16requests/8MiB encrypted transport/60s external kill,
+up to12range operations across existing profiles, no credentials/new clients,
+no raw URL/provider body artifacts. Offline regressions/build first. Must inspect
+before any further attempt; remove live gate after consumption. Previous isolated
+Rust/Boa experiments remain disabled and are not APK dependencies.

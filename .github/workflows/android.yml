@@ -94,17 +94,9 @@ jobs:
 
       - name: Enforce APK size budget
         run: |
-          for variant in rustAudio androidAudio; do
+          for variant in androidAudio; do
             bash android-app/scripts/measure_apk_size.sh android-app/app/build/outputs/apk/$variant/release/*.apk
           done
-
-      - name: Upload Rust Audio APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ayshamusic-rust-audio-arm64
-          path: android-app/app/build/outputs/apk/rustAudio/release/*.apk
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Upload Android Audio APK
         uses: actions/upload-artifact@v4
@@ -119,3 +111,94 @@ jobs:
 
 
       # Branch fixes are test artifacts, never overwrite the public main release.
+
+  production-source-once:
+    # User authorized GitHub source checks. Exact-parent gate, first attempt only;
+    # no schedule, PR trigger, workflow-dispatch input or automatic retry.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && github.event.before == '2bf4756bcf1e95a88b0cdfac5ad939c9072db4f6' && startsWith(github.event.head_commit.message, 'Media3 repair: approved production source check') && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - name: Offline build and range regressions first
+        run: |
+          if ! (cargo test --locked --lib --features phone range_media && cargo build --locked --bin media3-source-check --features phone) > "$RUNNER_TEMP/proof-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/proof-build.log"
+            python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/proof-build.log").read()[-14000:]; print("::error title=Offline source-proof build::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+            exit 1
+          fi
+          target/debug/media3-source-check
+      - name: One bounded production-path live proof
+        env:
+          AYSHA_MEDIA3_SOURCE_APPROVAL: media3-production-once
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+          echo '::notice title=Production source permission::Bounded live step started; inspect outcome before considering any new run.'
+          ulimit -v 2097152
+          timeout --signal=KILL 60s target/debug/media3-source-check --approved-ci | tee diagnostics/media3-production-source.json
+      - name: Publish sanitized evidence annotation
+        if: always()
+        run: |
+          if [ -s diagnostics/media3-production-source.json ]; then
+            python3 -c 'import json; r=json.load(open("diagnostics/media3-production-source.json")); print("::notice title=Production source result::"+json.dumps(r,separators=(",",":")))'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: media3-production-source-evidence
+          path: diagnostics/media3-production-source.json
+          if-no-files-found: warn
+
+  media3-emulator-fixture:
+    # Actual Android decoder/control validation; no YouTube/account access and
+    # no claim of complete Rust JNI/provider integration or physical audio.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Enable emulator acceleration and generate AAC fixture
+        run: |
+          sudo chmod 666 /dev/kvm
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          mkdir -p android-app/app/src/androidTest/assets
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart android-app/app/src/androidTest/assets/tone.m4a
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: cd android-app && ./gradlew --no-daemon -PayshaEmulatorTests=true connectedAndroidAudioDebugAndroidTest
+      - name: Annotate actual instrumentation outcomes
+        if: always()
+        run: |
+          python3 - <<'PYTEST'
+          import glob,xml.etree.ElementTree as E
+          paths=glob.glob('android-app/app/build/outputs/androidTest-results/connected/**/*.xml',recursive=True)
+          if not paths:
+              print('::warning title=Media3 emulator::No instrumentation result; emulator validation NOT PASSED')
+          for path in paths:
+              for case in E.parse(path).getroot().iter('testcase'):
+                  failed=case.find('failure')
+                  skipped=case.find('skipped')
+                  status='FAIL' if failed is not None else ('SKIP' if skipped is not None else 'PASS')
+                  print('::notice title=Media3 emulator::'+status+' '+case.attrib.get('name','unknown'))
+          PYTEST
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: media3-emulator-fixture-results
+          path: |
+            android-app/app/build/outputs/androidTest-results/
+            android-app/app/build/reports/androidTests/
+          if-no-files-found: warn

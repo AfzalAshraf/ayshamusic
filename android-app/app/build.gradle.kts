@@ -3,6 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Audio-bridge instrumentation deliberately excludes JNI/provider acquisition.
+// Release tasks refuse this mode; production always packages ARM64 Rust.
+val emulatorTests = providers.gradleProperty("ayshaEmulatorTests").orNull == "true"
+check(!emulatorTests || gradle.startParameter.taskNames.none { it.contains("Release", ignoreCase = true) })
+
 android {
     namespace = "com.afzal.ayshamusic"
     compileSdk = 35
@@ -12,12 +17,13 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.3.3"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 12
+        versionName = "1.3.4"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += if (emulatorTests) "x86_64" else "arm64-v8a"
         }
 
         // CRITICAL: extractNativeLibs=false -> mmap .so directly from the APK
@@ -26,6 +32,10 @@ android {
                 useLegacyPackaging = false
             }
         }
+    }
+
+    if (emulatorTests) {
+        sourceSets.getByName("main").jniLibs.setSrcDirs(emptyList<String>())
     }
 
     // Must be declared before buildTypes so the release type can reference it.
@@ -45,17 +55,10 @@ android {
 
     flavorDimensions += "audio"
     productFlavors {
-        create("rustAudio") {
-            dimension = "audio"
-            applicationIdSuffix = ".rustaudio10"
-            resValue("string", "app_name", "Aysha Rust Audio 11")
-            buildConfigField("String", "AUDIO_ENGINE", "\"rust\"")
-            buildConfigField("int", "API_PORT", "17651")
-        }
         create("androidAudio") {
             dimension = "audio"
             applicationIdSuffix = ".androidaudio10"
-            resValue("string", "app_name", "Aysha Android Audio 11")
+            resValue("string", "app_name", "Aysha Android Audio 12")
             buildConfigField("String", "AUDIO_ENGINE", "\"media3\"")
             buildConfigField("int", "API_PORT", "17652")
         }
@@ -109,6 +112,8 @@ android {
 }
 
 dependencies {
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
     // Minimal AndroidX - only what we absolutely need
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
