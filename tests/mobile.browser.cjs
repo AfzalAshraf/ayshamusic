@@ -140,6 +140,7 @@ async function checkNativeSettings(context) {
       assert.ok(target.width >= 44 && target.height >= 44);
       await add.click();
       await page.locator('#telegram-account').waitFor({state:'visible'});
+      await page.waitForFunction(() => document.getElementById('telegram-status').textContent.includes('first-time API setup'));
       assert.match(await page.locator('#telegram-status').textContent(),/first-time API setup/);
       assert.ok(await page.locator('#telegram-account').evaluate(el => el.scrollWidth <= el.clientWidth));
       await page.locator('#telegram-account details').first().locator('summary').click();

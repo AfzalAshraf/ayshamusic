@@ -107,3 +107,18 @@ in chat or repeat the previously consumed live-provider experiment.
 
 Final source/CI/artifact evidence is recorded in `docs/LOCAL_QA_LEDGER.md`. Account
 instructions and data/storage cautions: `docs/TELEGRAM_SAVED_MESSAGES.md`.
+
+## Download candidates (source e39acae)
+
+Android run [43717901021](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021)
+passed host Rust fixtures, ARM64/JNI, both release/R8 builds, separate size gates,
+artifact uploads and Android contract checks.
+
+- [Rust Audio ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163606203)
+  — extract/install `app-rustAudio-release.apk`, open **Aysha Rust Audio**.
+- [Android Audio ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163108083)
+  — extract/install `app-androidAudio-release.apk`, open **Aysha Android Audio**.
+
+Settings → Add Telegram account in either app. Setup is separate per install.
+Use one playback variant at a time. ZIP metadata and limits are in the QA ledger;
+these are CI candidates, not a claim of audible-device success.

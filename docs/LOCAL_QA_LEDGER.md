@@ -2359,3 +2359,29 @@ A follow-up source build will include explicit engine/build receipts in Settings
 and Now Playing plus expanded native-UI browser coverage. Its final CI/artifact
 manifest follows below after completion; do not deliver first-build artifacts as
 though they include those follow-up changes.
+
+
+### Final dual APK manifest — source e39acae
+
+- Android **43717901021 SUCCESS**, job132823298040,3m37s. Every build/fixture/size/
+  upload/contract step succeeded (GitHub jobs API). Both artifacts exist/unexpired:
+  - Rust: [14163606203](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163606203),
+    `ayshamusic-rust-audio-arm64`, ZIP **4,146,565bytes**, SHA256
+    `92ad63441dcbd4018d3ab47d068110dc7af62477e32dde7ab717b6ef70d816e0`.
+  - Android: [14163108083](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163108083),
+    `ayshamusic-android-audio-arm64`, ZIP **4,662,962bytes**, SHA256
+    `a8ea320a9764b2deaf4b89d8be96bde164279c743c6b8373dbb68b7c770ece64`.
+- These are GitHub archive metadata, not APK size/RAM. No local binary download,
+  signature/badging inspection or device install claimed. Prior log download was
+  restricted at the results-receiver host; no unchanged retry or fabricated file.
+- Version1.3.1-preview/code9, package/labels as documented. Both APKs contain the
+  final Settings/engine receipt and red launcher. Android-specific service/bridge
+  compiled successfully, but no physical-device playback has been performed.
+- Linux **43717901027**: four jobs passed; mobile-browser failed on a **new test
+  race**, not a build error: the assertion read initial `Not connected` immediately
+  after opening the dialog before the async fixture status refresh completed.
+  Follow-up changes only the browser test to wait for the refreshed status before
+  asserting. Native Settings six-case local rerun PASS after fix. Final CI result
+  is recorded below when complete; the APK sources are unchanged by this test fix.
+- Warnings: action runtime deprecations/setup-java-v4 and ubuntu-latest image
+  migration. No production-signing, store-publication or all-crashes-fixed claim.
