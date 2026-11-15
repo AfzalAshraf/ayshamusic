@@ -2385,3 +2385,15 @@ though they include those follow-up changes.
   is recorded below when complete; the APK sources are unchanged by this test fix.
 - Warnings: action runtime deprecations/setup-java-v4 and ubuntu-latest image
   migration. No production-signing, store-publication or all-crashes-fixed claim.
+
+
+### Regression follow-up result — c2c4e32
+
+[Linux43718290998](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43718290998)
+**SUCCESS, all five jobs**, including mobile-browser/real static-preview browser,
+main Rust/server/checkers/frontend and the three Rust prototypes. The async-dialog
+wait fixed the new harness race. Local final native Settings six-case rerun,
+100 Node contracts and137 Python tests also passed. No APK source changed after
+**e39acae**; deliver the two artifacts from Android43717901021 above. This final
+ledger update is documentation only and does not imply any new physical-phone,
+account or RAM acceptance.

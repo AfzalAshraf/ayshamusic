@@ -122,3 +122,7 @@ artifact uploads and Android contract checks.
 Settings → Add Telegram account in either app. Setup is separate per install.
 Use one playback variant at a time. ZIP metadata and limits are in the QA ledger;
 these are CI candidates, not a claim of audible-device success.
+
+Regression follow-up [Linux43718290998](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43718290998)
+passed all five jobs after correcting the account-dialog test's asynchronous wait.
+The delivered APK source remains e39acae; the test-only follow-up is c2c4e32.
