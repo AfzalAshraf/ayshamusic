@@ -20,6 +20,7 @@ object PlatformAudio {
     private var player: ExoPlayer? = null
     private var token = ""
     private var failed = false
+    private var revision = 0L
 
     fun initialize(context: Context) { this.context = context.applicationContext }
 
@@ -29,8 +30,9 @@ object PlatformAudio {
                 val command = JSONObject(text)
                 val incoming = command.getString("token")
                 if (command.getString("op") == "play") {
-                    player?.release()
+                    releaseOutput()
                     token = incoming
+                    revision = command.optLong("revision", 0L)
                     failed = false
                     val uri = android.net.Uri.parse(command.getString("url"))
                     require(uri.scheme == "http" && uri.host == "127.0.0.1" &&
@@ -62,23 +64,34 @@ object PlatformAudio {
                     handler.removeCallbacks(tick)
                     handler.post(tick)
                 } else if (incoming == token) {
+                    if (command.has("revision")) {
+                        val next = command.getLong("revision")
+                        if (next < revision) return@post
+                        revision = next
+                    }
                     when (command.getString("op")) {
                         "pause" -> player?.pause()
                         "resume" -> player?.play()
                         "volume" -> player?.volume = command.optDouble("volume", 1.0).toFloat().coerceIn(0f, 1f)
                         "stop" -> {
-                            token = ""
-                            handler.removeCallbacks(tick)
-                            player?.release()
-                            player = null
+                            releaseOutput()
                         }
                     }
+                    if (player != null && !failed) report()
                 }
             } catch (_: Exception) {
                 failed = true
                 report("error", "media3_command_failed")
             }
         }
+    }
+
+    private fun releaseOutput() {
+        val old = player
+        player = null
+        token = ""
+        handler.removeCallbacks(tick)
+        old?.release()
     }
 
     private val tick = object : Runnable {
@@ -94,11 +107,12 @@ object PlatformAudio {
         if (token.isEmpty()) return
         val state = overrideState ?: when {
             audio.playbackState == Player.STATE_ENDED -> "ended"
+            !audio.playWhenReady -> "paused"
             audio.playbackState == Player.STATE_BUFFERING -> "buffering"
             audio.isPlaying -> "playing"
             else -> "paused"
         }
-        val event = JSONObject().put("token", token).put("state", state)
+        val event = JSONObject().put("token", token).put("revision", revision).put("state", state)
             .put("position", audio.currentPosition.coerceAtLeast(0) / 1000.0)
             .put("duration", audio.duration.coerceAtLeast(0) / 1000.0)
             .put("ready", audio.playbackState == Player.STATE_READY)

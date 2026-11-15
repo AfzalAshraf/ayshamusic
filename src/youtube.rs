@@ -92,6 +92,13 @@ pub struct ResolvedAudio {
     pub client: &'static str,
 }
 
+impl ResolvedAudio {
+    /// Media reads must keep the identity that acquired this signed URL.
+    pub fn user_agent(&self)->&'static str {
+        client_by_name(self.client).map(|p|p.user_agent).unwrap_or(ANDROID.user_agent)
+    }
+}
+
 /// One client's outcome, including YouTube's own explanation and whether the
 /// request carried a visitor id.
 #[derive(Debug, Clone, PartialEq, Eq)]

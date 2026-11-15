@@ -26,7 +26,7 @@ test('Android branch APK build never overwrites the main public release', () => 
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
   assert.match(workflow, /AYSHA_PREVIEW: "1"/);
-  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.rustaudio9"/);
+  assert.match(read('android-app/app/build.gradle.kts'), /applicationIdSuffix = "\.rustaudio10"/);
 });
 
 test('startup waits for the on-phone API and retains external-server independence', () => {
@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 9/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 10/);
 });
 
 
@@ -91,7 +91,7 @@ test('Telegram account setup is in Settings, not Now Playing, and source order i
   assert.doesNotMatch(player, /Reset learning|tg-api-hash|tg-password/);
   const lib = read('src/lib.rs');
   const start = lib.slice(lib.indexOf('async fn start_track('));
-  assert.ok(start.indexOf('tg_storage::lookup') < start.indexOf('youtube::resolve_audio'));
+  assert.ok(start.indexOf('tg_storage::lookup') < start.indexOf('youtube::resolve_forced'));
   const storage = read('src/tg_storage.rs');
   assert.match(storage, /PeerId::self_user/);
   assert.match(storage, /iter_download/); assert.match(storage, /upload_stream/);
@@ -101,8 +101,8 @@ test('Telegram account setup is in Settings, not Now Playing, and source order i
 
 test('dual audio APKs isolate identities, ports and playback-only dependencies', () => {
   const gradle = read('android-app/app/build.gradle.kts');
-  for (const suffix of ['rustaudio9', 'androidaudio9']) assert.ok(gradle.includes(`applicationIdSuffix = ".${suffix}"`));
-  for (const port of ['5061', '5062']) assert.ok(gradle.includes(`"API_PORT", "${port}"`));
+  for (const suffix of ['rustaudio10', 'androidaudio10']) assert.ok(gradle.includes(`applicationIdSuffix = ".${suffix}"`));
+  for (const port of ['17651', '17652']) assert.ok(gradle.includes(`"API_PORT", "${port}"`));
   assert.match(gradle, /"androidAudioImplementation"\("androidx.media3:media3-exoplayer:1.8.0"\)/);
   const api = read('android-app/app/src/main/java/com/afzal/ayshamusic/MediaApi.kt');
   assert.match(api, /UUID.randomUUID/);

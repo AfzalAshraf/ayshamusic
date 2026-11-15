@@ -21,19 +21,20 @@ impl Input {
     }
 }
 struct Active {
-    token:String,id:String,title:Option<String>,input:Option<Arc<Input>>,
+    token:String,revision:u64,id:String,title:Option<String>,input:Option<Arc<Input>>,
     state:String,error:Option<String>,position:f64,duration:f64,
     ready:Option<oneshot::Sender<Result<(),String>>>,
 }
 struct Inner {active:Option<Active>,volume:f32}
-#[derive(Clone)] pub struct Player {inner:Arc<Mutex<Inner>>}
+#[derive(Clone)] pub struct Player {inner:Arc<Mutex<Inner>>,dispatch:Arc<dyn Fn(Value)->Result<(),String>+Send+Sync>}
 fn command(value:Value)->Result<(),String> {
     #[cfg(target_os="android")] {crate::android::platform_command(&value.to_string())}
     #[cfg(not(target_os="android"))] {let _=value;Err("Media3 audio requires Android".into())}
 }
 fn token()->io::Result<String> {let mut bytes=[0u8;20];std::fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;Ok(bytes.iter().map(|b|format!("{b:02x}")).collect())}
 impl Player {
-    pub fn new()->Self {Self{inner:Arc::new(Mutex::new(Inner{active:None,volume:1.0}))}}
+    pub fn new()->Self {Self{inner:Arc::new(Mutex::new(Inner{active:None,volume:1.0})),dispatch:Arc::new(command)}}
+    fn emit(&self,value:Value)->Result<(),String>{(self.dispatch)(value)}
     pub fn play(&self,media:Media)->Result<oneshot::Receiver<Result<(),String>>,String> {
         PREPARING.fetch_update(Ordering::AcqRel,Ordering::Acquire,|n|(n<2).then_some(n+1)).map_err(|_|"media3_prepare_busy")?;
         let worker=Worker;
@@ -41,8 +42,11 @@ impl Player {
         let (ready,rx)=oneshot::channel();
         {
             let mut inner=self.inner.lock().unwrap();
-            if let Some(mut old)=inner.active.take() {if let Some(ready)=old.ready.take(){let _=ready.send(Err("playback_cancelled".into()));}}
-            inner.active=Some(Active{token:token.clone(),id:media.video_id.clone(),title:media.title.clone(),input:None,state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
+            if let Some(mut old)=inner.active.take() {
+                if let Some(ready)=old.ready.take(){let _=ready.send(Err("playback_cancelled".into()));}
+                self.emit(json!({"op":"stop","token":old.token}))?;
+            }
+            inner.active=Some(Active{token:token.clone(),revision:0,id:media.video_id.clone(),title:media.title.clone(),input:None,state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
         }
         let player=self.clone();
         let failed=token.clone();
@@ -62,7 +66,7 @@ impl Player {
                 // prepare cannot issue a fresh Play after Stop has cleared it.
                 let inner=player.inner.lock().unwrap();
                 if !inner.active.as_ref().is_some_and(|a|a.token==token) {return Err("playback_cancelled".into());}
-                command(json!({"op":"play","token":token,"url":format!("http://127.0.0.1:{}/api/platform/media/{}",crate::api_port(),token),"volume":volume}))?;
+                player.emit(json!({"op":"play","token":token,"revision":0,"url":format!("http://127.0.0.1:{}/api/platform/media/{}",crate::api_port(),token),"volume":volume}))?;
                 drop(inner);
                 // This worker owns and drops the blocking client outside Tokio.
                 while let Ok((start,end,reply))=rx.recv() {
@@ -76,9 +80,13 @@ impl Player {
         Ok(rx)
     }
     fn control(&self,op:&str)->Result<(),String> {
-        let inner=self.inner.lock().unwrap();
-        let Some(active)=&inner.active else {return Ok(());};
-        command(json!({"op":op,"token":active.token}))
+        let mut inner=self.inner.lock().unwrap();
+        let Some(active)=inner.active.as_mut() else {return Ok(());};
+        if active.error.is_some(){return Err("playback_failed_select_track_again".into());}
+        active.revision=active.revision.wrapping_add(1);
+        self.emit(json!({"op":op,"token":active.token,"revision":active.revision}))?;
+        if op=="pause" {active.state="paused".into();}
+        Ok(())
     }
     pub fn pause(&self)->Result<(),String>{self.control("pause")}
     pub fn resume(&self)->Result<(),String>{self.control("resume")}
@@ -86,12 +94,12 @@ impl Player {
         let mut inner=self.inner.lock().unwrap();
         if let Some(mut active)=inner.active.take() {
             if let Some(ready)=active.ready.take(){let _=ready.send(Err("playback_cancelled".into()));}
-            command(json!({"op":"stop","token":active.token}))?;
+            self.emit(json!({"op":"stop","token":active.token}))?;
         } Ok(())
     }
     pub fn set_volume(&self,volume:f32)->Result<(),String>{
         let mut inner=self.inner.lock().unwrap();inner.volume=if volume.is_finite(){volume.clamp(0.0,1.0)}else{1.0};
-        if let Some(active)=&inner.active {command(json!({"op":"volume","token":active.token,"volume":inner.volume}))?;}Ok(())
+        if let Some(active)=&inner.active {self.emit(json!({"op":"volume","token":active.token,"volume":inner.volume}))?;}Ok(())
     }
     pub fn snapshot(&self)->Value {
         let inner=self.inner.lock().unwrap();
@@ -103,7 +111,8 @@ impl Player {
     fn fail(&self,token:&str,error:&str) {
         let mut inner=self.inner.lock().unwrap();
         if let Some(a)=inner.active.as_mut().filter(|a|a.token==token) {
-            a.state="error".into();
+            a.state="error".into();a.input=None;
+            let _=self.emit(json!({"op":"stop","token":a.token}));
             // Preserve the underlying Rust range failure, not only ExoPlayer's
             // later generic HTTP/source error.
             if a.error.is_none() {a.error=Some(error.chars().take(240).collect());}
@@ -113,16 +122,17 @@ impl Player {
     fn input(&self,token:&str)->Option<Arc<Input>> {self.inner.lock().unwrap().active.as_ref().filter(|a|a.token==token).and_then(|a|a.input.clone())}
     fn event(&self,event:Event)->bool {
         if !["playing","paused","buffering","ended","error"].contains(&event.state.as_str()) || !event.position.is_finite() || !event.duration.is_finite() || event.position<0.0 || event.duration<0.0 || event.position>604800.0 || event.duration>604800.0 {return false;}
+        if !self.inner.lock().unwrap().active.as_ref().is_some_and(|a|a.token==event.token && a.revision==event.revision){return false;}
         if event.state=="error" {if self.input(&event.token).is_none(){return false;}self.fail(&event.token,event.error.as_deref().unwrap_or("Media3 playback failed"));return true;}
         let mut inner=self.inner.lock().unwrap();
-        let Some(a)=inner.active.as_mut().filter(|a|a.token==event.token) else{return false;};
+        let Some(a)=inner.active.as_mut().filter(|a|a.token==event.token && a.revision==event.revision) else{return false;};
         if a.error.is_some(){return false;}
         a.state=event.state;a.position=event.position;a.duration=event.duration;
         if event.ready {if let Some(ready)=a.ready.take(){let _=ready.send(Ok(()));}}
         true
     }
 }
-#[derive(Deserialize)] pub struct Event {token:String,state:String,#[serde(default)]position:f64,#[serde(default)]duration:f64,#[serde(default)]ready:bool,#[serde(default)]error:Option<String>}
+#[derive(Deserialize)] pub struct Event {token:String,#[serde(default)]revision:u64,state:String,#[serde(default)]position:f64,#[serde(default)]duration:f64,#[serde(default)]ready:bool,#[serde(default)]error:Option<String>}
 fn running()->Option<&'static Player> {crate::started_player().and_then(|p|p.platform())}
 pub async fn receive_event(Json(event):Json<Event>)->StatusCode {
     if running().is_some_and(|p|p.event(event)){StatusCode::NO_CONTENT}else{StatusCode::CONFLICT}
@@ -171,7 +181,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
         for raw in ["bytes=100-","bytes=20-10","bytes=0-1,3-4","bytes=-0","bad"] {assert!(bounds(Some(raw),100).is_err());}
     }
     #[test] fn stopped_tokens_and_stale_events_cannot_reactivate_playback(){
-        let player=Player::new();let event=Event{token:"old".into(),state:"playing".into(),position:0.0,duration:1.0,ready:true,error:None};
+        let player=Player::new();let event=Event{revision:0,token:"old".into(),state:"playing".into(),position:0.0,duration:1.0,ready:true,error:None};
         assert!(!player.event(event));assert!(player.input("old").is_none());assert_eq!(player.snapshot()["state"],"idle");
     }
 }
@@ -188,7 +198,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
             };let _=reply.send(result);
         });
         let (ready,waiting)=oneshot::channel();
-        player.inner.lock().unwrap().active=Some(Active{token:"fixture".into(),id:"dQw4w9WgXcQ".into(),title:None,
+        player.inner.lock().unwrap().active=Some(Active{token:"fixture".into(),revision:0,id:"dQw4w9WgXcQ".into(),title:None,
             input:Some(Arc::new(Input{requests,len:200000})),state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
         (player,waiting)
     }
@@ -210,19 +220,53 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
     }
     #[tokio::test] async fn media3_reports_underlying_input_failure_and_rejects_stale_callbacks(){
         let (player,ready)=fixture(true);
-        assert!(!player.event(Event{token:"wrong".into(),state:"playing".into(),position:1.0,duration:2.0,ready:true,error:None}));
+        assert!(!player.event(Event{revision:0,token:"wrong".into(),state:"playing".into(),position:1.0,duration:2.0,ready:true,error:None}));
         let response=media_for(player.clone(),"fixture".into(),Method::GET,HeaderMap::new()).await;
         assert!(response.into_body().collect().await.is_err());
         assert!(ready.await.unwrap().unwrap_err().contains("fixture_upstream_403"));
         assert_eq!(player.snapshot()["state"],"error");
-        assert!(!player.event(Event{token:"fixture".into(),state:"playing".into(),position:1.0,duration:2.0,ready:true,error:None}));
+        assert!(!player.event(Event{revision:0,token:"fixture".into(),state:"playing".into(),position:1.0,duration:2.0,ready:true,error:None}));
         assert!(player.snapshot()["error"].as_str().unwrap().contains("fixture_upstream_403"));
     }
     #[tokio::test] async fn media3_ready_event_acknowledges_preparation_but_not_wrong_tokens(){
         let (player,mut ready)=fixture(false);
         assert!(matches!(ready.try_recv(),Err(oneshot::error::TryRecvError::Empty)));
-        assert!(player.event(Event{token:"fixture".into(),state:"playing".into(),position:0.0,duration:5.0,ready:true,error:None}));
+        assert!(player.event(Event{revision:0,token:"fixture".into(),state:"playing".into(),position:0.0,duration:5.0,ready:true,error:None}));
         assert!(ready.await.unwrap().is_ok());
         assert_eq!(player.snapshot()["state"],"playing");
     }
+    fn recorded(player:&mut Player)->Arc<Mutex<Vec<Value>>> {
+        let log=Arc::new(Mutex::new(Vec::new()));let sink=log.clone();
+        player.dispatch=Arc::new(move |value|{sink.lock().unwrap().push(value);Ok(())});log
+    }
+    struct Rejected;
+    impl Fetch for Rejected {fn fetch(&self,_:u64,_:u64)->io::Result<crate::range_media::Block>{Err(io::Error::other("media_range_http_403"))}}
+    #[tokio::test] async fn failed_replacement_stops_old_output_before_fetch_and_does_not_leave_orphan_audio(){
+        let (mut player,_)=fixture(false);let log=recorded(&mut player);
+        let ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Rejected))}).unwrap();
+        let result=tokio::time::timeout(std::time::Duration::from_secs(2),ready).await.unwrap().unwrap();
+        assert!(result.unwrap_err().contains("403"));
+        let commands=log.lock().unwrap();
+        assert_eq!(commands[0]["op"],"stop");assert_eq!(commands[0]["token"],"fixture");
+        assert!(commands.iter().all(|c|c["op"]!="play"));
+        assert_eq!(commands.last().unwrap()["op"],"stop");
+        assert_eq!(player.snapshot()["state"],"error");
+        let token=player.inner.lock().unwrap().active.as_ref().unwrap().token.clone();assert!(player.input(&token).is_none());
+    }
+    #[tokio::test] async fn pause_resume_revisions_ignore_delayed_playing_and_error_events(){
+        let (mut player,_)=fixture(false);let log=recorded(&mut player);
+        assert!(player.event(Event{revision:0,token:"fixture".into(),state:"playing".into(),position:1.0,duration:5.0,ready:true,error:None}));
+        player.pause().unwrap();assert_eq!(player.snapshot()["state"],"paused");
+        for state in ["playing","error"] {
+            assert!(!player.event(Event{revision:0,token:"fixture".into(),state:state.into(),position:1.0,duration:5.0,ready:true,error:None}));
+        }
+        assert_eq!(player.snapshot()["state"],"paused");player.resume().unwrap();
+        assert!(player.event(Event{revision:2,token:"fixture".into(),state:"playing".into(),position:2.0,duration:5.0,ready:true,error:None}));
+        assert_eq!(player.snapshot()["state"],"playing");player.stop().unwrap();
+        assert_eq!(player.snapshot()["state"],"idle");
+        assert!(!player.event(Event{revision:2,token:"fixture".into(),state:"playing".into(),position:3.0,duration:5.0,ready:true,error:None}));
+        let commands=log.lock().unwrap();assert_eq!(commands[0]["op"],"pause");assert_eq!(commands[0]["revision"],1);
+        assert_eq!(commands[1]["op"],"resume");assert_eq!(commands[1]["revision"],2);assert_eq!(commands[2]["op"],"stop");
+    }
+
 }

@@ -105,6 +105,41 @@ async function checkInteractiveSandbox(context) {
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 }
 
+// Actual local HTTP servers: reproduce WebView/Chromium's blocked SIP port,
+// then navigate both replacement ports. No provider or external server involved.
+async function checkStandalonePorts(context) {
+  const http = require('node:http');
+  const servers = [];
+  let page;
+  try {
+    for (const port of [5061, 17651, 17652]) {
+      page = await context.newPage();
+      let hits = 0;
+      const server = http.createServer((request, response) => {
+        hits++;
+        response.writeHead(200, {'Content-Type':'text/html'});
+        response.end('<h1>Standalone on-phone backend</h1>');
+      });
+      servers.push(server);
+      await new Promise((resolve,reject) => {server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+      if (port === 5061) {
+        await assert.rejects(page.goto(`http://127.0.0.1:${port}/`), /ERR_UNSAFE_PORT/);
+        assert.equal(hits,0,'Browser blocks5061 before contacting a healthy local server');
+      } else {
+        const response = await page.goto(`http://127.0.0.1:${port}/`);
+        assert.equal(response.status(),200);
+        assert.equal(await page.locator('h1').textContent(),'Standalone on-phone backend');
+        assert.ok(hits>0);
+      }
+      await page.close();
+    }
+    console.log('PASS real loopback navigation: old5061 ERR_UNSAFE_PORT, new17651/17652 accessible');
+  } finally {
+    if (page && !page.isClosed()) await page.close();
+    for (const server of servers) {server.closeAllConnections();await new Promise(resolve => server.close(resolve));}
+  }
+}
+
 // Native-UI fixture only: no Android playback or real account is simulated.
 async function checkNativeSettings(context) {
   for (const engine of ['rust', 'media3']) {
@@ -177,6 +212,7 @@ let activeViewport = 'startup';
       HTMLMediaElement.prototype.play = function() { window.mediaPlayAttempts++; return Promise.resolve(); };
       HTMLMediaElement.prototype.pause = function() {};
     });
+    await checkStandalonePorts(context);
     await checkNativeSettings(context);
     if (process.env.NATIVE_SETTINGS_ONLY === '1') return;
     await checkInteractiveSandbox(context);

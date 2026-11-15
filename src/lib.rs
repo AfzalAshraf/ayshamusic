@@ -12,6 +12,7 @@ mod listening;
 mod range_media;
 mod pcm_stream;
 mod audio_engine;
+mod source_selection;
 mod platform_audio;
 mod tg_storage;
 
@@ -420,7 +421,6 @@ async fn start_track(
     forced: Option<youtube::InnertubeClient>,
 ) -> Result<Value, (StatusCode, Json<Value>)> {
     use youtube::ResolveError;
-    let ticket=*PLAY_TICKET.lock().unwrap();
 
     if !youtube::valid_video_id(video_id) {
         return Err(api_error(
@@ -429,6 +429,14 @@ async fn start_track(
             "video_id must be 11 characters of [A-Za-z0-9_-]".into(),
         ));
     }
+
+    // A new selection supersedes *all* earlier resolve/prepare futures. Stop
+    // actual output before any network wait, including a replacement that fails.
+    let ticket={
+        let mut current=PLAY_TICKET.lock().unwrap();*current=current.wrapping_add(1);
+        if let Some(player)=started_player(){player.stop().map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"audio_stop_failed",e))?;}
+        *current
+    };
 
     if forced.is_none() {
         if let Some(cache)=cache_manager() {
@@ -442,50 +450,32 @@ async fn start_track(
     }
     let visitor = visitor(client).await;
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
-    let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
-        None => youtube::resolve_audio(client, video_id, visitor_value).await,
-    };
-
-    let audio = match resolved {
-        Ok(audio) => audio,
-        Err(error @ ResolveError::InvalidVideoId) => {
-            return Err(api_error(
-                StatusCode::BAD_REQUEST,
-                "invalid_video_id",
-                error.to_string(),
-            ))
+    let profiles=forced.map(|p|vec![p]).unwrap_or_else(||youtube::CLIENTS.to_vec());
+    let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(60);
+    let selected=source_selection::select(&profiles,|profile| async move {
+        if *PLAY_TICKET.lock().unwrap()!=ticket {return Err("play_cancelled".into());}
+        if tokio::time::Instant::now()>=deadline {return Err("source_prepare_deadline".into());}
+        let attempt=async {
+            let audio=youtube::resolve_forced(client,video_id,profile,visitor_value).await.map_err(|e|e.to_string())?;
+            start_native(player::Media {
+                video_id:audio.video_id.clone(),title:audio.title.clone(),client:audio.client,
+                itag:audio.itag,url:audio.url.clone(),user_agent:audio.user_agent(),
+                content_length:audio.content_length,fetch:None,
+            },ticket).await.map_err(|(_,error)|error["detail"].as_str().unwrap_or("audio_prepare_failed").to_string())?;
+            Ok(audio)
+        };
+        match tokio::time::timeout_at(deadline,attempt).await {
+            Ok(result)=>result,
+            Err(_)=>{stop_if_current(ticket);Err("source_prepare_deadline".into())}
         }
-        Err(ResolveError::AllClientsFailed(attempts)) => {
-            // Surface YouTube's own body for every client that was tried.
-            let attempts_json: Vec<Value> =
-                attempts.iter().map(youtube::ClientAttempt::to_json).collect();
-            let detail = ResolveError::AllClientsFailed(attempts).to_string();
-            return Err((
-                StatusCode::BAD_GATEWAY,
-                Json(json!({
-                    "status": "error",
-                    "error": "unresolved",
-                    "detail": detail,
-                    "attempts": attempts_json,
-                })),
-            ));
-        }
-        Err(error) => {
-            return Err(api_error(
-                StatusCode::BAD_GATEWAY,
-                "unresolved",
-                error.to_string(),
-            ))
-        }
-    };
-
-    let duration_secs = duration_from(&audio);
-    start_native(player::Media {
-        video_id:audio.video_id.clone(), title:audio.title.clone(), client:audio.client,
-        itag:audio.itag,url:audio.url.clone(),user_agent:youtube::ANDROID.user_agent,
-        content_length:audio.content_length,fetch:None,
-    },ticket).await?;
+    }).await;
+    if *PLAY_TICKET.lock().unwrap()!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Replaced or stopped while preparing".into()));}
+    let audio=selected.map_err(|attempts| {
+        stop_if_current(ticket);
+        let detail=ResolveError::AllClientsFailed(attempts.clone()).to_string();
+        (StatusCode::BAD_GATEWAY,Json(json!({"status":"error","error":"audio_sources_unavailable","detail":detail,"attempts":attempts.iter().map(youtube::ClientAttempt::to_json).collect::<Vec<_>>()})))
+    })?;
+    let duration_secs=duration_from(&audio);
     let mut archive = "not_connected";
     if let Some(cache)=cache_manager() {
         let path=cache.cached_path(video_id);
@@ -511,6 +501,11 @@ async fn start_track(
     }))
 }
 
+fn stop_if_current(ticket:u64) {
+    let current=PLAY_TICKET.lock().unwrap();
+    if *current==ticket {if let Some(player)=started_player(){let _=player.stop();}}
+}
+
 async fn start_native(media: player::Media,ticket:u64) -> Result<(), (StatusCode, Json<Value>)> {
     let ready={
         let current=PLAY_TICKET.lock().unwrap();
@@ -518,9 +513,9 @@ async fn start_native(media: player::Media,ticket:u64) -> Result<(), (StatusCode
         player().play(media).map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"playback_unavailable",e))?
     };
     match tokio::time::timeout(std::time::Duration::from_secs(45),ready).await {
-        Ok(Ok(Ok(())))=>Ok(()),
+        Ok(Ok(Ok(())))=>{if *PLAY_TICKET.lock().unwrap()==ticket {Ok(())}else{Err(api_error(StatusCode::CONFLICT,"play_cancelled","Replaced or stopped while preparing".into()))}},
         Ok(Ok(Err(error)))=>Err(api_error(StatusCode::BAD_GATEWAY,"audio_prepare_failed",error)),
-        _=>{let _=player().stop();Err(api_error(StatusCode::GATEWAY_TIMEOUT,"audio_prepare_timeout","Audio preparation did not complete".into()))}
+        _=>{stop_if_current(ticket);Err(api_error(StatusCode::GATEWAY_TIMEOUT,"audio_prepare_timeout","Audio preparation did not complete".into()))}
     }
 }
 
@@ -976,7 +971,7 @@ mod android {
     ) {
         let engine: String=match env.get_string(&engine) {Ok(v)=>v.into(),Err(_)=>return};
         let instance: String=match env.get_string(&instance) {Ok(v)=>v.into(),Err(_)=>return};
-        if !matches!((port,engine.as_str()),(5061,"rust")|(5062,"media3")) || instance.len()<16 || instance.len()>128 {
+        if !matches!((port,engine.as_str()),(17651,"rust")|(17652,"media3")) || instance.len()<16 || instance.len()>128 {
             let _=env.throw_new("java/lang/IllegalArgumentException","Invalid backend identity");return;
         }
         let vm=match env.get_java_vm(){Ok(v)=>v,Err(_)=>return};

@@ -12,8 +12,8 @@ android {
         // 26: cpal's AAudio output backend requires libaaudio (added in API 26).
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.3.1"
+        versionCode = 10
+        versionName = "1.3.2"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -47,17 +47,17 @@ android {
     productFlavors {
         create("rustAudio") {
             dimension = "audio"
-            applicationIdSuffix = ".rustaudio9"
+            applicationIdSuffix = ".rustaudio10"
             resValue("string", "app_name", "Aysha Rust Audio")
             buildConfigField("String", "AUDIO_ENGINE", "\"rust\"")
-            buildConfigField("int", "API_PORT", "5061")
+            buildConfigField("int", "API_PORT", "17651")
         }
         create("androidAudio") {
             dimension = "audio"
-            applicationIdSuffix = ".androidaudio9"
+            applicationIdSuffix = ".androidaudio10"
             resValue("string", "app_name", "Aysha Android Audio")
             buildConfigField("String", "AUDIO_ENGINE", "\"media3\"")
-            buildConfigField("int", "API_PORT", "5062")
+            buildConfigField("int", "API_PORT", "17652")
         }
     }
 

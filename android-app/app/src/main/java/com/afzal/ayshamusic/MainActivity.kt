@@ -109,6 +109,10 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
+                    if (request.url.scheme == "aysha" && request.url.host == "retry") {
+                        loadServerUrl()
+                        return true
+                    }
                     // Keep localhost navigation in WebView
                     if (request.url.scheme == "http" && request.url.host == "127.0.0.1" && request.url.port == BuildConfig.API_PORT) {
                         return false
@@ -124,6 +128,9 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest?, error: android.webkit.WebResourceError) {
                     Log.e(TAG, "WebView error: ${error.description} (${error.errorCode})")
+                    if (request?.isForMainFrame == true && request.url.host == "127.0.0.1") {
+                        view.post { if (!destroyed) showLocalStartupError() }
+                    }
                 }
             }
 
@@ -169,10 +176,14 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 if (!destroyed) {
                     if (ready) webView?.loadUrl(SERVER_URL)
-                    else webView?.loadData("<html><body style='background:#100d13;color:white;padding:32px'>Aysha could not start. Close and reopen the app to retry.</body></html>", "text/html", "UTF-8")
+                    else showLocalStartupError()
                 }
             }
         }.start()
+    }
+
+    private fun showLocalStartupError() {
+        webView?.loadData("<html><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#100d13;color:white;font-family:sans-serif;padding:32px'><h2>Local player could not open</h2><p>Aysha runs inside this APK. No external Aysha server is required.</p><p><a style='color:#f2bdc8' href='aysha://retry'>Retry local player</a></p></body></html>", "text/html", "UTF-8")
     }
 
     // Predictive back gesture (Android 14+)

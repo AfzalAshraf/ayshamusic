@@ -126,7 +126,7 @@ async fn download(cache:&TelegramCacheManager,id:&str,path:&Path)->io::Result<()
     // Overwrite an old failed partial, if present; successful final files are atomic.
     let _=tokio::fs::remove_file(&tmp).await;
     let result=async {
-        let response=media.get(&audio.url).header(reqwest::header::USER_AGENT,crate::youtube::ANDROID.user_agent).send().await.map_err(|_|error("archive_media_failed"))?;
+        let response=media.get(&audio.url).header(reqwest::header::USER_AGENT,audio.user_agent()).send().await.map_err(|_|error("archive_media_failed"))?;
         if !response.status().is_success() {return Err(error("archive_media_rejected"));}
         let mut file=tokio::fs::File::create(&tmp).await?;
         let mut stream=response.bytes_stream();let mut count=0u64;
