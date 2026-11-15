@@ -194,6 +194,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
         <button type="button" id="telegram-account-button" class="settings-primary" onclick="openTelegramAccount()">Add Telegram account</button>
         <small>API setup, sign-in, saved-song status and disconnect are all here. No bot or external Aysha server needed.</small>
       </article>
+      <p id="settings-build-receipt" class="section-subtitle" hidden></p>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
         <summary>Linux speaker controls</summary>
@@ -1574,7 +1575,10 @@ async function pollStatus() {
       document.getElementById('android-output-note').hidden = false;
       const receipt = document.getElementById('native-build-receipt');
       receipt.hidden = false;
-      receipt.textContent = 'Rust APK · ' + (/^[a-f0-9]{40}$/.test(st.build_id || '') ? st.build_id.slice(0, 7) : 'local build');
+      receipt.textContent = (st.audio_engine === 'media3' ? 'Android Audio · Media3' : 'Rust Audio') + ' · ' + (/^[a-f0-9]{40}$/.test(st.build_id || '') ? st.build_id.slice(0, 7) : 'local build');
+      const settingsReceipt = document.getElementById('settings-build-receipt');
+      settingsReceipt.hidden = false;
+      settingsReceipt.textContent = receipt.textContent;
     }
     if (state.nativePlayback) {
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();

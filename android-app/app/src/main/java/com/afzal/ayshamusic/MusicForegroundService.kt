@@ -25,7 +25,7 @@ import androidx.media.app.NotificationCompat.MediaStyle
 /**
  * Foreground media service.
  *
- * Responsibilities (no playback itself - Rust/rodio owns the audio):
+ * Responsibilities (selected Rust or Media3 engine owns audio):
  *  - foregroundServiceType="mediaPlayback" notification
  *  - partial WakeLock while playing
  *  - AudioManager focus + ACTION_AUDIO_BECOMING_NOISY (pause on headphone unplug)

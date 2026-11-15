@@ -41,6 +41,8 @@ BROWSER_TEST_MODULES=/tmp/aysha-browser-check/node_modules \
   node tests/mobile.browser.cjs
 ```
 
+Native Settings fixtures also check both engine receipts, old `#bluetooth` deep-link mapping, visible Add Telegram account, dialog Back/Forward and cleared secret inputs at320px,390px and landscape844px. They do not authenticate a real Telegram account or run Media3.
+
 The packaged Linux headless Chromium needs its OS shared libraries (including libnss3/libnspr4). This does not install Node, npm or a browser as a production player dependency. On minimal containers, use the package's bundled shared libraries or a suitable browser-test image; do not confuse a browser-launch dependency error with an application error.
 
 For screenshots, set UI_SCREENSHOT_DIR to a temporary/output directory. Generated previews are excluded from Git. The suite uses read-only sample API fixtures and sample artwork, not the live server or actual song downloads.

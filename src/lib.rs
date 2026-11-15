@@ -1,11 +1,9 @@
 //! Shared library target for the Aysha Music Android APK.
 //!
-//! Phase 2 scope: JNI entry point, a local Axum server bound to
-//! `127.0.0.1:5050`, the persistent Telegram queue/quota endpoints and the
-//! Telegram login (`send_code` -> `verify_code` -> optional 2FA).
-//!
-//! Later phases wire in the pure-Rust YouTube extractor, the rodio player and
-//! the `/api/tg/quota` sidebar gauge in the player page.
+//! A variant-specific loopback Axum server embeds the UI, catalogue, Rust
+//! YouTube resolution and Telegram Saved Messages pipeline. Audio decode/output
+//! is Rust rodio/CPAL or the explicitly approved Android Media3 bridge; startup
+//! instance/engine/port identity must match before Kotlin loads this server.
 
 #![cfg(feature = "phone")]
 mod android_catalog;
@@ -224,7 +222,7 @@ async fn status() -> Json<Value> {
         "native_playback": true,
         "build_id": option_env!("GITHUB_SHA").unwrap_or("local"),
         "playback_baseline": "7b09cde-1.2.1-media-client",
-        "native_media_input":"seekable_aac_ranges",
+        "native_media_input": if audio_engine_name()=="media3" {"loopback_aac_ranges"} else {"seekable_aac_ranges"},
     }))
 }
 
@@ -961,7 +959,7 @@ mod android {
         jni::sys::JNI_VERSION_1_6
     }
 
-    /// Kotlin: `RustBridge.startServer(filesDir, cacheDir, applicationContext)`.
+    /// Kotlin supplies application context plus variant port/engine and process instance ID.
     ///
     /// `RustBridge` is a Kotlin `object`, so the receiver is a `jobject`
     /// (not a `jclass`).

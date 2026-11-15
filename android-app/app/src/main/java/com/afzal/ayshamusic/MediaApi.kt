@@ -14,13 +14,15 @@ object MediaApi {
     val instanceId: String = java.util.UUID.randomUUID().toString()
     @Volatile private var verified = false
 
+    fun isBackendVerified(): Boolean = verified
+
     fun verifyBackend(): Boolean {
         return try {
-            val status = org.json.JSONObject(get("/api/status") ?: return false)
+            val status = org.json.JSONObject(get("/api/status") ?: run { verified = false; return false })
             (status.optString("instance_id") == instanceId &&
                 status.optString("audio_engine") == BuildConfig.AUDIO_ENGINE &&
                 status.optInt("api_port") == BuildConfig.API_PORT).also { verified = it }
-        } catch (_: Exception) { false }
+        } catch (_: Exception) { verified = false; false }
     }
     private const val TIMEOUT_MS = 1500
     private val posts = java.util.concurrent.Executors.newSingleThreadExecutor()

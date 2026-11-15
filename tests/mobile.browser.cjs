@@ -105,6 +105,65 @@ async function checkInteractiveSandbox(context) {
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 }
 
+// Native-UI fixture only: no Android playback or real account is simulated.
+async function checkNativeSettings(context) {
+  for (const engine of ['rust', 'media3']) {
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/') return route.fulfill({contentType:'text/html',body:html.replace('nativePlayback: false', 'nativePlayback: true')});
+      if (url.pathname === '/icons.svg') return route.fulfill({contentType:'image/svg+xml',body:icons});
+      let data = {status:'ok'};
+      if (url.pathname === '/api/status') data = {native_playback:true,audio_engine:engine,build_id:'abcdef0'.padEnd(40, '1')};
+      else if (url.pathname === '/api/player') data = {state:'idle',video_id:null,position_secs:0,error:null};
+      else if (url.pathname === '/api/tg/status') data = {configured:false,authorized:false,quota:{queued_tracks:0},failed_tracks:0};
+      else if (url.pathname === '/api/search' || url.pathname === '/api/liked' || url.pathname === '/api/queue') data = [];
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
+    });
+    for (const viewport of [{width:320,height:740},{width:390,height:844},{width:844,height:390}]) {
+      await page.setViewportSize(viewport);
+      await page.goto('about:blank');
+      await page.goto('https://native-settings.test/#bluetooth');
+      await page.locator('.love-skip').click();
+      await page.locator('#love-intro').waitFor({state:'hidden'});
+      await page.locator('#tab-settings.active').waitFor();
+      await page.locator('#settings-build-receipt').waitFor({state:'visible'});
+      assert.match(await page.locator('#settings-build-receipt').textContent(), engine === 'media3' ? /Android Audio · Media3/ : /Rust Audio/);
+      assert.match(await page.locator('#settings-build-receipt').textContent(), /abcdef0/);
+      assert.ok(await page.locator('#linux-speaker-settings').isHidden());
+      assert.ok(await page.locator('#android-output-note').isVisible());
+      const add = page.getByRole('button',{name:'Add Telegram account',exact:true});
+      assert.ok(await add.isVisible());
+      const target = await add.boundingBox();
+      assert.ok(target.width >= 44 && target.height >= 44);
+      await add.click();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      assert.match(await page.locator('#telegram-status').textContent(),/first-time API setup/);
+      assert.ok(await page.locator('#telegram-account').evaluate(el => el.scrollWidth <= el.clientWidth));
+      await page.locator('#telegram-account details').first().locator('summary').click();
+      await page.locator('#tg-api-hash').fill('test-only-not-a-secret');
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.goForward();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      if (viewport.width === 390 && engine === 'media3' && process.env.UI_SCREENSHOT_DIR) {
+        fs.mkdirSync(process.env.UI_SCREENSHOT_DIR,{recursive:true});
+        await page.screenshot({path:path.join(process.env.UI_SCREENSHOT_DIR,'mobile-native-settings.png')});
+      }
+      console.log(`PASS native Settings fixture ${engine} ${viewport.width}x${viewport.height}: visible account setup, Back/Forward and cleared secrets`);
+    }
+    assert.deepEqual(errors,[]);
+    await page.close();
+  }
+}
+
 let activeViewport = 'startup';
 (async () => {
   const { default: binary } = await import(pathToFileURL(path.join(modules, '@sparticuz/chromium/build/index.js')).href);
@@ -117,6 +176,8 @@ let activeViewport = 'startup';
       HTMLMediaElement.prototype.play = function() { window.mediaPlayAttempts++; return Promise.resolve(); };
       HTMLMediaElement.prototype.pause = function() {};
     });
+    await checkNativeSettings(context);
+    if (process.env.NATIVE_SETTINGS_ONLY === '1') return;
     await checkInteractiveSandbox(context);
     const page = await context.newPage();
     for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 412, height: 915 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {

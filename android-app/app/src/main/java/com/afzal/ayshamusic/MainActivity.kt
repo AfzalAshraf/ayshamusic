@@ -216,7 +216,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         // Handle deep links if needed
         intent.data?.let { uri ->
-            if (uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && MediaApi.verifyBackend()) {
+            if (uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && MediaApi.isBackendVerified()) {
                 webView?.loadUrl(uri.toString())
             }
         }

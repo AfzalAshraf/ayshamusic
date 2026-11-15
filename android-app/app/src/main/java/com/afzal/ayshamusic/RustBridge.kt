@@ -8,7 +8,7 @@ import android.util.Log
  * 
  * The native function signature must match:
  *   JNIEXPORT void JNICALL Java_com_afzal_ayshamusic_RustBridge_startServer(
- *       JNIEnv* env, jobject receiver, jstring filesDir, jstring cacheDir, jobject context
+ *       JNIEnv* env, jobject receiver, jstring filesDir, jstring cacheDir, jobject context, jint port, jstring engine, jstring instance
  *   )
  */
 object RustBridge {

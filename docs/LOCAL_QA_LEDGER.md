@@ -2316,3 +2316,46 @@ failure should visibly/operationally fall back to YouTube as documented. If a ne
 error occurs, retain receipt and exact wrapped message rather than repeat unchanged
 installs or unrelated client/watch experiments. Old packages and main release are
 untouched for recovery; uploaded user messages are never deleted by disconnect.
+
+
+## Dual audio candidates — supersedes source99972a3
+
+**Phone result:** The user's screenshot for99972a3 reports0:00 with
+`audio_decode_failed: An IO error occurred while reading, writing, or seeking the
+stream.` Previous fixture/build success must not be described as audible-phone
+success. User also could not find account setup.
+
+**Approved change:** two standalone installable APKs: existing Rust audio and
+Media3/ExoPlayer **audio only**, keeping the Rust resolver/Telegram backend and UI.
+Rounded red **launcher only**, not the Play button. Settings gear replaces the
+Bluetooth nav; Add Telegram account is prominent/always accessible in Settings.
+See `docs/DUAL_AUDIO_APKS.md` for scope, identities, data isolation and limitations.
+
+- Source **ee050dc**: Android **43717366715 SUCCESS**; Rust host fixtures, native
+  ARM64/JNI, both Gradle/R8 flavors, separate15MiB size gates and contracts passed.
+  Linux **43717366678 SUCCESS**, all five jobs.
+- First-build artifacts (not the final receipt/UI follow-up):
+  Rust Audio14162859840, ZIP4,146,556bytes; Android Audio14163650226,
+  ZIP4,663,126bytes. API metadata verified unexpired. These are archive sizes,
+  not installed APK size or memory. Full log retrieval failed at the restricted
+  results-receiver redirect; job/step success comes from GitHub's jobs API.
+- Local **100 Node PASS / 137 Python PASS / diffcheck PASS**.
+- Local Chromium full suite PASS: both native Settings engine fixtures at320x740,
+  390x844 and844x390, account modal access/Back/Forward/secret clearing; general
+  seven viewports320px through1440px and real static-preview iframe touch/mouse.
+  Native tests are UI-only JSON fixtures; media output is stubbed. Screenshot
+  visually inspected. Initial browser launch lacked libnspr4; package-bundled
+  libraries via `LD_LIBRARY_PATH=/tmp/al2023/lib` resolved it. A same-document
+  navigation issue in the new test harness was fixed with about:blank navigation.
+- Old/new5050 app reuse was possible by code inspection, not phone-proven. New
+  variants use5061/5062 and a per-process instance/engine/port match before WebView
+  load. Signed provider URLs and credentials stay in Rust for both engines.
+- Real song resolution/playback, physical audio, Telegram auth/upload/replay,
+  audio focus/background/screen-lock, Android RAM and production signing remain
+  **UNVERIFIED**. No new live provider/client experiment or user-account access.
+- Older apps/data/public release preserved. Tracked pyc deletion left unstaged.
+
+A follow-up source build will include explicit engine/build receipts in Settings
+and Now Playing plus expanded native-UI browser coverage. Its final CI/artifact
+manifest follows below after completion; do not deliver first-build artifacts as
+though they include those follow-up changes.

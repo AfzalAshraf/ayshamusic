@@ -14,8 +14,11 @@ credentials, account codes or passwords should be sent in chat or committed to G
 
 ## Phone setup
 
-1. Install the identified candidate APK and open **Aysha Music Telegram**.
-2. Go to **Library → Telegram account**. These controls are not on Now Playing.
+1. Install either identified candidate: **Aysha Rust Audio** or **Aysha Android Audio**.
+   They are separate installs with separate sessions/preferences; no old-app data is
+   imported. Use the matching launcher label, not the previous Telegram test app.
+2. Go to **Settings (gear) → Add Telegram account**. The card is always visible,
+   even before account configuration. These controls are not on Now Playing.
 3. Expand **First-time API setup**. Follow the link to the official
    `https://my.telegram.org/apps` in your browser, sign in and create an application
    to obtain your developer API ID and API hash. The APK does not bundle shared
@@ -39,8 +42,10 @@ is not a claim of Android Keystore encryption or protection from a compromised O
 - Replay checks a local Saved Messages message-ID index first, then bounded Saved
   Messages search if needed. Captions must start with the exact `#yt_<video_id>`
   marker; fuzzy search matches and other chat content are not trusted as identity.
-- A found Telegram media file is streamed in aligned chunks into the same bounded,
-  seekable MP4/AAC reader/decoder as YouTube. It is not downloaded in full into RAM.
+- A found Telegram media file is streamed in aligned chunks through Rust's bounded
+  range input. Rust Audio decodes with rodio/Symphonia; Android Audio sends a
+  token-scoped loopback byte stream to Media3/ExoPlayer. Both use the same Rust
+  YouTube resolver and Telegram implementation; neither loads a full file into RAM.
 - Telegram connection/search is bounded. Missing/deleted/unavailable/unsupported
   saved media at startup falls back to the normal YouTube resolver and range player.
   A read error later in an already playing Telegram stream is surfaced; seamless
@@ -89,12 +94,15 @@ behavior and credential-file privacy. They do not log into a real Telegram accou
 prove real uploads/downloads, satisfy music-provider restrictions or establish
 physical-phone audibility. No user account was accessed during implementation.
 
-## Current install-test artifact
+## Current install-test artifacts
 
-[Download **Aysha Music Telegram — 1.3.0-preview**](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43594634691/artifacts/14113683577),
-extract `app-release.apk`, install and open **Aysha Music Telegram**. Source99972a3,
-code8, packagecom.afzal.ayshamusic.telegram8, Android8+/ARM64. It is separate from
-older test apps. APK/host fixture checks passed in Android43594634691; all five
-Linux jobs passed in43594634703. This is not real-account or phone-audio acceptance,
-not a production-signed store release. Artifact retention14days; GitHub sign-in may
-be needed. No external Aysha server is required.
+There are now **two** audio variants. See `docs/DUAL_AUDIO_APKS.md` for package,
+launcher and engine identities and `docs/LOCAL_QA_LEDGER.md` for the exact source,
+CI evidence and artifact links. Both are standalone Android8+/ARM64 candidates,
+not production-signed store releases. GitHub sign-in/repository access may be
+required and CI artifacts expire after14days.
+
+The old source99972a3, code8, **Aysha Music Telegram** artifact is superseded:
+the user's physical phone reported an IO decode failure at0:00. Its green CI did
+not establish real phone sound. Neither new candidate should be described as
+phone-audio or real-account accepted until that evidence exists.
