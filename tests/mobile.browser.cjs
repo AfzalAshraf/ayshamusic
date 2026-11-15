@@ -112,7 +112,11 @@ async function checkStandalonePorts(context) {
   const servers = [];
   let page;
   try {
-    for (const port of [5061, 17651, 17652]) {
+    const gradle = fs.readFileSync(path.join(root,'android-app/app/build.gradle.kts'),'utf8');
+    const ports = [...gradle.matchAll(/"API_PORT", "(\d+)"/g)].map(match => Number(match[1]));
+    assert.equal(ports.length,2);
+    assert.ok(ports.every(port => port !== 5061 && port !== 5060));
+    for (const port of [5061, ...ports]) {
       page = await context.newPage();
       let hits = 0;
       const server = http.createServer((request, response) => {

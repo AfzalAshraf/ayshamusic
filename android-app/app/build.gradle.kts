@@ -48,14 +48,14 @@ android {
         create("rustAudio") {
             dimension = "audio"
             applicationIdSuffix = ".rustaudio10"
-            resValue("string", "app_name", "Aysha Rust Audio")
+            resValue("string", "app_name", "Aysha Rust Audio 10")
             buildConfigField("String", "AUDIO_ENGINE", "\"rust\"")
             buildConfigField("int", "API_PORT", "17651")
         }
         create("androidAudio") {
             dimension = "audio"
             applicationIdSuffix = ".androidaudio10"
-            resValue("string", "app_name", "Aysha Android Audio")
+            resValue("string", "app_name", "Aysha Android Audio 10")
             buildConfigField("String", "AUDIO_ENGINE", "\"media3\"")
             buildConfigField("int", "API_PORT", "17652")
         }

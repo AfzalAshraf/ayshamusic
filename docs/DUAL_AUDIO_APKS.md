@@ -18,14 +18,14 @@ and transparent corners. Original dedication remains unchanged.
 
 | | Rust Audio | Android Audio |
 |---|---|---|
-| Launcher label | Aysha Rust Audio | Aysha Android Audio |
-| Application ID | `com.afzal.ayshamusic.rustaudio9` | `com.afzal.ayshamusic.androidaudio9` |
-| Local API port | 5061 | 5062 |
+| Launcher label | Aysha Rust Audio 10 | Aysha Android Audio 10 |
+| Application ID | `com.afzal.ayshamusic.rustaudio10` | `com.afzal.ayshamusic.androidaudio10` |
+| Local API port | 17651 | 17652 |
 | Audio engine | Rust rodio/CPAL | AndroidX Media3 ExoPlayer 1.8.0 |
 | CI artifact name | `ayshamusic-rust-audio-arm64` | `ayshamusic-android-audio-arm64` |
 | APK filename | `app-rustAudio-release.apk` | `app-androidAudio-release.apk` |
 
-Both: version **1.3.1-preview**, code **9**, Android **8+**, **ARM64** only. Each APK
+Both: version **1.3.2-preview**, code **10**, Android **8+**, **ARM64** only. Each APK
 contains its own Rust server and runs on the phone; no external Aysha server is
 needed. Both can be installed alongside each other and the previous test APKs.
 Their app-private Telegram sessions, queue and preferences are separate; nothing
@@ -108,21 +108,53 @@ in chat or repeat the previously consumed live-provider experiment.
 Final source/CI/artifact evidence is recorded in `docs/LOCAL_QA_LEDGER.md`. Account
 instructions and data/storage cautions: `docs/TELEGRAM_SAVED_MESSAGES.md`.
 
-## Download candidates (source e39acae)
+## Code10 correction: physical phone report and actual browser evidence
 
-Android run [43717901021](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021)
-passed host Rust fixtures, ARM64/JNI, both release/R8 builds, separate size gates,
-artifact uploads and Android contract checks.
+The e39acae/code9 candidates are **superseded**, not fixed-phone builds. The user
+reported Media3 sometimes audible but unable to pause, and supplied two screenshots
+with `media3_input_failed: media_range_http_403`; Rust Audio's local page failed.
 
-- [Rust Audio ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163606203)
-  — extract/install `app-rustAudio-release.apk`, open **Aysha Rust Audio**.
-- [Android Audio ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163108083)
-  — extract/install `app-androidAudio-release.apk`, open **Aysha Android Audio**.
+A concrete startup error was introduced by assigning Rust port5061: Chromium
+blocks5061 (SIPS) as unsafe even when a local HTTP server is healthy. We reproduced
+`ERR_UNSAFE_PORT` against a real listening server in Chromium, with zero requests
+reaching the server. The configured code10 ports17651/17652 both returned200 in
+actual Chromium navigation. `127.0.0.1` always means this same phone/process host,
+not a remote Aysha deployment. Kotlin's status check succeeding had not proved
+WebView could navigate to that port. Main-frame local failures now show an in-app
+explanation/retry instead of only Chromium's raw error page.
 
-Settings → Add Telegram account in either app. Setup is separate per install.
-Use one playback variant at a time. ZIP metadata and limits are in the QA ledger;
-these are CI candidates, not a claim of audible-device success.
+Other corrections:
 
-Regression follow-up [Linux43718290998](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43718290998)
-passed all five jobs after correcting the account-dialog test's asynchronous wait.
-The delivered APK source remains e39acae; the test-only follow-up is c2c4e32.
+- New selection increments a generation ticket and stops existing actual output
+  **before** resolving the replacement. Old resolve/timeout futures cannot stop a
+  newer selection or acknowledge a late success.
+- Media3 replacement and input failure explicitly release the old/current output
+  and revoke its media token, including failure before any new Play command.
+- Pause/resume commands carry revisions. Delayed older playing/error callbacks
+  cannot overwrite a more recent pause; paused buffering is reported as paused.
+- Intermediate profile failures during preparation are not rendered as a final
+  UI error over recovered playback. A second tap while preparing cancels instead
+  of starting another concurrent request.
+- Existing Rust client profiles are tried through **actual source + decoder/output
+  preparation**, not only metadata resolution. A rejected403 source can fall
+  through to the next existing profile. The selected profile's User-Agent is
+  retained for media reads, including Telegram archival's HTTP read. No source
+  bypass, replacement extractor, new client identity or external resolver added.
+- Source attempts have a shared60second deadline (individual native preparation
+  cap45s), at most three existing profiles, and stop on cancellation/deadline.
+  If all providers reject access, playback fails honestly and output is stopped;
+  a pure-Rust ExoPlayer rewrite could not make a403 URL authorized.
+
+Rust Audio remains the primary Rust implementation: Rust resolution, Telegram,
+range IO, Symphonia decoding, bounded PCM and rodio/CPAL output inside the APK.
+The Media3 variant is retained for comparison, not described as a new Rust clone
+or feature-parity implementation of the entire Media3 project.
+
+Code10 uses separate install identities and launcher labels ending **10** to avoid
+confusion with older apps and ephemeral CI signing keys. Close/stop older code9
+apps before comparing; the new package cannot control another package's audio.
+Each install retains separate account data; no session migration is claimed.
+
+Final code10 artifact links and CI gates are recorded below when built and in
+`docs/LOCAL_QA_LEDGER.md`. Phone sound/pause/Telegram acceptance remains a distinct
+gate; offline/host fixtures do not prove a universal fix for YouTube rejections.

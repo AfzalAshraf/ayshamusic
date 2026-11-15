@@ -2397,3 +2397,35 @@ wait fixed the new harness race. Local final native Settings six-case rerun,
 **e39acae**; deliver the two artifacts from Android43717901021 above. This final
 ledger update is documentation only and does not imply any new physical-phone,
 account or RAM acceptance.
+
+
+## Code10: phone403/pause and blocked Rust WebView correction
+
+New user evidence: e39acae Android Audio sometimes audible but cannot pause;
+screenshots for Tony Ann DISCOVERY and Ash Self-Discovery both show
+`media3_input_failed: media_range_http_403` at0:00. Rust local127.0.0.1 page did
+not open. Do not discount the report because prior CI succeeded.
+
+Confirmed by **actual local Chromium experiment**:5061 returns `ERR_UNSAFE_PORT`
+without contacting the healthy listening HTTP server; the configured replacement
+ports17651/17652 both navigate200. Chromium source `net/base/port_util.cc` also
+lists5061 as SIPS-blocked. This is a specific startup defect, not evidence of an
+external Aysha server dependency. All components remain APK-local except normal
+YouTube/Telegram internet services. No new live provider experiment was performed.
+
+Corrections: generation tickets on every selection; stop old output before any
+resolution wait; token-specific stop on Media3 replace/failure; revisioned pause/
+resume callbacks; preserve resolved client User-Agent; existing-profile fallback
+through actual native preparation with shared60second deadline; suppress interim
+fallback errors in UI and cancel instead of double-start while pending. Rust
+remains decode/output in the Rust flavor. No purported ExoPlayer Rust clone or
+replacement extractor was introduced. New version1.3.2-preview/code10 has distinct
+`.rustaudio10`/`.androidaudio10` packages, labels ending10, ports17651/17652.
+
+Local checks: **102 Node PASS / 137 Python PASS / diffcheck PASS**; real loopback
+navigation reproduction and six native Settings fixtures PASS. New offline Rust
+fixtures cover source403 fallback, total rejection/cancellation bounds, orphan
+output on failed replacement, stale pause/playing/error revisions and Stop.
+Android/host CI results follow when complete. Unrelated tracked pyc deletion
+preserved unstaged. Credentials never requested; real new phone behavior,
+Telegram auth/upload/replay and RAM remain unverified.
