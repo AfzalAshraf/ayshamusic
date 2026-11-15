@@ -284,7 +284,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
             if value["op"]=="play" {if let Some(reply)=played.lock().unwrap().take(){let _=reply.send(value);}}Ok(())
         });
         let (release,waiting)=std::sync::mpsc::channel();
-        let _ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Waiting(Mutex::new(waiting)))))}).unwrap();
+        let _ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Waiting(Mutex::new(waiting))))}).unwrap();
         player.pause().unwrap();release.send(()).unwrap();
         let command=tokio::time::timeout(std::time::Duration::from_secs(2),received).await.unwrap().unwrap();
         assert_eq!(command["revision"],1);assert_eq!(command["play_when_ready"],false);
