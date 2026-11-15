@@ -1,0 +1,71 @@
+name: Approved single Rust source experiment
+
+# NEVER add push, pull_request, a schedule or automatic retry to this workflow.
+# User approved ONE bounded live experiment in the current conversation.
+on:
+  workflow_call:
+    inputs:
+      approval:
+        description: "Enter rust-only-one-public-video to consume the single approved run"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: approved-rust-source-once
+  cancel-in-progress: false
+
+jobs:
+  source-once:
+    if: inputs.approval == 'rust-only-one-public-video'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: prototypes/rust-source-check
+      - name: Build and offline guard tests (no live requests)
+        run: |
+          if ! (
+            cargo generate-lockfile --manifest-path prototypes/rust-source-check/Cargo.toml &&
+            cargo test --locked --manifest-path prototypes/rust-source-check/Cargo.toml &&
+            cargo build --release --locked --manifest-path prototypes/rust-source-check/Cargo.toml
+          ) > "$RUNNER_TEMP/source-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/source-build.log"
+            python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/source-build.log").read()[-12000:]; print("::error title=Offline candidate build::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/source-build.log"
+          prototypes/rust-source-check/target/release/aysha-rust-source-check
+      - name: Consume the one approved bounded source experiment
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+          echo '::notice title=Approved source experiment::Single approved live experiment started; do not rerun without new permission.'
+          # The binary independently enforces60seconds/12requests/8MiB and two
+          # media ranges through a host-restricted loopback CONNECT guard.
+          # This outer timeout also kills a CPU-blocking third-party JS task.
+          ulimit -v 2097152
+          timeout --signal=KILL 60s \
+            prototypes/rust-source-check/target/release/aysha-rust-source-check \
+            --approved-once | tee diagnostics/rust-source-once.json
+      - name: Annotate sanitized result (also on source failure)
+        if: always()
+        run: |
+          if [ -s diagnostics/rust-source-once.json ]; then
+            while IFS= read -r line; do printf '::notice title=Approved source result::%s\n' "$line"; done < diagnostics/rust-source-once.json
+          fi
+      - name: Keep sanitized result and exact candidate lock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-source-once-evidence
+          path: |
+            diagnostics/rust-source-once.json
+            prototypes/rust-source-check/Cargo.lock
+          if-no-files-found: warn
+          retention-days: 14

@@ -26,3 +26,5 @@ __pycache__/
 *.aab
 *.keystore
 *.jks
+
+/prototypes/rust-source-check/target/

@@ -16,6 +16,12 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
   workflow_dispatch:
+    inputs:
+      source_experiment:
+        description: "Leave blank for APKs. rust-only-one-public-video consumes the single approved source test."
+        required: false
+        default: ""
+        type: string
 
 # Build install-test artifacts only; publishing is a separate explicit operation.
 permissions:
@@ -26,7 +32,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  source-once:
+    if: github.event_name == 'workflow_dispatch' && inputs.source_experiment == 'rust-only-one-public-video' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic'
+    uses: ./.github/workflows/rust-source-once.yml
+    with:
+      approval: rust-only-one-public-video
+
   build-apk:
+    if: inputs.source_experiment != 'rust-only-one-public-video'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
