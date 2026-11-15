@@ -1,70 +1,41 @@
-"""Generate the launcher icons (red disc + music note) with the Python stdlib only.
+"""Rasterize the user's supplied black/silver Aysha launcher artwork.
 
-Run from anywhere: python3 android-app/tools/generate_launcher_icons.py
+Requires Pillow (build-time only): python3 -m pip install Pillow
+Run: python3 android-app/tools/generate_launcher_icons.py
+The checked-in master is cropped from image-9.png; no AI redraw or player UI edits.
 """
-import math
-import os
-import struct
-import zlib
+from pathlib import Path
+from PIL import Image, ImageDraw
 
-
-def _chunk(kind, data):
-    return (
-        struct.pack(">I", len(data))
-        + kind
-        + data
-        + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
-    )
-
-
-def write_png(path, size, round_icon):
-    # A full red disc with transparent corners in BOTH legacy variants. The old
-    # regular icon was a small square on an opaque black background.
-    red = (232, 45, 70)
-    cx = cy = (size - 1) / 2.0
-    radius = size * 0.47
-    rows = []
-    for y in range(size):
-        row = bytearray([0])  # filter type 0
-        for x in range(size):
-            coverage = max(0.0, min(1.0, radius - math.hypot(x - cx, y - cy) + 0.5))
-            nx, ny = (x + 0.5) / size, (y + 0.5) / size
-            note = (
-                ((nx - 0.39) ** 2 + (ny - 0.66) ** 2 <= 0.075 ** 2)
-                or ((nx - 0.61) ** 2 + (ny - 0.60) ** 2 <= 0.075 ** 2)
-                or (0.435 <= nx <= 0.465 and 0.34 <= ny <= 0.66)
-                or (0.655 <= nx <= 0.685 and 0.28 <= ny <= 0.60)
-                or (0.435 <= nx <= 0.685 and 0.34 - (nx - 0.435) * 0.24 <= ny <= 0.39 - (nx - 0.435) * 0.24)
-            )
-            rgb = (255, 255, 255) if note and coverage else red
-            row += bytes((*rgb, round(255 * coverage)))
-        rows.append(bytes(row))
-
-    raw = b"".join(rows)
-    png = b"\x89PNG\r\n\x1a\n"
-    png += _chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
-    png += _chunk(b"IDAT", zlib.compress(raw, 9))
-    png += _chunk(b"IEND", b"")
-
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as handle:
-        handle.write(png)
+ROOT = Path(__file__).resolve().parents[1]
+MASTER = ROOT / "artwork/aysha-launcher.png"
+RES = ROOT / "app/src/main/res"
 
 
 def main():
-    here = os.path.dirname(os.path.abspath(__file__))
-    res = os.path.join(os.path.dirname(here), "app", "src", "main", "res")
-    targets = [
-        ("mipmap-mdpi", 48),
-        ("mipmap-hdpi", 72),
-        ("mipmap-xhdpi", 96),
-        ("mipmap-xxhdpi", 144),
-        ("mipmap-xxxhdpi", 192),
-    ]
-    for folder, size in targets:
-        write_png(os.path.join(res, folder, "ic_launcher.png"), size, round_icon=False)
-        write_png(os.path.join(res, folder, "ic_launcher_round.png"), size, round_icon=True)
-    print("launcher icons written")
+    artwork = Image.open(MASTER).convert("RGBA")
+    for density, size in [("mdpi", 48), ("hdpi", 72), ("xhdpi", 96), ("xxhdpi", 144), ("xxxhdpi", 192)]:
+        icon = artwork.resize((size, size), Image.Resampling.LANCZOS)
+        target = RES / f"mipmap-{density}"
+        target.mkdir(parents=True, exist_ok=True)
+        icon.save(target / "ic_launcher.png")
+        # Legacy launchers that request roundIcon should receive a circular
+        # silhouette without cropping any of the supplied artwork or AYSHA text.
+        round_icon = Image.new("RGBA", (size, size), (18, 22, 27, 255))
+        inner = round(size * 0.73)
+        round_icon.alpha_composite(artwork.resize((inner, inner), Image.Resampling.LANCZOS), ((size-inner)//2, (size-inner)//2))
+        mask = Image.new("L", (size*4, size*4), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, size*4-1, size*4-1), fill=255)
+        round_icon.putalpha(mask.resize((size, size), Image.Resampling.LANCZOS))
+        round_icon.save(target / "ic_launcher_round.png")
+    # Full 108dp adaptive foreground: artwork's corners sit within the central
+    # 66dp safe circle. Masked circle/squircle launchers retain the entire logo.
+    foreground = Image.new("RGBA", (432, 432))
+    foreground.alpha_composite(artwork.resize((184, 184), Image.Resampling.LANCZOS), (124, 124))
+    target = RES / "drawable-nodpi"
+    target.mkdir(parents=True, exist_ok=True)
+    foreground.save(target / "ic_launcher_artwork.png")
+    print("User-supplied launcher artwork generated; player Play unchanged")
 
 
 if __name__ == "__main__":

@@ -46,3 +46,23 @@ AAC decoding, size and actual phone tests would still be needed before an APK.
 A cloud/CI network's result cannot certify the user's phone/region. If blocked,
 retain the sanitized code/counters and stop; do not start another live experiment
 without approval. Cargo.lock and sanitized JSON are the only uploaded evidence.
+
+## User-requested image9 recheck
+
+The user explicitly requested another check and both APKs along with new launcher
+artwork. One renewed bounded run is gated to the exact parent SHA and approval
+message in the Android workflow, attempt1 only. It cannot run on later pushes,
+PRs, or ordinary offline CI. Historical `--approved-once` stays disabled; the new
+CLI requires a separate workflow-only approval environment variable and argument.
+The same12-request/60second/8MiB transport/two64KiB range caps apply.
+
+Before this recheck the format selector was corrected to exclude invalid URLs
+*before* bitrate/preferred-itag ranking. Previously the highest-ranked unusable
+entry could mask another usable AAC entry in the same response. No additional
+profiles or fallback requests are added. Safe per-format URL categories (empty,
+unparseable, non-HTTPS, rejected host/port/credentials, allowed) distinguish the
+previous ambiguous host rejection without retaining signed URLs or player HTML.
+
+This is research, not an APK dependency or a claim of working phone playback.
+After the one live step starts its entry points must be sealed again, regardless
+of result. No automatic rerun or provider/account bypass is authorized.

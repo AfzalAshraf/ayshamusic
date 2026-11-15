@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 10/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 11/);
 });
 
 
@@ -117,10 +117,13 @@ test('dual audio APKs isolate identities, ports and playback-only dependencies',
   for (const name of ['ayshamusic-rust-audio-arm64', 'ayshamusic-android-audio-arm64']) assert.ok(workflow.includes(name));
 });
 
-test('red launcher supports both adaptive masks and legacy round icons without recoloring Play', () => {
-  assert.match(read('android-app/app/src/main/res/values/colors.xml'), /#E82D46/);
+test('supplied black and silver Aysha launcher supports adaptive and legacy icons without recoloring Play', () => {
+  assert.match(read('android-app/app/src/main/res/values/colors.xml'), /#12161B/);
   for (const icon of ['ic_launcher', 'ic_launcher_round']) {
-    assert.match(read(`android-app/app/src/main/res/mipmap-anydpi-v26/${icon}.xml`), /adaptive-icon/);
+    const xml = read(`android-app/app/src/main/res/mipmap-anydpi-v26/${icon}.xml`);
+    assert.match(xml, /adaptive-icon/);
+    assert.match(xml, /@drawable\/ic_launcher_artwork/);
+    assert.doesNotMatch(xml, /launcher_red|ic_launcher_foreground/);
   }
   assert.doesNotMatch(read('src/index.html'), /--accent: ?#e82d46/i);
 });

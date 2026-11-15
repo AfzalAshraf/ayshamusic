@@ -65,10 +65,27 @@ async fn proxy(listener:TcpListener,budget:Arc<Budget>){
     loop {let Ok((socket,_))=listener.accept().await else{return;};let budget=budget.clone();
         tokio::spawn(async move {let _=tokio::time::timeout(Duration::from_secs(55),tunnel(socket,budget)).await;});}
 }
-fn allowed_media(raw:&str)->bool{
-    let Ok(url)=reqwest::Url::parse(raw)else{return false;};
-    url.scheme()=="https"&&url.username().is_empty()&&url.password().is_none()&&url.port().is_none_or(|p|p==443)
-        &&url.host_str().is_some_and(|h|h=="googlevideo.com"||h.ends_with(".googlevideo.com"))
+// Controlled categories only: never print a signed URL, hostname, query or token.
+fn media_url_class(raw:&str)->&'static str {
+    if raw.is_empty(){return "empty";}
+    let Ok(url)=reqwest::Url::parse(raw)else{return "unparseable";};
+    if url.scheme()!="https"{return "non_https";}
+    if !url.username().is_empty()||url.password().is_some(){return "credentials_rejected";}
+    if url.port().is_some_and(|p|p!=443){return "port_rejected";}
+    if !url.host_str().is_some_and(|h|h=="googlevideo.com"||h.ends_with(".googlevideo.com")){return "host_rejected";}
+    "allowed"
+}
+fn allowed_media(raw:&str)->bool{media_url_class(raw)=="allowed"}
+fn is_aac(f:&rusty_ytdl::VideoFormat)->bool {
+    f.has_audio&&!f.has_video&&!f.is_live&&!f.is_hls&&!f.is_dash_mpd
+        &&f.mime_type.mime.to_string().starts_with("audio/mp4")
+        &&f.mime_type.codecs.iter().any(|c|c.starts_with("mp4a"))
+}
+fn select_aac(formats:&[rusty_ytdl::VideoFormat])->Option<&rusty_ytdl::VideoFormat>{
+    // An unusable preferred/high-bitrate format must not hide a usable AAC URL.
+    // This selects locally from ONE response, never probes additional profiles.
+    formats.iter().filter(|f|is_aac(f)&&allowed_media(&f.url))
+        .max_by_key(|f|(f.itag==140,f.bitrate))
 }
 async fn range(client:&reqwest::Client,url:&str,start:u64,end:u64,total:u64,report:&mut Value,key:&str)->Result<Vec<u8>,&'static str>{
     let response=client.get(url).header(reqwest::header::USER_AGENT,UA).header(reqwest::header::ACCEPT_ENCODING,"identity")
@@ -108,9 +125,15 @@ async fn experiment(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static st
         _=>"candidate_extraction_failed",
     })?;
     if info.video_details.video_id!=VIDEO{return Err("candidate_video_id_mismatch");}
-    let format=info.formats.iter().filter(|f|f.has_audio&&!f.has_video&&!f.is_live&&!f.is_hls&&!f.is_dash_mpd&&f.mime_type.mime.to_string().starts_with("audio/mp4")&&f.mime_type.codecs.iter().any(|c|c.starts_with("mp4a")))
-        .max_by_key(|f|(f.itag==140,f.bitrate)).ok_or("candidate_no_aac")?;
-    if !allowed_media(&format.url){return Err("candidate_media_host_rejected");}
+    let aac:Vec<_>=info.formats.iter().filter(|f|is_aac(f)).collect();
+    report["format_count"]=json!(info.formats.len());
+    report["aac_count"]=json!(aac.len());
+    report["aac_url_categories"]=json!(aac.iter().take(16).map(|f|json!({
+        "itag":f.itag,"url_class":media_url_class(&f.url),
+        "has_content_length":f.content_length.is_some()
+    })).collect::<Vec<_>>());
+    if aac.is_empty(){return Err("candidate_no_aac");}
+    let format=select_aac(&info.formats).ok_or("candidate_no_allowed_aac_url")?;
     let total=format.content_length.as_ref().and_then(|v|v.parse::<u64>().ok()).filter(|n|(131072..=512*1024*1024).contains(n)).ok_or("candidate_length_rejected")?;
     report["itag"]=json!(format.itag);report["content_length"]=json!(total);
     report["stage"]=json!("first_range");
@@ -122,7 +145,11 @@ async fn experiment(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static st
 }
 #[tokio::main(flavor="current_thread")]
 async fn main(){
-    if !LIVE_APPROVAL_AVAILABLE || std::env::args().skip(1).collect::<Vec<_>>()!=["--approved-once"] {
+    debug_assert!(!LIVE_APPROVAL_AVAILABLE);
+    let renewed = std::env::var("AYSHA_SOURCE_RECHECK_APPROVAL").as_deref()==Ok("image9-one-public-video")
+        &&std::env::var("GITHUB_RUN_ATTEMPT").as_deref()==Ok("1")
+        &&std::env::args().skip(1).collect::<Vec<_>>()==["--approved-recheck-once"];
+    if !renewed {
         println!("{}",json!({"status":"offline","code":"approval_consumed"}));return;
     }
     // Third-party error messages/panic payloads can include signed URLs. Never
@@ -145,6 +172,10 @@ async fn main(){
         assert_eq!(authority("www.youtube.com:443"),Some("www.youtube.com"));assert!(authority("r1---sn.googlevideo.com:443").is_some());
         assert!(allowed_media("https://r1---sn.googlevideo.com/videoplayback?expire=123&itag=140"));
         assert!(!LIVE_APPROVAL_AVAILABLE,"the consumed one-off permission must stay disabled");
+        assert_eq!(media_url_class(""),"empty");
+        assert_eq!(media_url_class("url=https%3A%2F%2Fr.googlevideo.com"),"unparseable");
+        assert_eq!(media_url_class("http://r.googlevideo.com"),"non_https");
+        assert_eq!(media_url_class("https://r.googlevideo.com:444/a"),"port_rejected");
         assert!(!allowed_media("https://www.youtube.com/watch"));assert!(!allowed_media("https://u:p@r.googlevideo.com/a"));
     }
     #[test]fn budgets_are_hard_bounds(){let budget=Budget::new();for _ in 0..REQUESTS{budget.request().unwrap();}assert!(budget.request().is_err());let n=budget.reserve(LIMIT+1).unwrap();assert_eq!(n,LIMIT);assert!(budget.reserve(1).is_err());}

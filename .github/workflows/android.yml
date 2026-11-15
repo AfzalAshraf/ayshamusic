@@ -26,6 +26,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  source-recheck-once:
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/arena/a850fb0d-ayshamusic' && github.event.before == '230d2fb2814d585490443398cf441bc68028695e' && startsWith(github.event.head_commit.message, 'Approved recheck: image9 source') && github.run_attempt == 1
+    uses: ./.github/workflows/rust-source-once.yml
+    with:
+      approval: image9-one-public-video
+
   build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 45

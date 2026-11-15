@@ -19,8 +19,8 @@ concurrency:
 
 jobs:
   source-once:
-    # Consumed by43737916216. Archived; new permission required to enable.
-    if: ${{ false }}
+    # User explicitly requested "check again" with image9. At most ONE live run.
+    if: inputs.approval == 'image9-one-public-video' && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -42,7 +42,9 @@ jobs:
           fi
           cat "$RUNNER_TEMP/source-build.log"
           prototypes/rust-source-check/target/release/aysha-rust-source-check
-      - name: Consume the one approved bounded source experiment
+      - name: Consume the renewed one-off bounded source experiment
+        env:
+          AYSHA_SOURCE_RECHECK_APPROVAL: image9-one-public-video
         run: |
           set -euo pipefail
           mkdir -p diagnostics
@@ -53,7 +55,7 @@ jobs:
           ulimit -v 2097152
           timeout --signal=KILL 60s \
             prototypes/rust-source-check/target/release/aysha-rust-source-check \
-            --approved-once | tee diagnostics/rust-source-once.json
+            --approved-recheck-once | tee diagnostics/rust-source-once.json
       - name: Annotate sanitized result (also on source failure)
         if: always()
         run: |
