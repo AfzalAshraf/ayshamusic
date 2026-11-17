@@ -6,7 +6,8 @@ User approved on-device extraction, then rejected GPL integration/relicensing.
 NewPipe is excluded. This evaluates MIT **youtubei.js18.3.0**'s explicit **web**
 entry/bundle against fabricated offline responses. No Node executable would be
 shipped: Node here runs development tests, analogous to existing frontend tests.
-Android's existing WebView is a possible runtime, **not yet tested/integrated**.
+An API29 Android WebView passes the isolated fixture described below; the
+production app's WebView/backend integration is **not implemented or tested**.
 
 ## Reproduce (diagnostic/offline fixtures)
 
@@ -78,9 +79,14 @@ and runs one API29 emulator WebView fixture. This is separate from the productio
 APK workflow: no main source/dependency/assets change, no Rust/JNI dependency,
 no native JavaScript bridge, WebView network blocked and every resource request
 intercepted. Checks AAC fixture parsing, denial/video mismatch/cipher rejection,
-no unexpected resource/navigation and no console errors. **Outcome pending** at
-addition; actual CI result must replace this note, not be assumed. No source or
-playback test is part of this experiment.
+no unexpected resource/navigation and no console errors. **PASS** on source
+`7f730d8`, run [44137583809](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44137583809),
+job134231278450, one actual instrumentation test. Safe check annotation saved in
+`docs/research/permissive-android-webview-annotations.json`. Earlier runs failed
+because the fixture did not define WebView's implicit same-origin favicon; adding
+an explicit empty favicon response resolved the sole unexpected-resource count,
+without permitting any external request. No source or playback test is part of
+this experiment; API29 is not API26/minSdk, a current physical phone or R8 proof.
 
 ## Unresolved gates
 
@@ -96,6 +102,6 @@ playback test is part of this experiment.
    browser fetch directly or disable CORS/WebView security.
 3. A fresh, explicitly justified source test must respect the sealed CI challenge
    and stop rules. No alternate client/network/proxy retry was made here.
-4. Actual Android WebView/minSdk/R8/JNI/cancellation, Rust handoff/Telegram archive,
+4. Production Android WebView integration/minSdk26/R8/JNI/cancellation, Rust handoff/Telegram archive,
    complete affected-song playback and physical phone/network acceptance remain
    open. Existing APK and UI are unchanged. Do not deliver this as a fixed APK.

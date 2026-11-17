@@ -96,3 +96,28 @@ or telemetry is necessary to use these principles.
 - If extractor architecture must change, explicitly ask whether the previous
   Rust-only acquisition boundary is relaxed. Media3 decoder approval alone is
   not approval for Java extraction. Keep all-in-APK and Rust Telegram/backend.
+
+
+## Revised extractor/license boundary and Android fixture lesson
+
+- Owner explicitly allowed on-device Android extraction after Rust-only research,
+  then explicitly rejected GPL integration/relicensing (`avoid_gpl`). No NewPipe
+  linking or GPL-to-Rust copying. Rust retains backend/Telegram, Media3 output,
+  no hosted resolver/helper app/Node/Python runtime. Do not conflate permission
+  to research another implementation with a source-access or license waiver.
+- MIT youtubei.js18.3.0 web entry can parse fabricated direct AAC metadata in an
+  actual API29 WebView (44137583809/source7f730d8). This is ONE fixture test,
+  not acquisition, decipher, JNI, full media or physical-device acceptance.
+  Default evaluator throws; refuse cipher/n URLs pending vetted isolation.
+- Browser source-module tests (39PASS) and packaged bundle tests are different:
+  npm overrides don't rewrite a prebundled artifact. Rebuilt fixture uses locked
+  source modules; preserve MIT/ISC/BSD/Apache notices, including licenses missing
+  from npm tarballs. No root app license change.
+- Android XML failures may use element text rather than a message attribute:
+  annotate both or a real assertion becomes "unknown". Offline compatibility
+  diagnostics may record engine version and fabricated script errors, but never
+  reuse that raw-error policy for real provider metadata or signed URLs.
+- WebView may request same-origin favicon implicitly. Define a bounded empty
+  local fixture response; preserve strict rejection/assertions for all other
+  resources/navigation and keep network blocked. Never weaken production
+  head/tail or transport gates to make an unrelated fixture green.

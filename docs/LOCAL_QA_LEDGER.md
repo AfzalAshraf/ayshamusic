@@ -2818,3 +2818,26 @@ Also added first-unexpected host/path (no query/body) diagnostic, so any remaini
 failure is identified rather than weakening the network gate. An offline rerun
 will determine whether the implicit icon accounts for the single request; do not
 call this a source fix or assert the hypothesis before that evidence.
+
+### Final permissive offline evaluation result (source7f730d8)
+
+**Android44137583809/job134231278450 SUCCESS:** one actual API29 WebView fixture
+PASS (`pinnedMitLibraryParsesOfflineInActualAndroidWebView`). Defining the empty
+same-origin favicon fixture resolved the single unexpected-resource assertion;
+all other requests still rejected, network blocked, native JS bridge absent,
+console errors0. Supports basic real-Android direct-AAC parsing and denial/ID/
+cipher selection behavior, not provider/Media3 playback. Safe actual check
+annotation saved docs/research/permissive-android-webview-annotations.json.
+Linux44137583882 **all6jobs SUCCESS**, including candidate39offline tests and
+packaged+source-rebuilt desktop Chromium checks. Local fresh npm-ci/install-scripts
+OFF,39tests/build PASS;107Node/142Python previously PASS on this isolated change.
+
+Updated prototype README and result JSON with actual proof, including separate
+source-rebuilt SHA25645e5d7a834bfbdced099876aeab9473ccf0839494570e3e9cabb0d8f05ebc5b6.
+QA3/5 for this **offline candidate/component**, not fixed-song acceptance. No GPL
+linking, root license change, external helper, provider request or new production
+APK. Android minSdk26/current-phone/R8/JNI/native transport/sandboxed decipher,
+Rust head-tail handoff/Telegram and complete affected-song playback remain open.
+The browser prototype is **not yet an approved/validated production replacement**.
+No memory/service remeasurement. Physical playback is still failing build13;
+retain its evidence and don't send it as working. No user install requested.
