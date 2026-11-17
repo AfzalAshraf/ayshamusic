@@ -544,6 +544,57 @@ pub struct SearchHit {
     pub channel: String,
 }
 
+/// Normal anonymous YouTube radio metadata, not a title-search approximation.
+/// Public request/playlist shapes reviewed in MIT youtubei.js18.3.0.
+pub async fn mix(http:&Client, seed:&str, visitor:Option<&str>)->Result<Vec<SearchHit>,ResolveError> {
+    if !valid_video_id(seed) {return Err(ResolveError::InvalidVideoId);}
+    let web=InnertubeClient{name:"WEB",version:"2.20260623.01.00",user_agent:WEB_USER_AGENT,extra:"{}"};
+    let body=json!({"context":client_context(web,visitor),"videoId":seed,"playlistId":format!("RD{seed}")});
+    let mut request=http.post("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+        .header(reqwest::header::USER_AGENT,web.user_agent)
+        .header("X-YouTube-Client-Name","1").header("X-YouTube-Client-Version",web.version);
+    if let Some(visitor)=visitor {request=request.header("X-Goog-Visitor-Id",visitor);}
+    let response=request.json(&body).send().await.map_err(|_|ResolveError::Http("mix_network_unavailable".into()))?;
+    if !response.status().is_success() {return Err(ResolveError::Http(format!("mix_http_{}",response.status().as_u16())));}
+    use futures_util::StreamExt;
+    let mut stream=response.bytes_stream();let mut bytes=Vec::new();
+    while let Some(chunk)=stream.next().await {
+        let chunk=chunk.map_err(|_|ResolveError::Http("mix_response_incomplete".into()))?;
+        if bytes.len()+chunk.len()>2*1024*1024 {return Err(ResolveError::Http("mix_metadata_size_limit".into()));}
+        bytes.extend_from_slice(&chunk);
+    }
+    let value:Value=serde_json::from_slice(&bytes).map_err(|_|ResolveError::Http("mix_metadata_invalid".into()))?;
+    parse_mix_json(&value,seed)
+}
+fn mix_label(value:&Value)->String {
+    value["simpleText"].as_str().map(str::to_owned).unwrap_or_else(||value["runs"].as_array()
+        .map(|runs|runs.iter().take(20).filter_map(|r|r["text"].as_str()).collect()).unwrap_or_default())
+        .chars().take(300).collect()
+}
+fn parse_mix_json(value:&Value,seed:&str)->Result<Vec<SearchHit>,ResolveError> {
+    if value.get("error").is_some() || value["playabilityStatus"]["status"].as_str().is_some_and(|s|s!="OK") {
+        return Err(ResolveError::Unplayable("mix_unavailable".into()));
+    }
+    let panel=value.pointer("/contents/twoColumnWatchNextResults/playlist/playlist")
+        .or_else(||value.pointer("/contents/singleColumnWatchNextResults/playlist/playlist"))
+        .ok_or_else(||ResolveError::Unplayable("mix_not_offered_for_this_song".into()))?;
+    if panel["playlistId"].as_str()!=Some(format!("RD{seed}").as_str()) {
+        return Err(ResolveError::Unplayable("mix_playlist_mismatch".into()));
+    }
+    let items=panel["contents"].as_array().ok_or(ResolveError::NoAudio)?;
+    let mut seen=std::collections::HashSet::new();let mut out=Vec::new();
+    for item in items.iter().take(200) {
+        let node=&item["playlistPanelVideoRenderer"];
+        let Some(id)=node["videoId"].as_str().filter(|id|valid_video_id(id)) else {continue;};
+        if node["isPlayable"].as_bool()==Some(false) || !seen.insert(id.to_owned()) {continue;}
+        let title=mix_label(&node["title"]);if title.is_empty(){continue;}
+        let mut channel=mix_label(&node["shortBylineText"]);
+        if channel.is_empty(){channel=mix_label(&node["longBylineText"]);}
+        out.push(SearchHit{video_id:id.into(),title,channel});if out.len()==40{break;}
+    }
+    Ok(out)
+}
+
 /// InnerTube search (`/youtubei/v1/search`). Used by `/api/search` and by
 /// `/api/next`, which asks for songs similar to the one that is playing.
 pub async fn search(
@@ -885,6 +936,23 @@ mod tests {
             assert!(!error.contains("PRIVATE"));assert!(!error.contains("127.0.0.1"));
         }
         task.abort();
+    }
+
+    #[test] fn radio_parser_keeps_actual_playlist_order_not_secondary_recommendations() {
+        let value=json!({"contents":{"twoColumnWatchNextResults":{
+            "secondaryResults":{"videoRenderer":{"videoId":"unrelated01","title":{"simpleText":"Not mix"}}},
+            "playlist":{"playlist":{"playlistId":"RDfixture0001","contents":[
+                {"playlistPanelVideoRenderer":{"videoId":"fixture0001","title":{"simpleText":"Seed"}}},
+                {"playlistPanelVideoRenderer":{"videoId":"nexttrack01","title":{"runs":[{"text":"Next melody"}]},"shortBylineText":{"runs":[{"text":"Channel"}]}}},
+                {"playlistPanelVideoRenderer":{"videoId":"nexttrack01","title":{"simpleText":"Duplicate"}}},
+                {"playlistPanelVideoRenderer":{"videoId":"private0001","title":{"simpleText":"Private"},"isPlayable":false}}
+            ]}}}}});
+        let hits=parse_mix_json(&value,"fixture0001").unwrap();
+        assert_eq!(hits.iter().map(|h|h.video_id.as_str()).collect::<Vec<_>>(),vec!["fixture0001","nexttrack01"]);
+        assert_eq!(hits[1].channel,"Channel");
+        assert!(parse_mix_json(&value,"otherseed01").is_err());
+        assert!(parse_mix_json(&json!({"contents":{}}),"fixture0001").is_err());
+        assert!(parse_mix_json(&json!({"playabilityStatus":{"status":"LOGIN_REQUIRED"}}),"fixture0001").is_err());
     }
 
     #[test]

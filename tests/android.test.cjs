@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 14/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 15/);
 });
 
 
@@ -169,4 +169,11 @@ test('build14 Media3 source policy is single-profile and shared with Telegram', 
   assert.match(youtube, /"VISIONOS" => "101"/);
   assert.match(read('src/source_selection.rs'), /terminal_provider_error/);
   assert.match(read('src/range_media.rs'), /media_prepare_tail_failed/);
+});
+
+test('native ready events have an independent executor from slow Next controls', () => {
+  const api=read('android-app/app/src/main/java/com/afzal/ayshamusic/MediaApi.kt');
+  assert.match(api,/val events = java.util.concurrent.Executors.newSingleThreadExecutor\(\)/);
+  assert.match(api,/if \(event\) events else posts/);
+  assert.match(api,/readTimeout = if \(event\) TIMEOUT_MS else 60000/);
 });

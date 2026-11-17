@@ -26,17 +26,22 @@ object MediaApi {
     }
     private const val TIMEOUT_MS = 1500
     private val posts = java.util.concurrent.Executors.newSingleThreadExecutor()
+    // Playback-ready events must reach Rust while a control request is waiting
+    // for preparation; putting both on one executor causes a circular wait.
+    private val events = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     fun post(path: String, body: String? = null) {
         if (!verified) return
-        posts.execute {
+        val event = path == "/api/platform/event"
+        val executor = if (event) events else posts
+        executor.execute {
             var connection: HttpURLConnection? = null
             try {
                 val url = URL(baseUrl + path)
                 connection = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = TIMEOUT_MS
-                    readTimeout = TIMEOUT_MS
+                    readTimeout = if (event) TIMEOUT_MS else 60000
                     setRequestProperty("Content-Type", "application/json")
                     if (body != null) {
                         doOutput = true

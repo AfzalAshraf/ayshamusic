@@ -8,6 +8,7 @@
 #![cfg(feature = "phone")]
 mod android_catalog;
 mod recommendations;
+mod mix;
 mod listening;
 mod range_media;
 mod pcm_stream;
@@ -192,6 +193,23 @@ async fn serve(files_dir: String, cache_dir: String) {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
         loop { timer.tick().await; let phone=sampling.clone(); let _=tokio::task::spawn_blocking(move || sample_listening(&phone)).await; }
     });
+    let autoplay=phone.clone();
+    tokio::spawn(async move {
+        let mut last_end=None;
+        let mut timer=tokio::time::interval(std::time::Duration::from_secs(1));
+        loop {
+            timer.tick().await;
+            let ticket=*PLAY_TICKET.lock().unwrap();
+            let ended=started_player().is_some_and(|p|p.snapshot()["state"]=="ended");
+            if ended && last_end!=Some(ticket) {
+                last_end=Some(ticket);
+                let result=android_catalog::auto_next(autoplay.clone(),ticket).await;
+                if !result.0.is_success() && *PLAY_TICKET.lock().unwrap()==ticket && started_player().is_some_and(|p|p.snapshot()["state"]=="ended") {
+                    *autoplay.autoplay_error.lock().unwrap()=Some("Your mix paused. Choose another song or tap Next.".into());
+                }
+            }
+        }
+    });
     let app = router_with_phone(Arc::new(manager), phone);
 
     // Loopback only: the WebView talks to 127.0.0.1, the phone's LAN cannot.
@@ -336,6 +354,7 @@ async fn tg_status(State(state): State<SharedCache>) -> Json<Value> {
     Json(json!({
         "archive_error":tg_storage::last_error(),
         "failed_tracks":manager.failed_tracks().unwrap_or(0),
+        "saved_tracks":manager.saved_tracks().ok(),
         "quota":manager.quota_status().ok(),
         "destination":"Saved Messages",
         "authorized": status.authorized,
@@ -378,7 +397,8 @@ async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): J
         if let Some(track)=old.filter(|t|t.id!=id) {phone.listening.lock().unwrap().skip(&track);}
         let title=result.1.0["title"].as_str().map(str::to_owned);
         let track=supplied.filter(|t|t.id==id).and_then(|t|t.normalized().ok()).unwrap_or_else(||android_catalog::Track::from_id(&id,title));
-        phone.library.lock().unwrap().remember(track);
+        phone.library.lock().unwrap().remember(track.clone());
+        android_catalog::start_mix(phone.clone(), &track.id);
         phone.listening.lock().unwrap().flush();
     }
     result
@@ -447,7 +467,8 @@ async fn start_track(
 
     if forced.is_none() {
         if let Some(cache)=cache_manager() {
-            if let Ok(Some(media))=tg_storage::lookup(&cache,video_id).await {
+            // Telegram must not add a15s cloud search to every uncached skip.
+            if let Ok(Ok(Some(media)))=tokio::time::timeout(std::time::Duration::from_secs(4),tg_storage::lookup(&cache,video_id)).await {
                 if start_native(media,ticket).await.is_ok() {
                     return Ok(json!({"status":"playing","video_id":video_id,"source":"telegram","telegram_archive":"saved"}));
                 }
@@ -911,6 +932,7 @@ async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> J
         })),
     };
     result.0["track"]=json!(phone.library.lock().unwrap().current);
+    result.0["autoplay_error"]=json!(phone.autoplay_error.lock().unwrap().clone());
     result
 }
 

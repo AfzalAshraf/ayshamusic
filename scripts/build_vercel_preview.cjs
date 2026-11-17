@@ -18,7 +18,8 @@ body .header{padding-top:42px;min-height:106px;flex-shrink:0}
   // Local production src/index.html is never written by this builder.
   html = replaceOnce(html, 'async function api(method, path, body) {',
     `async function api(method, path, body) {\n  throw new Error(${JSON.stringify(MESSAGE)});`);
-  html = replaceOnce(html, 'setInterval(pollStatus, 400);', '// No backend polling in the static Vercel preview.');
+  html = replaceOnce(html, 'setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);', '// No backend polling in the static Vercel preview.');
+  html = replaceOnce(html, "setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 10000);", '// No account polling in the static preview.');
   return html;
 }
 function build(output = path.join(ROOT, '.vercel/output')) {

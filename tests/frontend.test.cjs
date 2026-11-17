@@ -99,7 +99,7 @@ test('disconnect uses the disconnect endpoint', async () => {
 test('HTTP failures are not silently converted to empty JSON', async () => {
   const h = harness();
   h.context.fetch = async () => ({ ok: false, status: 400, text: async () => 'invalid request' });
-  await assert.rejects(h.context.api('POST', '/api/play', track), /HTTP 400: invalid request/);
+  await assert.rejects(h.context.api('POST', '/api/play', track), /Request failed \(HTTP 400\)/);
 });
 
 test('Bluetooth script errors appear in the interface', async () => {
@@ -1108,7 +1108,8 @@ test('player contains no learning controls or explanatory clutter', () => {
   const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
   assert.doesNotMatch(html, /automatic-recommendations|resetListeningPreferences|Reset learning|Next learns from|id="next-mood"|setRecommendationMood/);
   const catalog = fs.readFileSync(path.join(__dirname, '../src/android_catalog.rs'), 'utf8');
-  assert.match(catalog, /listening\.lock\(\)\.unwrap\(\)\.preferences\(\)/);
+  assert.match(catalog, /youtube::mix/);
+  assert.doesNotMatch(catalog, /fetch_search\(http,.*preferences/);
 });
 
 test('Telegram credentials go only to the in-app API and secrets are cleared', async () => {
@@ -1205,4 +1206,37 @@ test('Telegram saved API receipt restores visible status after reopening without
   assert.deepEqual(h.calls.map(c=>c.url),['/api/tg/configuration']);
   await h.context.configureTelegram();
   assert.ok(h.calls.every(c=>c.url==='/api/tg/configuration'));
+});
+
+test('Telegram settings distinguishes API-only setup from authorized account and actual indexed saves', () => {
+  const h=harness();
+  h.context.renderTelegramStatus({configured:true,authorized:false,saved_tracks:0,quota:{queued_tracks:2},failed_tracks:1});
+  assert.match(h.element('telegram-settings-status').textContent,/Not signed in yet/);
+  assert.equal(h.element('telegram-account-button').textContent,'Add Telegram account');
+  h.context.renderTelegramStatus({configured:true,authorized:true,saved_tracks:3,quota:{queued_tracks:2,cooldown_seconds_left:60},failed_tracks:1});
+  const text=h.element('telegram-settings-status').textContent;
+  assert.match(text,/Signed in/); assert.match(text,/indexed here\): 3/);
+  assert.match(text,/Pending: 2/);assert.match(text,/Failed: 1/);
+  assert.match(text,/60 seconds/);assert.match(text,/No channel needed/);
+  assert.equal(h.element('telegram-status').textContent,text);
+});
+
+test('polls never overlap slow status requests and always release guard after failure', async () => {
+  const h=harness();let release;let calls=0;
+  h.context.fetch=()=>{calls++;return new Promise(resolve=>{release=resolve;});};
+  const first=h.context.pollStatus();await h.context.pollStatus();assert.equal(calls,1);
+  release({ok:false,status:503,text:async()=>''});await first;
+  h.context.fetch=async()=>{calls++;throw new Error('offline');};
+  await h.context.pollStatus();assert.equal(calls,2);
+});
+
+test('player has no diagnostic build receipts, and normal polling is once per second', () => {
+  const html=fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8');
+  assert.doesNotMatch(html,/native-build-receipt|settings-build-receipt|Android Audio · Media3/);
+  assert.match(html,/if \(!document.hidden\) pollStatus\(\); }, 1000/);
+});
+
+test('API errors show the useful message rather than raw JSON', async () => {
+  const h=harness();h.context.fetch=async()=>({ok:false,status:503,text:async()=>JSON.stringify({error:'Please try again shortly'})});
+  await assert.rejects(h.context.api('GET','/api/search?q=romance'),/^Error: Please try again shortly$/);
 });

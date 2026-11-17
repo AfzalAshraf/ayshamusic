@@ -191,10 +191,10 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
         <span class="settings-symbol" aria-hidden="true"><svg class="app-icon"><use href="/icons.svg#settings"></use></svg></span>
         <h3 id="telegram-settings-heading">Your Telegram account</h3>
         <p>Connect your account to save songs privately in your Saved Messages and stream them from there next time.</p>
+        <p id="telegram-settings-status" role="status">Checking account status…</p>
         <button type="button" id="telegram-account-button" class="settings-primary" onclick="openTelegramAccount()">Add Telegram account</button>
-        <small>API setup, sign-in, saved-song status and disconnect are all here. No bot or external Aysha server needed.</small>
+        <small>No channel or bot needed — songs go to your own Saved Messages. Saving uses extra download/upload data and temporary storage. Counts below cover songs indexed by this app on this device.</small>
       </article>
-      <p id="settings-build-receipt" class="section-subtitle" hidden></p>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
         <summary>Linux speaker controls</summary>
@@ -274,7 +274,6 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
   <div class="now-progress" aria-hidden="true"><span id="full-progress"></span></div>
   <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
-  <small id="native-build-receipt" hidden></small>
   <p id="full-error" class="playback-error" role="status" aria-live="polite" hidden></p>
   <div class="now-controls">
     <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
@@ -554,8 +553,10 @@ async function api(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
   if (!r.ok) {
-    const detail = (await r.text()).slice(0, 300);
-    throw new Error('HTTP ' + r.status + ': ' + detail);
+    const raw = (await r.text()).slice(0, 1000);
+    let detail = '';
+    try { const data = JSON.parse(raw); detail = data.detail || data.error || ''; } catch (_) {}
+    throw new Error(String(detail || ('Request failed (HTTP ' + r.status + ')')).slice(0, 300));
   }
   const result = await r.json();
   if (result.status === 'failed') throw new Error(result.error || 'Request failed');
@@ -648,13 +649,27 @@ async function refreshTelegramConfiguration() {
 async function refreshTelegramAccount() {
   await refreshTelegramConfiguration();
   const status = await api('GET', '/api/tg/status');
+  renderTelegramStatus(status);
+}
+function renderTelegramStatus(status) {
   const queue = status.quota || {};
   document.getElementById('telegram-account-button').textContent = status.authorized ? 'Manage Telegram account' : 'Add Telegram account';
-  document.getElementById('telegram-status').textContent =
-    (status.authorized ? 'Connected · Saved Messages' : status.configured ? 'API configured · Sign in below' : 'Complete first-time API setup below') +
+  const summary = (status.authorized ? 'Connected · Signed in · Saved Messages' : status.configured ? 'API configured · Not signed in yet' : 'Complete first-time API setup below') +
+    ' · Saved on Telegram (indexed here): ' + (Number.isInteger(status.saved_tracks) ? status.saved_tracks : 'unknown') +
     ' · Pending: ' + (queue.queued_tracks || 0) + ' · Failed: ' + (status.failed_tracks || 0) +
     (queue.cooldown_seconds_left ? ' · Upload cooldown: ' + queue.cooldown_seconds_left + ' seconds' : '') +
-    (status.archive_error ? ' · ' + status.archive_error : '');
+    (status.archive_error ? ' · ' + status.archive_error : '') +
+    (status.authorized ? '. No channel needed. Open Telegram → Saved Messages to see completed uploads.' : '. Saving starts after phone-number sign-in is complete.');
+  document.getElementById('telegram-status').textContent = summary;
+  document.getElementById('telegram-settings-status').textContent = summary;
+}
+let telegramStatusBusy = false;
+async function refreshTelegramSummary() {
+  if (telegramStatusBusy) return;
+  telegramStatusBusy = true;
+  try { renderTelegramStatus(await api('GET', '/api/tg/status')); }
+  catch (_) { document.getElementById('telegram-settings-status').textContent = 'Could not check Telegram. Open account settings to refresh.'; }
+  finally { telegramStatusBusy = false; }
 }
 function clearTelegramSecrets() {
   for (const id of ['tg-api-hash', 'tg-code', 'tg-password']) document.getElementById(id).value = '';
@@ -935,6 +950,8 @@ let navigationBusy = false;
 async function navigateTrack(direction) {
   if (navigationBusy) return;
   navigationBusy = true;
+  document.getElementById('time-display').textContent = 'Loading your next song…';
+  document.getElementById('full-duration').textContent = 'Loading your next song…';
   try {
     const result = await api('POST', '/api/' + direction);
     if (!result.track) throw new Error('No track returned by server');
@@ -1267,7 +1284,7 @@ async function fetchCategory(cat, sourceEvent) {
 
 async function loadHome() {
   showLoading('quick-picks');
-  const picks = await api('GET', '/api/search?q=Aysha%20love%20songs');
+  const picks = await api('GET', '/api/search?q=Malayalam%20Tamil%20romantic%20melody%20songs');
   document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
   const pt = Array.isArray(picks) ? picks : (picks.results || []);
   renderGrid(pt, 'quick-picks', true);
@@ -1520,9 +1537,9 @@ function renderTab(tab, options = {}) {
   // loaded. Preserve existing views, but fetch missing content on that return.
   if (options.load === false && loadedTabs.has(tab)) return;
   let work;
-  if (tab === 'settings') { loadedTabs.add(tab); return; }
+  if (tab === 'settings') { loadedTabs.add(tab); refreshTelegramSummary(); return; }
   else if (tab === 'library') work = loadLiked();
-  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Jazz');
+  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Romantic melody');
   loadedTabs.add(tab);
   if (work) Promise.resolve(work).catch(error => {
     loadedTabs.delete(tab);
@@ -1617,19 +1634,17 @@ function initializeNavigation() {
   renderTab(tab);
 }
 
+let statusPollBusy = false;
 async function pollStatus() {
+  if (statusPollBusy) return;
+  statusPollBusy = true;
   try {
     const st = await api('GET', '/api/status');
     if (st && st.native_playback === true) {
       state.nativePlayback = true;
       document.getElementById('linux-speaker-settings').hidden = true;
       document.getElementById('android-output-note').hidden = false;
-      const receipt = document.getElementById('native-build-receipt');
-      receipt.hidden = false;
-      receipt.textContent = (st.audio_engine === 'media3' ? 'Android Audio · Media3' : 'Rust Audio') + ' · ' + (/^[a-f0-9]{40}$/.test(st.build_id || '') ? st.build_id.slice(0, 7) : 'local build');
-      const settingsReceipt = document.getElementById('settings-build-receipt');
-      settingsReceipt.hidden = false;
-      settingsReceipt.textContent = receipt.textContent;
+
     }
     if (state.nativePlayback) {
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
@@ -1638,7 +1653,7 @@ async function pollStatus() {
       if (state.nativeStarting || navigationBusy) { syncNowPlaying(); return; }
       // A resolver refusal happens before there is a player error. Do not erase
       // it on the next idle poll, nor let an old track replace a pending selection.
-      if (state.nativeError && !player.error) { syncNowPlaying(); return; }
+      if (state.nativeError && !player.error && (!player.track || player.track.id === nativeVideoId(state.current_track))) { syncNowPlaying(); return; }
       if (state.nativeStarting && player.video_id !== nativeVideoId(state.current_track)) return;
       state.nativeStage = player.state;
       state.pos = Number(player.position_secs) || 0;
@@ -1668,7 +1683,7 @@ async function pollStatus() {
       if ((player.state === 'idle' || player.state === 'ended') && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
       syncNowPlaying();
       document.getElementById('time-display').textContent =
-        fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : '');
+        player.autoplay_error || (player.state === 'ended' ? 'Loading your next song…' : fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : ''));
       return;
     }
     // Global server metadata is not evidence that this browser has an audio
@@ -1705,8 +1720,10 @@ async function pollStatus() {
       document.getElementById('time-display').textContent = 'Loading...';
     }
   } catch (e) {}
+  finally { statusPollBusy = false; }
 }
-setInterval(pollStatus, 400);
+setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);
+setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 10000);
 
 document.getElementById('audio-player').addEventListener('ended', function() {
   if (state.playMode === 'browser' && !state.stopped) {

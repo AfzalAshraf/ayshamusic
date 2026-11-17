@@ -12,7 +12,7 @@ fn song_key(title: &str) -> Vec<String> {
     let tokens = words(segment);
     let mut key = Vec::new();
     for token in tokens {
-        if matches!(token.as_str(), "official" | "full" | "lyrics" | "lyrical" | "audio" | "video" | "cover" | "remix" | "reprise" | "slowed" | "lofi" | "acoustic" | "feat" | "ft" | "version") { break; }
+        if matches!(token.as_str(), "official" | "full" | "lyrics" | "lyric" | "lyrical" | "audio" | "video" | "cover" | "remix" | "reprise" | "slowed" | "lofi" | "acoustic" | "feat" | "ft" | "version") { break; }
         if token != "song" { key.push(token); }
     }
     key.truncate(12); key
@@ -23,7 +23,7 @@ pub fn same_song(a: &Track, b: &Track) -> bool {
     if left.is_empty() || right.is_empty() { return false; }
     if left == right { return true; }
     // Also catch artist-prefixed alternate uploads and translated suffix labels.
-    let contains = |short: &[String], long: &[String]| short.len() >= 2 && long.windows(short.len()).any(|w| w == short);
+    let contains = |short: &[String], long: &[String]| (short.len() >= 2 || (short.len() == 1 && short[0].chars().count() >= 6)) && long.windows(short.len()).any(|w| w == short);
     contains(&left, &words(&b.title)) || contains(&right, &words(&a.title))
 }
 pub fn select(candidates: Vec<Track>, current: &Track, history: &[Track], liked: &[Track], preferences: &Preferences) -> Option<Track> {
@@ -57,6 +57,13 @@ mod tests {
         let candidates=vec![track("11111111111","Paniyon Sa Lyrics","A"),track("22222222222","Tum Hi Ho Cover","A"),track("33333333333","New Melody","B"),track("44444444444","Different Romantic Song","Favorite")];
         let chosen=select(candidates,&current,&[recent],&[track("x","Private favorite","Favorite")],&Preferences::default()).unwrap();
         assert_eq!(chosen.id,"44444444444");
+    }
+    #[test] fn screenshot_single_word_lyric_variant_is_same_song() {
+        let current=track("abcdefghijk","Asalayavale - Lyric Video | Khalifa","Sony");
+        for title in ["Asalayavale Official Video","Asalayavale Lyrical","Sid Sriram - Asalayavale Lyrics"] {
+            assert!(same_song(&current,&track("different01",title,"Other")),"{title}");
+        }
+        assert!(!same_song(&current,&track("different01","Another Malayalam melody","Sony")));
     }
     #[test]
     fn no_replacement_is_better_than_replaying_same_song() {

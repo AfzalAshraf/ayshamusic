@@ -18,8 +18,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 14
-        versionName = "1.3.6"
+        versionCode = 15
+        versionName = "1.4.0"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -58,7 +58,7 @@ android {
         create("androidAudio") {
             dimension = "audio"
             applicationIdSuffix = ".androidaudio10"
-            resValue("string", "app_name", "Aysha Android Audio 14")
+            resValue("string", "app_name", "Aysha Music")
             buildConfigField("String", "AUDIO_ENGINE", "\"media3\"")
             buildConfigField("int", "API_PORT", "17652")
         }

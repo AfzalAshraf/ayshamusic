@@ -235,6 +235,8 @@ impl TelegramCacheManager {
 
     /// Number of tracks still waiting for Telegram.
     pub fn clear_pending(&self)->Result<()> { self.conn().execute("DELETE FROM upload_queue",[])?; self.conn().execute("DELETE FROM saved_tracks",[])?;Ok(()) }
+    /// Indexed Saved Messages, not a claim to count the user's entire cloud.
+    pub fn saved_tracks(&self)->Result<u32> {Ok(self.conn().query_row("SELECT COUNT(*) FROM saved_tracks",[],|row|row.get(0))?)}
     pub fn saved_message(&self,id:&str)->Result<Option<i32>> {Ok(self.conn().query_row("SELECT message_id FROM saved_tracks WHERE video_id=?1",[id],|r|r.get(0)).optional()?)}
     pub fn remember_saved(&self,id:&str,message:i32)->Result<()> {self.conn().execute("INSERT INTO saved_tracks(video_id,message_id) VALUES(?1,?2) ON CONFLICT(video_id) DO UPDATE SET message_id=excluded.message_id",params![id,message])?;Ok(())}
     pub fn forget_saved(&self,id:&str)->Result<()> {self.conn().execute("DELETE FROM saved_tracks WHERE video_id=?1",[id])?;Ok(())}
@@ -616,7 +618,10 @@ mod tests {
     fn saved_message_index_is_private_to_connection_and_retry_is_explicit() {
         let dirs=TempManager::new("saved-index",100,0);
         let cache=&dirs.manager;
+        assert_eq!(cache.saved_tracks().unwrap(),0);
         cache.remember_saved("abcdefghijk",42).unwrap();
+        cache.remember_saved("abcdefghijk",42).unwrap();
+        assert_eq!(cache.saved_tracks().unwrap(),1);
         assert_eq!(cache.saved_message("abcdefghijk").unwrap(),Some(42));
         cache.forget_saved("abcdefghijk").unwrap();assert_eq!(cache.saved_message("abcdefghijk").unwrap(),None);
         let path=cache.cached_path("abcdefghijk");

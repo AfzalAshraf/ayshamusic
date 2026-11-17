@@ -2901,3 +2901,11 @@ QA3/5 candidate/offline pipeline; actual song/provider/phone remains OPEN. No
 new live provider request, helper runtime, GPL integration or app relicensing.
 No Telegram/background/current RAM/service remeasurement. Docs manifest and
 current APK entry point updated; unrelated pyc deletion untouched.
+
+## Build15 Mix/responsiveness candidate (2026-11-07)
+
+- User confirms build14/source2928821 physical playback and advancing for screenshot songs. Preserve acquisition; exact Suno Aisha/full-song/background/archive remain unproven.
+- Implemented actual anonymous RD seed mix metadata queue; provider order/current+recent/title-variant exclusion; metadata warmup only. Removed generic preference-search Next. Local search429 replaced by bounded single-flight/cache; Next isolated. Independent Kotlin ready-event executor fixes code-level control/event circular wait risk. Telegram-first lookup capped4s. Native natural-end supervisor added with ticket checks; physical background acceptance pending.
+- UI: Telegram configuration vs authorization and app-indexed saved/pending/failed/cooldown visible in Settings, no channel required; removed engine/build labels; launcher Aysha Music; nonoverlapping1s visible polling (was400ms).
+- Local113Node/142PythonPASS; responsive Chromium suitePASS incl7sizes/nativeSettings/iframe. No new live source probes. Rust/ARM64/APK/emulator CI pending. Performance mechanisms identified in code, not a measured phone latency/RAM improvement.
+- Manifest/acceptance/risks: docs/BUILD15_MIX_UPGRADE.md. No hosted helper/GPL runtime/dependency added; same package/session. Do not uninstall on signing conflict.
