@@ -2655,3 +2655,31 @@ URLs/secrets. No source/profile/codec swap, whole-song predownload, policy bypas
 or new live-provider test. Build13/1.3.5-preview; Media3-only/icon/Telegram unchanged.
 Local107Node/142Python PASS, YAML/diff checks PASS; Rust and Android outcomes
 PENDING CI, not yet a physical-phone fix claim.
+
+
+### Long-song corrective build13 validated — source3d24f7f
+
+Android44029768380 **SUCCESS both jobs**. Release133858634390 built Media3-only
+ARM64 APK and passed all host phone/range/prepared/actual-loopback tests. Emulator
+133858633925 **all5tests PASS**, including full600sAAC playback at real4x to end,
+10s body-gap survival, existing pause/resume/end, pre-ready pause and honest403.
+Actual Kotlin/ExoPlayer, generated local data; no physical phone/provider account
+claim. Rust synthetic >10MiB iterates >150later blocks with bounded probe memory;
+actual channel/Axum body and late seek also pass. No total song timeout was removed:
+Android inactivity deadline now20s above Rust12s/worker15s, redirect targets no
+longer persisted across ranges. Source HTTPS/host/deadline/size guards retained.
+
+Linux44029768439 **SUCCESS all6jobs**. Local107Node/142Python PASS, YAML/diff PASS.
+2e4427e Android44029628665 superseded/cancelled after adding the actual-loopback
+long test; final source3d24f7f green. No new live-provider probe and no reactivation
+of consumed source experiments. Last known bounded provider read remains prior
+build12 CI proof, not represented as build13 phone/source acceptance.
+
+APK ZIP14305435131,4,969,329bytes, SHA25654b8f915b51e69ce74dcf573e3ed25a3a592af624235d177eacf31e4b537c8d6.
+Emulator report14305360956,23,253bytes, SHA256bc771142d475c42d4fb0ed3789eb230a0bce11dec4f7e58cfd3f4089c0595661.
+Metadata/annotation verified, not local ZIP inspection. Safe test names/results
+retained in docs/research/media3-long-track-emulator-result.json. Media3-only,
+image9 launcher/Settings/Telegram fix/dedication preserved. Physical song/error,
+background/network change/hours-long real time/real Telegram session/signing/RAM
+remain unverified. QA3/5; Linux/service RAM not remeasured. Unrelated pyc deletion
+preserved unstaged. Deliver as tested corrective build, not "all long songs fixed".

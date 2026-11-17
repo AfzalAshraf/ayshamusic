@@ -1,6 +1,11 @@
 # Media3-only source repair
 
-## Latest download — sealed build12
+> **Latest build: 13**, with long-stream redirect scoping and reader-budget fixes.
+> [Current APK, ten-minute/10s-gap evidence and limits](LONG_TRACK_PLAYBACK.md).
+> The build12 download and evidence below are historical and were rejected for
+> long-song phone acceptance.
+
+## Historical download — sealed build12
 
 **[Android/Media3 Audio12 ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43744233478/artifacts/14173776736)**
 
