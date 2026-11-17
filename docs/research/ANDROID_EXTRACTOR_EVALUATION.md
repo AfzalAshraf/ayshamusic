@@ -55,7 +55,13 @@ Sources (retrieved with GitHub API/source archive; reference, not execution):
   JitPack/Maven, so a source-pinned CI build is needed for dependency/Android tests;
   none has yet run for this candidate.
 
-## Licensing gate — unresolved
+## Licensing gate — rejected by owner
+
+**Decision:** user selected `avoid_gpl`: no app relicensing and no NewPipe linking.
+The proposal below is historical; NewPipe is excluded. Follow-up permissive
+research lives in `prototypes/youtubejs-browser/README.md`; it is isolated,
+offline-only and not an APK dependency.
+
 
 NewPipe Extractor is **GPL-3.0-or-later** (upstream LICENSE and Gradle POM).
 The Aysha repository has no root LICENSE. Linking/distributing it in an APK

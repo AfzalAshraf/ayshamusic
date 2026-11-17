@@ -2737,3 +2737,45 @@ and missing root app LICENSE require owner licensing decision before linking
 or distributing. Asked that decision, rather than assuming permission to
 relicense. Full findings/gates: docs/research/ANDROID_EXTRACTOR_EVALUATION.md.
 No new compile/test/playback claim; this turn is source/licensing research only.
+
+## GPL rejected — permissive browser-extractor offline evaluation
+
+Owner selected **avoid_gpl**: no app relicensing/NewPipe integration. Updated
+AGENTS/reusable prompt to preserve both this choice and prior permission for an
+on-device Android extractor. No root LICENSE change, no GPL dependency added.
+Department: source-playback research, QA2/5 (offline proof only).
+
+Reviewed sealedtx/java-youtube-downloader3.3.1 (Unlicense,2025-05-27). Upstream
+open issues141(download403)/148(transformation)/150(null extraction) and stale
+release provide no credible source fix; not integrated or probed live.
+Reviewed MIT YouTube.js, as-of-session GitHub ec7ef07aa194e7ecc58634f27932fed1164ebb8f,
+and npm youtubei.js18.3.0 (published2026-10-23). Browser entry can run without a
+Node executable; existing Android WebView is a possible runtime, not yet proven.
+Isolated prototype **prototypes/youtubejs-browser**, pinned npm lock/integrity,
+install scripts disabled. Resolved module licenses MIT/Apache/BSD/ISC; meriyah
+pinned7.4.1 because7.4.2 is dated after session. No package/node_modules shipped.
+
+**Local verification:**39/39 tests PASS exercising the real library's web
+session/parser with response-only in-memory fetch; exact ID, direct AAC and
+negative restriction/format/source selection. Actual desktop Chromium loaded
+packaged browser bundle, parsed one fabricated AAC response and rejected login,
+wrong-ID and cipher fixtures: PASS; unexpected external page requests0, page
+errors0, console output0. No global/native provider fetch exists in this harness;
+no live source requests. Browser flags do not disable web security. Initial
+browser setup failed on ESM module resolution then missing libnspr4; fixed by
+explicit dynamic import and sandbox library path, then successful rerun. npm audit
+source-module graph0known advisories, not bundled-code audit/security certification.
+Safe metrics: docs/research/permissive-browser-extractor-result.json.
+
+**Limitations:** default browser evaluator throws for decipher requests; no
+interpreter has been added. Prototype refuses cipher/n URLs rather than falsely
+calling them playable. Upstream fetch defaults include credentials/follow;
+production would need bounded allowlisted native transport and terminal challenge
+latch, not CORS disabling/unsafe eval. Packaged bundle contains embedded dependency
+code not changed by npm overrides; rebuild/audit exact pinned source artifact and
+notices before shipping. Android WebView/minSdk/R8/JNI, Rust handoff/head-tail,
+complete affected-song playback, Telegram and physical-network acceptance are
+**not tested**. APK/backend/UI unchanged; no new APK supplied as a fix. All prior
+provider probes remain sealed. RAM not remeasured. Existing tracked pyc deletion
+left untouched. Diagnostic reproduce commands and next gates in prototype README.
+Added offline fixture step to existing browser CI; result pending at commit time.

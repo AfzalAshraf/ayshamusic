@@ -33,3 +33,6 @@ __pycache__/
 /android-app/app/src/androidTest/assets/tone.m4a
 
 /android-app/app/src/androidTest/assets/long-tone.m4a
+
+# Isolated MIT browser-extractor research; never track npm installations.
+/prototypes/youtubejs-browser/node_modules/

@@ -16,10 +16,15 @@ I want a working, self-contained Android music APK that preserves my approved
 Aysha Music website design. It must stream and play music on the phone without
 requiring my Linux server, a cloud Aysha backend or a separate helper app.
 
-Keep acquisition, resolution, transfer, decoding and playback **strictly Rust**.
-The existing Kotlin Android shell and HTML/JavaScript WebView interface are fine.
-Do not add NewPipeExtractor, a Java extractor, Python, Node, yt-dlp, an external
-resolver or a proxy fallback without asking me and receiving new approval.
+Keep **Media3 as the only Android output engine**, with Rust retaining Telegram,
+backend and media transfer; preserve the Linux Rust player. I have now approved
+an **on-device Android extractor if validated**, relaxing the old Rust-only
+extraction requirement. I explicitly **rejected GPL integration/relicensing**:
+do not link NewPipe Extractor or copy GPL implementation code into Rust/Java.
+Research permissively licensed candidates. Existing Kotlin shell and local
+HTML/JavaScript WebView interface are fine. Everything must remain inside the
+APK: no Python/Node runtime, yt-dlp runtime, external app, hosted resolver or
+proxy fallback. Stop on provider sign-in/bot challenges; do not evade them.
 
 Preserve the existing dark/rose Android-first UI, bottom navigation, mini-player,
 Now Playing screen, visible errors and the exact dedication:

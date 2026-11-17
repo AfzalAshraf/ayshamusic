@@ -38,7 +38,21 @@ Preserve working music; measure slow Play/Previous/Next before changing the pipe
 - Agent workspace is not the user's Linux host. Do not claim remote installations, hardware tests or scheduled updates happened here.
 - Authentication, per-device session isolation, tunnel setup, resource-budget scope and nightly-maintenance decisions remain open until implemented/approved and verified.
 
-## Current standalone APK decision
+## Current extractor scope (latest explicit choices, 2026-11-07)
+
+User approved an **on-device Android extractor** if validated, relaxing the older
+Rust-only extraction boundary below. Then explicitly **rejected GPL integration
+and relicensing**: do not link NewPipe or copy its GPL implementation into another
+language. Research permissively licensed candidates only. Media3 is the sole
+Android output engine; Rust retains Telegram/backend; all runtime components
+stay in APK, no Node/Python runtime, hosted resolver or external helper app.
+See docs/research/ANDROID_EXTRACTOR_EVALUATION.md and the latest QA ledger.
+Build13/source3d24f7f is rejected by phone: exact Suno Aisha/SonyMusicIndiaVEVO
+head succeeds, tail403 before playback. CI44121609464 hit a provider challenge;
+that allowance is sealed. New extractor research is not permission to evade or
+retry that challenge. Do not claim fixture passes establish source/phone success.
+
+## Historical standalone APK decision (extraction boundary revised above)
 
 The user now targets a self-contained phone APK, preserving the Aysha UI. They
 explicitly chose `strict_rust` over NewPipeExtractor: keep acquisition/transfer/

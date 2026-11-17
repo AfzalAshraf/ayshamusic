@@ -62,6 +62,12 @@ jobs:
       - name: Generated Vercel static preview browser checks
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs
 
+      - name: Isolated permissive extractor fixtures (no provider access)
+        run: |
+          npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
+          npm test --prefix prototypes/youtubejs-browser
+          BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node prototypes/youtubejs-browser/test/browser.cjs
+
   rust-extract-prototype:
     runs-on: ubuntu-latest
     timeout-minutes: 20
