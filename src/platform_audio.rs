@@ -190,17 +190,18 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
 #[cfg(test)] mod integration_tests {
     use super::*;
     use http_body_util::BodyExt;
-    fn fixture(fail:bool)->(Player,oneshot::Receiver<Result<(),String>>) {
+    fn fixture(fail:bool)->(Player,oneshot::Receiver<Result<(),String>>) {fixture_size(fail,200000)}
+    fn fixture_size(fail:bool,total:u64)->(Player,oneshot::Receiver<Result<(),String>>) {
         let player=Player::new();
         let (requests,rx)=std::sync::mpsc::sync_channel::<Request>(2);
         std::thread::spawn(move ||while let Ok((start,end,reply))=rx.recv(){
             let result=if fail {Err(io::Error::other("fixture_upstream_403"))} else {
-                Ok(crate::range_media::Block{bytes:(start..=end).map(|n|(n%251) as u8).collect(),total:200000})
+                Ok(crate::range_media::Block{bytes:(start..=end).map(|n|(n%251) as u8).collect(),total})
             };let _=reply.send(result);
         });
         let (ready,waiting)=oneshot::channel();
         player.inner.lock().unwrap().active=Some(Active{token:"fixture".into(),revision:0,wants_play:true,id:"dQw4w9WgXcQ".into(),title:None,
-            input:Some(Arc::new(Input{requests,len:200000})),state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
+            input:Some(Arc::new(Input{requests,len:total})),state:"buffering".into(),error:None,position:0.0,duration:0.0,ready:Some(ready)});
         (player,waiting)
     }
     #[tokio::test] async fn media3_loopback_reads_actual_ranges_head_suffix_and_revokes_stopped_tokens(){
@@ -218,6 +219,25 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
         assert!(response.into_body().collect().await.unwrap().to_bytes().is_empty());
         player.inner.lock().unwrap().active=None;
         assert_eq!(media_for(player,"fixture".into(),Method::GET,HeaderMap::new()).await.status(),StatusCode::GONE);
+    }
+    #[tokio::test] async fn long_loopback_body_streams_every_block_and_late_seek_without_whole_file_buffering(){
+        let total=10*1024*1024+123;
+        let (player,_)=fixture_size(false,total);
+        let response=media_for(player.clone(),"fixture".into(),Method::GET,HeaderMap::new()).await;
+        assert_eq!(response.headers()[header::CONTENT_LENGTH],total.to_string());
+        let mut body=response.into_body();let mut position=0u64;let mut frames=0;
+        while let Some(frame)=body.frame().await {
+            let frame=frame.unwrap();if let Ok(bytes)=frame.into_data(){
+                assert!(bytes.len()<=BLOCK);
+                assert!(bytes.iter().enumerate().all(|(i,b)|*b==((position+i as u64)%251) as u8));
+                position+=bytes.len() as u64;frames+=1;
+            }
+        }
+        assert_eq!(position,total);assert!(frames>150);
+        let mut headers=HeaderMap::new();headers.insert(header::RANGE,format!("bytes={}-",total-100).parse().unwrap());
+        let response=media_for(player,"fixture".into(),Method::GET,headers).await;
+        assert_eq!(response.status(),StatusCode::PARTIAL_CONTENT);
+        assert_eq!(response.into_body().collect().await.unwrap().to_bytes().len(),100);
     }
     #[tokio::test] async fn media3_reports_underlying_input_failure_and_rejects_stale_callbacks(){
         let (player,ready)=fixture(true);
