@@ -10,7 +10,7 @@ where F:FnMut(InnertubeClient)->Fut,Fut:Future<Output=Result<ResolvedAudio,Strin
         match attempt(*profile).await {
             Ok(audio)=>return Ok(audio),
             Err(error)=>{
-                let terminal=error.contains("play_cancelled") || error=="source_prepare_deadline";
+                let terminal=error.contains("play_cancelled") || error=="source_prepare_deadline" || crate::youtube::terminal_provider_error(&error);
                 failures.push(ClientAttempt{client:profile.name,status:None,visitor:"source_prepare",error});
                 if terminal {break;}
             }
@@ -43,4 +43,17 @@ where F:FnMut(InnertubeClient)->Fut,Fut:Future<Output=Result<ResolvedAudio,Strin
         let mut calls=0;
         assert!(select(&[ANDROID],|_|{calls+=1;async {Err("403".into())}}).await.is_err());assert_eq!(calls,1);
     }
+    #[tokio::test] async fn media3_source_failure_does_not_rotate_through_old_profiles() {
+        let mut tried=Vec::new();
+        let errors=select(youtube::playback_clients(true),|profile|{tried.push(profile.name);async {Err("media_prepare_tail_failed: media_range_http_403".into())}}).await.unwrap_err();
+        assert_eq!(tried,vec![youtube::VISIONOS.name]);assert_eq!(errors.len(),1);
+    }
+    #[tokio::test] async fn sign_in_challenge_is_terminal_even_on_legacy_profile_list() {
+        for error in ["LOGIN_REQUIRED","Sign in to confirm you're not a bot","provider_sign_in_or_bot_challenge"] {
+            let mut calls=0;
+            assert!(select(&youtube::CLIENTS,|_|{calls+=1;async move {Err(error.into())}}).await.is_err());
+            assert_eq!(calls,1);
+        }
+    }
+
 }

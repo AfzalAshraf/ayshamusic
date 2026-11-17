@@ -118,7 +118,7 @@ async fn download(cache:&TelegramCacheManager,id:&str,path:&Path)->io::Result<()
     use futures_util::StreamExt;
     let http=crate::http_client().ok_or_else(||error("archive_http_unavailable"))?;
     let visitor=crate::visitor(http).await;
-    let audio=crate::youtube::resolve_audio(http,id,visitor.attached().then_some(visitor.value.as_str())).await.map_err(|_|error("archive_resolution_failed"))?;
+    let audio=crate::resolve_default(http,id,visitor.attached().then_some(visitor.value.as_str())).await.map_err(|_|error("archive_resolution_failed"))?;
     if audio.content_length.is_some_and(|n|n>MAX_TRACK) {return Err(error("archive_track_size_limit"));}
     let media=crate::media_client().ok_or_else(||error("archive_media_unavailable"))?;
     if !cache.make_room(audio.content_length.unwrap_or(MAX_TRACK)).map_err(|_|error("archive_cache_unavailable"))? {return Err(error("archive_cache_full"));}

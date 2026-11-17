@@ -1,10 +1,7 @@
-//! Pure-Rust YouTube audio URL resolution via the InnerTube `player` endpoint.
-//!
-//! No `yt-dlp`, no JS runtime: we ask YouTube's mobile/TV player APIs, which
-//! return direct `googlevideo` URLs for audio-only AAC formats. If one client
-//! profile starts getting 403s (YouTube rotates requirements), the next profile
-//! is tried before reporting failure. Every failure keeps YouTube's own error
-//! body so callers can see *why* each client was rejected.
+//! Rust direct-AAC metadata resolution. Media3's installable source-repair
+//! candidate uses ONE researched public-client profile, not profile rotation.
+//! No GPL extractor, JS execution, credentials, token provider or hosted helper.
+//! A metadata URL is not acceptance: native playback still prepares head+tail.
 
 use reqwest::Client;
 use serde::Deserialize;
@@ -45,17 +42,39 @@ pub const TVHTML5: InnertubeClient = InnertubeClient {
     extra: "{}",
 };
 
-/// Client profiles in the order they are tried.
+/// Public profile fields reviewed in MIT youtubei.js18.3.0 Constants/HTTPClient.
+/// Normal anonymous acquisition only, never a fallback after a sign-in challenge.
+/// No source-access or phone-playback success is inferred from these constants.
+pub const VISIONOS: InnertubeClient = InnertubeClient {
+    name: "VISIONOS",
+    version: "1.02",
+    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+    extra: r#"{"deviceMake":"Apple","deviceModel":"RealityDevice17,1","osName":"visionOS","osVersion":"26.5.23O471","platform":"MOBILE"}"#,
+};
+
+/// Legacy defaults retained for the non-Media3 Rust library path.
 pub const CLIENTS: [InnertubeClient; 3] = [ANDROID, IOS, TVHTML5];
+const SUPPORTED_CLIENTS: [InnertubeClient; 4] = [ANDROID, IOS, TVHTML5, VISIONOS];
+pub const MEDIA3_CLIENTS: [InnertubeClient; 1] = [VISIONOS];
+pub fn playback_clients(media3: bool) -> &'static [InnertubeClient] {
+    if media3 { &MEDIA3_CLIENTS } else { &CLIENTS }
+}
+
+/// A provider denial is terminal, not a prompt to try another identity.
+pub fn terminal_provider_error(error: &str) -> bool {
+    let text = error.to_ascii_lowercase();
+    ["login_required", "sign in", "sign-in", "not a bot", "captcha", "provider_sign_in_or_bot_challenge"].iter().any(|word| text.contains(word))
+}
 
 /// The names accepted by `/api/play`'s optional `client` field.
-pub const CLIENT_ALIASES: [(&str, &str); 3] = [
+pub const CLIENT_ALIASES: [(&str, &str); 4] = [
     ("android", "ANDROID"),
     ("ios", "IOS"),
     ("tv", "TVHTML5_SIMPLY_EMBEDDED_PLAYER"),
+    ("visionos", "VISIONOS"),
 ];
 
-/// Resolves `"android" | "ios" | "tv"` (any case) to a client profile.
+/// Resolves `"android" | "ios" | "tv" | "visionos"` (any case) to a client profile.
 pub fn client_by_name(name: &str) -> Option<InnertubeClient> {
     let needle = name.trim().to_ascii_lowercase();
     let canonical = CLIENT_ALIASES
@@ -63,12 +82,12 @@ pub fn client_by_name(name: &str) -> Option<InnertubeClient> {
         .find(|(alias, _)| *alias == needle)
         .map(|(_, canonical)| *canonical)
         .or_else(|| {
-            CLIENTS
+            SUPPORTED_CLIENTS
                 .iter()
                 .find(|client| client.name.eq_ignore_ascii_case(&needle))
                 .map(|client| client.name)
         })?;
-    CLIENTS.iter().copied().find(|client| client.name == canonical)
+    SUPPORTED_CLIENTS.iter().copied().find(|client| client.name == canonical)
 }
 
 pub fn client_alias_list() -> String {
@@ -160,6 +179,7 @@ pub fn http_client() -> Result<Client, reqwest::Error> {
     Client::builder()
         .connect_timeout(Duration::from_secs(8))
         .timeout(Duration::from_secs(12))
+        .redirect(reqwest::redirect::Policy::none())
         .pool_max_idle_per_host(2)
         .build()
 }
@@ -360,12 +380,12 @@ async fn resolve_with_clients(
         let (status, outcome) = resolve_with(http, video_id, *profile, visitor).await;
         match outcome {
             Ok(audio) => return Ok(audio),
-            Err(error) => attempts.push(ClientAttempt {
-                client: profile.name,
-                status,
-                visitor: visitor_label,
-                error: error.to_string(),
-            }),
+            Err(error) => {
+                let terminal = terminal_provider_error(&error.to_string());
+                attempts.push(ClientAttempt { client: profile.name, status,
+                    visitor: visitor_label, error: error.to_string() });
+                if terminal { break; }
+            },
         }
     }
     Err(ResolveError::AllClientsFailed(attempts))
@@ -377,9 +397,15 @@ async fn resolve_with(
     profile: InnertubeClient,
     visitor: Option<&str>,
 ) -> (Option<u16>, Result<ResolvedAudio, ResolveError>) {
+    resolve_with_endpoint(http, video_id, profile, visitor, PLAYER_URL).await
+}
+
+// Private injection point for offline transport tests, not exposed to API callers.
+async fn resolve_with_endpoint(http: &Client, video_id: &str, profile: InnertubeClient,
+    visitor: Option<&str>, endpoint: &str) -> (Option<u16>, Result<ResolvedAudio, ResolveError>) {
     let body = request_body(video_id, profile, visitor);
     let mut request = http
-        .post(PLAYER_URL)
+        .post(endpoint)
         .header(reqwest::header::USER_AGENT, profile.user_agent)
         .header("X-YouTube-Client-Name", client_id(profile.name))
         .header("X-YouTube-Client-Version", profile.version);
@@ -388,11 +414,14 @@ async fn resolve_with(
     }
     let response = match request.json(&body).send().await {
         Ok(response) => response,
-        Err(error) => return (None, Err(ResolveError::Http(error.to_string()))),
+        Err(error) => return (None, Err(ResolveError::Http(error.without_url().to_string()))),
     };
 
     let status = response.status();
     if !status.is_success() {
+        if profile.name == VISIONOS.name {
+            return (Some(status.as_u16()), Err(ResolveError::Http(format!("provider_http_{}", status.as_u16()))));
+        }
         // Keep YouTube's own words: HTTP 400/403 bodies explain the refusal
         // (e.g. FAILED_PRECONDITION vs LOGIN_REQUIRED) and drive the next fix.
         let text = response.text().await.unwrap_or_default();
@@ -404,9 +433,23 @@ async fn resolve_with(
             ))),
         );
     }
-    let json: Value = match response.json().await {
+    // Bound metadata buffering; never deserialize an unlimited provider body.
+    use futures_util::StreamExt;
+    let mut chunks = response.bytes_stream();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = chunks.next().await {
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(_) => return (Some(status.as_u16()), Err(ResolveError::Http("player_body_failed".into()))),
+        };
+        if bytes.len() + chunk.len() > 2 * 1024 * 1024 {
+            return (Some(status.as_u16()), Err(ResolveError::Http("player_metadata_size_limit".into())));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let json: Value = match serde_json::from_slice(&bytes) {
         Ok(json) => json,
-        Err(error) => return (Some(status.as_u16()), Err(ResolveError::Http(error.to_string()))),
+        Err(_) => return (Some(status.as_u16()), Err(ResolveError::Http("player_metadata_invalid".into()))),
     };
 
     (
@@ -419,6 +462,7 @@ fn client_id(name: &str) -> &'static str {
     match name {
         "ANDROID" => "3",
         "IOS" => "5",
+        "VISIONOS" => "101",
         "TVHTML5_SIMPLY_EMBEDDED_PLAYER" => "85",
         _ => "1",
     }
@@ -469,6 +513,9 @@ fn client_context(profile: InnertubeClient, visitor: Option<&str>) -> Value {
     });
     if let (Some(client), Value::Object(extra)) = (client.as_object_mut(), extra) {
         client.extend(extra);
+        if profile.name == VISIONOS.name {
+            client.insert("userAgent".into(), Value::String(profile.user_agent.into()));
+        }
         if let Some(visitor) = visitor {
             client.insert("visitorData".to_string(), Value::String(visitor.to_string()));
         }
@@ -672,6 +719,22 @@ pub fn parse_player_json(
     client: &'static str,
 ) -> Result<ResolvedAudio, ResolveError> {
     let playability = &json["playabilityStatus"];
+    if client == VISIONOS.name {
+        if playability["status"].as_str() == Some("LOGIN_REQUIRED") ||
+            terminal_provider_error(&playability.to_string()) {
+            return Err(ResolveError::Unplayable("provider_sign_in_or_bot_challenge".into()));
+        }
+        if playability["status"].as_str() != Some("OK") {
+            return Err(ResolveError::Unplayable("provider_content_unavailable".into()));
+        }
+        if json["videoDetails"]["videoId"].as_str() != Some(video_id) {
+            return Err(ResolveError::Unplayable("source_video_id_mismatch".into()));
+        }
+        if ["isLive", "isPostLiveDvr", "isUpcoming", "isPrivate"].iter()
+            .any(|key| json["videoDetails"][*key].as_bool() == Some(true)) {
+            return Err(ResolveError::Unplayable("source_content_unsupported".into()));
+        }
+    }
     if playability["status"].as_str() != Some("OK") {
         let reason = playability["reason"]
             .as_str()
@@ -690,6 +753,7 @@ pub fn parse_player_json(
 
     let parsed: Vec<AdaptiveFormat> = formats
         .iter()
+        .filter(|value| client != VISIONOS.name || candidate_direct_aac(value))
         .filter_map(|value| serde_json::from_value(value.clone()).ok())
         .collect();
 
@@ -714,6 +778,22 @@ pub fn parse_player_json(
     })
 }
 
+// No silent signature/n bypass. This direct-AAC candidate needs an already
+// usable URL; unsupported signing/DRM/manifest cases fail before media transfer.
+fn candidate_direct_aac(value: &Value) -> bool {
+    if value["signatureCipher"].is_string() || value["cipher"].is_string() ||
+        value["qualityLabel"].is_string() || value["drmFamilies"].as_array().is_some_and(|v| !v.is_empty()) ||
+        value["drmTrackType"].is_string() || value["type"].as_str() == Some("FORMAT_STREAM_TYPE_OTF") ||
+        value["mimeType"].as_str() != Some("audio/mp4; codecs=\"mp4a.40.2\"") {
+        return false;
+    }
+    let Some(length) = value["contentLength"].as_str().and_then(|s| s.parse::<u64>().ok()) else { return false; };
+    if length == 0 || length > 512 * 1024 * 1024 { return false; }
+    let Some(url) = value["url"].as_str().and_then(|s| reqwest::Url::parse(s).ok()) else { return false; };
+    is_allowed_media_url(url.as_str()) && url.path() == "/videoplayback" && url.fragment().is_none() &&
+        !url.query_pairs().any(|(key, _)| key == "n")
+}
+
 /// Highest-bitrate `audio/mp4` format with a direct, allow-listed URL.
 fn select_audio(formats: &[AdaptiveFormat]) -> Result<&AdaptiveFormat, ResolveError> {
     formats
@@ -727,6 +807,85 @@ fn select_audio(formats: &[AdaptiveFormat]) -> Result<&AdaptiveFormat, ResolveEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn visionos_fixture() -> Value {
+        json!({"playabilityStatus":{"status":"OK"},
+            "videoDetails":{"videoId":"fixture0001","title":"Offline fixture, not the song"},
+            "streamingData":{"adaptiveFormats":[{"itag":140,"mimeType":"audio/mp4; codecs=\"mp4a.40.2\"",
+                "bitrate":128000,"contentLength":"123456",
+                "url":"https://rr1-fixture.googlevideo.com/videoplayback?sig=FAKE_ONLY"}]}})
+    }
+
+    #[test] fn media3_uses_one_reviewed_profile_without_changing_legacy_defaults() {
+        assert_eq!(playback_clients(true).len(), 1);
+        assert_eq!(playback_clients(true)[0].name, "VISIONOS");
+        assert_eq!(playback_clients(false).iter().map(|p|p.name).collect::<Vec<_>>(), vec![ANDROID.name, IOS.name, TVHTML5.name]);
+        assert_eq!(client_by_name("VISIONOS").unwrap().user_agent, VISIONOS.user_agent);
+        assert_eq!(client_id(VISIONOS.name), "101");
+        let body = request_body("fixture0001", VISIONOS, Some("fixture_visitor_only"));
+        assert_eq!(body["context"]["client"]["clientVersion"], "1.02");
+        assert_eq!(body["context"]["client"]["platform"], "MOBILE");
+        assert_eq!(body["context"]["client"]["visitorData"], "fixture_visitor_only");
+        assert_eq!(body["context"]["client"]["userAgent"], VISIONOS.user_agent);
+        assert!(body.get("serviceIntegrityDimensions").is_none());
+    }
+
+    #[test] fn candidate_exact_id_denials_and_unsupported_sources_are_rejected() {
+        let good = visionos_fixture();
+        let audio = parse_player_json(&good,"fixture0001",VISIONOS.name).unwrap();
+        assert_eq!(audio.itag,140); assert_eq!(audio.user_agent(), VISIONOS.user_agent);
+        assert_eq!(audio.content_length,Some(123456));
+        let mut wrong=good.clone(); wrong["videoDetails"]["videoId"]=json!("other000001");
+        assert!(parse_player_json(&wrong,"fixture0001",VISIONOS.name).unwrap_err().to_string().contains("source_video_id_mismatch"));
+        let mut denied=good.clone(); denied["playabilityStatus"]=json!({"status":"LOGIN_REQUIRED","reason":"PRIVATE_DO_NOT_LOG"});
+        let error=parse_player_json(&denied,"fixture0001",VISIONOS.name).unwrap_err().to_string();
+        assert!(terminal_provider_error(&error)); assert!(!error.contains("PRIVATE_DO_NOT_LOG"));
+        for (key,value) in [("signatureCipher",json!("s=FAKE")),("cipher",json!("s=FAKE")),
+            ("contentLength",json!("0")),("contentLength",json!("536870913")),("contentLength",json!("123bad")),
+            ("url",json!("https://rr1-fixture.googlevideo.com/videoplayback?n=FAKE")),
+            ("url",json!("https://evil.test/videoplayback")),("drmFamilies",json!(["WIDEVINE"])),
+            ("qualityLabel",json!("1080p")),("type",json!("FORMAT_STREAM_TYPE_OTF"))] {
+            let mut bad=good.clone();bad["streamingData"]["adaptiveFormats"][0][key]=value;
+            assert!(parse_player_json(&bad,"fixture0001",VISIONOS.name).is_err(),"accepted {key}");
+        }
+    }
+
+    #[tokio::test] async fn candidate_actual_http_request_keeps_profile_and_visitor_without_credentials() {
+        use axum::{Router,routing::post,http::HeaderMap,Json};
+        let listener=tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint=format!("http://{}/player",listener.local_addr().unwrap());
+        let app=Router::new().route("/player",post(|headers:HeaderMap,Json(body):Json<Value>|async move {
+            assert_eq!(headers["user-agent"], VISIONOS.user_agent);
+            assert_eq!(headers["x-youtube-client-name"], "101");
+            assert_eq!(headers["x-youtube-client-version"], "1.02");
+            assert_eq!(headers["x-goog-visitor-id"], "fixture_visitor_only");
+            assert!(!headers.contains_key("cookie"));assert!(!headers.contains_key("authorization"));
+            assert_eq!(body["videoId"],"fixture0001");
+            assert_eq!(body["context"]["client"]["clientName"],"VISIONOS");
+            Json(visionos_fixture())
+        }));
+        let task=tokio::spawn(async move {axum::serve(listener,app).await.unwrap();});
+        let (status,result)=resolve_with_endpoint(&http_client().unwrap(),"fixture0001",VISIONOS,Some("fixture_visitor_only"),&endpoint).await;
+        task.abort(); assert_eq!(status,Some(200));assert_eq!(result.unwrap().client,VISIONOS.name);
+    }
+
+    #[tokio::test] async fn candidate_metadata_size_http_errors_and_redirects_fail_safely() {
+        use axum::{Router,routing::post,http::{StatusCode,header},response::IntoResponse};
+        let listener=tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base=format!("http://{}",listener.local_addr().unwrap());
+        let app=Router::new()
+            .route("/large",post(||async {"x".repeat(2*1024*1024+1)}))
+            .route("/invalid",post(||async {"PRIVATE_INVALID_METADATA"}))
+            .route("/denied",post(||async {(StatusCode::FORBIDDEN,"PRIVATE_BODY_DO_NOT_LOG")}))
+            .route("/redirect",post(||async {(StatusCode::FOUND,[(header::LOCATION,"http://127.0.0.1:1/never-follow")],"").into_response()}));
+        let task=tokio::spawn(async move {axum::serve(listener,app).await.unwrap();});
+        for (path,code) in [("large","player_metadata_size_limit"),("invalid","player_metadata_invalid"),("denied","provider_http_403"),("redirect","provider_http_302")] {
+            let (_,result)=resolve_with_endpoint(&http_client().unwrap(),"fixture0001",VISIONOS,None,&format!("{base}/{path}")).await;
+            let error=result.unwrap_err().to_string();assert!(error.contains(code),"{error}");
+            assert!(!error.contains("PRIVATE"));assert!(!error.contains("127.0.0.1"));
+        }
+        task.abort();
+    }
 
     #[test]
     fn video_ids_are_strictly_shaped() {
@@ -778,7 +937,7 @@ mod tests {
         );
         assert!(client_by_name("web").is_none());
         assert!(client_by_name("").is_none());
-        assert_eq!(client_alias_list(), "android, ios, tv");
+        assert_eq!(client_alias_list(), "android, ios, tv, visionos");
     }
 
     #[test]

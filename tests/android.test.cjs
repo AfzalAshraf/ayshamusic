@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 13/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 14/);
 });
 
 
@@ -158,4 +158,15 @@ test('long playback keeps the loopback read budget above the Rust worker budget'
   assert.doesNotMatch(ranges, /media_url_lock_failed/);
   assert.match(ranges, /redirected_response\(&self.url,send\)/);
   assert.match(read('src/platform_audio.rs'), /stage=stream; offset=/);
+});
+
+
+test('build14 Media3 source policy is single-profile and shared with Telegram', () => {
+  const youtube = read('src/youtube.rs');
+  assert.match(youtube, /MEDIA3_CLIENTS: \[InnertubeClient; 1\] = \[VISIONOS\]/);
+  assert.match(read('src/lib.rs'), /youtube::playback_clients\(audio_engine_name\(\) == "media3"\)/);
+  assert.match(read('src/tg_storage.rs'), /crate::resolve_default\(http,id,/);
+  assert.match(youtube, /"VISIONOS" => "101"/);
+  assert.match(read('src/source_selection.rs'), /terminal_provider_error/);
+  assert.match(read('src/range_media.rs'), /media_prepare_tail_failed/);
 });

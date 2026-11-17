@@ -2841,3 +2841,26 @@ Rust head-tail handoff/Telegram and complete affected-song playback remain open.
 The browser prototype is **not yet an approved/validated production replacement**.
 No memory/service remeasurement. Physical playback is still failing build13;
 retain its evidence and don't send it as working. No user install requested.
+
+## User requests installable candidate, not research-only delivery
+
+User: "i need always a fixed app if u didnt give me how can i check it".
+Acknowledged practical need to provide an installable meaningful-change APK while
+not promising fixed before physical acceptance. Build14 actual production patch:
+Media3 default one researched VISIONOS1.02 public-client profile (MIT protocol
+reference), no staleANDROID/IOS/TV rotation; matching UA through media/archive,
+strict exact ID/direct AAC and length/signing/restriction filtering. No full MIT
+extractor library/runtime integration claim; no GPL dependency or root license
+change. Head/tail preflight and Media3 retained. Terminal challenge guard also
+stops legacy fallback on explicit challenges. Metadata2MiB cap/12s and no automatic
+redirects, safe candidate errors; archive/selftest same default policy. Existing
+non-Media3 defaults/main Linux unchanged. All live allowances remain sealed;
+no public provider test in this turn and no challenge retry from CI.
+
+Local108Node/142Python PASS; new Rust local-HTTP request/parser/metadata-limit/
+redirect/redaction/policy tests added, compilation/build outcome pending. ARM64
+standalone candidate14/1.3.6-preview, same package/port. No user install/uninstall
+claimed. Cannot list GitHub Actions secrets (integration permission403); no
+credential request and no claim of stable release-signing verification. Existing
+tracked pyc deletion preserved. Build manifest docs/BUILD14_SOURCE_CANDIDATE.md.
+Will supply actual build link only after success; phone/song still unverified.

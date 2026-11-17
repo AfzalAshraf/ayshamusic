@@ -457,7 +457,7 @@ async fn start_track(
     }
     let visitor = visitor(client).await;
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
-    let profiles=forced.map(|p|vec![p]).unwrap_or_else(||youtube::CLIENTS.to_vec());
+    let profiles=forced.map(|p|vec![p]).unwrap_or_else(||youtube::playback_clients(audio_engine_name() == "media3").to_vec());
     let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(60);
     let selected=source_selection::select(&profiles,|profile| async move {
         if *PLAY_TICKET.lock().unwrap()!=ticket {return Err("play_cancelled".into());}
@@ -642,6 +642,15 @@ async fn pump_media(
     }
 }
 
+/// Keep playback, archive and diagnostic acquisition on the same engine policy.
+async fn resolve_default(client: &reqwest::Client, video_id: &str, visitor: Option<&str>) -> Result<youtube::ResolvedAudio, youtube::ResolveError> {
+    if audio_engine_name() == "media3" {
+        youtube::resolve_forced(client, video_id, youtube::VISIONOS, visitor).await
+    } else {
+        youtube::resolve_audio(client, video_id, visitor).await
+    }
+}
+
 async fn re_resolve(
     client: &reqwest::Client,
     video_id: &str,
@@ -650,7 +659,7 @@ async fn re_resolve(
 ) -> Result<youtube::ResolvedAudio, String> {
     let resolved = match forced.and_then(youtube::client_by_name) {
         Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor).await,
-        None => youtube::resolve_audio(client, video_id, visitor).await,
+        None => resolve_default(client, video_id, visitor).await,
     };
     resolved.map_err(|error| error.to_string())
 }
@@ -766,7 +775,7 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
         Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
-        None => youtube::resolve_audio(client, video_id, visitor_value).await,
+        None => resolve_default(client, video_id, visitor_value).await,
     };
     let audio = match resolved {
         Ok(audio) => audio,
@@ -803,7 +812,7 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     };
     let response = match media
         .get(&audio.url)
-        .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+        .header(reqwest::header::USER_AGENT, audio.user_agent())
         .header(reqwest::header::RANGE, "bytes=0-65535")
         .send()
         .await
