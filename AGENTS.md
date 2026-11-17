@@ -47,6 +47,12 @@ language. Research permissively licensed candidates only. Media3 is the sole
 Android output engine; Rust retains Telegram/backend; all runtime components
 stay in APK, no Node/Python runtime, hosted resolver or external helper app.
 See docs/research/ANDROID_EXTRACTOR_EVALUATION.md and the latest QA ledger.
+Latest user insists on an installable app to check, not research-only delivery.
+Pair a meaningful tested candidate with its actual APK artifact when available;
+do not falsely guarantee fixed playback before phone evidence. Build14/source
+2928821 is now an installable Rust direct-AAC single-VISIONOS-profile candidate,
+NOT full YouTube.js integration. See docs/BUILD14_SOURCE_CANDIDATE.md for download,
+tests and limits. No live provider test or challenge retry was run for build14.
 Build13/source3d24f7f is rejected by phone: exact Suno Aisha/SonyMusicIndiaVEVO
 head succeeds, tail403 before playback. CI44121609464 hit a provider challenge;
 that allowance is sealed. New extractor research is not permission to evade or

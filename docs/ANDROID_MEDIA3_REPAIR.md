@@ -1,9 +1,10 @@
 # Media3-only source repair
 
-> **Latest build: 13**, with long-stream redirect scoping and reader-budget fixes.
-> [Current APK, ten-minute/10s-gap evidence and limits](LONG_TRACK_PLAYBACK.md).
-> The build12 download and evidence below are historical and were rejected for
-> long-song phone acceptance.
+> **Latest installable candidate: [build14 source repair](BUILD14_SOURCE_CANDIDATE.md)**,
+> source2928821. New single-profile acquisition path; head/tail checks retained.
+> Build13 failed physical-phone tail403 acceptance. Build14 has passing build/
+> offline component tests, but affected-song/physical-phone acceptance is OPEN.
+> The build12 download and evidence below are historical.
 
 ## Historical download — sealed build12
 

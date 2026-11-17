@@ -2869,3 +2869,35 @@ Build14 packaging follow-up: include upstream MIT profile-reference notice/licen
 as APK assets, without relicensing the app or including the full JS library. This
 packaging-only follow-up supersedes the first in-flight build; no provider test
 was started. Final APK source receipt/artifact must identify the final revision.
+
+### Build14 delivered — actual artifact, source2928821
+
+Android44141628349 **SUCCESS both jobs** release134245832199 and emulator
+134245832747. Rust host checks (including new actual local-HTTP source/policy
+regressions) PASS, ARM64 native/release/R8 build and size gate PASS. Five real
+Media3 tests PASS again: past2s/pause/resume/end, pre-ready pause,600s@4x complete,
+10s source gap, rejected403 honest error. Safe annotations saved
+`docs/research/build14-media3-emulator-result.json`. These fixtures deliberately
+exclude production JNI/provider; not affected-song or physical audibility proof.
+Linux44141628223 **SUCCESS all6jobs**. Local108Node/142Python PASS. Earlier
+44141466585 canceled/superseded for MIT notice packaging, not a source-test failure.
+
+Download https://github.com/AfzalAshraf/ayshamusic/actions/runs/44141628349/artifacts/14354662898
+Artifact `ayshamusic-android-audio-arm64`, ZIP4,972,583bytes,
+SHA256e1213a3743f83d0185011c9fdfe8719892f25cae367d32e301f04ccda96c4170,
+metadata source2928821b3fff5a96a42e6be44390bd2500b15c6a verified. No local APK
+byte inspection, stable signing or physical install claim. Emulator report artifact
+14354658218,23,026bytes, SHA256a22849a458e9d688a9653d498063de708eaa7333e6dfc01d8744e1ac33a5c915.
+
+Actual delivery now includes an installable meaningful source-change candidate,
+not another synthetic-only report or unchanged13. Label Aysha Android Audio14,
+1.3.6-preview/code14, Android8+/ARM64, same package/port. User can test exact
+Suno Aisha/SonyMusicIndiaVEVO once, confirm receipt2928821 and audible full-song
+progress. Any sign-in/challenge/source denial remains terminal; do not request
+credentials, retries or blind uninstall. If update conflicts, preserve existing
+settings/session and arrange a separate install path rather than deleting them.
+
+QA3/5 candidate/offline pipeline; actual song/provider/phone remains OPEN. No
+new live provider request, helper runtime, GPL integration or app relicensing.
+No Telegram/background/current RAM/service remeasurement. Docs manifest and
+current APK entry point updated; unrelated pyc deletion untouched.

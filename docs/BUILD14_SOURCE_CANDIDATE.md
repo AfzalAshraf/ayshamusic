@@ -1,5 +1,19 @@
 # Build14 — installable source-repair candidate
 
+## Download — built and available
+
+**[Download Aysha Android Audio14 APK ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44141628349/artifacts/14354662898)**
+
+Unzip and open the APK on the phone. Source/receipt **2928821**.
+Android44141628349 **SUCCESS**: release134245832199 and emulator134245832747.
+Linux44141628223 **SUCCESS all6jobs**. ZIP4,972,583bytes,
+SHA256`e1213a3743f83d0185011c9fdfe8719892f25cae367d32e301f04ccda96c4170`.
+Artifact metadata verified, not local binary inspection or stable signing proof.
+Five actual Media3 fixture tests pass, including600s@4x and10s source gap;
+separate from Rust/provider/JNI. Safe annotations:
+`docs/research/build14-media3-emulator-result.json`. Complete affected-song and
+physical-phone playback are **not yet verified**; this is an installable candidate.
+
 ## Why this APK exists
 
 User explicitly requested an installable app to check, not another research-only
@@ -46,14 +60,14 @@ yet confirmed fixed on the phone or the affected public song**.
 Local108Node/142Python PASS. Added real local-HTTP Rust fixture tests for exact
 request context/headers/visitor, no credentials, direct response parsing,
 metadata size/redirect/HTTP denial/error redaction. Added policy tests for one
-Media3 profile and terminal challenges. CI compile/host/emulator/release outcome
-**pending** at creation. No new live provider research run: earlier challenge
+Media3 profile and terminal challenges. CI compile/host/emulator/release now
+**PASS**, with run identity recorded above. No new live provider research run: earlier challenge
 allowance remains sealed. No fallback from that challenge through this profile
 was executed in CI. Offline fixture proof is not public source-access proof.
 
 The user can check this source-repair hypothesis with an installable candidate;
 it must not be advertised as a verified playback fix. Download/artifact and
-actual CI result will be recorded after the build completes.
+actual CI result are recorded above; they do not certify public source access.
 
 ## Phone check after download
 

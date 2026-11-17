@@ -121,3 +121,19 @@ or telemetry is necessary to use these principles.
   local fixture response; preserve strict rejection/assertions for all other
   resources/navigation and keep network blocked. Never weaken production
   head/tail or transport gates to make an unrelated fixture green.
+
+
+## Deliverable correction — build14
+
+User needs an actual installable app to check, not repeated research-only updates.
+When a substantive bounded candidate is ready and the user requests it, provide
+its built APK with clear source/receipt and scope. Do not turn lack of remote
+phone access into an indefinite refusal to supply a candidate; equally do not
+label it verified-fixed before actual song/device evidence. Build14 source2928821
+changes normal Media3 acquisition to one reviewed public VISIONOS profile, keeps
+head/tail preparation, rejects unsupported signing and terminal challenges, and
+uses matching profile for archive/selftest. It does not integrate the full MIT
+library or execute player JS. CI offline transport/policy tests and five Media3
+fixture tests pass; provider access, full affected song and phone are unverified.
+Android44141628349 artifact14354662898 is the actual candidate ZIP; no claim of
+local binary inspection/stable signing. Avoid blind uninstall on key conflict.
