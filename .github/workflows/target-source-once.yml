@@ -1,0 +1,56 @@
+name: Screenshot-target source investigation
+
+# One user-authorized GitHub investigation. No routine provider probes.
+on:
+  push:
+    branches: [arena/a850fb0d-ayshamusic]
+    paths:
+      - prototypes/media3-source-check.rs
+      - .github/workflows/target-source-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: screenshot-target-source-once
+  cancel-in-progress: false
+jobs:
+  target-once:
+    if: >-
+      github.event.before == 'a6ed1eb2d9a87b9636e1f0eb72f661c1b7bf5fc7' && startsWith(github.event.head_commit.message, 'Approved target: Suno Aisha') && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - name: Offline research build and regressions first
+        run: |
+          if ! (cargo test --locked --bin media3-source-check --features phone && cargo build --locked --bin media3-source-check --features phone) > "$RUNNER_TEMP/target-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/target-build.log"
+            python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/target-build.log").read()[-14000:]; print("::error title=Offline target build::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+            exit 1
+          fi
+          target/debug/media3-source-check
+      - name: One bounded source check of the screenshot song
+        env:
+          AYSHA_TARGET_SOURCE_APPROVAL: suno-aisha-one-target
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+          echo '::notice title=Target source permission::Live target step started. Inspect consumption/outcome before any further probe.'
+          ulimit -v 2097152
+          timeout --signal=KILL 60s target/debug/media3-source-check --approved-target-once | tee diagnostics/suno-aisha-source.json
+      - name: Annotate controlled result
+        if: always()
+        run: |
+          if [ -s diagnostics/suno-aisha-source.json ]; then
+            python3 -c 'import json; r=json.load(open("diagnostics/suno-aisha-source.json")); print("::notice title=Screenshot target result::"+json.dumps(r,separators=(",",":")))'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: suno-aisha-source-evidence
+          path: |
+            diagnostics/suno-aisha-source.json
+            Cargo.lock
+          if-no-files-found: warn
