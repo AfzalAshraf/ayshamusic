@@ -12,5 +12,8 @@
   },
   "overrides": {
     "meriyah": "7.4.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.0"
   }
 }

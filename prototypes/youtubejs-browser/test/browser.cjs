@@ -1,4 +1,4 @@
-// Desktop Chromium proof of the packaged browser bundle only; NOT Android or
+// Desktop Chromium proof of the packaged and rebuilt browser bundles; NOT Android or
 // source access. Every browser request is intercepted; no provider is contacted.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -9,6 +9,7 @@ const { chromium } = require(path.join(modules, 'playwright-core'));
 const { pathToFileURL } = require('node:url');
 const root = path.resolve(__dirname, '..');
 const files = {
+  '/fixture.js': fs.readFileSync(path.join(root, 'build/fixture.js')),
   '/bundle.mjs': fs.readFileSync(path.join(root, 'node_modules/youtubei.js/bundle/browser.js')),
   '/fixture-adapter.mjs': fs.readFileSync(path.join(root, 'fixture-adapter.mjs')),
   '/fixtures.mjs': fs.readFileSync(path.join(__dirname, 'fixtures.mjs'))
@@ -26,6 +27,8 @@ const files = {
       if (url.origin !== 'https://aysha-extractor.test') {
         unexpected.push('external_request'); return route.abort();
       }
+      if (url.pathname === '/rebuilt') return route.fulfill({ contentType: 'text/html', body:
+        '<!doctype html><title>Rebuilt offline fixture</title><script src="/fixture.js"></script>' });
       if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body:
         '<!doctype html><title>Offline extractor evaluation</title><script type="module">' +
         'import * as library from "/bundle.mjs";' +
@@ -68,6 +71,20 @@ const files = {
     assert.deepEqual(messages, [], 'Do not emit provider metadata/URLs through upstream logger');
     console.log(JSON.stringify({ status: 'pass', test: 'packaged_browser_bundle_offline',
       ...result, external_requests: 0, android_tested: false }));
+    const rebuiltPage = await context.newPage();
+    const rebuiltOutput = rebuiltPage.waitForEvent('console', {
+      predicate: message => message.text().startsWith('AYSHA_FIXTURE_RESULT '), timeout: 15000
+    });
+    rebuiltPage.on('pageerror', error => errors.push(error.name));
+    await rebuiltPage.goto('https://aysha-extractor.test/rebuilt');
+    const rebuilt = JSON.parse((await rebuiltOutput).text().slice('AYSHA_FIXTURE_RESULT '.length));
+    assert.deepEqual(rebuilt, { status: 'pass', runtime: 'browser', itag: 140,
+      fixture_requests: 1, media_validated: false, playback_tested: false,
+      negative: ['provider_login_or_challenge', 'video_id_mismatch', 'interpreter_required'] });
+    assert.deepEqual(unexpected, []);
+    assert.deepEqual(errors, []);
+    console.log(JSON.stringify({ test: 'rebuilt_browser_bundle_offline', ...rebuilt,
+      external_requests: 0, android_tested: false }));
     await context.close();
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

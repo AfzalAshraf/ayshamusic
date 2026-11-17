@@ -66,6 +66,7 @@ jobs:
         run: |
           npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
           npm test --prefix prototypes/youtubejs-browser
+          node prototypes/youtubejs-browser/build-android-fixture.mjs
           BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node prototypes/youtubejs-browser/test/browser.cjs
 
   rust-extract-prototype:

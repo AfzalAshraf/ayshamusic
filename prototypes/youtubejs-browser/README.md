@@ -13,6 +13,7 @@ Android's existing WebView is a possible runtime, **not yet tested/integrated**.
 ```sh
 npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
 npm test --prefix prototypes/youtubejs-browser
+node prototypes/youtubejs-browser/build-android-fixture.mjs
 # Optional desktop Chromium fixture check, existing test-only tools outside repo:
 BROWSER_TEST_MODULES=/path/to/test-tools/node_modules \
   node prototypes/youtubejs-browser/test/browser.cjs
@@ -61,6 +62,25 @@ head/tail checks. Fixture result explicitly says `media_validated:false` and
   license changed. Shipping would require retaining MIT/ISC/BSD/Apache notices;
   permissive is not the same as notice-free. Inspect third-party source as well
   as top-level metadata before final distribution.
+
+## Android fixture experiment
+
+`build-android-fixture.mjs` now rebuilds a separate test-only IIFE from the locked
+source modules with esbuild0.28.0 (MIT, development only), targetChrome70. It copies
+MIT/ISC/Apache/BSD notices into the generated test assets; protobuf's npm tarball
+omits its root Apache license, so a reviewed copy from protobuf-es v2.17.0 commit
+`01a8c3b7c95d17758c641b2b9e8ee2f14a3ee9d7` is preserved in `notices/`.
+Desktop Chromium passes both the upstream bundle and this rebuilt fixture.
+
+A separate `permissive-extractor-offline.yml` builds a **test APK only**, copies
+the prototype Kotlin class/generated assets into ignored androidTest locations,
+and runs one API29 emulator WebView fixture. This is separate from the production
+APK workflow: no main source/dependency/assets change, no Rust/JNI dependency,
+no native JavaScript bridge, WebView network blocked and every resource request
+intercepted. Checks AAC fixture parsing, denial/video mismatch/cipher rejection,
+no unexpected resource/navigation and no console errors. **Outcome pending** at
+addition; actual CI result must replace this note, not be assumed. No source or
+playback test is part of this experiment.
 
 ## Unresolved gates
 

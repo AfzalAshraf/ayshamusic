@@ -2779,3 +2779,16 @@ complete affected-song playback, Telegram and physical-network acceptance are
 provider probes remain sealed. RAM not remeasured. Existing tracked pyc deletion
 left untouched. Diagnostic reproduce commands and next gates in prototype README.
 Added offline fixture step to existing browser CI; result pending at commit time.
+
+### Test-only Android WebView experiment prepared
+
+Rebuilt fixture from locked source modules using pinned esbuild0.28.0 (build-time
+only), targetChrome70; preserved upstream MIT/ISC/Apache/BSD notices including
+protobuf-es v2.17.0 root Apache license absent from its npm tarball. Local desktop
+Chromium passes both upstream and rebuilt bundle. New separate offline workflow
+copies prototype Kotlin test/generated assets into ignored androidTest locations
+and runs one API29 actual WebView check. Network blocked/intercepted, no native
+JS bridge, no provider requests, no release APK produced by that workflow.
+Android result **pending**, not a success claim. Main Android sources/deps/assets
+remain unchanged. YAML/shell/diff checks pass. Previous local regressions:
+107Node/142Python PASS. Source/decode/full song/phone/Telegram/RAM still unproven.

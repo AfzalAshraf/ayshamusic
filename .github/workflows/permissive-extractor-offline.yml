@@ -1,0 +1,72 @@
+name: Permissive extractor offline Android evaluation
+on:
+  push:
+    branches: [arena/a850fb0d-ayshamusic]
+    paths:
+      - 'prototypes/youtubejs-browser/**'
+      - '.github/workflows/permissive-extractor-offline.yml'
+  pull_request:
+    paths:
+      - 'prototypes/youtubejs-browser/**'
+      - '.github/workflows/permissive-extractor-offline.yml'
+permissions:
+  contents: read
+concurrency:
+  group: permissive-extractor-offline-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android-webview-fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build pinned source modules into test assets only
+        run: |
+          npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
+          npm test --prefix prototypes/youtubejs-browser
+          node prototypes/youtubejs-browser/build-android-fixture.mjs
+          mkdir -p android-app/app/src/androidTest/assets/extractor
+          cp prototypes/youtubejs-browser/build/fixture.js prototypes/youtubejs-browser/build/*LICENSE.txt prototypes/youtubejs-browser/build/*NOTICE.txt android-app/app/src/androidTest/assets/extractor/
+          cp prototypes/youtubejs-browser/android/BrowserExtractorFixtureTest.kt android-app/app/src/androidTest/java/com/afzal/ayshamusic/
+          sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: bash prototypes/youtubejs-browser/android/run-fixture.sh
+      - name: Annotate actual WebView result (not source or playback)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob,xml.etree.ElementTree as E
+          paths=glob.glob('android-app/app/build/outputs/androidTest-results/connected/**/*.xml',recursive=True)
+          found=False
+          for path in paths:
+              for case in E.parse(path).getroot().iter('testcase'):
+                  if not case.attrib.get('classname','').endswith('BrowserExtractorFixtureTest'): continue
+                  found=True
+                  status='FAIL' if case.find('failure') is not None else ('SKIP' if case.find('skipped') is not None else 'PASS')
+                  print('::notice title=Offline WebView fixture::'+status+' '+case.attrib.get('name','unknown')+'; provider/playback NOT tested')
+                  if case.find('failure') is not None:
+                      print('::error title=Offline WebView assertion::'+case.find('failure').attrib.get('message','unknown')[:1500].replace('%','%25').replace('\n','%0A').replace('\r','%0D'))
+          if not found:
+              print('::error title=Offline WebView fixture::No actual result; not passed')
+              raise SystemExit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-browser-extractor-test-results
+          path: |
+            android-app/app/build/outputs/androidTest-results/
+            prototypes/youtubejs-browser/build/metafile.json
+          if-no-files-found: warn
