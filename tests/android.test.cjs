@@ -174,6 +174,8 @@ test('build14 Media3 source policy is single-profile and shared with Telegram', 
 test('native ready events have an independent executor from slow Next controls', () => {
   const api=read('android-app/app/src/main/java/com/afzal/ayshamusic/MediaApi.kt');
   assert.match(api,/val events = java.util.concurrent.Executors.newSingleThreadExecutor\(\)/);
-  assert.match(api,/if \(event\) events else posts/);
-  assert.match(api,/readTimeout = if \(event\) TIMEOUT_MS else 60000/);
+  assert.match(api,/if \(event\) events else if \(trackChange\) navigation else posts/);
+  assert.match(api,/readTimeout = if \(trackChange\) 60000 else TIMEOUT_MS/);
+  assert.match(api,/navigating.compareAndSet\(false, true\)/);
+  assert.match(api,/if \(trackChange\) navigating.set\(false\)/);
 });

@@ -29,11 +29,16 @@ object MediaApi {
     // Playback-ready events must reach Rust while a control request is waiting
     // for preparation; putting both on one executor causes a circular wait.
     private val events = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val navigation = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val navigating = java.util.concurrent.atomic.AtomicBoolean(false)
 
     fun post(path: String, body: String? = null) {
         if (!verified) return
         val event = path == "/api/platform/event"
-        val executor = if (event) events else posts
+        val trackChange = path == "/api/next" || path == "/api/prev"
+        if (trackChange && !navigating.compareAndSet(false, true)) return
+        // Pause/Stop remain independent of a slow navigation as well.
+        val executor = if (event) events else if (trackChange) navigation else posts
         executor.execute {
             var connection: HttpURLConnection? = null
             try {
@@ -41,7 +46,7 @@ object MediaApi {
                 connection = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = TIMEOUT_MS
-                    readTimeout = if (event) TIMEOUT_MS else 60000
+                    readTimeout = if (trackChange) 60000 else TIMEOUT_MS
                     setRequestProperty("Content-Type", "application/json")
                     if (body != null) {
                         doOutput = true
@@ -57,6 +62,7 @@ object MediaApi {
                 Log.w(TAG, "POST $path failed: ${e.message}")
             } finally {
                 connection?.disconnect()
+                if (trackChange) navigating.set(false)
             }
         }
     }

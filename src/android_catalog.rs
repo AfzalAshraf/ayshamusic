@@ -220,6 +220,7 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
     if expected.is_some_and(|ticket|ticket!=*crate::PLAY_TICKET.lock().unwrap()) {
         return error(StatusCode::CONFLICT,"Playback already changed");
     }
+    let navigation_ticket=*crate::PLAY_TICKET.lock().unwrap();
     crate::sample_listening(&state);
     let (mut track, current, history, _liked) = {
         let library = state.library.lock().unwrap();
@@ -235,7 +236,7 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
         track=state.mix.lock().unwrap().choose(&current,&history);
     }
     let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "No fresh songs left in this mix. Play another romantic song to start a new mix." }); };
-    if expected.is_some_and(|ticket|ticket!=*crate::PLAY_TICKET.lock().unwrap()) {
+    if navigation_ticket!=*crate::PLAY_TICKET.lock().unwrap() {
         return error(StatusCode::CONFLICT,"Playback already changed");
     }
     let result = crate::play_audio(crate::PlayBody { video_id: track.id.clone(), client: None, track: Some(track.clone()) }).await;
@@ -257,6 +258,9 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
         drop(library);
         state.listening.lock().unwrap().flush();
         return (StatusCode::OK, Json(json!({"status":"playing","track":track,"mode":"native","already_started":true})));
+    }
+    if expected.is_some() && result.0!=StatusCode::CONFLICT {
+        *state.autoplay_error.lock().unwrap()=Some("Your next song could not start. Tap Next or choose another song.".into());
     }
     result
 }
