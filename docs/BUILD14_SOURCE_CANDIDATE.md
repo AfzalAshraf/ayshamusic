@@ -1,5 +1,7 @@
 # Build14 — installable source-repair candidate
 
+**Latest evidence/update:** the user subsequently confirmed this build plays and advances on their physical phone for the screenshot songs. The older unverified statements below describe delivery-time evidence. The current Mix/responsiveness APK is [Build15](BUILD15_MIX_UPGRADE.md); exact Suno Aisha, full completion/background and Telegram upload are still separate acceptance gates.
+
 ## Download — built and available
 
 **[Download Aysha Android Audio14 APK ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44141628349/artifacts/14354662898)**

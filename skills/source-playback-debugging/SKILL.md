@@ -137,3 +137,11 @@ library or execute player JS. CI offline transport/policy tests and five Media3
 fixture tests pass; provider access, full affected song and phone are unverified.
 Android44141628349 artifact14354662898 is the actual candidate ZIP; no claim of
 local binary inspection/stable signing. Avoid blind uninstall on key conflict.
+
+## Build15 lessons — control queue versus source failure
+
+- The user subsequently confirms build14/source2928821 plays/advances actual screenshot songs. Preserve that source policy; do not treat every Next delay as resolver failure or reopen sealed live challenges.
+- A control POST waiting for native readiness cannot share a serial executor with its readiness events. Keep event delivery independent; also keep short Pause/Stop independent of slow Next/Previous and coalesce repeated navigation. Stop/new-selection tickets must be checked after metadata waits, not only after media resolution.
+- The screenshot's local429 came from immediate search-slot rejection, not proof of provider rate limiting. Single-flight/cache normal tab requests; actual RD Mix must not borrow Explore's search slot or be disguised generic search. Prefetch metadata only unless audio data/storage cost explicitly approved.
+- Singular “Lyric Video” and one-word song titles need alternate-upload regression cases. A metadata filter remains approximate; never promise acoustic identity across all covers/translations.
+- CI build15/source2d8bf5a and5Media3fixturesPASS; docs/BUILD15_MIX_UPGRADE.md gives the artifact. User requested no visible engine/build labels: keep technical identity in the handshake API, not the player. GitHub artifact digest is the ZIP digest, never an APK signature/hash. If blob-storage downloads are blocked locally, supply the verified hosted artifact link and state that binary inspection was not performed; do not bypass egress restrictions.

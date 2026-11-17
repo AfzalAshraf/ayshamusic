@@ -1,5 +1,16 @@
 # Build15 — Mix and responsiveness upgrade
 
+## Download — built and checks passed
+
+**[Download Build15 APK ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44149184745/artifacts/14357224361)**
+
+Unzip and install the APK over the existing app. Launcher **Aysha Music**, Android App info **1.4.0-preview**, code15. Built source **2d8bf5ab001d44f153aaecb86dbec3cccce73381**; source/engine diagnostics are deliberately no longer shown in the player/Settings.
+
+- Android run44149184745 **SUCCESS**, release134272532279 and emulator134272531721. Rust host checks, native ARM64/R8, size budget and Android contracts passed. All5 actual Media3 fixture tests passed, including600s@4x playback and10s source gap. This does not exercise the live Mix endpoint or a real Telegram upload.
+- Linux44149184711 **SUCCESS all6jobs**. Local113Node/142PythonPASS; responsive browser/nativeSettings/iframe and generated static-preview browser suitesPASS. Inspected the390px Settings screenshot: layout contained, no diagnostic label clutter, API-only sign-in state clearly shown.
+- GitHub artifact ZIP4,981,010bytes, SHA256 `493c301a6f80f03a4087254cc4b64a967b60a3ded29b2a07cb99135af253b2d3`. **ZIP digest, not inner APK digest**. Metadata confirmed at built source; APK size gate passed. Local artifact download is blocked by the workspace's outbound-host restriction at GitHub's blob-storage redirect, so no local binary/signature inspection is claimed. The hosted artifact link above is the deliverable; normal GitHub sign-in may be needed.14day APK artifact retention.
+- Safe emulator outcome record: `docs/research/build15-media3-emulator-result.json`. CI emits action/runtime deprecation warnings (checkout/setup-java/upload-artifact); no failed job in this run. Workflow modernization is deferred rather than bundled with the playback upgrade.
+
 ## Baseline and scope
 
 User confirms build14/source2928821 plays and advances on their physical phone (Asalayavale/Ponnaninja Pennu screenshots). This is positive phone evidence for those selections, not full-song/background/Telegram proof or exact Suno Aisha acceptance. Preserve that acquisition profile, exact-ID/directAAC policy, head+tail checks, Media3 output, Saved Messages backend and rose/dark design.
@@ -26,7 +37,7 @@ No live provider probe was run. Previously sealed/challenged source attempts rem
 
 ## Checks and acceptance
 
-Local:113Node tests PASS,142Python tests PASS; Chromium fixture suite PASS at320/360/390/412portrait, tablet, landscape, desktop, plus native Settings both fixtures and static preview checks. Rust phone tests, ARM64 release/R8, APK size and Media3 instrumentation must pass in CI before delivery; local Rust toolchain unavailable. CI/artifact results will be appended after completion.
+Local:113Node tests PASS,142Python tests PASS; Chromium fixture suite PASS at320/360/390/412portrait, tablet, landscape, desktop, plus native Settings both fixtures and static preview checks. Rust phone tests, ARM64 release/R8, APK size and Media3 instrumentation passed in CI as recorded above; local Rust toolchain unavailable.
 
 Phone acceptance after install-over-existing: play a romantic seed, tap Next several times (different songs, less metadata waiting), overlap Home/Explore/category changes, verify Telegram API-only vs signed-in status and a completed upload in actual Saved Messages, finish a song with screen off, verify notification Next/Pause. No physical latency, memory, battery or entire-catalog certification yet. APK size measured in CI, not an Android RAM claim. Linux memory not remeasured.
 

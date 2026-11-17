@@ -2909,3 +2909,10 @@ current APK entry point updated; unrelated pyc deletion untouched.
 - UI: Telegram configuration vs authorization and app-indexed saved/pending/failed/cooldown visible in Settings, no channel required; removed engine/build labels; launcher Aysha Music; nonoverlapping1s visible polling (was400ms).
 - Local113Node/142PythonPASS; responsive Chromium suitePASS incl7sizes/nativeSettings/iframe. No new live source probes. Rust/ARM64/APK/emulator CI pending. Performance mechanisms identified in code, not a measured phone latency/RAM improvement.
 - Manifest/acceptance/risks: docs/BUILD15_MIX_UPGRADE.md. No hosted helper/GPL runtime/dependency added; same package/session. Do not uninstall on signing conflict.
+
+### Build15 delivered artifact and final checks
+
+Source **2d8bf5ab001d44f153aaecb86dbec3cccce73381**. Android44149184745 **SUCCESS** both jobs release134272532279/emulator134272531721; Rust host checks, ARM64/R8, APK size and Android contractsPASS.5Media3 fixturesPASS including600s@4x/10s gap; saved safe annotations docs/research/build15-media3-emulator-result.json. Linux44149184711 **SUCCESS all6jobs**. Local113Node/142PythonPASS, full responsive browser+generated static-preview suitesPASS.390pxSettings screenshot inspected (no overflow/build labels; API-only distinct from signed-in).
+
+**Download:** https://github.com/AfzalAshraf/ayshamusic/actions/runs/44149184745/artifacts/14357224361
+ZIP4,981,010B, SHA256493c301a6f80f03a4087254cc4b64a967b60a3ded29b2a07cb99135af253b2d3 (artifact metadata, NOT innerAPK). Local `gh run download` reached disallowed blob-storage redirect/EOF; no bytes obtained or local signature inspection claimed. Link remains hosted on GitHub/14day retention. No workaround/alternate upload attempted. Preview signing continuity unverified; never blind uninstall. Actual Mix/Next speed/natural-end screen-off/archive-upload/RAM acceptance pending physical phone. No new live provider probes. Workflow action deprecation warnings remain; no failed jobs for final source. Manifest docs/BUILD15_MIX_UPGRADE.md; launcherAyshaMusic/code15/1.4.0-preview/samepackage17652.
