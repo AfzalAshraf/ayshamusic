@@ -2792,3 +2792,15 @@ JS bridge, no provider requests, no release APK produced by that workflow.
 Android result **pending**, not a success claim. Main Android sources/deps/assets
 remain unchanged. YAML/shell/diff checks pass. Previous local regressions:
 107Node/142Python PASS. Source/decode/full song/phone/Telegram/RAM still unproven.
+
+### First Android WebView experiment failed — not a provider test
+
+Run44135768425/sourcea6d16b8/job134224757444 compiled and ran the isolated
+instrumentation test, which **failed**. Annotation emitted FAIL but omitted the
+XML failure text (it read only the message attribute; Android JUnit used text).
+Action log download blocked by environment EOF, so do not guess an Android or
+library diagnosis from the truncated build tail. Improved offline-only failure
+annotation plus WebView-version/console/fixture diagnostics; one revised offline
+run is justified to expose the actual compatibility/assertion failure. No provider
+call or APK source change. Linux44135768370 all6jobs PASS including new39fixtures
+and desktop browser; not Android acceptance. Desktop rebuilt fixture remains PASS.

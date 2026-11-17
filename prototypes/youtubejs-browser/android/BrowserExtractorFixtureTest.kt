@@ -30,9 +30,12 @@ class BrowserExtractorFixtureTest {
         val results = ArrayBlockingQueue<String>(8)
         val external = AtomicInteger()
         val consoleErrors = AtomicInteger()
+        val firstError = ArrayBlockingQueue<String>(1)
+        var webVersion = "unknown"
         lateinit var web: WebView
         instrumentation.runOnMainSync {
             web = WebView(instrumentation.targetContext)
+            webVersion = WebView.getCurrentWebViewPackage()?.versionName ?: "unknown"
             web.settings.apply {
                 javaScriptEnabled = true
                 allowFileAccess = false
@@ -63,7 +66,11 @@ class BrowserExtractorFixtureTest {
                 override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                     val prefix = "AYSHA_FIXTURE_RESULT "
                     if (message.message().startsWith(prefix)) results.offer(message.message().removePrefix(prefix))
-                    else if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) consoleErrors.incrementAndGet()
+                    else if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                        consoleErrors.incrementAndGet()
+                        // Fixture-only local script; no real provider body exists.
+                        firstError.offer(message.message().take(300))
+                    }
                     // Do not forward arbitrary script/provider errors into test logs.
                     return true
                 }
@@ -72,9 +79,9 @@ class BrowserExtractorFixtureTest {
         }
         try {
             val raw = results.poll(45, TimeUnit.SECONDS)
-            assertNotNull("Offline WebView fixture deadline; consoleErrors=${consoleErrors.get()}", raw)
+            assertNotNull("Offline WebView fixture deadline; version=$webVersion; errors=${consoleErrors.get()}; first=${firstError.peek()}", raw)
             val result = JSONObject(raw!!)
-            assertEquals("pass", result.getString("status"))
+            assertEquals("Offline fixture result: $raw; WebView=$webVersion", "pass", result.getString("status"))
             assertEquals("browser", result.getString("runtime"))
             assertEquals(140, result.getInt("itag"))
             assertEquals(1, result.getInt("fixture_requests"))

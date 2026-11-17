@@ -3,11 +3,17 @@ on:
   push:
     branches: [arena/a850fb0d-ayshamusic]
     paths:
-      - 'prototypes/youtubejs-browser/**'
+      - 'prototypes/youtubejs-browser/*.mjs'
+      - 'prototypes/youtubejs-browser/*.json'
+      - 'prototypes/youtubejs-browser/android/**'
+      - 'prototypes/youtubejs-browser/test/**'
       - '.github/workflows/permissive-extractor-offline.yml'
   pull_request:
     paths:
-      - 'prototypes/youtubejs-browser/**'
+      - 'prototypes/youtubejs-browser/*.mjs'
+      - 'prototypes/youtubejs-browser/*.json'
+      - 'prototypes/youtubejs-browser/android/**'
+      - 'prototypes/youtubejs-browser/test/**'
       - '.github/workflows/permissive-extractor-offline.yml'
 permissions:
   contents: read
@@ -57,7 +63,7 @@ jobs:
                   status='FAIL' if case.find('failure') is not None else ('SKIP' if case.find('skipped') is not None else 'PASS')
                   print('::notice title=Offline WebView fixture::'+status+' '+case.attrib.get('name','unknown')+'; provider/playback NOT tested')
                   if case.find('failure') is not None:
-                      print('::error title=Offline WebView assertion::'+case.find('failure').attrib.get('message','unknown')[:1500].replace('%','%25').replace('\n','%0A').replace('\r','%0D'))
+                      print('::error title=Offline WebView assertion::'+(case.find('failure').attrib.get('message') or case.find('failure').text or 'unknown')[:3000].replace('%','%25').replace('\n','%0A').replace('\r','%0D'))
           if not found:
               print('::error title=Offline WebView fixture::No actual result; not passed')
               raise SystemExit(1)

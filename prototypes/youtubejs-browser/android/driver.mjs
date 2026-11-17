@@ -18,6 +18,6 @@ import { ID, format, response } from '../test/fixtures.mjs';
     runtime: library.Platform.shim.runtime, itag: result.descriptor.itag,
     fixture_requests: result.fixture_requests, media_validated: result.media_validated,
     playback_tested: result.playback_tested, negative }));
-} catch {
-  console.log('AYSHA_FIXTURE_RESULT ' + JSON.stringify({ status: 'fail', code: 'android_fixture_failed' }));
+} catch (error) {
+  console.log('AYSHA_FIXTURE_RESULT ' + JSON.stringify({ status: 'fail', code: 'android_fixture_failed', fixture_error: error.message, error_name: error.name }));
 } })();
