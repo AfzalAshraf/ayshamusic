@@ -92,9 +92,37 @@ class Media3PlaybackTest {
         assertTrue(error.optDouble("position") < 0.25)
     }
 
-    private class FixtureServer(private val data: ByteArray) : Closeable {
+    @Test fun tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed() {
+        server.data = InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { it.readBytes() }
+        command("play", 0)
+        val ready = awaitEvent { it.optBoolean("ready") && it.optDouble("duration") > 590.0 }
+        assertTrue(ready.optDouble("duration") < 610.0)
+        // Test-only reflection changes the actual ExoPlayer clock rate, not its
+        // source/position/state. No production API or fake completed events.
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val field = PlatformAudio::class.java.getDeclaredField("player")
+            field.isAccessible = true
+            val audio = field.get(PlatformAudio) as androidx.media3.exoplayer.ExoPlayer
+            audio.setPlaybackSpeed(4.0f)
+        }
+        awaitEvent(100000) { it.optString("state") == "playing" && it.optDouble("position") > 300.0 }
+        val ended = awaitEvent(100000) { it.optString("state") == "ended" }
+        assertTrue(ended.optDouble("position") > 590.0)
+        assertTrue("Whole long file must actually cross the fixture socket", server.mediaBytes.get() >= server.data.size)
+    }
+
+    @Test fun tenSecondSourceGapDoesNotTripTheDefaultEightSecondReadTimeout() {
+        server.gapMillis = 10000
+        command("play", 0)
+        awaitEvent(30000) { it.optString("state") == "playing" && it.optDouble("position") >= 3.0 }
+        awaitEvent(20000) { it.optString("state") == "ended" }
+    }
+
+    private class FixtureServer(@Volatile var data: ByteArray) : Closeable {
         val events = ArrayBlockingQueue<JSONObject>(256)
         val mediaRequests = AtomicInteger()
+        val mediaBytes = AtomicInteger()
+        @Volatile var gapMillis = 0L
         @Volatile var rejectMedia = false
         private val socket = ServerSocket(BuildConfig.API_PORT, 16, InetAddress.getByName("127.0.0.1"))
         private val workers = Executors.newFixedThreadPool(4)
@@ -145,7 +173,15 @@ class Media3PlaybackTest {
         private fun reply(socket: Socket, status: Int, body: ByteArray, type: String = "text/plain", extra: String = "", sendBody: Boolean = true) {
             val output = socket.getOutputStream()
             output.write(("HTTP/1.1 $status Fixture\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nAccept-Ranges: bytes\r\n${extra}Connection: close\r\n\r\n").toByteArray())
-            if (sendBody) output.write(body)
+            if (sendBody) {
+                if (type == "audio/mp4" && gapMillis > 0 && body.size > 16384) {
+                    output.write(body, 0, 16384)
+                    output.flush()
+                    Thread.sleep(gapMillis)
+                    output.write(body, 16384, body.size - 16384)
+                } else output.write(body)
+                if (type == "audio/mp4") mediaBytes.addAndGet(body.size)
+            }
             output.flush()
         }
         override fun close() { socket.close(); accepts.join(1000); workers.shutdownNow() }

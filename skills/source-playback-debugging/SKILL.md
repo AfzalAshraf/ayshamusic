@@ -59,3 +59,22 @@ or telemetry is necessary to use these principles.
   three actual Android Media3 fixture passes establish separate gates. They do
   NOT prove the screenshot's two tracks on the physical phone/network. No A/B
   source measurement proves that this patch eliminated every403 cause.
+
+
+## Long-song follow-up
+
+- An8s synthetic tone and four live ranges do not cover sustained playback of
+  long tracks. User reports brief playback and long-song errors on build12; exact
+  new error/song/installed receipt has not been supplied. Do not invent it.
+- Media3 1.8.0 DefaultHttpDataSource has an8s default inactivity timeout, shorter
+  than the Rust12s per-range/15s worker budgets. Configure the loopback reader20s
+  (bounded inactivity, NOT a total track limit); test a10s source gap explicitly.
+- A validated temporary redirect is NOT a reusable canonical source URL. Start
+  every distinct range at the original signed URL and validate its own redirects;
+  signed CDN handoffs may be range/request-specific. Retain first/tail BYTES,
+  never promote temporary redirect URLs into persistent origins for later blocks.
+- Cover complete encoded long-track playback with actual Media3, label accelerated
+  time honestly, and stream many synthetic blocks through Rust with bounded
+  memory. Track byte offset/preparation phase on errors without exposing URLs.
+- Neither defect proves the unspecified physical-phone error's cause. Ask once
+  for the exact error and affected song while fixing the reproduced code defects.

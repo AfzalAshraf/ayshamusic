@@ -2625,3 +2625,33 @@ resolved claim; not asked to repeat the known-unmodified code11 install. Single
 Media3 APK only, Rust Audio Android flavor/upload gone, Linux Rust retained.
 No physical-phone/source-track/background/focus/Telegram-login/signing/RAM claims.
 Unrelated tracked pyc deletion intentionally unstaged.
+
+
+## Long-song follow-up — build12 phone rejection, exact new error not supplied
+
+User reports songs play only seconds and long selections show an error; no new
+screenshot/song/installed receipt yet. Asked once while investigating, not required
+to begin offline work. Do not assume this is the same403 or a duration hard cap.
+
+Inspected Media3 1.8.0 official DefaultHttpDataSource source through GitHub:
+DEFAULT_READ_TIMEOUT_MILLIS=8*1000, while Rust per-block permits12s and worker15s.
+Patched actual PlatformAudio media-source factory to bounded20s read/8s connect,
+not an unlimited read or total-song timeout. A valid10s later source gap should
+survive instead of the Android reader giving up before Rust's own deadline.
+
+Found a request-scoping defect introduced with build12 redirects: successful
+redirect targets were persisted for ALL later ranges. A temporary signed target
+can belong to one range; promoting it can invalidate later chunks/tail seeks.
+Now every fetch begins at the original signed source, retains strict3-hop/HTTPS/
+CDN guards and12s deadline, and caches only validated first/tail bytes, not targets.
+Added real local HTTP response fixture covering request-specific redirect targets
+across five sequential/seek blocks; no provider requests or allowlist exception.
+
+Added bounded-memory >10MiB synthetic full-stream Rust verification (>150later
+reads), actual Media3 ten-minute encoded AAC playback at4x (not ten wall-clock
+minutes), and10s source-gap Android test. Existing8s controls/error tests retained.
+Error text now identifies prepare head/tail vs stream and failing offset without
+URLs/secrets. No source/profile/codec swap, whole-song predownload, policy bypass
+or new live-provider test. Build13/1.3.5-preview; Media3-only/icon/Telegram unchanged.
+Local107Node/142Python PASS, YAML/diff checks PASS; Rust and Android outcomes
+PENDING CI, not yet a physical-phone fix claim.

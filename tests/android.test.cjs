@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 12/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 13/);
 });
 
 
@@ -146,4 +146,16 @@ test('Media3 preflight retains first/tail before platform Play and source proof 
   const workflow = read('.github/workflows/android.yml');
   assert.doesNotMatch(workflow, /AYSHA_MEDIA3_SOURCE_APPROVAL|production-source-once:/);
   assert.match(workflow, /media3-emulator-fixture:/);
+});
+
+
+test('long playback keeps the loopback read budget above the Rust worker budget', () => {
+  const native = read('android-app/app/src/androidAudio/java/com/afzal/ayshamusic/PlatformAudio.kt');
+  assert.match(native, /setReadTimeoutMs\(20000\)/);
+  assert.match(native, /setConnectTimeoutMs\(8000\)/);
+  assert.match(native, /setMediaSourceFactory/);
+  const ranges = read('src/range_media.rs');
+  assert.doesNotMatch(ranges, /media_url_lock_failed/);
+  assert.match(ranges, /redirected_response\(&self.url,send\)/);
+  assert.match(read('src/platform_audio.rs'), /stage=stream; offset=/);
 });

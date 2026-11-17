@@ -74,7 +74,7 @@ impl Player {
                 }
                 Ok(())
             })();
-            if let Err(error)=result {player.fail(&token,&format!("media3_input_failed: {error}"));}
+            if let Err(error)=result {player.fail(&token,&format!("media3_input_failed: {error}; stage=prepare"));}
         });
         if spawned.is_err() {self.fail(&failed,"media3_input_thread_unavailable");return Err("media3_input_thread_unavailable".into());}
         Ok(rx)
@@ -163,7 +163,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
             let last=(position+BLOCK as u64-1).min(end);
             let source=input.clone();
             let result=tokio::task::spawn_blocking(move ||source.fetch(position,last)).await.map_err(|_|io::Error::other("media3_input_worker_failed"))?;
-            let block=match result {Ok(block)=>block,Err(error)=>{player.fail(&token,&format!("media3_input_failed: {error}"));return Err(error);}};
+            let block=match result {Ok(block)=>block,Err(error)=>{player.fail(&token,&format!("media3_input_failed: {error}; stage=stream; offset={position}"));return Err(error);}};
             if block.total!=input.len || block.bytes.len() as u64!=last-position+1 {player.fail(&token,"media3_input_range_mismatch");return Err(io::Error::other("media3_input_range_mismatch"));}
             Ok(Some((Bytes::from(block.bytes),(last+1,input,player,token))))
         }))

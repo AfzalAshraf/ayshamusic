@@ -31,3 +31,5 @@ __pycache__/
 
 # Generated Android decoder test tone (CI ffmpeg fixture, not shipped)
 /android-app/app/src/androidTest/assets/tone.m4a
+
+/android-app/app/src/androidTest/assets/long-tone.m4a

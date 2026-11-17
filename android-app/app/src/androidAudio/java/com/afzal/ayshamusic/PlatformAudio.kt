@@ -10,6 +10,9 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import org.json.JSONObject
 
 /** Audio only. Rust retains extraction, provider HTTP and Telegram credentials. */
@@ -37,7 +40,14 @@ object PlatformAudio {
                     val uri = android.net.Uri.parse(command.getString("url"))
                     require(uri.scheme == "http" && uri.host == "127.0.0.1" &&
                         uri.port == BuildConfig.API_PORT && uri.path == "/api/platform/media/$incoming")
+                    // Rust permits 12s per upstream block and the input worker
+                    // waits at most15s. Media3's default8s would abort a healthy
+                    // slower block first. This is inactivity, not song duration.
+                    val http = DefaultHttpDataSource.Factory()
+                        .setConnectTimeoutMs(8000)
+                        .setReadTimeoutMs(20000)
                     val audio = ExoPlayer.Builder(context)
+                        .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http)))
                         .setLoadControl(DefaultLoadControl.Builder()
                             .setBufferDurationsMs(15000, 30000, 1000, 2000).build())
                         .build()
