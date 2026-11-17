@@ -1,5 +1,10 @@
 # Long-track playback follow-up (build13)
 
+> **Build13 now failed physical-phone acceptance.** Image12/source3d24f7f shows
+> ANDROID and IOS `media_prepare_tail_failed: media_range_http_403` for Suno Aisha
+> from SonyMusicIndiaVEVO. The previous fixture passes below do not fix/overrule
+> this source failure. Do not resend this APK as known-working.
+
 ## Download and verified results
 
 **[Android/Media3 Audio13 APK — ZIP](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44029768380/artifacts/14305435131)**

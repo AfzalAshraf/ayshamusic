@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   target-once:
-    if: >-
-      github.event.before == 'a6ed1eb2d9a87b9636e1f0eb72f661c1b7bf5fc7' && startsWith(github.event.head_commit.message, 'Approved target: Suno Aisha') && github.run_attempt == 1
+    # Consumed by44121609464: explicit provider challenge, do not retry.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -32,8 +32,6 @@ jobs:
           fi
           target/debug/media3-source-check
       - name: One bounded source check of the screenshot song
-        env:
-          AYSHA_TARGET_SOURCE_APPROVAL: suno-aisha-one-target
         run: |
           set -euo pipefail
           mkdir -p diagnostics

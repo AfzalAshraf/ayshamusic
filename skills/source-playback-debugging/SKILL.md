@@ -78,3 +78,21 @@ or telemetry is necessary to use these principles.
   memory. Track byte offset/preparation phase on errors without exposing URLs.
 - Neither defect proves the unspecified physical-phone error's cause. Ask once
   for the exact error and affected song while fixing the reproduced code defects.
+
+
+## Exact-song tail403 rejection (image12)
+
+- Receipt3d24f7f confirms build13. ANDROID and IOS passed head then failed tail
+  with403 before Media3 start; timeout/cache corrections did not solve this source.
+  Never remove the tail check to relabel that refusal as successful playback.
+- Exact SonyMusicIndiaVEVO target matched once: fAzO3s7Dgnw, Suno Aisha Best Song.
+  CI44121609464 received explicit sign-in/bot challenge on baseline metadata after
+ 3requests, before ANY media/candidate request. Stop instead of trying identities,
+  headers, credentials or retries to evade it. CI challenge is NOT proof of the
+  phone's challenge/token/IP cause; retain the distinction.
+- One researched VISIONOS candidate (normal anonymous public-client recipe from
+  upstream yt-dlp reference) was isolated but NOT RUN and NOT added to the APK.
+  No inference that it works from an issue report or offline compilation.
+- If extractor architecture must change, explicitly ask whether the previous
+  Rust-only acquisition boundary is relaxed. Media3 decoder approval alone is
+  not approval for Java extraction. Keep all-in-APK and Rust Telegram/backend.

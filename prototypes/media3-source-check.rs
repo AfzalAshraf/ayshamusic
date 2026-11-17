@@ -139,13 +139,10 @@ async fn check(budget:Arc<Budget>,report:&mut Value)->Result<(),&'static str>{
 }
 #[tokio::main]
 async fn main(){
-    // Old public-video allowance stays sealed. A separate exact-parent workflow
-    // gate authorizes this screenshot-specific one-off research check only.
+    // Screenshot-target run44121609464 consumed: provider challenge, no media
+    // reads, candidate NOT RUN. All flags/environment approvals now ignored.
     const LIVE_APPROVAL_AVAILABLE:bool=false;
-    debug_assert!(!LIVE_APPROVAL_AVAILABLE);
-    if std::env::var("AYSHA_TARGET_SOURCE_APPROVAL").as_deref()!=Ok("suno-aisha-one-target")
-        ||std::env::var("GITHUB_RUN_ATTEMPT").as_deref()!=Ok("1")
-        ||std::env::args().skip(1).collect::<Vec<_>>()!=["--approved-target-once"] {
+    if !LIVE_APPROVAL_AVAILABLE {
         println!("{}",json!({"status":"offline","code":"approval_consumed"}));return;
     }
     std::panic::set_hook(Box::new(|_|{}));

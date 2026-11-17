@@ -2683,3 +2683,41 @@ image9 launcher/Settings/Telegram fix/dedication preserved. Physical song/error,
 background/network change/hours-long real time/real Telegram session/signing/RAM
 remain unverified. QA3/5; Linux/service RAM not remeasured. Unrelated pyc deletion
 preserved unstaged. Deliver as tested corrective build, not "all long songs fixed".
+
+
+## Image12 rejects build13 — exact track and source-phase evidence
+
+User confirms "not playing now", screenshot receipt**3d24f7f**, Suno Aisha Best
+Song - Aisha|Sonam Kapoor|Abhay Deol|Javed Akhtar|Amit Trivedi|Ash King,
+SonyMusicIndiaVEVO. ANDROID and IOS both `media_prepare_tail_failed:
+media_range_http_403; stage=prepare`. Head succeeded; tail was forbidden before
+Media3 started. TV displayed reason truncated after "video is not"; do not invent
+its unseen full text. Build13 is **not accepted**; previous tone/long/mid-range CI
+passes cannot overrule it. Retained tail gate; no decoder/time-limit workaround.
+
+Research: NuvioMobile issue1829 describes matching Android/iOS head206/tail403
+pattern and possible provider token requirements; Kodi issue1481 describes initial
+ranges then403. These are external reports, not proof of the phone's root cause.
+Kopuz PR735 sequential fallback reviewed, not adopted as a way to disguise rejected
+source access. Current yt-dlp _base.py head e6275c2b72fe178d54c490c9d775097aa8184457
+VISIONOS public-client recipe reviewed as an isolated compatibility candidate;
+no yt-dlp runtime, Java extractor, credential/token bypass or APK client change.
+
+User's standing GitHub research/test authorization used for one bounded exact-
+target investigation, source2c9e1ed, run44121609464/job134174181338. Max16HTTPS
+requests/8MiB transport/60s external kill; fixed title/channel exact match required,
+no auto substitution or wrong-song success claim. Search uniquely identified
+**fAzO3s7Dgnw**, exact title/SonyMusicIndiaVEVO. Baseline ANDROID metadata then
+returned **provider_sign_in_or_bot_challenge**. Stopped **3requests /339,873bytes
+reserved-or-used /1,009ms**, **zero media requests**, candidate **NOT RUN**.
+Thus CI did NOT reproduce the phone's tail403 and did NOT validate a replacement.
+Safe result saved docs/research/suno-aisha-source-result.json. No raw URL/token/
+provider-body retained. Old public-video proof remains separate/consumed.
+
+Live workflow disabled/CLI sealed after this attempt. Offline research build/
+regressions passed; local107Node PASS and YAML/diff checks PASS. No new APK sent
+as a fix. Asked explicit scope decision before introducing an on-device Android
+extractor because Rust-only extraction remains standing until revised; everything
+still must stay in APK, Rust Telegram/backend retained. Physical source/song/
+phone/background/signing/RAM acceptance remains OPEN, QA3/5. No service RAM
+remeasurement. Unrelated pyc deletion preserved.
