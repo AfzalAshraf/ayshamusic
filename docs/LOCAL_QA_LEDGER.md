@@ -2864,3 +2864,8 @@ claimed. Cannot list GitHub Actions secrets (integration permission403); no
 credential request and no claim of stable release-signing verification. Existing
 tracked pyc deletion preserved. Build manifest docs/BUILD14_SOURCE_CANDIDATE.md.
 Will supply actual build link only after success; phone/song still unverified.
+
+Build14 packaging follow-up: include upstream MIT profile-reference notice/license
+as APK assets, without relicensing the app or including the full JS library. This
+packaging-only follow-up supersedes the first in-flight build; no provider test
+was started. Final APK source receipt/artifact must identify the final revision.
