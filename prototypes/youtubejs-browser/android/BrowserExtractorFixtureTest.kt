@@ -31,6 +31,7 @@ class BrowserExtractorFixtureTest {
         val external = AtomicInteger()
         val consoleErrors = AtomicInteger()
         val firstError = ArrayBlockingQueue<String>(1)
+        val firstUnexpected = ArrayBlockingQueue<String>(1)
         var webVersion = "unknown"
         lateinit var web: WebView
         instrumentation.runOnMainSync {
@@ -53,11 +54,16 @@ class BrowserExtractorFixtureTest {
                             ByteArrayInputStream(("<!doctype html><title>Offline fixture</title>" +
                                 "<script src='/fixture.js'></script>").toByteArray()))
                         if (uri.path == "/fixture.js") return WebResourceResponse("application/javascript", "UTF-8", ByteArrayInputStream(script))
+                        // WebView may ask for its implicit same-origin icon. It
+                        // is a defined empty fixture asset, not a network fetch.
+                        if (uri.path == "/favicon.ico") return WebResourceResponse("image/x-icon", "UTF-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                     }
+                    firstUnexpected.offer("resource:${uri.host}${uri.path}".take(200))
                     external.incrementAndGet()
                     return WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                 }
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    firstUnexpected.offer("navigation:${request.url.host}${request.url.path}".take(200))
                     external.incrementAndGet()
                     return true
                 }
@@ -89,7 +95,7 @@ class BrowserExtractorFixtureTest {
             assertFalse(result.getBoolean("playback_tested"))
             assertEquals("[\"provider_login_or_challenge\",\"video_id_mismatch\",\"interpreter_required\"]",
                 result.getJSONArray("negative").toString())
-            assertEquals("No network/navigation or unexpected asset request", 0, external.get())
+            assertEquals("No network/navigation or unexpected asset request; first=${firstUnexpected.peek()}; WebView=$webVersion", 0, external.get())
             assertEquals("No hidden script error", 0, consoleErrors.get())
         } finally {
             instrumentation.runOnMainSync { web.stopLoading(); web.destroy() }

@@ -2804,3 +2804,17 @@ annotation plus WebView-version/console/fixture diagnostics; one revised offline
 run is justified to expose the actual compatibility/assertion failure. No provider
 call or APK source change. Linux44135768370 all6jobs PASS including new39fixtures
 and desktop browser; not Android acceptance. Desktop rebuilt fixture remains PASS.
+
+### Actual Android failure exposed
+
+Run44136717635/source52e77d5/job134228133503 returned JUnit assertion:
+`No network/navigation or unexpected asset request expected:<0> but was:<1>`.
+Earlier assertions (actual browser parser/AAC result, explicit not-playback flags,
+login/ID/cipher rejection) passed before that assertion; overall test still FAIL.
+No evidence of a provider request: all unlisted requests blocked. Added an explicit
+empty **same-origin /favicon.ico** fixture response for WebView's possible implicit
+icon request, while retaining strict rejection/assertion for ALL other requests.
+Also added first-unexpected host/path (no query/body) diagnostic, so any remaining
+failure is identified rather than weakening the network gate. An offline rerun
+will determine whether the implicit icon accounts for the single request; do not
+call this a source fix or assert the hypothesis before that evidence.
