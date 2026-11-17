@@ -2721,3 +2721,19 @@ extractor because Rust-only extraction remains standing until revised; everythin
 still must stay in APK, Rust Telegram/backend retained. Physical source/song/
 phone/background/signing/RAM acceptance remains OPEN, QA3/5. No service RAM
 remeasurement. Unrelated pyc deletion preserved.
+
+## On-device Android extraction approved; licensing decision pending
+
+User selected `allow_android_extractor`: Java/Kotlin extraction may now be
+researched and integrated **if validated**; Rust retains Telegram/backend,
+Media3 retains output, everything stays in APK. This explicitly relaxes only
+the prior Rust-only extraction boundary, not source/challenge or evidence gates.
+Reviewed NewPipe Extractor v0.27.0, commit
+7d4d691846acfa3c5af4b2c124955ee4c11cd3e8. Its primary VisionOS path is materially
+different from failing production ANDROID/IOS, but it is **not tested evidence**
+of source access. No provider calls or APK/runtime changes this evaluation.
+API latest v0.27.1 is dated after session date; not selected. GPL-3.0-or-later
+and missing root app LICENSE require owner licensing decision before linking
+or distributing. Asked that decision, rather than assuming permission to
+relicense. Full findings/gates: docs/research/ANDROID_EXTRACTOR_EVALUATION.md.
+No new compile/test/playback claim; this turn is source/licensing research only.
