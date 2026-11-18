@@ -98,6 +98,76 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(max-width:900px){#now-playing[open]{height:100dvh;padding:calc(8px + env(safe-area-inset-top)) 22px calc(10px + env(safe-area-inset-bottom))}}
 @media(max-height:620px){#now-playing .now-art{width:min(100%,25dvh);max-height:25dvh;margin-bottom:8px}#now-playing .now-volume{display:none}#now-playing .now-header{margin-bottom:4px}#now-playing .now-footer{padding-top:4px}#now-playing .now-controls{margin-top:4px}#now-playing .song-score{font-size:10px}}
 
+/* Aurora Glass: optional reference-inspired layout, no remote fonts or animated blur. */
+.aurora-only{display:none}
+:root[data-theme="aurora"]{--bg:#070d12;--panel:#132128;--raised:#213138;--accent:#b5e8d2;--text:#f6faf9;--sub:#a8bbc0;--dim:#8c9da5;--liked:#ff6e86;--border:#ffffff14;--cloud-surface:linear-gradient(135deg,#23323fdd,#15252bdd);--sync-ring:#b5e8d2;--telegram-badge:#45879a}
+:root[data-theme="aurora"] body{background:radial-gradient(ellipse at 0 8%,#4e247d55,transparent 48%),radial-gradient(ellipse at 100% 45%,#006b6650,transparent 55%),var(--bg)}
+:root[data-theme="aurora"] .aurora-only{display:block}
+:root[data-theme="aurora"] .classic-only{display:none}
+:root[data-theme="aurora"] .header{background:transparent}
+:root[data-theme="aurora"] .sidebar{background:#0b1117de}
+:root[data-theme="aurora"] .search-bar{background:#ffffff07;border-color:#ffffff18;border-radius:30px}
+:root[data-theme="aurora"] .profile-mark{border:1px solid #b5e8d24d;background:linear-gradient(135deg,#7e57a14d,#317b6c44);color:#e2f9ee}
+:root[data-theme="aurora"] .page-eyebrow{letter-spacing:.6px;text-transform:none;font-size:11px;font-weight:400;margin:12px 0 8px;color:#c8d4d9}
+:root[data-theme="aurora"] .page-heading{font-weight:500;line-height:1.16;letter-spacing:-1.5px;max-width:640px;margin-bottom:28px}
+:root[data-theme="aurora"] .page-heading span{color:inherit}
+:root[data-theme="aurora"] .section-title{font-weight:550;font-size:20px;letter-spacing:-.4px}
+:root[data-theme="aurora"] .section-badge{font-size:10px;letter-spacing:.4px;text-transform:none;color:#b5e8d2}
+:root[data-theme="aurora"] .feature-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}
+.feature-heading h2{font-weight:550;font-size:20px;letter-spacing:-.4px}.feature-heading span{font-size:10px;color:var(--sub)}
+:root[data-theme="aurora"] .now-playing-hero{position:relative;isolation:isolate;min-height:238px;padding:28px;gap:26px;border-radius:28px;border:1px solid #ffffff1b;background:radial-gradient(ellipse at 10% 0,#8156a63d,transparent 75%),linear-gradient(125deg,#2b3541b8,#172b2dcf);box-shadow:0 16px 32px #0003,inset 0 1px #ffffff0c;margin-bottom:30px}
+:root[data-theme="aurora"] .hero-art-box{width:160px;border-radius:50%;box-shadow:0 10px 28px #0006;border:1px solid #ffffff24;flex-shrink:0}
+:root[data-theme="aurora"] .hero-art{aspect-ratio:1;object-fit:cover}
+:root[data-theme="aurora"] .hero-title{font-size:30px;font-weight:550;line-height:1.2;letter-spacing:-1px}
+:root[data-theme="aurora"] .hero-tag{color:#c9e6d9;letter-spacing:1.6px}
+:root[data-theme="aurora"] .hero-artist{color:#b5c4cb;font-size:13px}
+:root[data-theme="aurora"] .btn-hero{background:#e7f5e8;color:#10231e;border:1px solid #ffffff24;border-radius:30px}
+:root[data-theme="aurora"] .btn-stop{background:#ffffff08;color:#d3e2df}
+:root[data-theme="aurora"] #quick-picks{display:grid;grid-auto-flow:column;grid-auto-columns:166px;grid-template-columns:none;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:4px 0 15px;scrollbar-width:thin;scrollbar-color:#8eb5aa55 transparent}
+:root[data-theme="aurora"] #quick-picks .song-card{display:grid;grid-template-columns:1fr 44px;gap:8px 0;align-content:start;padding:12px;border:1px solid #ffffff12;background:linear-gradient(150deg,#ffffff0b,#ffffff03);border-radius:22px;scroll-snap-align:start;position:relative;transition:background .15s}
+:root[data-theme="aurora"] #quick-picks .card-thumb{width:140px;height:140px;border-radius:50%;grid-column:1/-1;aspect-ratio:1;object-fit:cover;margin-bottom:6px;box-shadow:0 8px 18px #0004}
+:root[data-theme="aurora"] #quick-picks .card-info{grid-column:1/-1;min-width:0}
+:root[data-theme="aurora"] #quick-picks .card-title{font-size:13px;font-weight:550}
+:root[data-theme="aurora"] #quick-picks .card-artist{font-size:11px}
+:root[data-theme="aurora"] #quick-picks .card-play{display:grid;position:absolute;right:15px;top:107px;border-radius:50%;background:#e7f5e8;color:#10231e;opacity:1;width:44px;height:44px;box-shadow:0 3px 14px #0005}
+:root[data-theme="aurora"] #quick-picks .card-queue{display:grid;width:44px;height:44px;justify-self:start}
+:root[data-theme="aurora"] #quick-picks .card-heart{justify-self:end}
+:root[data-theme="aurora"] .grid-cards:not(#quick-picks) .song-card{border-bottom:1px solid #ffffff0c;border-radius:0;padding-top:12px;padding-bottom:12px}
+:root[data-theme="aurora"] .card-thumb{border-radius:50%}
+:root[data-theme="aurora"] .player-bar{background:#17272cf2;border-color:#ffffff17}
+:root[data-theme="aurora"] .play-main{background:#e7f5e8;color:#10231e;box-shadow:0 0 0 4px #b5e8d215}
+:root[data-theme="aurora"] .settings-card{background:var(--cloud-surface);border:1px solid #ffffff14}
+:root[data-theme="aurora"] #now-playing{background:radial-gradient(ellipse at 0 0,#55337c66,transparent 65%),radial-gradient(ellipse at 95% 55%,#00736755,transparent 65%),#081316}
+:root[data-theme="aurora"] #now-playing .now-header{border-bottom:1px solid #ffffff0d;padding-bottom:10px}
+:root[data-theme="aurora"] #now-playing .now-header p{color:#a8c5c6}
+:root[data-theme="aurora"] #now-playing .now-art{width:min(100%,42dvh);max-height:42dvh;border-radius:26px;box-shadow:0 24px 40px #0005;margin-bottom:18px}
+:root[data-theme="aurora"] #now-playing .now-title{text-align:center;font-weight:500;font-size:clamp(21px,3.7vh,32px);letter-spacing:-1px}
+:root[data-theme="aurora"] #now-playing .now-artist{text-align:center;color:#b8c9c9}
+:root[data-theme="aurora"] #now-playing .now-controls{margin-top:12px}
+:root[data-theme="aurora"] #now-playing .now-controls .play-main{box-shadow:0 0 0 5px #b5e8d214,0 0 0 8px #b5e8d20b}
+:root[data-theme="aurora"] #now-playing .now-footer{color:#b3c4c5}
+@media(max-width:900px){
+ :root[data-theme="aurora"] .sidebar{background:#0c171df5}
+ :root[data-theme="aurora"] .content-area{padding-left:22px;padding-right:22px}
+ :root[data-theme="aurora"] .page-heading{font-size:32px;max-width:340px;line-height:1.17;margin-bottom:20px}
+ :root[data-theme="aurora"] #tab-home .section-title{margin-top:22px}
+ :root[data-theme="aurora"] .feature-heading{margin-bottom:12px}
+ :root[data-theme="aurora"] .now-playing-hero{padding:20px;gap:18px;min-height:180px}
+ :root[data-theme="aurora"] .hero-art-box{width:31%;max-width:116px}
+ :root[data-theme="aurora"] .hero-title{font-size:23px}
+ :root[data-theme="aurora"] .hero-tag{font-size:8px;letter-spacing:1px}
+ :root[data-theme="aurora"] .hero-artist{font-size:11px;margin:8px 0 14px}
+ :root[data-theme="aurora"] .hero-controls{gap:6px}
+ :root[data-theme="aurora"] .hero-controls .btn-hero{padding:8px 12px}
+ :root[data-theme="aurora"] #quick-picks{grid-auto-columns:150px;gap:12px}
+ :root[data-theme="aurora"] #quick-picks .card-thumb{width:124px;height:124px}
+ :root[data-theme="aurora"] #quick-picks .card-play{top:91px;right:13px}
+ :root[data-theme="aurora"] .section-badge{max-width:90px;text-align:right}
+}
+@media(max-width:350px){:root[data-theme="aurora"] .now-playing-hero{padding:18px;gap:12px}:root[data-theme="aurora"] .hero-art-box{width:28%}:root[data-theme="aurora"] .hero-title{font-size:20px}:root[data-theme="aurora"] .page-heading{font-size:30px}}
+@media(max-height:650px){:root[data-theme="aurora"] #now-playing .now-art{width:min(100%,26dvh);max-height:26dvh;margin-bottom:10px}:root[data-theme="aurora"] #now-playing .now-title{font-size:21px}:root[data-theme="aurora"] #now-playing .now-header{padding-bottom:4px}:root[data-theme="aurora"] #now-playing .now-controls{margin-top:6px}}
+@media(prefers-reduced-motion:reduce){:root[data-theme="aurora"] #quick-picks{scroll-behavior:auto;scroll-snap-type:none}}
+
 </style>
 </head>
 <body>
@@ -141,7 +211,8 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <div class="profile-mark" aria-label="Aysha's Music">AYSHA</div>
   </header>
   <main class="content-area" id="content-area">
-    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment. For you from my heart</span></h2>
+    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow"><span class="classic-only">A LITTLE ESCAPE, JUST FOR YOU</span><span class="aurora-only">Hi Aysha. Welcome to your little escape.</span></p><h2 class="page-heading"><span class="classic-only">Your music.<br><span>Your kind of moment. For you from my heart</span></span><span class="aurora-only">Listen to your<br>favourite music.</span></h2>
+      <div class="feature-heading aurora-only"><h2>Your soundtrack</h2><span>Made for your moment</span></div>
       <div class="now-playing-hero" id="hero-box">
         <div class="hero-art-box"><img class="hero-art" id="hero-art" alt="Current track artwork" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E"></div>
         <div class="hero-details">
@@ -154,7 +225,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
           </div>
         </div>
       </div>
-      <div class="section-heading-row"><h2 class="section-title">Quick picks</h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
+      <div class="section-heading-row"><h2 class="section-title"><span class="classic-only">Quick picks</span><span class="aurora-only">On your radar</span></h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
       <div class="grid-cards" id="quick-picks"></div>
       <h2 class="section-title">Close to your heart</h2><p class="section-subtitle">Your liked songs, always within reach.</p>
       <div class="grid-cards" id="recent-history"></div>
@@ -233,7 +304,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
         <div id="tg-sync-list"><p class="sync-note">Your queue will appear here.</p></div>
         <p id="tg-sync-feedback" class="sync-note" role="status"></p>
       </article>
-      <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button></div></article>
+      <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button><button id="theme-aurora" class="chip" aria-pressed="false" onclick="setColorTheme('aurora')">Aurora Glass</button></div></article>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
         <summary>Linux speaker controls</summary>
@@ -737,9 +808,9 @@ async function cancelTelegramSave(id) {
   } catch(error) { document.getElementById('tg-sync-feedback').textContent=error.message; }
 }
 function setColorTheme(theme, persist = true) {
-  if (!['crimson','charcoal'].includes(theme)) theme='crimson';
+  if (!['crimson','charcoal','aurora'].includes(theme)) theme='crimson';
   try { document.documentElement.setAttribute('data-theme',theme); } catch (_) {}
-  for (const name of ['crimson','charcoal']) document.getElementById('theme-'+name).setAttribute('aria-pressed',String(name===theme));
+  for (const name of ['crimson','charcoal','aurora']) document.getElementById('theme-'+name).setAttribute('aria-pressed',String(name===theme));
   try { if (persist) localStorage.setItem('aysha.color-theme.v1',theme); } catch (_) {}
 }
 function restoreColorTheme() {
@@ -1162,21 +1233,23 @@ function updateVolumeIcon(v) {
 
 function renderGrid(tracks, containerId, showHeart) {
   const c = document.getElementById(containerId);
-  c.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  const likedIds = new Set(state.liked.map(t => t.id));
+  const queuedIds = new Set((state.queue || []).map(t => t.id));
   if (!tracks || !tracks.length) {
     c.innerHTML = '<div class="empty-msg">No results found.</div>';
     return;
   }
   tracks.forEach(t => {
-    const isLiked = state.liked.some(l => l.id === t.id);
-    const qIn = state.queue ? state.queue.some(q => q.id === t.id) : false;
+    const isLiked = likedIds.has(t.id);
+    const qIn = queuedIds.has(t.id);
     const card = document.createElement('div');
     card.className = 'song-card';
     card.tabIndex = 0;
     card.setAttribute('role', 'group');
     card.setAttribute('aria-label', t.title + ' by ' + t.artist);
     card.innerHTML =
-      '<img class="card-thumb" alt="" loading="lazy" src="https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg">' +
+      '<img class="card-thumb" alt="" loading="lazy" decoding="async" width="140" height="140" src="https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg">' +
       '<div class="card-info">' +
       '<div class="card-title">' + escapeHtml(t.title) + '</div>' +
       '<div class="card-artist">' + escapeHtml(t.artist) + '</div>' +
@@ -1195,12 +1268,13 @@ function renderGrid(tracks, containerId, showHeart) {
     card.onkeydown = event => {
       if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); playSong(t); }
     };
-    c.appendChild(card);
+    fragment.appendChild(card);
   });
+  c.replaceChildren(fragment);
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 async function toggleLike(t) {
@@ -1423,13 +1497,22 @@ async function fetchCategory(cat, sourceEvent) {
 
 async function loadHome() {
   showLoading('quick-picks');
-  const picks = await api('GET', '/api/search?q=Malayalam%20Tamil%20romantic%20melody%20songs');
-  document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
-  const pt = Array.isArray(picks) ? picks : (picks.results || []);
-  renderGrid(pt, 'quick-picks', true);
-  await refreshFavorites();
-  renderGrid(state.liked, 'recent-history', true);
-  loadQueue();
+  // Local favorites/queue must not wait behind provider search. No speculative
+  // media download, persistent search cache or extra provider requests.
+  const picksTask = (async () => {
+    try {
+      const picks = await api('GET', '/api/search?q=Malayalam%20Tamil%20romantic%20melody%20songs');
+      const pt = Array.isArray(picks) ? picks : (picks.results || []);
+      renderGrid(pt, 'quick-picks', true);
+    } catch (error) {
+      document.getElementById('quick-picks').innerHTML = '<div class="empty-msg">Could not load picks. Tap Home to retry.</div>';
+      throw error;
+    } finally { document.getElementById('quick-picks').setAttribute('aria-busy', 'false'); }
+  })();
+  const favoritesTask = refreshFavorites().then(() => renderGrid(state.liked, 'recent-history', true));
+  const results = await Promise.allSettled([picksTask, favoritesTask, loadQueue()]);
+  const failed = results.find(result => result.status === 'rejected');
+  if (failed) throw failed.reason;
 }
 
 async function loadLiked() {
@@ -1784,7 +1867,9 @@ async function pollStatus() {
   if (statusPollBusy) return;
   statusPollBusy = true;
   try {
-    const st = await api('GET', '/api/status');
+    // Native capability is fixed for this page/backend; /api/player is the
+    // authoritative native state. Avoid a redundant status request every tick.
+    const st = state.nativePlayback ? null : await api('GET', '/api/status');
     if (st && st.native_playback === true) {
       state.nativePlayback = true;
       document.getElementById('linux-speaker-settings').hidden = true;
