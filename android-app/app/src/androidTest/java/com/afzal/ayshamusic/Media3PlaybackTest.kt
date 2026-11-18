@@ -140,7 +140,19 @@ class Media3PlaybackTest {
         private val workers = Executors.newFixedThreadPool(4)
         private val accepts = Thread {
             while (!socket.isClosed) {
-                try { val connection = socket.accept(); workers.execute { connection.use { handle(it) } } }
+                try {
+                    val connection = socket.accept()
+                    workers.execute {
+                        try { connection.use { handle(it) } }
+                        catch (_: java.net.SocketException) {
+                            // Media3 may cancel/reopen an HTTP range on seek or
+                            // release. A reset/broken pipe belongs to that client,
+                            // not an uncaught worker error that kills Android's
+                            // instrumentation process. Playback/event deadlines
+                            // and full-file byte assertions still detect failures.
+                        }
+                    }
+                }
                 catch (_: Exception) { if (!socket.isClosed) throw AssertionError("Fixture accept failed") }
             }
         }
