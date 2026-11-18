@@ -5,6 +5,7 @@ use grammers_client::{client::Client, media::{Downloadable, Media, Attribute}, m
 use grammers_session::types::{PeerAuth,PeerId,PeerRef};
 use std::{io,path::Path,sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}},time::Duration};
 use tokio::io::AsyncWriteExt;
+use rodio::Source;
 
 const MAX_TRACK:u64=64*1024*1024;
 static PAUSED:AtomicBool=AtomicBool::new(false);
@@ -85,25 +86,31 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
         if !cache.save_active(item.id).unwrap_or(false) {crate::archive_progress::clear(item.id);continue;}
         let operation=tokio::time::timeout(Duration::from_secs(15*60),async {
             // Prevent duplicate Saved Messages after restart/retry.
-            if lookup(&cache,&item.video_id).await.map_err(io::Error::other)?.is_some() {return Ok(false);}
+            if lookup(&cache,&item.video_id).await.map_err(io::Error::other)?.is_some() {return Ok((false,true));}
             let path=Path::new(&item.file_path);
             if !path.is_file() {download(&cache,&item.video_id,path,item.id).await?;}
             crate::archive_progress::stage(item.id,"validating",None);
             if PAUSED.load(Ordering::Acquire) {return Err(error("telegram_disconnected"));}
             // A complete, decodable AAC file is required before any upload.
             let validate=path.to_owned();
-            tokio::task::spawn_blocking(move || {
+            let decoded_duration=tokio::task::spawn_blocking(move || {
                 let mut decoder=rodio::Decoder::try_from(std::fs::File::open(validate)?).map_err(|_|error("archive_audio_not_decodable"))?;
-                decoder.next().ok_or_else(||error("archive_audio_empty"))?;Ok::<_,io::Error>(())
+                let duration=decoder.total_duration();
+                decoder.next().ok_or_else(||error("archive_audio_empty"))?;Ok::<_,io::Error>(duration)
             }).await.map_err(|_|error("archive_validation_failed"))??;
             crate::archive_progress::stage(item.id,"tagging",None);
             let song=crate::song_metadata::clean(&item.title,&item.artist);
             let cover=cover(&item.video_id).await;
             let size=tokio::fs::metadata(path).await?.len();
-            if !cache.make_room(size.saturating_add(512*1024)).map_err(|_|error("archive_cache_unavailable"))? {return Err(error("archive_cache_full"));}
-            let tagging=path.to_owned();let metadata=song.clone();let picture=cover.clone();
-            let duration=tokio::task::spawn_blocking(move ||crate::song_metadata::tag(&tagging,&metadata,picture.as_deref()))
-                .await.map_err(|_|error("archive_tagging_failed"))??;
+            // Enrichment must not regress working uploads of a valid container
+            // variant. Tag a copy and fall back to Telegram audio attributes.
+            let room=cache.make_room(size.saturating_add(512*1024)).unwrap_or(false);
+            let tagged=if room {
+                let tagging=path.to_owned();let metadata=song.clone();let picture=cover.clone();
+                tokio::task::spawn_blocking(move ||crate::song_metadata::tag(&tagging,&metadata,picture.as_deref())).await.ok().and_then(Result::ok)
+            }else{None};
+            let tags_applied=tagged.is_some();
+            let duration=tagged.or(decoded_duration).filter(|d|d.as_secs()<=604800).unwrap_or(Duration::ZERO);
             let file=tokio::fs::File::open(path).await?;
             let len=file.metadata().await?.len();
             if len==0 || len>MAX_TRACK {return Err(error("archive_track_size_limit"));}
@@ -123,7 +130,7 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
             crate::archive_progress::finalizing(&cache,item.id)?;
             let message=client.send_message(me(),message).await.map_err(|e|error(&e.to_string()))?;
             cache.remember_saved(&item.video_id,message.id()).map_err(|_|error("archive_index_failed"))?;
-            Ok::<_,io::Error>(true)
+            Ok::<_,io::Error>((true,tags_applied))
         });
         let result=tokio::select! {
             biased;
@@ -136,7 +143,7 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
             continue;
         }
         match result.unwrap() {
-            Ok(uploaded)=>{if uploaded {let _=cache.record_upload(&item.video_id);}let _=cache.mark_done(item.id);*LAST_ERROR.lock().unwrap()=None;}
+            Ok((uploaded,tags_applied))=>{if uploaded {let _=cache.record_upload(&item.video_id);}let _=cache.mark_done(item.id);*LAST_ERROR.lock().unwrap()=if tags_applied {None}else{Some("A song was saved as audio, but its embedded tags could not be updated. Playback and the original file were preserved.".into())};}
             Err(e)=>{
                 if let Some(seconds)=flood_wait(&e.to_string()) {let _=cache.on_flood_wait(seconds);}
                 // Do not expose Telegram responses, phone numbers, tokens or signed URLs.
