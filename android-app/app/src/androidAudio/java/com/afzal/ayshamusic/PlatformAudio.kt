@@ -80,6 +80,12 @@ object PlatformAudio {
                         revision = next
                     }
                     when (command.getString("op")) {
+                        "seek" -> {
+                            val seconds = command.getDouble("position")
+                            require(seconds.isFinite() && seconds >= 0)
+                            val output = player
+                            if (output != null && output.duration > 0) output.seekTo((seconds * 1000).toLong().coerceIn(0, output.duration))
+                        }
                         "pause" -> player?.pause()
                         "resume" -> player?.play()
                         "volume" -> player?.volume = command.optDouble("volume", 1.0).toFloat().coerceIn(0f, 1f)

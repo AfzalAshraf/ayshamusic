@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 15/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 16/);
 });
 
 
@@ -85,7 +85,7 @@ test('Telegram account setup is in Settings, not Now Playing, and source order i
   const html = read('src/index.html');
   const settings = html.slice(html.indexOf('id="tab-settings"'), html.indexOf('<div class="footer">'));
   assert.match(settings, /openTelegramAccount/);
-  assert.match(settings, />Add Telegram account</);
+  assert.match(settings, /aria-label="Add Telegram account"/);
   assert.doesNotMatch(settings, /id="telegram-account-button"[^>]*hidden/);
   const player = html.slice(html.indexOf('id="now-playing"'), html.indexOf('<script>'));
   assert.doesNotMatch(player, /Reset learning|tg-api-hash|tg-password/);

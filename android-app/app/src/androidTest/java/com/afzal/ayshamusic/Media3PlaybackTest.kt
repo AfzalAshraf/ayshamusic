@@ -92,6 +92,18 @@ class Media3PlaybackTest {
         assertTrue(error.optDouble("position") < 0.25)
     }
 
+    @Test fun seekForwardAndBackwardWhilePausedThenResume() {
+        server.data = InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { it.readBytes() }
+        command("play", 0, autoplay = false)
+        awaitEvent { it.optBoolean("ready") && it.optString("state") == "paused" }
+        PlatformAudio.command(JSONObject().put("op","seek").put("token",token).put("revision",1).put("position",400.0).toString())
+        awaitEvent { it.optLong("revision") == 1L && it.optString("state") == "paused" && it.optDouble("position") >= 399.0 }
+        PlatformAudio.command(JSONObject().put("op","seek").put("token",token).put("revision",2).put("position",30.0).toString())
+        awaitEvent { it.optLong("revision") == 2L && it.optString("state") == "paused" && it.optDouble("position") in 29.0..31.0 }
+        command("resume",3)
+        awaitEvent { it.optLong("revision") == 3L && it.optString("state") == "playing" && it.optDouble("position") > 31.0 }
+    }
+
     @Test fun tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed() {
         server.data = InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { it.readBytes() }
         command("play", 0)

@@ -220,7 +220,7 @@ impl TelegramCacheManager {
                  (video_id, file_path, title, artist, caption, status, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)
              ON CONFLICT(video_id) DO UPDATE SET status='pending', retry_count=0, last_error=NULL, updated_at=excluded.updated_at
-             WHERE upload_queue.status IN ('done','failed')",
+             WHERE upload_queue.status IN ('done','failed','cancelled')",
             params![
                 video_id,
                 file_path.to_string_lossy(),
@@ -231,6 +231,15 @@ impl TelegramCacheManager {
             ],
         )?;
         Ok(changed > 0)
+    }
+
+    pub fn save_active(&self,id:i64)->Result<bool> {Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM upload_queue WHERE id=?1 AND status='uploading')",[id],|r|r.get(0))?)}
+    pub fn cancel_save(&self,id:i64)->Result<bool> {Ok(self.conn().execute("UPDATE upload_queue SET status='cancelled',updated_at=?2 WHERE id=?1 AND status IN ('pending','uploading','failed')",params![id,now_ts()])?>0)}
+    /// Only public metadata, never local paths, captions or Telegram credentials.
+    pub fn sync_items(&self)->Result<serde_json::Value> {
+        let conn=self.conn();let mut stmt=conn.prepare("SELECT id,video_id,title,artist,status FROM upload_queue WHERE status IN ('pending','uploading','failed') ORDER BY CASE status WHEN 'uploading' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,id LIMIT 100")?;
+        let rows=stmt.query_map([],|r|Ok(serde_json::json!({"id":r.get::<_,i64>(0)?,"video_id":r.get::<_,String>(1)?,"title":r.get::<_,String>(2)?,"artist":r.get::<_,String>(3)?,"status":r.get::<_,String>(4)?})))?;
+        Ok(serde_json::Value::Array(rows.collect::<std::result::Result<Vec<_>,_>>()?))
     }
 
     /// Number of tracks still waiting for Telegram.
@@ -291,7 +300,7 @@ impl TelegramCacheManager {
     pub fn mark_done(&self, id: i64) -> Result<()> {
         let conn = self.conn();
         conn.execute(
-            "UPDATE upload_queue SET status = 'done', last_error = NULL, updated_at = ?2 WHERE id = ?1",
+            "UPDATE upload_queue SET status = 'done', last_error = NULL, updated_at = ?2 WHERE id = ?1 AND status='uploading'",
             params![id, now_ts()],
         )?;
         Ok(())
@@ -306,7 +315,7 @@ impl TelegramCacheManager {
                  retry_count = retry_count + 1,
                  last_error = ?3,
                  updated_at = ?4
-             WHERE id = ?1",
+             WHERE id = ?1 AND status='uploading'",
             params![id, MAX_UPLOAD_RETRIES, error, now_ts()],
         )?;
         Ok(())
@@ -614,6 +623,16 @@ mod tests {
         assert!(!dirs.manager.make_room(70).unwrap());
     }
 
+    #[test] fn cancellation_is_persistent_and_late_worker_results_cannot_revive_it() {
+        let dirs=TempManager::new("cancel-save",100,0);let c=&dirs.manager;
+        let path=c.cached_path("abcdefghijk");c.enqueue("abcdefghijk",&path,"Song","Artist").unwrap();
+        let item=c.take_next_pending().unwrap().unwrap();assert!(c.save_active(item.id).unwrap());
+        assert!(c.cancel_save(item.id).unwrap());assert!(!c.save_active(item.id).unwrap());
+        c.mark_failed(item.id,"late error").unwrap();c.mark_done(item.id).unwrap();
+        assert_eq!(c.queued_tracks().unwrap(),0);assert!(c.take_next_pending().unwrap().is_none());
+        assert_eq!(c.sync_items().unwrap(),serde_json::json!([]));
+        assert!(!c.cancel_save(item.id).unwrap());assert_eq!(c.saved_tracks().unwrap(),0);
+    }
     #[test]
     fn saved_message_index_is_private_to_connection_and_retry_is_explicit() {
         let dirs=TempManager::new("saved-index",100,0);

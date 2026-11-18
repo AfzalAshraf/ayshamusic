@@ -91,6 +91,14 @@ impl Player {
     }
     pub fn pause(&self)->Result<(),String>{self.control("pause")}
     pub fn resume(&self)->Result<(),String>{self.control("resume")}
+    pub fn seek(&self,id:&str,position:f64)->Result<(),String> {
+        let mut inner=self.inner.lock().unwrap();
+        let a=inner.active.as_mut().filter(|a|a.id==id).ok_or("Song changed; try seeking again")?;
+        if !position.is_finite() || position<0.0 || !a.duration.is_finite() || a.duration<=0.0 || position>a.duration || a.error.is_some() || !["playing","paused","buffering"].contains(&a.state.as_str()) {return Err("Seek position unavailable for this song".into());}
+        a.revision=a.revision.wrapping_add(1);
+        self.emit(json!({"op":"seek","token":a.token,"revision":a.revision,"position":position}))?;
+        a.position=position;Ok(())
+    }
     pub fn stop(&self)->Result<(),String>{
         let mut inner=self.inner.lock().unwrap();
         if let Some(mut active)=inner.active.take() {
@@ -273,6 +281,17 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
         assert_eq!(commands.last().unwrap()["op"],"stop");
         assert_eq!(player.snapshot()["state"],"error");
         let token=player.inner.lock().unwrap().active.as_ref().unwrap().token.clone();assert!(player.input(&token).is_none());
+    }
+    #[tokio::test] async fn seek_preserves_pause_rejects_stale_song_and_invalid_positions() {
+        let (mut player,_)=fixture(false);let log=recorded(&mut player);
+        assert!(player.event(Event{revision:0,token:"fixture".into(),state:"paused".into(),position:1.0,duration:5.0,ready:true,error:None}));
+        let id=player.snapshot()["video_id"].as_str().unwrap().to_owned();
+        for position in [f64::NAN,f64::INFINITY,-1.0,6.0] {assert!(player.seek(&id,position).is_err());}
+        assert!(player.seek("anotherSong",2.0).is_err());assert!(log.lock().unwrap().is_empty());
+        player.seek(&id,3.0).unwrap();assert_eq!(player.snapshot()["state"],"paused");
+        assert_eq!(player.snapshot()["position_secs"],3.0);
+        assert!(!player.event(Event{revision:0,token:"fixture".into(),state:"playing".into(),position:1.0,duration:5.0,ready:true,error:None}));
+        assert_eq!(log.lock().unwrap()[0]["op"],"seek");assert_eq!(log.lock().unwrap()[0]["revision"],1);
     }
     #[tokio::test] async fn pause_resume_revisions_ignore_delayed_playing_and_error_events(){
         let (mut player,_)=fixture(false);let log=recorded(&mut player);

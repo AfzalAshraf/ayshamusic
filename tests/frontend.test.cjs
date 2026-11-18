@@ -1212,13 +1212,14 @@ test('Telegram settings distinguishes API-only setup from authorized account and
   const h=harness();
   h.context.renderTelegramStatus({configured:true,authorized:false,saved_tracks:0,quota:{queued_tracks:2},failed_tracks:1});
   assert.match(h.element('telegram-settings-status').textContent,/Not signed in yet/);
-  assert.equal(h.element('telegram-account-button').textContent,'Add Telegram account');
+  assert.equal(h.element('telegram-account-button').attributes['aria-label'],'Add Telegram account');
   h.context.renderTelegramStatus({configured:true,authorized:true,saved_tracks:3,quota:{queued_tracks:2,cooldown_seconds_left:60},failed_tracks:1});
-  const text=h.element('telegram-settings-status').textContent;
+  const text=h.element('telegram-status').textContent;
   assert.match(text,/Signed in/); assert.match(text,/indexed here\): 3/);
   assert.match(text,/Pending: 2/);assert.match(text,/Failed: 1/);
   assert.match(text,/60 seconds/);assert.match(text,/No channel needed/);
-  assert.equal(h.element('telegram-status').textContent,text);
+  assert.match(h.element('telegram-settings-status').textContent,/Connected · Saved Messages/);
+  assert.equal(h.element('tg-saved').textContent,'3');
 });
 
 test('polls never overlap slow status requests and always release guard after failure', async () => {
@@ -1239,4 +1240,51 @@ test('player has no diagnostic build receipts, and normal polling is once per se
 test('API errors show the useful message rather than raw JSON', async () => {
   const h=harness();h.context.fetch=async()=>({ok:false,status:503,text:async()=>JSON.stringify({error:'Please try again shortly'})});
   await assert.rejects(h.context.api('GET','/api/search?q=romance'),/^Error: Please try again shortly$/);
+});
+
+test('native seeking posts a bounded position and current song identity without starting a new source', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true;state.nativeDuration=200;state.nativeStage="paused";state.current_track={id:"abcdefghijk"};state.pos=10',h.context);
+  await h.context.commitSeek(750);
+  const request=h.calls.find(c=>c.url==='/api/seek');
+  assert.deepEqual(JSON.parse(request.opts.body),{position:150,video_id:'abcdefghijk'});
+  assert.equal(vm.runInContext('state.pos',h.context),150);
+  assert.ok(!h.calls.some(c=>c.url==='/api/play'));
+  assert.equal(h.element('audio-player').playCount,0);
+});
+
+test('seek drag is not overwritten by poll rendering and cannot jump a newly selected song', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true;state.nativeDuration=100;state.nativeStage="playing";state.current_track={id:"abcdefghijk"};state.pos=10',h.context);
+  h.context.beginSeek();h.context.previewSeek(800);h.context.syncNowPlaying();
+  assert.equal(h.element('full-seek').value,800);
+  assert.equal(h.element('full-elapsed').textContent,'1:20');
+  vm.runInContext('state.current_track={id:"different01"}',h.context);
+  await h.context.commitSeek(800);assert.equal(h.calls.length,0);
+});
+
+test('browser seeking uses the shared audio element and unavailable duration is disabled', async () => {
+  const h=harness();h.element('audio-player').duration=80;
+  await h.context.commitSeek(500);assert.equal(h.element('audio-player').currentTime,40);assert.equal(h.calls.length,0);
+  h.element('audio-player').duration=NaN;h.context.syncNowPlaying();assert.equal(h.element('full-seek').disabled,true);
+});
+
+test('sync queue renders real stages, escapes metadata and only shows measured progress', () => {
+  const h=harness();h.context.renderSyncQueue([{id:1,video_id:'abcdefghijk',title:'<img onerror=bad>',artist:'Artist',status:'uploading'},{id:2,title:'Waiting',status:'pending'}],{id:1,stage:'uploading',bytes:25,total:100});
+  const html=h.element('tg-sync-list').innerHTML;
+  assert.match(html,/Uploading · 25% read/);assert.match(html,/--progress:90deg/);
+  assert.match(html,/&lt;img onerror=bad&gt;/);assert.doesNotMatch(html,/<img onerror/);
+  assert.match(html,/cancelTelegramSave\(1\)/);assert.match(html,/>Waiting</);
+  h.context.renderSyncQueue([{id:1,title:'Done soon',status:'uploading'}],{id:1,stage:'finalizing',bytes:100,total:100});
+  assert.match(h.element('tg-sync-list').innerHTML,/disabled title="Already committing/);
+  h.context.renderSyncQueue([],null);assert.match(h.element('tg-sync-list').innerHTML,/All caught up/);
+});
+
+test('theme is an allowlisted local preference and restoration alone writes nothing', () => {
+  const h=harness();assert.equal(h.quoteStorage.size,0);
+  h.context.setColorTheme('charcoal');assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'charcoal');
+  assert.equal(h.element('theme-charcoal').attributes['aria-pressed'],'true');
+  h.context.setColorTheme('untrusted');assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'crimson');
+});
+
+test('home contains no playback Test button', () => {
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8'),/id="hero-selftest"|>Test<\/button>/);
 });

@@ -81,11 +81,14 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
         let Ok(Some(client))=tokio::time::timeout(Duration::from_secs(20),cache.telegram().authorized_client()).await else {continue;};
         match cache.seconds_until_allowed() {Ok(0)=>(),_=>continue}
         let Ok(Some(item))=cache.take_next_pending() else {continue;};
-        let result=tokio::time::timeout(Duration::from_secs(15*60),async {
+        let cancel=crate::archive_progress::begin(item.id);
+        if !cache.save_active(item.id).unwrap_or(false) {crate::archive_progress::clear(item.id);continue;}
+        let operation=tokio::time::timeout(Duration::from_secs(15*60),async {
             // Prevent duplicate Saved Messages after restart/retry.
-            if lookup(&cache,&item.video_id).await.map_err(io::Error::other)?.is_some() {return Ok(());}
+            if lookup(&cache,&item.video_id).await.map_err(io::Error::other)?.is_some() {return Ok(false);}
             let path=Path::new(&item.file_path);
-            if !path.is_file() {download(&cache,&item.video_id,path).await?;}
+            if !path.is_file() {download(&cache,&item.video_id,path,item.id).await?;}
+            crate::archive_progress::stage(item.id,"validating",None);
             if PAUSED.load(Ordering::Acquire) {return Err(error("telegram_disconnected"));}
             // A complete, decodable AAC file is required before any upload.
             let validate=path.to_owned();
@@ -93,17 +96,30 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
                 let mut decoder=rodio::Decoder::try_from(std::fs::File::open(validate)?).map_err(|_|error("archive_audio_not_decodable"))?;
                 decoder.next().ok_or_else(||error("archive_audio_empty"))?;Ok::<_,io::Error>(())
             }).await.map_err(|_|error("archive_validation_failed"))??;
-            let mut file=tokio::fs::File::open(path).await?;
+            let file=tokio::fs::File::open(path).await?;
             let len=file.metadata().await?.len();
             if len==0 || len>MAX_TRACK {return Err(error("archive_track_size_limit"));}
-            let uploaded=client.upload_stream(&mut file,len as usize,format!("{}.m4a",item.video_id)).await?;
+            crate::archive_progress::stage(item.id,"uploading",Some(len));
+            let mut reader=crate::archive_progress::UploadReader{inner:file,id:item.id,count:0};
+            let uploaded=client.upload_stream(&mut reader,len as usize,format!("{}.m4a",item.video_id)).await?;
             if PAUSED.load(Ordering::Acquire) {return Err(error("telegram_disconnected"));}
+            crate::archive_progress::finalizing(&cache,item.id)?;
             let message=client.send_message(me(),InputMessage::new().text(&item.caption).file(uploaded).mime_type("audio/mp4")).await.map_err(|e|error(&e.to_string()))?;
             cache.remember_saved(&item.video_id,message.id()).map_err(|_|error("archive_index_failed"))?;
-            Ok::<_,io::Error>(())
-        }).await.unwrap_or_else(|_|Err(error("archive_operation_timeout")));
-        match result {
-            Ok(())=>{let _=cache.record_upload(&item.video_id);let _=cache.mark_done(item.id);*LAST_ERROR.lock().unwrap()=None;}
+            Ok::<_,io::Error>(true)
+        });
+        let result=tokio::select! {
+            biased;
+            _=cancel.notified()=>None,
+            result=operation=>Some(result.unwrap_or_else(|_|Err(error("archive_operation_timeout")))),
+        };
+        crate::archive_progress::clear(item.id);
+        if result.is_none() {
+            let _=tokio::fs::remove_file(Path::new(&item.file_path).with_extension("part")).await;
+            continue;
+        }
+        match result.unwrap() {
+            Ok(uploaded)=>{if uploaded {let _=cache.record_upload(&item.video_id);}let _=cache.mark_done(item.id);*LAST_ERROR.lock().unwrap()=None;}
             Err(e)=>{
                 if let Some(seconds)=flood_wait(&e.to_string()) {let _=cache.on_flood_wait(seconds);}
                 // Do not expose Telegram responses, phone numbers, tokens or signed URLs.
@@ -114,9 +130,10 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
         let _=cache.evict_lru();
     }
 }
-async fn download(cache:&TelegramCacheManager,id:&str,path:&Path)->io::Result<()> {
+async fn download(cache:&TelegramCacheManager,id:&str,path:&Path,item:i64)->io::Result<()> {
     use futures_util::StreamExt;
     let http=crate::http_client().ok_or_else(||error("archive_http_unavailable"))?;
+    crate::archive_progress::stage(item,"resolving",None);
     let visitor=crate::visitor(http).await;
     let audio=crate::resolve_default(http,id,visitor.attached().then_some(visitor.value.as_str())).await.map_err(|_|error("archive_resolution_failed"))?;
     if audio.content_length.is_some_and(|n|n>MAX_TRACK) {return Err(error("archive_track_size_limit"));}
@@ -128,6 +145,7 @@ async fn download(cache:&TelegramCacheManager,id:&str,path:&Path)->io::Result<()
     let result=async {
         let response=media.get(&audio.url).header(reqwest::header::USER_AGENT,audio.user_agent()).send().await.map_err(|_|error("archive_media_failed"))?;
         if !response.status().is_success() {return Err(error("archive_media_rejected"));}
+        crate::archive_progress::stage(item,"downloading",audio.content_length);
         let mut file=tokio::fs::File::create(&tmp).await?;
         let mut stream=response.bytes_stream();let mut count=0u64;
         let baseline=cache.cache_bytes().map_err(|_|error("archive_cache_unavailable"))?;
@@ -137,6 +155,7 @@ async fn download(cache:&TelegramCacheManager,id:&str,path:&Path)->io::Result<()
             if count>MAX_TRACK || baseline+count>crate::tg_cache::DEFAULT_MAX_CACHE_BYTES {return Err(error("archive_cache_full"));}
             if PAUSED.load(Ordering::Acquire) {return Err(error("telegram_disconnected"));}
             file.write_all(&chunk).await?;
+            crate::archive_progress::bytes(item,count);
         }
         if count==0 || audio.content_length.is_some_and(|n|n!=count) {return Err(error("archive_incomplete"));}
         file.sync_all().await?;drop(file);tokio::fs::rename(&tmp,path).await?;Ok(())

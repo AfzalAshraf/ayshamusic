@@ -65,6 +65,15 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
 .tg-fields{display:grid;gap:12px;margin:16px 0}.tg-fields label{display:grid;gap:6px;color:var(--sub);font-size:14px}.tg-fields input{width:100%;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#211b24;color:var(--text);font:inherit}.tg-actions{display:flex;flex-wrap:wrap;gap:10px}#telegram-account p{line-height:1.6}#telegram-account a{color:var(--accent)}#telegram-account .chip{min-height:44px}.settings-card{max-width:620px;margin:20px 0;padding:24px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,#361f2b,#211b24)}.settings-card h3{font-size:21px;margin:14px 0 10px}.settings-card p,.settings-card small{display:block;color:var(--sub);line-height:1.7}.settings-card small{font-size:12px}.settings-symbol{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:16px;background:#e82d4620;color:#fa667c}.settings-symbol .app-icon{width:26px;height:26px}.settings-primary{display:block;min-height:48px;max-width:100%;padding:12px 22px;margin:20px 0 14px;border:0;border-radius:15px;background:#e82d46;color:#fff;font:inherit;font-weight:700;cursor:pointer}.settings-card summary{cursor:pointer;min-height:44px;line-height:44px}.settings-primary:focus-visible{outline:2px solid #fff;outline-offset:4px}
+
+:root{--cloud-surface:linear-gradient(140deg,#3b1722,#24161b);--sync-ring:#ed3659;--telegram-badge:#c91f43}
+:root[data-theme="charcoal"]{--cloud-surface:linear-gradient(140deg,#252527,#1c1c1f);--sync-ring:#62a9cf;--telegram-badge:#3b9fc7;--accent:#9bc8df;--liked:#b1d5e7}
+:root[data-theme="charcoal"] .now-playing-hero{background:linear-gradient(120deg,#29272b,#151416);border-color:#ffffff16}
+:root[data-theme="charcoal"] .theme-card{background:var(--cloud-surface)}
+.cloud-card{background:var(--cloud-surface);padding:24px;max-width:620px}.cloud-header,.sync-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.telegram-mark{width:52px;height:52px;display:grid;place-items:center;background:var(--telegram-badge);border-radius:50%;color:#fff}.telegram-mark svg{width:30px;height:30px;stroke:currentColor;fill:#ffffffcc;stroke-linejoin:round;stroke-width:1.3}.cloud-manage{min-height:44px;padding:8px 18px;border-radius:24px;background:#ffffff10;border:1px solid #ffffff12;font-weight:600}.cloud-card h3{font-size:25px;margin:16px 0}.cloud-card .cloud-badge{display:inline-block;font-size:12px;line-height:1.5;padding:5px 10px;border-radius:20px;background:#ffffff0b;margin:2px 0 18px;overflow-wrap:anywhere}.cloud-card .cloud-badge.connected{background:#4ea46c22;color:#98d3a8}.sync-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.sync-stats>div{min-width:0;border:1px solid #ffffff12;background:#ffffff08;border-radius:16px;padding:14px 12px}.sync-stats span{display:block;text-transform:uppercase;font-size:10px;letter-spacing:1px;color:var(--sub)}.sync-stats strong{display:block;font-size:27px;font-variant-numeric:tabular-nums;margin-top:2px}.cloud-card .cloud-caption{font-size:13px;line-height:1.6;margin-top:24px}.sync-details{margin-top:8px}.sync-details summary{font-size:11px;line-height:1.4;min-height:44px;padding:14px 0;color:var(--sub)}.sync-details small{font-size:11px}.sync-heading h3{font-size:20px;margin:0}.sync-heading>span{font-size:11px;border-radius:18px;background:#ffffff0b;padding:5px 9px;white-space:nowrap}.cloud-card .sync-note{font-size:11px;line-height:1.7;margin:12px 0;color:var(--sub)}.sync-row{display:flex;gap:12px;align-items:center;min-height:76px;padding:10px 0;border-bottom:1px solid #ffffff09}.sync-row img{width:46px;height:46px;border-radius:8px;object-fit:cover}.sync-track{min-width:0;flex:1}.sync-track strong,.sync-track span,.sync-track small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sync-track strong{font-size:13px}.sync-track span{font-size:11px;color:var(--sub)}.sync-track small{font-size:10px;color:#cfbfc7}.sync-cancel{width:46px;height:46px;flex-shrink:0;border-radius:50%;padding:4px;background:conic-gradient(var(--sync-ring) var(--progress),#ffffff10 0)}.sync-cancel>span{width:100%;height:100%;display:grid;place-items:center;border-radius:50%;background:#241d22;font-size:27px;font-weight:300}.theme-card h3{font-size:18px}.theme-card p{font-size:12px;margin-bottom:16px}.theme-card .chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.now-progress{position:relative}.seek-range{position:absolute;inset:-20px 0 auto;width:100%;height:44px;background:transparent!important;appearance:none;-webkit-appearance:none;touch-action:pan-y;cursor:pointer;z-index:2}.seek-range::-webkit-slider-runnable-track{height:3px;background:transparent}.seek-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);margin-top:-5px}.seek-range::-moz-range-track{background:transparent;height:3px}.seek-range::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--text)}.seek-range:disabled::-webkit-slider-thumb{opacity:0}.progress-container{position:relative}.mini-seek{inset:auto 0 0;height:18px;opacity:0}.mini-seek:focus-visible,.mini-seek:hover{opacity:1}.player-bar{overflow:visible}
+@media(max-width:400px){.cloud-card{padding:18px}.cloud-card h3{font-size:23px}.sync-heading h3{font-size:18px}.sync-row{gap:8px}.sync-stats{gap:8px}.sync-stats>div{padding:12px 10px}}
+
 </style>
 </head>
 <body>
@@ -118,7 +127,6 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
           <div class="hero-controls">
             <button class="btn-hero" id="hero-toggle" aria-label="Play" onclick="togglePlay()"><svg id="hero-play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg><span id="hero-play-label">Play</span></button>
             <button class="btn-hero btn-stop" onclick="stopPlay()"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>Stop</button>
-            <button class="btn-hero" id="hero-selftest" aria-label="Run playback selftest" onclick="runSelftest()">Test</button>
           </div>
         </div>
       </div>
@@ -187,14 +195,21 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <section class="tab-page" id="tab-settings" aria-labelledby="settings-heading">
       <p class="page-eyebrow">MAKE YOURSELF AT HOME</p>
       <h2 class="page-heading" id="settings-heading">Settings</h2>
-      <article class="settings-card" aria-labelledby="telegram-settings-heading">
-        <span class="settings-symbol" aria-hidden="true"><svg class="app-icon"><use href="/icons.svg#settings"></use></svg></span>
-        <h3 id="telegram-settings-heading">Your Telegram account</h3>
-        <p>Connect your account to save songs privately in your Saved Messages and stream them from there next time.</p>
-        <p id="telegram-settings-status" role="status">Checking account status…</p>
-        <button type="button" id="telegram-account-button" class="settings-primary" onclick="openTelegramAccount()">Add Telegram account</button>
-        <small>No channel or bot needed — songs go to your own Saved Messages. Saving uses extra download/upload data and temporary storage. Counts below cover songs indexed by this app on this device.</small>
+      <article class="settings-card cloud-card" aria-labelledby="telegram-settings-heading">
+        <div class="cloud-header"><span class="telegram-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 18-7-4 18-6-6-4 3 1-6Zm5 2 9-6-6 9"/></svg></span><button type="button" id="telegram-account-button" class="cloud-manage" aria-label="Add Telegram account" onclick="openTelegramAccount()">Manage</button></div>
+        <h3 id="telegram-settings-heading">Telegram Cloud</h3>
+        <p id="telegram-settings-status" class="cloud-badge" role="status">Checking account status…</p>
+        <div class="sync-stats"><div><span>Saved</span><strong id="tg-saved">—</strong></div><div><span>Syncing</span><strong id="tg-syncing">—</strong></div><div><span>Failed</span><strong id="tg-failed">—</strong></div></div>
+        <p class="cloud-caption">Songs auto-save privately to your Telegram Saved Messages. No channel needed.</p>
+        <details class="sync-details"><summary>How saving works</summary><small>Saving can download a full copy, then upload it, using extra data and temporary storage. Saved counts cover this device’s index, not your whole Telegram account. Upload % measures bytes read into the uploader, not server acknowledgements. A song is Saved only after Telegram confirms its message.</small></details>
       </article>
+      <article class="settings-card cloud-card" aria-labelledby="sync-heading">
+        <div class="sync-heading"><h3 id="sync-heading">Syncing Queue</h3><span id="tg-remaining">Checking…</span></div>
+        <p id="tg-wait" class="sync-note" role="status"></p>
+        <div id="tg-sync-list"><p class="sync-note">Your queue will appear here.</p></div>
+        <p id="tg-sync-feedback" class="sync-note" role="status"></p>
+      </article>
+      <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button></div></article>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
         <summary>Linux speaker controls</summary>
@@ -208,7 +223,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <div class="footer">Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</div>
   </main>
   <div class="player-bar" id="player-bar">
-    <div class="progress-container" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-container"><div class="progress-bar" id="progress-bar"></div><input class="seek-range mini-seek" id="mini-seek" aria-label="Seek playback" type="range" min="0" max="1000" value="0" step="1" disabled oninput="previewSeek(this.value)" onchange="commitSeek(this.value)" onpointerdown="beginSeek()" onpointercancel="cancelSeek()" onblur="cancelSeek()"></div>
     <div class="player-content">
       <button class="player-left" id="open-player" onclick="openNowPlaying()" aria-label="Open now playing">
         <img class="np-art" id="np-art" alt="" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E">
@@ -272,7 +287,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   <img class="now-art" id="full-art" alt="Current track artwork">
   <h2 class="now-title" id="full-title">Select a song</h2>
   <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
-  <div class="now-progress" aria-hidden="true"><span id="full-progress"></span></div>
+  <div class="now-progress"><span id="full-progress"></span><input class="seek-range" id="full-seek" aria-label="Seek song" type="range" min="0" max="1000" value="0" step="1" disabled oninput="previewSeek(this.value)" onchange="commitSeek(this.value)" onpointerdown="beginSeek()" onpointercancel="cancelSeek()" onblur="cancelSeek()"></div>
   <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
   <p id="full-error" class="playback-error" role="status" aria-live="polite" hidden></p>
   <div class="now-controls">
@@ -653,7 +668,7 @@ async function refreshTelegramAccount() {
 }
 function renderTelegramStatus(status) {
   const queue = status.quota || {};
-  document.getElementById('telegram-account-button').textContent = status.authorized ? 'Manage Telegram account' : 'Add Telegram account';
+  document.getElementById('telegram-account-button').setAttribute('aria-label', status.authorized ? 'Manage Telegram account' : 'Add Telegram account');
   const summary = (status.authorized ? 'Connected · Signed in · Saved Messages' : status.configured ? 'API configured · Not signed in yet' : 'Complete first-time API setup below') +
     ' · Saved on Telegram (indexed here): ' + (Number.isInteger(status.saved_tracks) ? status.saved_tracks : 'unknown') +
     ' · Pending: ' + (queue.queued_tracks || 0) + ' · Failed: ' + (status.failed_tracks || 0) +
@@ -661,8 +676,49 @@ function renderTelegramStatus(status) {
     (status.archive_error ? ' · ' + status.archive_error : '') +
     (status.authorized ? '. No channel needed. Open Telegram → Saved Messages to see completed uploads.' : '. Saving starts after phone-number sign-in is complete.');
   document.getElementById('telegram-status').textContent = summary;
-  document.getElementById('telegram-settings-status').textContent = summary;
+  const badge = document.getElementById('telegram-settings-status');
+  badge.textContent = status.authorized ? '✓ Connected · Saved Messages' : status.configured ? 'API configured · Not signed in yet' : 'Complete first-time API setup';
+  badge.classList.toggle('connected',status.authorized === true);
+  for (const [id,value] of [['tg-saved',status.saved_tracks],['tg-syncing',queue.queued_tracks],['tg-failed',status.failed_tracks]]) document.getElementById(id).textContent=Number.isInteger(value)?String(value):'—';
+  document.getElementById('tg-remaining').textContent=(queue.queued_tracks || 0)+' remaining';
+  document.getElementById('tg-wait').textContent=(status.archive_error ? status.archive_error+' ' : '') +
+    (status.wait_seconds > 0 ? 'Waiting '+status.wait_seconds+'s · '+(queue.status_label || 'Upload pacing')+'. ' : '') +
+    (!status.authorized ? 'Sign in to start saving.' : 'One song at a time · up to '+(queue.max_per_window || 18)+'/hour · minimum 12s gap.');
+  renderSyncQueue(status.items,status.active);
 }
+function renderSyncQueue(items,active) {
+  const list=document.getElementById('tg-sync-list');
+  if (!Array.isArray(items)) { list.innerHTML='<p class="sync-note">Queue status unavailable. Refresh account status to check.</p>'; return; }
+  list.innerHTML=items.slice(0,100).filter(item=>Number.isSafeInteger(item.id)).map(item=>{
+    const progress=active && active.id===item.id ? active : null;
+    const labels={checking:'Checking Saved Messages',resolving:'Preparing download',downloading:'Downloading',validating:'Checking audio',uploading:'Uploading',finalizing:'Confirming Saved Message'};
+    let label=progress ? labels[progress.stage] || 'Preparing' : item.status==='failed'?'Failed after retries':item.status==='uploading'?'Preparing':'Waiting';
+    const total=progress && Number(progress.total);
+    const percent=total>0 && Number.isFinite(total) ? Math.max(0,Math.min(100,Number(progress.bytes)/total*100)) : null;
+    if (percent!==null) label+=' · '+Math.floor(percent)+'%'+(progress.stage==='uploading'?' read':'');
+    const thumb=/^[A-Za-z0-9_-]{11}$/.test(item.video_id || '') ? '<img loading="lazy" src="https://img.youtube.com/vi/'+item.video_id+'/default.jpg" alt="">' : '';
+    const disabled=progress && progress.stage==='finalizing';
+    return '<div class="sync-row">'+thumb+'<div class="sync-track"><strong>'+escapeHtml(String(item.title || 'Song'))+'</strong><span>'+escapeHtml(String(item.artist || ''))+'</span><small>'+escapeHtml(label)+'</small></div><button class="sync-cancel" style="--progress:'+ (percent===null?0:percent*3.6)+'deg" aria-label="Cancel saving '+escapeHtml(String(item.title || 'song'))+'" '+(disabled?'disabled title="Already committing to Saved Messages"':'')+' onclick="cancelTelegramSave('+item.id+')"><span aria-hidden="true">×</span></button></div>';
+  }).join('') || '<p class="sync-note">All caught up. Selected songs will appear here when queued for saving.</p>';
+}
+async function cancelTelegramSave(id) {
+  try {
+    const result=await nativeJson('/api/tg/cancel',{id});
+    document.getElementById('tg-sync-feedback').textContent=result.cancelled?'Save cancelled. Nothing already saved on Telegram was deleted.':'This save has already finished or left the queue.';
+    await refreshTelegramSummary();
+  } catch(error) { document.getElementById('tg-sync-feedback').textContent=error.message; }
+}
+function setColorTheme(theme, persist = true) {
+  if (!['crimson','charcoal'].includes(theme)) theme='crimson';
+  try { document.documentElement.setAttribute('data-theme',theme); } catch (_) {}
+  for (const name of ['crimson','charcoal']) document.getElementById('theme-'+name).setAttribute('aria-pressed',String(name===theme));
+  try { if (persist) localStorage.setItem('aysha.color-theme.v1',theme); } catch (_) {}
+}
+function restoreColorTheme() {
+  let theme='crimson';try { theme=localStorage.getItem('aysha.color-theme.v1') || theme; } catch (_) {}
+  setColorTheme(theme, false);
+}
+restoreColorTheme();
 let telegramStatusBusy = false;
 async function refreshTelegramSummary() {
   if (telegramStatusBusy) return;
@@ -978,12 +1034,44 @@ async function navigateTrack(direction) {
 async function nextTrack() { return navigateTrack('next'); }
 async function prevTrack() { return navigateTrack('prev'); }
 
+let seeking = false;
+let seekBusy = false;
+let seekVideo = '';
+function seekDuration() {
+  return state.nativePlayback ? state.nativeDuration : document.getElementById('audio-player').duration;
+}
+function beginSeek() { seeking=true; seekVideo=nativeVideoId(state.current_track); }
+function previewSeek(value) {
+  if (!seeking) seekVideo = nativeVideoId(state.current_track);
+  seeking = true;
+  if (!seekVideo) seekVideo = nativeVideoId(state.current_track);
+  const duration = seekDuration();
+  const position = Number(value) / 1000 * duration;
+  for (const id of ['full-seek','mini-seek']) document.getElementById(id).value = value;
+  document.getElementById('full-elapsed').textContent = formatClock(position);
+  document.getElementById('time-display').textContent = 'Seek to ' + formatClock(position);
+}
+function cancelSeek() { seeking=false; seekVideo=''; }
+async function commitSeek(value) {
+  const id = seekVideo || nativeVideoId(state.current_track);
+  cancelSeek();
+  const duration = seekDuration();
+  if (seekBusy || !Number.isFinite(duration) || duration <= 0 || id !== nativeVideoId(state.current_track)) return;
+  const fraction = Number(value) / 1000;
+  if (!Number.isFinite(fraction)) return;
+  const position = Math.max(0,Math.min(1,fraction)) * duration;
+  seekBusy=true;
+  try {
+    if (state.nativePlayback) await nativeJson('/api/seek',{position,video_id:id});
+    else document.getElementById('audio-player').currentTime=position;
+    state.pos=position;
+    document.getElementById('time-display').textContent=formatClock(position);
+  } catch (error) { showMessage('Could not seek: ' + error.message); }
+  finally { seekBusy=false; syncNowPlaying(); }
+}
 async function seekTrack(e) {
-  const audio = document.getElementById('audio-player');
-  if (!audio.duration || audio.duration === 0) return;
-  const r = e.currentTarget.getBoundingClientRect();
-  const pct = (e.clientX - r.left) / r.width;
-  audio.currentTime = pct * audio.duration;
+  const r=e.currentTarget.getBoundingClientRect();
+  return commitSeek((e.clientX-r.left)/r.width*1000);
 }
 
 async function changeVol(v) {
@@ -1584,9 +1672,11 @@ function syncNowPlaying() {
   const position = state.nativePlayback ? state.pos : audio.currentTime;
   const duration = state.nativePlayback ? state.nativeDuration : audio.duration;
   const nativeLabel = ({ resolving: 'Resolving on this phone…', buffering: 'Buffering audio…', playing: 'Playing on this phone', paused: 'Paused', ended: 'Finished', idle: 'Ready — tap Play', error: 'Playback could not start' })[state.nativeStage];
-  document.getElementById('full-elapsed').textContent = formatClock(position);
+  if (!seeking) document.getElementById('full-elapsed').textContent = formatClock(position);
   document.getElementById('full-duration').textContent = state.nativePlayback && (state.nativeStage !== 'playing' || !Number.isFinite(duration)) ? nativeLabel : (Number.isFinite(duration) ? formatClock(duration) : 'Streaming audio');
-  document.getElementById('full-progress').style.width = Number.isFinite(duration) && duration > 0 ? Math.min(100, position / duration * 100) + '%' : '0%';
+  const canSeek = Number.isFinite(duration) && duration > 0 && (!state.nativePlayback || ['playing','paused','buffering'].includes(state.nativeStage));
+  for (const id of ['full-seek','mini-seek']) { const input=document.getElementById(id); input.disabled=!canSeek; if (!seeking && !seekBusy) input.value=canSeek?Math.min(1000,position/duration*1000):0; }
+  if (!seeking) document.getElementById('full-progress').style.width = Number.isFinite(duration) && duration > 0 ? Math.min(100, position / duration * 100) + '%' : '0%';
   document.getElementById('full-volume').value = state.volume;
   document.getElementById('full-error').hidden = !state.nativeError;
   document.getElementById('full-error').textContent = state.nativeError;
@@ -1723,7 +1813,7 @@ async function pollStatus() {
   finally { statusPollBusy = false; }
 }
 setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);
-setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 10000);
+setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 2000);
 
 document.getElementById('audio-player').addEventListener('ended', function() {
   if (state.playMode === 'browser' && !state.stopped) {

@@ -16,6 +16,7 @@ mod audio_engine;
 mod source_selection;
 mod platform_audio;
 mod tg_storage;
+mod archive_progress;
 
 pub mod player;
 pub mod tg_auth;
@@ -147,6 +148,8 @@ fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Route
         .route("/api/tg/send_code", post(tg_send_code))
         .route("/api/tg/verify_code", post(tg_verify_code))
         .route("/api/tg/status", get(tg_status))
+        .route("/api/tg/cancel", post(tg_cancel))
+        .route("/api/seek", post(seek))
         .route("/api/tg/configure", post(tg_configure))
         .route("/api/tg/configuration", get(tg_configuration))
         .route("/api/tg/disconnect", post(tg_disconnect))
@@ -344,6 +347,26 @@ async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>
     }
 }
 
+#[derive(Deserialize)] struct CancelSave {id:i64}
+async fn tg_cancel(State(state):State<SharedCache>,Json(body):Json<CancelSave>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else{return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    match archive_progress::cancel(manager,body.id) {
+        Ok(cancelled)=>(StatusCode::OK,Json(json!({"status":"ok","cancelled":cancelled}))),
+        Err(reason)=>api_error(StatusCode::CONFLICT,"save_not_cancelled",reason),
+    }
+}
+#[derive(Deserialize)] struct SeekBody {position:f64,video_id:String}
+async fn seek(Json(body):Json<SeekBody>)->(StatusCode,Json<Value>) {
+    let Some(player)=started_player() else{return api_error(StatusCode::CONFLICT,"seek_unavailable","Play a song first".into());};
+    match player.platform() {
+        Some(platform)=>match platform.seek(&body.video_id,body.position) {
+            Ok(())=>(StatusCode::OK,Json(json!({"status":"ok"}))),
+            Err(reason)=>api_error(StatusCode::BAD_REQUEST,"seek_unavailable",reason),
+        },
+        None=>api_error(StatusCode::NOT_IMPLEMENTED,"seek_unavailable","Seeking is available in Android and browser playback".into()),
+    }
+}
+
 /// `GET /api/tg/status` - login state for the login modal / sidebar.
 async fn tg_status(State(state): State<SharedCache>) -> Json<Value> {
     let Some(manager) = state.as_ref() else {
@@ -355,6 +378,9 @@ async fn tg_status(State(state): State<SharedCache>) -> Json<Value> {
         "archive_error":tg_storage::last_error(),
         "failed_tracks":manager.failed_tracks().unwrap_or(0),
         "saved_tracks":manager.saved_tracks().ok(),
+        "items":manager.sync_items().ok(),
+        "active":archive_progress::snapshot(),
+        "wait_seconds":manager.seconds_until_allowed().ok(),
         "quota":manager.quota_status().ok(),
         "destination":"Saved Messages",
         "authorized": status.authorized,
