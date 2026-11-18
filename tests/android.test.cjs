@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 16/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 17/);
 });
 
 
@@ -178,4 +178,16 @@ test('native ready events have an independent executor from slow Next controls',
   assert.match(api,/readTimeout = if \(trackChange\) 60000 else TIMEOUT_MS/);
   assert.match(api,/navigating.compareAndSet\(false, true\)/);
   assert.match(api,/if \(trackChange\) navigating.set\(false\)/);
+});
+
+test('shared links are ID-only and handed to the verified local page, not loaded as navigation', () => {
+  const manifest=read('android-app/app/src/main/AndroidManifest.xml');
+  assert.match(manifest,/android.intent.action.SEND/);assert.match(manifest,/android:mimeType="text\/plain"/);
+  const activity=read('android-app/app/src/main/java/com/afzal/ayshamusic/MainActivity.kt');
+  assert.match(activity,/SharedYoutubeLink.videoId/);assert.match(activity,/JSONObject.quote\(id\)/);
+  assert.match(activity,/if \(!localPageReady \|\| !MediaApi.isBackendVerified\(\)\) return/);
+  assert.doesNotMatch(activity,/request.grant\(request.resources\)/);
+  assert.doesNotMatch(manifest,/READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MEDIA_CONTENT_CONTROL/);
+  const storage=read('src/tg_storage.rs');assert.match(storage,/\.document\(uploaded\)/);assert.match(storage,/Attribute::Audio/);assert.match(storage,/song_metadata::filename/);
+  assert.match(read('android-app/app/build.gradle.kts'),/Production release requires your release keystore/);
 });

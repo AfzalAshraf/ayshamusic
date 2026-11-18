@@ -74,6 +74,30 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 .now-progress{position:relative}.seek-range{position:absolute;inset:-20px 0 auto;width:100%;height:44px;background:transparent!important;appearance:none;-webkit-appearance:none;touch-action:pan-y;cursor:pointer;z-index:2}.seek-range::-webkit-slider-runnable-track{height:3px;background:transparent}.seek-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);margin-top:-5px}.seek-range::-moz-range-track{background:transparent;height:3px}.seek-range::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--text)}.seek-range:disabled::-webkit-slider-thumb{opacity:0}.progress-container{position:relative}.mini-seek{inset:-20px 0 auto;height:44px;opacity:1}.mini-seek:focus-visible,.mini-seek:hover{opacity:1}.player-bar{overflow:visible}.player-bar .progress-container{top:0;bottom:auto}
 @media(max-width:400px){.cloud-card{padding:18px}.cloud-card h3{font-size:23px}.sync-heading h3{font-size:18px}.sync-row{gap:8px}.sync-stats{gap:8px}.sync-stats>div{padding:12px 10px}}
 
+
+/* Player controls are outside the shrinkable content area: Stop never needs scrolling. */
+#now-playing[open]{display:flex;flex-direction:column;overflow:hidden;height:min(96dvh,900px);padding:18px 24px}
+#now-playing .now-header{flex-shrink:0;margin-bottom:12px;min-height:44px}
+.now-player-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 3px 4px}
+#now-playing .now-art{display:block;width:min(100%,36dvh);max-height:36dvh;object-fit:cover;margin:0 auto 14px;border-radius:14px}
+#now-playing .now-title{font-size:clamp(18px,3vh,25px);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#now-playing .now-artist{margin-top:6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#now-playing .now-progress{margin-top:22px}
+#now-playing .now-time{margin:10px 0 8px}
+#now-playing .now-controls{flex-shrink:0;min-height:58px;margin:10px 0 4px;gap:4px;justify-content:space-between}
+#now-playing .now-controls::before{display:none}
+#now-playing .now-controls .play-main{width:58px;height:58px}
+#now-playing .now-volume{flex-shrink:0;margin:0 8px}
+#now-playing .now-footer{flex-shrink:0;margin-top:4px;padding-top:10px;min-height:36px}
+#now-playing .now-footer>span{max-width:100%;font-size:10px}
+#now-playing .full-action-status{max-height:3em;overflow:auto;margin:4px 0;font-size:11px}
+#now-playing .song-score:empty{display:none}
+#now-playing #full-song-rating{bottom:160px;max-height:30dvh}
+.share-dialog{inset:0;margin:auto;width:min(420px,calc(100vw - 32px));max-height:80dvh;overflow:auto;background:#261b23;border:1px solid #ffffff22;border-radius:22px;padding:24px;color:var(--text)}
+.share-dialog::backdrop{background:#000b}.share-dialog h2{font-size:21px}.share-dialog p{font-size:13px;line-height:1.7;margin:14px 0;color:var(--sub)}
+@media(max-width:900px){#now-playing[open]{height:100dvh;padding:calc(8px + env(safe-area-inset-top)) 22px calc(10px + env(safe-area-inset-bottom))}}
+@media(max-height:620px){#now-playing .now-art{width:min(100%,25dvh);max-height:25dvh;margin-bottom:8px}#now-playing .now-volume{display:none}#now-playing .now-header{margin-bottom:4px}#now-playing .now-footer{padding-top:4px}#now-playing .now-controls{margin-top:4px}#now-playing .song-score{font-size:10px}}
+
 </style>
 </head>
 <body>
@@ -284,16 +308,19 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <p>NOW PLAYING<strong id="full-output">This device</strong></p>
     <button class="ctrl-btn" onclick="queueFromPlayer()" aria-label="Open queue"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#queue"></use></svg></button>
   </div>
+  <div class="now-player-body" id="now-player-body">
   <img class="now-art" id="full-art" alt="Current track artwork">
   <h2 class="now-title" id="full-title">Select a song</h2>
   <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
   <div class="now-progress"><span id="full-progress"></span><input class="seek-range" id="full-seek" aria-label="Seek song" type="range" min="0" max="1000" value="0" step="1" disabled oninput="previewSeek(this.value)" onchange="commitSeek(this.value)" onpointerdown="beginSeek()" onpointercancel="cancelSeek()" onblur="cancelSeek()"></div>
   <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
   <p id="full-error" class="playback-error" role="status" aria-live="polite" hidden></p>
+  </div>
   <div class="now-controls">
     <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
     <button class="ctrl-btn play-main" id="full-play-toggle" onclick="togglePlay()" aria-label="Play"><svg class="app-icon" id="full-play-svg" aria-hidden="true"><use href="/icons.svg#play"></use></svg></button>
     <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
+    <button class="ctrl-btn" onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg></button>
     <button class="ctrl-btn favorite-toggle" id="full-favorite" onclick="toggleCurrentFavorite()" aria-label="Add to favorites" aria-pressed="false" title="Add to favorites" disabled><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg></button>
   </div>
   <p class="song-score" id="full-song-score"></p>
@@ -306,8 +333,9 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <p class="song-rating-note">Optional · Only your choice is saved in this browser · Autoplay keeps going</p>
   </section>
   <div class="now-volume"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#volume-low"></use></svg><input id="full-volume" type="range" min="0" max="100" step="5" value="80" aria-label="Playback volume" oninput="changeVol(this.value)"></div>
-  <div class="now-footer"><span>Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</span><button onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg>Stop</button></div>
+  <div class="now-footer"><span>Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</span></div>
 </dialog>
+<dialog class="share-dialog" id="shared-video-dialog" aria-labelledby="share-heading"><h2 id="share-heading">Shared from YouTube</h2><p>Play this video’s audio and queue it for your connected Telegram account? Saving uses download and upload data.</p><div class="tg-actions"><button class="chip" onclick="confirmSharedVideo()">Play &amp; save</button><button class="chip" onclick="dismissSharedVideo()">Cancel</button></div><p id="share-feedback" role="status"></p></dialog>
 <section class="song-rating" id="song-rating" aria-labelledby="song-rating-heading" hidden>
     <h3 id="song-rating-heading">How was that song?</h3>
     <p class="song-rating-title" id="song-rating-title" aria-live="polite"></p>
@@ -691,7 +719,7 @@ function renderSyncQueue(items,active) {
   if (!Array.isArray(items)) { list.innerHTML='<p class="sync-note">Queue status unavailable. Refresh account status to check.</p>'; return; }
   list.innerHTML=items.slice(0,100).filter(item=>Number.isSafeInteger(item.id)).map(item=>{
     const progress=active && active.id===item.id ? active : null;
-    const labels={checking:'Checking Saved Messages',resolving:'Preparing download',downloading:'Downloading',validating:'Checking audio',uploading:'Uploading',finalizing:'Confirming Saved Message'};
+    const labels={checking:'Checking Saved Messages',resolving:'Preparing download',downloading:'Downloading',validating:'Checking audio',tagging:'Adding song tags & artwork',artwork:'Uploading cover',uploading:'Uploading',finalizing:'Confirming Saved Message'};
     let label=progress ? labels[progress.stage] || 'Preparing' : item.status==='failed'?'Failed after retries':item.status==='uploading'?'Preparing':'Waiting';
     const total=progress && Number(progress.total);
     const percent=total>0 && Number.isFinite(total) ? Math.max(0,Math.min(100,Number(progress.bytes)/total*100)) : null;
@@ -832,6 +860,22 @@ function getStreamUrl(t) {
   return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
+let pendingSharedVideo = null;
+function receiveSharedVideo(id) {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id || '')) return;
+  pendingSharedVideo=id;
+  const intro=document.getElementById('love-intro');if (intro.open) finishLoveIntro();
+  document.getElementById('share-feedback').textContent='';
+  const dialog=document.getElementById('shared-video-dialog');if (!dialog.open) dialog.showModal();
+}
+function dismissSharedVideo() { pendingSharedVideo=null;document.getElementById('shared-video-dialog').close(); }
+async function confirmSharedVideo() {
+  if (!pendingSharedVideo) return;
+  if (!state.nativePlayback) {document.getElementById('share-feedback').textContent='The local player is starting. Please try again shortly.';pollStatus();return;}
+  const id=pendingSharedVideo;dismissSharedVideo();
+  await playSong({id,title:'Shared YouTube song',artist:'',url:'https://www.youtube.com/watch?v='+id,thumbnail:'https://img.youtube.com/vi/'+id+'/hqdefault.jpg'},{shared:true});
+  openNowPlaying();
+}
 async function playSong(t, options = {}) {
   const attempt = ++playbackAttempt;
   renderSelection(t);
@@ -851,7 +895,7 @@ async function playSong(t, options = {}) {
     syncNowPlaying();
     document.getElementById('time-display').textContent = 'Resolving on this device...';
     try {
-      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), track: t });
+      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), ...(options.shared ? {} : {track:t}) });
       if (attempt !== playbackAttempt) return;
       if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
       state.stopped = false; state.nativeStage = 'playing'; state.nativeError = '';

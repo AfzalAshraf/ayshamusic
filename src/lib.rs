@@ -17,6 +17,7 @@ mod source_selection;
 mod platform_audio;
 mod tg_storage;
 mod archive_progress;
+mod song_metadata;
 
 pub mod player;
 pub mod tg_auth;
@@ -432,7 +433,14 @@ async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): J
 async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
     let Some(client)=http_client() else {return api_error(StatusCode::SERVICE_UNAVAILABLE,"http_client","HTTP client unavailable".into());};
     let forced=match forced_client(body.client.as_deref()) {Ok(value)=>value,Err(error)=>return error};
-    match start_track(client,body.video_id.trim(),forced).await {Ok(payload)=>(StatusCode::OK,Json(payload)),Err(error)=>error}
+    match start_track(client,body.video_id.trim(),forced).await {
+        Ok(payload)=>{
+            if let (Some(cache),Some(track))=(cache_manager(),body.track.as_ref()) {
+                if track.id==body.video_id.trim() {let _=cache.update_source(&track.id,&track.artist);}
+            }
+            (StatusCode::OK,Json(payload))
+        },Err(error)=>error
+    }
 }
 fn sample_listening(phone: &android_catalog::Phone) {
     let Some(player)=started_player() else {return;};
@@ -983,6 +991,16 @@ mod android {
         let text=env.new_string(text).map_err(|_|"Android audio command allocation failed")?;
         let result=env.call_method(bridge.as_obj(),"platformCommand","(Ljava/lang/String;)V",&[jni::objects::JValue::Object(text.as_ref())]);
         if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
+    }
+
+    pub(super) fn square_cover(bytes:&[u8])->Option<Vec<u8>> {
+        let (vm,bridge)=PLATFORM.get()?;
+        let mut env=vm.attach_current_thread().ok()?;
+        let bytes=env.byte_array_from_slice(bytes).ok()?;
+        let value=env.call_method(bridge.as_obj(),"squareCover","([B)[B",&[jni::objects::JValue::Object(bytes.as_ref())]);
+        let value=match value {Ok(value)=>value,Err(_)=>{let _=env.exception_clear();return None;}};
+        let array=value.l().ok()?;if array.is_null(){return None;}
+        env.convert_byte_array(jni::objects::JByteArray::from(array)).ok().filter(|bytes|!bytes.is_empty() && bytes.len()<=200_000)
     }
 
     pub(super) fn audio_context_ready() -> bool {

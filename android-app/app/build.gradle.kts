@@ -18,8 +18,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 16
-        versionName = "1.5.0"
+        versionCode = 17
+        versionName = "1.6.0"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -81,7 +81,10 @@ android {
             signingConfig = if (releaseSigning.storeFile != null) {
                 releaseSigning
             } else {
-                // Safe fallback: keeps `assembleRelease` usable without secrets.
+                check(System.getenv("AYSHA_PREVIEW") == "1" || emulatorTests || gradle.startParameter.taskNames.none { it.contains("Release", ignoreCase = true) }) {
+                    "Production release requires your release keystore. Use AYSHA_PREVIEW=1 only for explicitly labelled test APKs."
+                }
+                // Preview/debug test fallback only; never silently sign production with a debug key.
                 // Provide KEYSTORE_PATH/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD
                 // for a production-signed APK.
                 signingConfigs.getByName("debug")

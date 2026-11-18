@@ -21,10 +21,12 @@ required-features = ["phone"]
 [features]
 default = []
 # Enabled only when cross-compiling the Android library (see android-app/README notes).
-phone = ["reqwest/blocking", "dep:rodio", "dep:rusqlite", "dep:grammers-client", "dep:grammers-session"]
+phone = ["dep:mp4ameta", "reqwest/blocking", "dep:rodio", "dep:rusqlite", "dep:grammers-client", "dep:grammers-session"]
 android = ["phone", "dep:jni", "dep:ndk-context"]
 
 [dependencies]
+# Permissive, dependency-free AAC/M4A metadata writer; no transcoder/runtime.
+mp4ameta = { version = "=0.13.0", optional = true }
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

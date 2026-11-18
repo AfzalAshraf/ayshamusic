@@ -35,6 +35,8 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile private var destroyed = false
     private var webView: WebView? = null
+    private var pendingSharedId: String? = null
+    private var localPageReady = false
     private var backCallbackRegistered = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
 
@@ -61,8 +63,13 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(webView!!)
 
+        pendingSharedId = savedInstanceState?.getString("shared_video")
+        if (savedInstanceState == null) acceptShare(intent)
         setupWebView()
         loadServerUrl()
+        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 100)
+        }
         
         // Register predictive back callback (Android 14+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -98,7 +105,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Mixed content - allow HTTP on localhost
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 }
                 
                 // User agent
@@ -123,7 +130,13 @@ class MainActivity : AppCompatActivity() {
                         startActivity(intent)
                         return true
                     }
-                    return false
+                    return true
+                }
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    val uri = Uri.parse(url)
+                    localPageReady = uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && uri.path == "/" && MediaApi.isBackendVerified()
+                    if (localPageReady) deliverShare()
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest?, error: android.webkit.WebResourceError) {
@@ -137,14 +150,15 @@ class MainActivity : AppCompatActivity() {
             // WebChromeClient for console logs, fullscreen video, etc.
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage): Boolean {
-                    Log.d("WebViewConsole", "[${consoleMessage.messageLevel()}] ${consoleMessage.message()} (${consoleMessage.sourceId()}:${consoleMessage.lineNumber()})")
+                    // Provider/session errors may contain private data; no raw console forwarding in release.
+                    if (BuildConfig.DEBUG) Log.d("WebViewConsole", "${consoleMessage.messageLevel()}: local UI message")
                     return true
                 }
 
                 override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
                     // Grant media permissions for audio playback
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        request.grant(request.resources)
+                        request.deny()
                     }
                 }
             }
@@ -160,11 +174,12 @@ class MainActivity : AppCompatActivity() {
         // Accept cookies for session persistence
         CookieManager.getInstance().setAcceptCookie(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            CookieManager.getInstance().setAcceptThirdPartyCookies(webView!!, true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView!!, false)
         }
     }
 
     private fun loadServerUrl() {
+        localPageReady = false
         webView!!.loadData("<html><body style='background:#100d13;color:#fff;font-family:sans-serif;padding:32px'>Starting Aysha Music…</body></html>", "text/html", "UTF-8")
         Thread {
             var ready = false
@@ -223,14 +238,30 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private fun acceptShare(incoming: Intent?) {
+        if (incoming?.action != Intent.ACTION_SEND || incoming.type != "text/plain") return
+        val id = SharedYoutubeLink.videoId(incoming.getStringExtra(Intent.EXTRA_TEXT))
+        if (id == null) android.widget.Toast.makeText(this, "Share one supported YouTube video link", android.widget.Toast.LENGTH_LONG).show()
+        else pendingSharedId = id
+    }
+
+    private fun deliverShare() {
+        if (!localPageReady || !MediaApi.isBackendVerified()) return
+        val id = pendingSharedId ?: return
+        pendingSharedId = null
+        webView?.evaluateJavascript("receiveSharedVideo(" + org.json.JSONObject.quote(id) + ")", null)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        pendingSharedId?.let { outState.putString("shared_video", it) }
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Handle deep links if needed
-        intent.data?.let { uri ->
-            if (uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && MediaApi.isBackendVerified()) {
-                webView?.loadUrl(uri.toString())
-            }
-        }
+        setIntent(intent)
+        acceptShare(intent)
+        deliverShare()
     }
 
     override fun onDestroy() {

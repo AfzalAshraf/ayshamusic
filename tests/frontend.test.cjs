@@ -1288,3 +1288,22 @@ test('theme is an allowlisted local preference and restoration alone writes noth
 test('home contains no playback Test button', () => {
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8'),/id="hero-selftest"|>Test<\/button>/);
 });
+
+test('YouTube share validates ID and does not start audio before explicit confirmation', () => {
+  const h=harness();h.element('shared-video-dialog').showModal=function(){this.open=true;};
+  h.context.receiveSharedVideo('https://evil.test');assert.equal(h.element('shared-video-dialog').open,undefined);
+  h.context.receiveSharedVideo('abcdefghijk');assert.equal(h.element('shared-video-dialog').open,true);
+  assert.equal(h.calls.length,0);assert.equal(h.element('audio-player').playCount,0);
+});
+
+test('confirmed native share omits untrusted placeholder metadata and uses the actual resolved title', async () => {
+  const h=harness();
+  h.element('shared-video-dialog').showModal=function(){this.open=true;};h.element('shared-video-dialog').close=function(){this.open=false;};
+  // Overlay routing is covered in Chromium; isolate the real playback transaction.
+  h.context.openNowPlaying=()=>{};
+  h.context.fetch=async(url,opts)=>{h.calls.push({url,opts});return {ok:true,json:async()=>({status:'playing',title:'Actual provider title'})};};
+  vm.runInContext('state.nativePlayback=true',h.context);
+  h.context.receiveSharedVideo('abcdefghijk');await h.context.confirmSharedVideo();
+  const body=JSON.parse(h.calls.find(c=>c.url==='/api/play').opts.body);
+  assert.deepEqual(body,{video_id:'abcdefghijk'});assert.equal(vm.runInContext('state.current_track.title',h.context),'Actual provider title');
+});

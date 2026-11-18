@@ -53,5 +53,8 @@ object RustBridge {
     @Suppress("unused")
     fun platformCommand(command: String) { PlatformAudio.command(command) }
 
+    @Suppress("unused")
+    fun squareCover(bytes: ByteArray): ByteArray? = AlbumArtwork.squareJpeg(bytes)
+
     fun isServerStarted(): Boolean = serverStarted
 }

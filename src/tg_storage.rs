@@ -1,7 +1,7 @@
 //! User-approved Saved Messages archive. No bot, server, or account secret in logs.
 //! Telegram byte ranges feed the same seekable Rust AAC decoder as YouTube ranges.
 use crate::{player, range_media::{Block,Fetch,BLOCK}, tg_cache::TelegramCacheManager};
-use grammers_client::{client::Client, media::{Downloadable, Media}, message::InputMessage};
+use grammers_client::{client::Client, media::{Downloadable, Media, Attribute}, message::InputMessage};
 use grammers_session::types::{PeerAuth,PeerId,PeerRef};
 use std::{io,path::Path,sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}},time::Duration};
 use tokio::io::AsyncWriteExt;
@@ -73,7 +73,7 @@ pub async fn lookup(cache:&TelegramCacheManager,id:&str)->Result<Option<player::
 pub async fn worker(cache:Arc<TelegramCacheManager>) {
     // Remove incomplete files left by a killed/timed-out download; never publish them.
     if let Some(root)=cache.cached_path("cleanup").parent() {
-        if let Ok(entries)=std::fs::read_dir(root) {for entry in entries.flatten() {if entry.path().extension().is_some_and(|ext|ext=="part") {let _=std::fs::remove_file(entry.path());}}}
+        if let Ok(entries)=std::fs::read_dir(root) {for entry in entries.flatten() {if entry.path().extension().is_some_and(|ext|ext=="part" || ext.to_string_lossy().starts_with("tagging-")) {let _=std::fs::remove_file(entry.path());}}}
     }
     loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -96,15 +96,32 @@ pub async fn worker(cache:Arc<TelegramCacheManager>) {
                 let mut decoder=rodio::Decoder::try_from(std::fs::File::open(validate)?).map_err(|_|error("archive_audio_not_decodable"))?;
                 decoder.next().ok_or_else(||error("archive_audio_empty"))?;Ok::<_,io::Error>(())
             }).await.map_err(|_|error("archive_validation_failed"))??;
+            crate::archive_progress::stage(item.id,"tagging",None);
+            let song=crate::song_metadata::clean(&item.title,&item.artist);
+            let cover=cover(&item.video_id).await;
+            let size=tokio::fs::metadata(path).await?.len();
+            if !cache.make_room(size.saturating_add(512*1024)).map_err(|_|error("archive_cache_unavailable"))? {return Err(error("archive_cache_full"));}
+            let tagging=path.to_owned();let metadata=song.clone();let picture=cover.clone();
+            let duration=tokio::task::spawn_blocking(move ||crate::song_metadata::tag(&tagging,&metadata,picture.as_deref()))
+                .await.map_err(|_|error("archive_tagging_failed"))??;
             let file=tokio::fs::File::open(path).await?;
             let len=file.metadata().await?.len();
             if len==0 || len>MAX_TRACK {return Err(error("archive_track_size_limit"));}
             crate::archive_progress::stage(item.id,"uploading",Some(len));
             let mut reader=crate::archive_progress::UploadReader{inner:file,id:item.id,count:0};
-            let uploaded=client.upload_stream(&mut reader,len as usize,format!("{}.m4a",item.video_id)).await?;
+            let uploaded=client.upload_stream(&mut reader,len as usize,crate::song_metadata::filename(&song)).await?;
+            let caption=if song.source.is_empty(){format!("#yt_{}\n{}",item.video_id,song.title)}else{format!("#yt_{}\n{}\nSource: {}",item.video_id,song.title,song.source)};
+            let mut message=InputMessage::new().text(caption).document(uploaded).mime_type("audio/mp4")
+                .attribute(Attribute::Audio{duration,title:Some(song.title.clone()),performer:song.artist.clone()});
+            if let Some(bytes)=cover {
+                crate::archive_progress::stage(item.id,"artwork",None);
+                let size=bytes.len();let mut stream=std::io::Cursor::new(bytes);
+                let thumb=client.upload_stream(&mut stream,size,"cover.jpg".into()).await?;
+                message=message.thumbnail(thumb);
+            }
             if PAUSED.load(Ordering::Acquire) {return Err(error("telegram_disconnected"));}
             crate::archive_progress::finalizing(&cache,item.id)?;
-            let message=client.send_message(me(),InputMessage::new().text(&item.caption).file(uploaded).mime_type("audio/mp4")).await.map_err(|e|error(&e.to_string()))?;
+            let message=client.send_message(me(),message).await.map_err(|e|error(&e.to_string()))?;
             cache.remember_saved(&item.video_id,message.id()).map_err(|_|error("archive_index_failed"))?;
             Ok::<_,io::Error>(true)
         });
@@ -162,6 +179,21 @@ async fn download(cache:&TelegramCacheManager,id:&str,path:&Path,item:i64)->io::
     }.await;
     if result.is_err() {let _=tokio::fs::remove_file(&tmp).await;}
     result
+}
+/// Optional art must never block audio indefinitely or fetch a caller URL.
+async fn cover(id:&str)->Option<Vec<u8>> {
+    if !crate::youtube::valid_video_id(id){return None;}
+    #[cfg(not(target_os="android"))] {let _=id;None}
+    #[cfg(target_os="android")] {
+        tokio::time::timeout(Duration::from_secs(6),async {
+            use futures_util::StreamExt;
+            let response=crate::http_client()?.get(format!("https://img.youtube.com/vi/{id}/hqdefault.jpg")).send().await.ok()?;
+            if !response.status().is_success() || response.content_length().is_some_and(|n|n>1024*1024){return None;}
+            let mut chunks=response.bytes_stream();let mut bytes=Vec::new();
+            while let Some(chunk)=chunks.next().await {let chunk=chunk.ok()?;if bytes.len()+chunk.len()>1024*1024{return None;}bytes.extend_from_slice(&chunk);}
+            tokio::task::spawn_blocking(move ||crate::android::square_cover(&bytes)).await.ok().flatten()
+        }).await.ok().flatten()
+    }
 }
 fn flood_wait(text:&str)->Option<u64> {
     let value=text.split("FLOOD_WAIT").nth(1)?.trim_start_matches(|c:char|!c.is_ascii_digit());

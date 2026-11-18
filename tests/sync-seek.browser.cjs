@@ -55,9 +55,24 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
     // Drive the native range's actual input/change events; fixture checks request
     // identity/position, not ExoPlayer decoding (separate instrumentation test).
     await page.locator('#open-player').click();
+    for (const viewport of [{width:320,height:568},{width:390,height:640},{width:390,height:844},{width:844,height:390}]) {
+      await page.setViewportSize(viewport);
+      const stop=await page.locator('#now-playing [aria-label="Stop playback"]').boundingBox();
+      const play=await page.locator('#full-play-toggle').boundingBox();
+      assert.ok(stop && stop.y>=0 && stop.y+stop.height<=viewport.height,'Stop visible without scrolling '+JSON.stringify(viewport));
+      assert.ok(play && play.y>=0 && play.y+play.height<=viewport.height,'Play visible without scrolling');
+      assert.equal(await page.locator('#now-playing').evaluate(el=>el.scrollTop),0);
+      if(output && viewport.width===390 && viewport.height===844) await page.screenshot({path:path.join(output,'fitted-player.png')});
+    }
+    await page.setViewportSize({width:390,height:844});
     await page.locator('#full-seek').evaluate(input=>{input.value='750';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));});
     await page.waitForFunction(()=>!seekBusy);
     assert.deepEqual(seeks.at(-1),{position:150,video_id:track.id});
+    await page.locator('#now-playing [aria-label="Close now playing"]').click();
+    await page.evaluate(()=>receiveSharedVideo('abcdefghijk'));
+    assert.equal(await page.locator('#shared-video-dialog').isVisible(),true);
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal(await page.locator('#shared-video-dialog').isVisible(),false);
     await page.reload();await page.locator('.love-skip').click();
     assert.equal(await page.locator('html').getAttribute('data-theme'),'charcoal');
     assert.deepEqual(errors,[]);

@@ -233,6 +233,10 @@ impl TelegramCacheManager {
         Ok(changed > 0)
     }
 
+    pub fn update_source(&self,id:&str,source:&str)->Result<()> {
+        let source=source.chars().filter(|c|!c.is_control()).take(300).collect::<String>();
+        self.conn().execute("UPDATE upload_queue SET artist=?2 WHERE video_id=?1 AND status='pending'",params![id,source])?;Ok(())
+    }
     pub fn save_active(&self,id:i64)->Result<bool> {Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM upload_queue WHERE id=?1 AND status='uploading')",[id],|r|r.get(0))?)}
     pub fn cancel_save(&self,id:i64)->Result<bool> {Ok(self.conn().execute("UPDATE upload_queue SET status='cancelled',updated_at=?2 WHERE id=?1 AND status IN ('pending','uploading','failed')",params![id,now_ts()])?>0)}
     /// Only public metadata, never local paths, captions or Telegram credentials.
