@@ -293,13 +293,15 @@ let activeViewport = 'startup';
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
       assert.ok(await page.evaluate(async () => (await document.fonts.load('18px "Delius"', 'AYSHA')).length === 1), 'Cute font loads locally inside the HTML');
       // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
-      await page.locator('#love-intro-title').tap();
-      {
-        // Sample the short-lived burst in one round trip, without font-loading
-        // or many protocol calls consuming its animation lifetime.
-        const burst = await page.evaluate(async () => {
+      // Capture in the real tap's event turn and sample the actual CSS animation
+      // timeline deterministically. Host CPU/protocol delays must not consume a
+      // 2.2s particle lifetime or change a nominal 400ms displacement sample.
+      await page.evaluate(() => {
+        document.addEventListener('click', () => {
           const host = document.getElementById('heart-effects-intro');
           const first = host.querySelector('.is-butterfly');
+          const animations = host.getAnimations({subtree:true});
+          for (const animation of animations) { animation.pause(); animation.currentTime = 0; }
           const sample = { count:host.querySelectorAll('.heart-burst').length,
             letters:[...host.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
             hearts:host.querySelectorAll('.love-letter-heart use').length,
@@ -309,14 +311,17 @@ let activeViewport = 'startup';
             flight:getComputedStyle(first).animationName,
             flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
             y:first.getBoundingClientRect().y };
-          // Touch release must not cancel flights. Keep measurement in the page
-          // so protocol latency does not consume the short animation lifetime.
           document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null }));
-          await new Promise(resolve => setTimeout(resolve, 400));
+          for (const animation of animations) animation.currentTime = 400;
           sample.afterCount = host.querySelectorAll('.heart-burst').length;
           sample.afterY = first.getBoundingClientRect().y;
-          return sample;
-        });
+          window.__heartTouchSample = sample;
+          for (const animation of animations) animation.play();
+        }, {once:true});
+      });
+      await page.locator('#love-intro-title').tap();
+      {
+        const burst = await page.evaluate(() => window.__heartTouchSample);
         assert.equal(burst.count, 12);
         assert.deepEqual(burst.letters, ['A','Y','S','H','A']);
         assert.equal(burst.hearts, 5);
