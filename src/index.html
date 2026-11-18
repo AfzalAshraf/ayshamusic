@@ -317,10 +317,10 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   <p id="full-error" class="playback-error" role="status" aria-live="polite" hidden></p>
   </div>
   <div class="now-controls">
+    <button class="ctrl-btn" onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg></button>
     <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
     <button class="ctrl-btn play-main" id="full-play-toggle" onclick="togglePlay()" aria-label="Play"><svg class="app-icon" id="full-play-svg" aria-hidden="true"><use href="/icons.svg#play"></use></svg></button>
     <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
-    <button class="ctrl-btn" onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg></button>
     <button class="ctrl-btn favorite-toggle" id="full-favorite" onclick="toggleCurrentFavorite()" aria-label="Add to favorites" aria-pressed="false" title="Add to favorites" disabled><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg></button>
   </div>
   <p class="song-score" id="full-song-score"></p>
