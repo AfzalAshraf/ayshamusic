@@ -1,0 +1,28 @@
+{
+  "run": 44370633056,
+  "source": "b9ac4dcc02a8ac098da160c8f4c903a20c7913e8",
+  "job": 135036126439,
+  "note": "Timing-sensitive real-time displacement sample failed at412x915. Follow-up test samples actual CSS animation timeline during the real tap event, with identical particle-count and displacement assertions. No production animation changed.",
+  "annotations": [
+    {
+      "annotation_level": "warning",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "title": ""
+    },
+    {
+      "annotation_level": "failure",
+      "message": "Process completed with exit code 1.",
+      "title": ""
+    },
+    {
+      "annotation_level": "failure",
+      "message": "Viewport 412x915: AssertionError [ERR_ASSERTION]: Tap heart visibly lifts and flies upward, not a stationary reveal\n    at /home/runner/work/ayshamusic/ayshamusic/tests/mobile.browser.cjs:330:16",
+      "title": "Browser regression"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+      "title": ""
+    }
+  ]
+}

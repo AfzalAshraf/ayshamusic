@@ -1,0 +1,39 @@
+{
+  "run": 44368990168,
+  "source": "bfa41505030732eacde304dad2d6d0a51497fe5b",
+  "job": 135033454639,
+  "conclusion": "failure",
+  "note": "Fixture worker let client HTTP range socket cancellation escape and kill instrumentation. Production Media3 implementation unchanged. Follow-up fixture catches only SocketException; event deadlines and full-file byte checks retained.",
+  "annotations": [
+    {
+      "annotation_level": "warning",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-java@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "title": ""
+    },
+    {
+      "annotation_level": "notice",
+      "message": "FAIL tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed  java.lang.Error: java.net.SocketException: Connection reset\nat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1173)\nat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)\nat java.lang.Thread.run(Thread.java:919)\nCaused by: java.net.SocketException: Connection reset\nat java.net.SocketOutputStream.socketWrite(SocketOutputStream.java:121)\nat java.net.SocketOutputStream.write(SocketOutputStream.java:149)\nat com.afzal.ayshamusic.Media3PlaybackTest$FixtureServer.reply(Media3PlaybackTest.kt:194)\nat com.afzal.ayshamusic.Media3PlaybackTest$FixtureServer.handle(Media3PlaybackTest.kt:180)\nat com.afzal.ayshamusic.Media3PlaybackTest$FixtureServer.accepts$lambda$2$lambda$1(Media3PlaybackTest.kt:143)\nat com.afzal.ayshamusic.Media3PlaybackTest$FixtureServer.$r8$lambda$lrnsI_7b2Ok0cB6yMK_L9L7--ks(Unknown Source:0)\nat com.afzal.ayshamusic.Media3PlaybackTest$FixtureServer$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)\nat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)\n... 2 more\n",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS seekForwardAndBackwardWhilePausedThenResume",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS rejectedInputReportsErrorInsteadOfFalsePlaying",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "failure",
+      "message": "The process '/usr/bin/sh' failed with exit code 1",
+      "title": ""
+    },
+    {
+      "annotation_level": "warning",
+      "message": "setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.",
+      "title": ""
+    }
+  ]
+}
