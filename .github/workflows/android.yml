@@ -56,7 +56,7 @@ jobs:
 
       # rodio/cpal link ALSA on the Linux runner, which ships no dev headers.
       - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config ffmpeg
+        run: sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y libasound2-dev pkg-config ffmpeg
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -130,7 +130,7 @@ jobs:
       - name: Enable emulator acceleration and generate AAC fixture
         run: |
           sudo chmod 666 /dev/kvm
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y ffmpeg
           mkdir -p android-app/app/src/androidTest/assets
           ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart android-app/app/src/androidTest/assets/tone.m4a
           ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=330:duration=600' -c:a aac -b:a 96k -movflags +faststart android-app/app/src/androidTest/assets/long-tone.m4a
@@ -154,7 +154,9 @@ jobs:
                   failed=case.find('failure')
                   skipped=case.find('skipped')
                   status='FAIL' if failed is not None else ('SKIP' if skipped is not None else 'PASS')
-                  print('::notice title=Media3 emulator::'+status+' '+case.attrib.get('name','unknown'))
+                  detail='' if failed is None else ' '+(failed.attrib.get('message','')+' '+''.join(failed.itertext()))[:5000]
+                  message=(status+' '+case.attrib.get('name','unknown')+detail).replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+                  print('::notice title=Media3 emulator::'+message)
           PYTEST
       - uses: actions/upload-artifact@v4
         if: always()
