@@ -55,7 +55,7 @@ pub fn tag(path:&Path,song:&Song,cover:Option<&[u8]>)->io::Result<Duration> {
         let mut tag=mp4ameta::Tag::read_from_path(&temp).map_err(|_|io::Error::other("archive_tag_read_failed"))?;
         let duration=tag.duration();if duration.is_zero() || duration.as_secs()>604800{return Err(io::Error::other("archive_duration_invalid"));}
         tag.set_title(&song.title);
-        if let Some(artist)=&song.artist {tag.set_artist(artist);}else{tag.remove_artists();}
+        if let Some(artist)=&song.artist {tag.set_artist(artist);}
         if let Some(cover)=cover.filter(|c|!c.is_empty() && c.len()<=200_000){tag.set_artwork(mp4ameta::Img::jpeg(cover.to_vec()));}
         tag.write_to_path(&temp).map_err(|_|io::Error::other("archive_tag_write_failed"))?;
         let check=mp4ameta::Tag::read_from_path(&temp).map_err(|_|io::Error::other("archive_tag_verify_failed"))?;
@@ -91,7 +91,8 @@ pub fn tag(path:&Path,song:&Song,cover:Option<&[u8]>)->io::Result<Duration> {
             let duration=tag(&path,&song,Some(&cover)).unwrap();assert!(duration.as_secs()>=4);
             let t=mp4ameta::Tag::read_from_path(&path).unwrap();assert_eq!(t.title(),Some("A melody"));assert_eq!(t.artist(),Some("An artist"));assert_eq!(t.artwork().unwrap().data,cover.as_slice());
             let mut decoder=rodio::Decoder::try_from(std::fs::File::open(&path).unwrap()).unwrap();
-            assert!(decoder.sample_rate().get()>0);assert!(decoder.next().is_some());let _=std::fs::remove_file(path);
+            let rate=decoder.sample_rate().get() as usize;let channels=decoder.channels().get() as usize;
+            assert!(decoder.by_ref().count()>=rate*channels*4,"tagged fixture must decode through the complete song");let _=std::fs::remove_file(path);
         }
     }
 }

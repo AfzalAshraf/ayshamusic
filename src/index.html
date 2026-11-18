@@ -866,9 +866,16 @@ function receiveSharedVideo(id) {
   pendingSharedVideo=id;
   const intro=document.getElementById('love-intro');if (intro.open) finishLoveIntro();
   document.getElementById('share-feedback').textContent='';
-  const dialog=document.getElementById('shared-video-dialog');if (!dialog.open) dialog.showModal();
+  const dialog=document.getElementById('shared-video-dialog');
+  if (!dialog.open) {
+    if (typeof history !== 'undefined') history.pushState({...(history.state || {}),ayshaShare:true,ayshaShareId:id,ayshaDepth:(history.state && history.state.ayshaDepth || 0)+1},'', '#'+currentTab+'/shared');
+    dialog.showModal();
+  }
 }
-function dismissSharedVideo() { pendingSharedVideo=null;document.getElementById('shared-video-dialog').close(); }
+function dismissSharedVideo() {
+  pendingSharedVideo=null;document.getElementById('shared-video-dialog').close();
+  if (typeof history !== 'undefined' && history.state && history.state.ayshaShare) history.back();
+}
 async function confirmSharedVideo() {
   if (!pendingSharedVideo) return;
   if (!state.nativePlayback) {document.getElementById('share-feedback').textContent='The local player is starting. Please try again shortly.';pollStatus();return;}
@@ -1754,6 +1761,9 @@ function initializeNavigation() {
   window.addEventListener('popstate', event => {
     const dialog = document.getElementById('now-playing');
     const next = event.state || { ayshaTab: 'home' };
+    const share=document.getElementById('shared-video-dialog');
+    if (!next.ayshaShare && share.open) {share.close();pendingSharedVideo=null;}
+    if (next.ayshaShare && /^[A-Za-z0-9_-]{11}$/.test(next.ayshaShareId || '') && !share.open) {pendingSharedVideo=next.ayshaShareId;share.showModal();}
     if (dialog.open && !next.ayshaPlayer) dialog.close();
     const account = document.getElementById('telegram-account');
     if (account.open && !next.ayshaTelegram) { account.close(); clearTelegramSecrets(); }
@@ -1763,6 +1773,7 @@ function initializeNavigation() {
     renderRatingPrompt();
   });
   document.getElementById('now-playing').addEventListener('cancel', event => { event.preventDefault(); closeNowPlaying(); });
+  document.getElementById('shared-video-dialog').addEventListener('cancel',event=>{event.preventDefault();dismissSharedVideo();});
   document.getElementById('telegram-account').addEventListener('cancel', event => { event.preventDefault(); closeTelegramAccount(); });
   document.getElementById('telegram-account').addEventListener('close', clearTelegramSecrets);
   renderTab(tab);
