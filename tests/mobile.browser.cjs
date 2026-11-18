@@ -449,14 +449,14 @@ let activeViewport = 'startup';
         await page.waitForFunction(() => document.getElementById('hero-play-label').textContent === 'Pause');
         assert.equal(playRegistrations.length, 2, 'Hero Play must restart the stopped selection');
         await page.locator('#open-player').click();
-        await page.locator('.now-footer button').click();
+        await page.locator('#now-playing [aria-label="Stop playback"]').click();
         await page.locator('#full-play-toggle').click();
         await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Pause');
         assert.equal(playRegistrations.length, 3, 'Expanded Play must also restart after Stop');
         await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
         assert.match(await page.locator('#audio-player').getAttribute('src'), /sample1/);
         // Stop clears the server track, then reload must recover from tab storage.
-        await page.locator('.now-footer button').click();
+        await page.locator('#now-playing [aria-label="Stop playback"]').click();
         await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Play');
         await page.reload();
         await page.locator('.love-skip').click();
