@@ -1870,13 +1870,11 @@ async function pollStatus() {
     // Native capability is fixed for this page/backend; /api/player is the
     // authoritative native state. Avoid a redundant status request every tick.
     const st = state.nativePlayback ? null : await api('GET', '/api/status');
-    if (st && st.native_playback === true) {
-      state.nativePlayback = true;
+    if (st && st.native_playback === true) state.nativePlayback = true;
+    if (state.nativePlayback) {
+      // Apply output UI even if capability was already known at page startup.
       document.getElementById('linux-speaker-settings').hidden = true;
       document.getElementById('android-output-note').hidden = false;
-
-    }
-    if (state.nativePlayback) {
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
       // Preparation may be rejecting one profile and trying the next. Only the
       // completed Play/Next transaction may publish a final error/success.
