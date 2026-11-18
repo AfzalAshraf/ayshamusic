@@ -627,7 +627,14 @@ mod tests {
         let dirs=TempManager::new("cancel-save",100,0);let c=&dirs.manager;
         let path=c.cached_path("abcdefghijk");c.enqueue("abcdefghijk",&path,"Song","Artist").unwrap();
         let item=c.take_next_pending().unwrap().unwrap();assert!(c.save_active(item.id).unwrap());
-        assert!(c.cancel_save(item.id).unwrap());assert!(!c.save_active(item.id).unwrap());
+        let signal=crate::archive_progress::begin(item.id);
+        crate::archive_progress::finalizing(c,item.id).unwrap();
+        assert!(crate::archive_progress::cancel(c,item.id).is_err());
+        crate::archive_progress::stage(item.id,"uploading",Some(100));
+        assert!(crate::archive_progress::cancel(c,item.id).unwrap());
+        assert!(!c.save_active(item.id).unwrap());
+        crate::archive_progress::clear(item.id);
+        drop(signal);
         c.mark_failed(item.id,"late error").unwrap();c.mark_done(item.id).unwrap();
         assert_eq!(c.queued_tracks().unwrap(),0);assert!(c.take_next_pending().unwrap().is_none());
         assert_eq!(c.sync_items().unwrap(),serde_json::json!([]));

@@ -59,6 +59,9 @@ jobs:
       - name: Portrait layout and browser navigation
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/mobile.browser.cjs
 
+      - name: Telegram dashboard, themes and seek fixtures (no live accounts)
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/sync-seek.browser.cjs
+
       - name: Generated Vercel static preview browser checks
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs
 
