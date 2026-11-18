@@ -130,7 +130,13 @@ jobs:
       - name: Enable emulator acceleration and generate AAC fixture
         run: |
           sudo chmod 666 /dev/kvm
-          sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y ffmpeg
+          # Hosted runners commonly already include ffmpeg. Do not stall all
+          # emulator validation on an unnecessary package-index refresh.
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+            sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y ffmpeg
+          fi
+          ffmpeg -hide_banner -version
           mkdir -p android-app/app/src/androidTest/assets
           ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart android-app/app/src/androidTest/assets/tone.m4a
           ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=330:duration=600' -c:a aac -b:a 96k -movflags +faststart android-app/app/src/androidTest/assets/long-tone.m4a
