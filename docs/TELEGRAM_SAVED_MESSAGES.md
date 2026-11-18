@@ -1,5 +1,11 @@
 # Telegram account and saved-song playback
 
+## Current build16 dashboard and cancellation
+
+[Build16 download and acceptance](BUILD16_SYNC_SEEK.md) supersedes delivery-time notes below. Settings shows real app-indexed Saved/Syncing/Failed counts, bounded queue metadata, measured download/uploader-read progress and current stage. Upload read progress is not server acknowledgement. Saved only follows confirmed message indexing. No channel needed.
+
+The user explicitly chose X = cancel this pending save, including active transfer where possible; never delete an existing Saved Message. Final message commit cannot be recalled; UI/API refuses cancellation then. Persistent cancelled status survives restarts, while deliberately selecting that song again can enqueue a fresh attempt. Automatic saving after skips remains the default unless that pending save is explicitly cancelled. Existing18/hour/12sgap/sequential/FloodWait protections remain; the quota is conservative app policy, not a Telegram-wide restriction. Existing-message reuse no longer consumes a new-upload quota slot. Phone acceptance for actual upload/progress/cancel is still pending.
+
 ## User-approved choices
 
 The user explicitly selected these options in this session:
