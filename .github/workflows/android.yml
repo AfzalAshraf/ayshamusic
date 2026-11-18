@@ -88,6 +88,17 @@ jobs:
           cat "$RUNNER_TEMP/phone-tests.log"
           cargo check --bin music-server --locked
 
+      - name: Generate offline emulator audio fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/emulator-media"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart "$RUNNER_TEMP/emulator-media/tone.m4a"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=330:duration=600' -c:a aac -b:a 96k -movflags +faststart "$RUNNER_TEMP/emulator-media/long-tone.m4a"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-emulator-audio-fixtures
+          path: ${{ runner.temp }}/emulator-media/*.m4a
+          retention-days: 3
+
       - name: Build Rust library + release APK
         run: |
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
@@ -117,6 +128,7 @@ jobs:
   # Routine CI remains provider-offline; new live work needs a reviewed gate.
 
   media3-emulator-fixture:
+    needs: build-apk
     # Actual Android decoder/control validation; no YouTube/account access and
     # no claim of complete Rust JNI/provider integration or physical audio.
     runs-on: ubuntu-24.04
@@ -127,19 +139,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Enable emulator acceleration and generate AAC fixture
-        run: |
-          sudo chmod 666 /dev/kvm
-          # Hosted runners commonly already include ffmpeg. Do not stall all
-          # emulator validation on an unnecessary package-index refresh.
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
-            sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y ffmpeg
-          fi
-          ffmpeg -hide_banner -version
-          mkdir -p android-app/app/src/androidTest/assets
-          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart android-app/app/src/androidTest/assets/tone.m4a
-          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=330:duration=600' -c:a aac -b:a 96k -movflags +faststart android-app/app/src/androidTest/assets/long-tone.m4a
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      # Reuse fixtures from the job whose toolchain/package setup is verified;
+      # Ubuntu 24 package mirrors have timed out before instrumentation starts.
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-emulator-audio-fixtures
+          path: android-app/app/src/androidTest/assets
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
