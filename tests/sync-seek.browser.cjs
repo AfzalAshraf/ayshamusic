@@ -55,15 +55,27 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
     // Drive the native range's actual input/change events; fixture checks request
     // identity/position, not ExoPlayer decoding (separate instrumentation test).
     await page.locator('#open-player').click();
-    for (const viewport of [{width:320,height:568},{width:390,height:640},{width:390,height:844},{width:844,height:390}]) {
-      await page.setViewportSize(viewport);
-      const stop=await page.locator('#now-playing [aria-label="Stop playback"]').boundingBox();
-      const play=await page.locator('#full-play-toggle').boundingBox();
-      assert.ok(stop && stop.y>=0 && stop.y+stop.height<=viewport.height,'Stop visible without scrolling '+JSON.stringify(viewport));
-      assert.ok(play && play.y>=0 && play.y+play.height<=viewport.height,'Play visible without scrolling');
-      assert.equal(await page.locator('#now-playing').evaluate(el=>el.scrollTop),0);
-      if(output && viewport.width===390 && viewport.height===844) await page.screenshot({path:path.join(output,'fitted-player.png')});
+    for (const theme of ['crimson','charcoal','aurora']) {
+      await page.evaluate(t=>setColorTheme(t,false),theme);
+      for (const viewport of [{width:320,height:568},{width:390,height:640},{width:390,height:844},{width:430,height:932},{width:844,height:390}]) {
+        await page.setViewportSize(viewport);
+        const stop=await page.locator('#now-playing [aria-label="Stop playback"]').boundingBox();
+        const play=await page.locator('#full-play-toggle').boundingBox();
+        assert.ok(stop && stop.y>=0 && stop.y+stop.height<=viewport.height,'Stop visible without scrolling '+theme+' '+JSON.stringify(viewport));
+        assert.ok(play && play.y>=0 && play.y+play.height<=viewport.height,'Play visible without scrolling');
+        assert.equal(await page.locator('#now-playing').evaluate(el=>el.scrollTop),0);
+        if (viewport.height>=640) {
+          const art=await page.locator('#full-art').boundingBox();
+          const time=await page.locator('#now-playing .now-time').boundingBox();
+          assert.ok(play.y-(art.y+art.height)<180,'Cover and Play stay grouped: '+theme+' '+JSON.stringify({viewport,art,play,time}));
+          assert.ok(play.y-(time.y+time.height)<=28,'No stretched gap after seek/time');
+          const footer=await page.locator('#now-playing .now-footer').boundingBox();
+          assert.ok(footer.y+footer.height<=viewport.height,'Dedication remains visible');
+        }
+        if(output && viewport.width===390 && viewport.height===844) await page.screenshot({path:path.join(output,'compact-player-'+theme+'.png')});
+      }
     }
+    await page.evaluate(()=>setColorTheme('charcoal',false));
     await page.setViewportSize({width:390,height:844});
     await page.locator('#full-seek').evaluate(input=>{input.value='750';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));});
     await page.waitForFunction(()=>!seekBusy);
