@@ -56,8 +56,8 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
     // Drive the native range's actual input/change events; fixture checks request
     // identity/position, not ExoPlayer decoding (separate instrumentation test).
     await page.locator('#open-player').click();
-    await page.locator('#full-shuffle').click();assert.deepEqual(modes,{shuffle:true,repeat:'off'});
-    await page.locator('#full-repeat').click();assert.deepEqual(modes,{shuffle:true,repeat:'all'});
+    await page.locator('#full-shuffle').click();await page.waitForFunction(()=>!playbackModesBusy && playbackModes.shuffle);assert.deepEqual(modes,{shuffle:true,repeat:'off'});
+    await page.locator('#full-repeat').click();await page.waitForFunction(()=>!playbackModesBusy && playbackModes.repeat==='all');assert.deepEqual(modes,{shuffle:true,repeat:'all'});
     assert.equal(await page.locator('#full-repeat').getAttribute('aria-label'),'Repeat all');
 
     for (const theme of ['crimson','charcoal','aurora']) {
@@ -81,13 +81,13 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
       }
     }
     await page.evaluate(()=>setColorTheme('charcoal',false));
-    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'one');
+    await page.locator('#full-repeat').click();await page.waitForFunction(()=>!playbackModesBusy && playbackModes.repeat==='one');assert.equal(modes.repeat,'one');
     assert.equal(await page.locator('#repeat-icon').getAttribute('href'),'/icons.svg#repeat-one');
-    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'off');
+    await page.locator('#full-repeat').click();await page.waitForFunction(()=>!playbackModesBusy && playbackModes.repeat==='off');assert.equal(modes.repeat,'off');
     rejectMode=true;await page.locator('#full-shuffle').click();
     await page.waitForFunction(()=>document.getElementById('full-action-status').textContent.includes('unchanged'));
     assert.equal(await page.locator('#full-shuffle').getAttribute('aria-pressed'),'true','failed save must not fake a changed setting');rejectMode=false;
-    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'all');
+    await page.locator('#full-repeat').click();await page.waitForFunction(()=>!playbackModesBusy && playbackModes.repeat==='all');assert.equal(modes.repeat,'all');
     assert.ok(modeWrites.length>=5);
 
     await page.setViewportSize({width:390,height:844});
