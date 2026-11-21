@@ -1,23 +1,30 @@
 # Launcher artwork
 
-`aysha-launcher.png` is the user's supplied image-9.png, cropped to its black/silver
-rounded-square icon (source rectangle 402,85–993,676), with only the surrounding
-cream background/cast shadow removed by a rounded alpha mask. No AI recreation.
-The logo, metallic A and AYSHA text are unchanged.
+## Current: Build20 romantic launcher
 
-Regenerate density/adaptive resources with Pillow installed:
+`romantic-launcher.png` is AI-generated rose-gold heart/A artwork inspired by the
+user's `IMG_6795.jpeg` reference. It replaces the earlier black/silver launcher at
+the user's explicit request. Full-bleed plum field, no tiny wordmark, centered
+emblem inside the adaptive safe area; legacy circle/squircle masks provided.
+The player Play icon and app theme colors are unchanged by launcher generation.
+
+Regenerate the checked-in density/adaptive resources:
 
 ```
 python3 android-app/tools/generate_launcher_icons.py
 ```
 
-Pillow is a development tool, not shipped in the APK. Legacy round icons and the
-adaptive foreground inset the complete artwork so Android launcher masks cannot
-cut off AYSHA. The player Play button, embedded SVG sprite, dedication and UI
-colors are not modified.
+Pillow is a development tool only, never bundled in the APK. The master is1024px,
+adaptive foreground512px, legacy variants48/72/96/144/192px. Background `#210817`.
 
-Build 11 keeps the existing package IDs ending rustaudio10/androidaudio10 and the
-same ports. The display names/version distinguish it from code10. CI preview APKs
-use ephemeral signing keys; an installed APK signed by another run may not accept
-an in-place update. Never uninstall an app with valuable local Telegram/session
-state merely to work around that without considering that app-private data loss.
+## Archived original
+
+`aysha-launcher.png` preserves the original user-supplied image-9 black/silver
+master, cropped to source rectangle402,85–993,676 with surrounding background
+removed. This is historical source, no longer the packaged Build20 icon.
+
+## Install continuity
+
+The package ID/port remain unchanged. Preview signing continuity has not been
+independently inspected. If Android rejects Update, do not uninstall or clear
+app data: that can lose the local Telegram session/settings.

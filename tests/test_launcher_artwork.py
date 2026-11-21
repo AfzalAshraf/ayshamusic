@@ -22,6 +22,9 @@ class LauncherArtworkTests(unittest.TestCase):
         self.assertEqual((width, height), (591, 591))
         self.assertEqual((depth, color), (8, 6))
 
+    def test_current_romantic_master_is_square_rgb(self):
+        self.assertEqual(png_header(ROOT / "android-app/artwork/romantic-launcher.png")[:4], (1024, 1024, 8, 2))
+
     def test_all_legacy_densities_are_real_pngs_with_alpha(self):
         for density, size in [("mdpi", 48), ("hdpi", 72), ("xhdpi", 96), ("xxhdpi", 144), ("xxxhdpi", 192)]:
             for name in ["ic_launcher", "ic_launcher_round"]:
