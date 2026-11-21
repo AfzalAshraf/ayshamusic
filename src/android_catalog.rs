@@ -34,8 +34,29 @@ pub struct Library {
     queue: Vec<Track>,
     history: Vec<Track>,
     liked: Vec<Track>,
+    cycle: Vec<Track>,
 }
 impl Library {
+    pub fn selected(&mut self,track:&Track) {
+        if !self.cycle.iter().any(|t|t.id==track.id) {if self.cycle.len()>=200{self.cycle.remove(0);}self.cycle.push(track.clone());}
+    }
+    fn cycle_next(&self,shuffle:bool,entropy:usize)->Option<Track> {
+        let candidates:Vec<_>=self.cycle.iter().filter(|t|self.current.as_ref().is_none_or(|c|c.id!=t.id)).collect();
+        if candidates.is_empty(){return self.current.clone();}
+        if shuffle {return Some((*candidates[crate::play_modes::pick_index(candidates.len(),true,entropy)]).clone());}
+        let index=self.current.as_ref().and_then(|c|self.cycle.iter().position(|t|t.id==c.id)).map(|i|(i+1)%self.cycle.len()).unwrap_or(0);
+        self.cycle.get(index).cloned()
+    }
+
+    fn candidate(&self,previous:bool,natural:bool,modes:crate::play_modes::Modes,entropy:usize)->(Option<Track>,bool,bool) {
+        let one=natural && modes.repeat==crate::play_modes::Repeat::One && !previous;
+        let queued=!previous && !one && !self.queue.is_empty();
+        let track=if previous {self.history.last().cloned()}
+            else if one {self.current.clone()}
+            else if queued {self.queue.get(crate::play_modes::pick_index(self.queue.len(),modes.shuffle,entropy)).cloned()}
+            else if modes.repeat==crate::play_modes::Repeat::All {self.cycle_next(modes.shuffle,entropy)} else {None};
+        (track,queued,one)
+    }
     pub fn remember(&mut self, track: Track) {
         if let Some(old) = &self.current {
             if old.id != track.id { self.history.push(old.clone()); }
@@ -46,6 +67,7 @@ impl Library {
 }
 pub struct PhoneState {
     pub library: Mutex<Library>,
+    pub modes: Mutex<crate::play_modes::Modes>,
     search_cache: AsyncMutex<Vec<(String,Instant,Vec<Track>)>>,
     pub mix: Mutex<crate::mix::Mix>,
     mix_slot: AsyncMutex<()>,
@@ -55,12 +77,13 @@ pub struct PhoneState {
 }
 pub type Phone = Arc<PhoneState>;
 pub fn new_state() -> Phone {
-    Arc::new(PhoneState { library: Mutex::new(Library::default()), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
+    Arc::new(PhoneState { modes:Mutex::new(crate::play_modes::Modes::open(modes_path().as_deref())),library: Mutex::new(Library::default()), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
 }
 pub fn routes() -> Router<crate::SharedCache> {
     Router::new()
         .route("/icons.svg", get(icons))
         .route("/api/search", get(search))
+        .route("/api/playback_modes", get(get_modes).post(set_modes))
         .route("/api/queue", get(queue))
         .route("/api/queue_add", post(queue_add))
         .route("/api/queue_clear", post(queue_clear))
@@ -72,6 +95,13 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/bt/status", get(bluetooth))
         .route("/api/recommendation/profile", get(profile_status))
         .route("/api/recommendation/reset", post(reset_learning))
+}
+fn modes_path()->Option<std::path::PathBuf>{crate::paths().map(|(files,_)|std::path::Path::new(files).join("playback-modes.json"))}
+async fn get_modes(Extension(state):Extension<Phone>)->Json<Value>{Json(json!(*state.modes.lock().unwrap()))}
+async fn set_modes(Extension(state):Extension<Phone>,Json(value):Json<crate::play_modes::Modes>)->(StatusCode,Json<Value>){
+    let mut modes=state.modes.lock().unwrap();
+    if value.save(modes_path().as_deref()).is_err(){return error(StatusCode::INTERNAL_SERVER_ERROR,"Playback settings could not be saved");}
+    *modes=value;(StatusCode::OK,Json(json!(value)))
 }
 async fn icons() -> impl axum::response::IntoResponse {
     ([(header::CONTENT_TYPE, "image/svg+xml; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], include_str!("icons.svg"))
@@ -154,12 +184,13 @@ async fn queue_add(Extension(state): Extension<Phone>, Json(track): Json<Track>)
     let mut library = state.library.lock().unwrap();
     if !library.queue.iter().any(|t| t.id == track.id) {
         if library.queue.len() >= 200 { return error(StatusCode::CONFLICT, "Queue is full"); }
+        library.selected(&track);
         library.queue.push(track);
     }
     (StatusCode::OK, Json(json!({"status":"ok"})))
 }
 async fn queue_clear(Extension(state): Extension<Phone>) -> Json<Value> {
-    state.library.lock().unwrap().queue.clear(); Json(json!({"status":"ok"}))
+    {let mut library=state.library.lock().unwrap();library.queue.clear();library.cycle.clear();if let Some(t)=library.current.clone(){library.selected(&t);}} Json(json!({"status":"ok"}))
 }
 async fn like(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (StatusCode, Json<Value>) {
     let Ok(track) = track.normalized() else { return error(StatusCode::BAD_REQUEST, "invalid_video_id"); };
@@ -222,18 +253,19 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
     }
     let navigation_ticket=*crate::PLAY_TICKET.lock().unwrap();
     crate::sample_listening(&state);
-    let (mut track, current, history, _liked) = {
-        let library = state.library.lock().unwrap();
-        (if previous { library.history.last().cloned() } else { library.queue.first().cloned() },
-         library.current.clone(), library.history.clone(), library.liked.clone())
+    let modes=*state.modes.lock().unwrap();
+    let entropy=crate::play_modes::entropy();
+    let (mut track,current,history,queued,repeat_one)={
+        let library=state.library.lock().unwrap();
+        let (track,queued,one)=library.candidate(previous,expected.is_some(),modes,entropy);
+        (track,library.current.clone(),library.history.clone(),queued,one)
     };
-    let old_current = current.clone();
-    let queued = track.is_some();
-    if !previous && track.is_none() {
-        let Some(current) = current else { return error(StatusCode::CONFLICT, "Play or queue a song first"); };
+    let old_current=current.clone();
+    if !previous && track.is_none() && modes.repeat!=crate::play_modes::Repeat::All && !repeat_one {
+        let Some(current)=current else{return error(StatusCode::CONFLICT,"Play or queue a song first");};
         if state.mix.lock().unwrap().seed.is_empty(){state.mix.lock().unwrap().reset(&current.id);}
-        if let Err(reason)=ensure_mix(&state).await {return error(StatusCode::BAD_GATEWAY,reason);}
-        track=state.mix.lock().unwrap().choose(&current,&history);
+        if let Err(reason)=ensure_mix(&state).await{return error(StatusCode::BAD_GATEWAY,reason);}
+        track=state.mix.lock().unwrap().choose_with_shuffle(&current,&history,modes.shuffle,entropy);
     }
     let Some(track) = track else { return error(StatusCode::CONFLICT, if previous { "No previous track" } else { "No fresh songs left in this mix. Play another romantic song to start a new mix." }); };
     if navigation_ticket!=*crate::PLAY_TICKET.lock().unwrap() {
@@ -242,9 +274,9 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
     let result = crate::play_audio(crate::PlayBody { video_id: track.id.clone(), client: None, track: Some(track.clone()) }).await;
     if result.0.is_success() {
         *state.autoplay_error.lock().unwrap()=None;
-        if !previous {
+        if !previous && !repeat_one {
             state.mix.lock().unwrap().consumed(&track);
-            if expected.is_none() {if let Some(old)=old_current {state.listening.lock().unwrap().skip(&old);}}
+            if expected.is_none() {if let Some(old)=old_current.filter(|old|old.id!=track.id) {state.listening.lock().unwrap().skip(&old);}}
         }
         let mut library = state.library.lock().unwrap();
         if previous {
@@ -252,7 +284,7 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
             if let Some(current) = library.current.take() { library.queue.insert(0, current); library.queue.truncate(200); }
             library.current = Some(track.clone());
         } else {
-            if queued && library.queue.first().is_some_and(|t| t.id == track.id) { library.queue.remove(0); }
+            if queued {if let Some(index)=library.queue.iter().position(|t|t.id==track.id){library.queue.remove(index);}}
             library.remember(track.clone());
         }
         drop(library);
@@ -268,6 +300,25 @@ async fn navigate_checked(state:Phone,previous:bool,expected:Option<u64>)->(Stat
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn repeat_one_only_natural_end_manual_next_skips_and_queue_survives_selection(){
+        use crate::play_modes::{Modes,Repeat};
+        let mut library=Library::default();let a=Track::from_id("abcdefghijk",None);let b=Track::from_id("nexttrack01",None);
+        library.selected(&a);library.remember(a.clone());library.selected(&b);library.queue.push(b.clone());
+        let modes=Modes{shuffle:false,repeat:Repeat::One};
+        let (t,queued,one)=library.candidate(false,true,modes,0);assert_eq!(t.unwrap().id,a.id);assert!(!queued && one);assert_eq!(library.queue.len(),1);
+        let (t,queued,one)=library.candidate(false,false,modes,0);assert_eq!(t.unwrap().id,b.id);assert!(queued && !one);
+    }
+    #[test] fn repeat_all_loops_only_selected_collection_shuffle_does_not_mutate_queue(){
+        use crate::play_modes::{Modes,Repeat};
+        let mut library=Library::default();let a=Track::from_id("abcdefghijk",None);let b=Track::from_id("nexttrack01",None);let c=Track::from_id("nexttrack02",None);
+        library.selected(&a);library.selected(&b);library.remember(b.clone());
+        assert_eq!(library.candidate(false,true,Modes{shuffle:false,repeat:Repeat::All},0).0.unwrap().id,a.id);
+        assert!(library.candidate(false,true,Modes::default(),0).0.is_none());
+        library.queue=vec![a.clone(),c.clone()];
+        assert_eq!(library.candidate(false,false,Modes{shuffle:true,repeat:Repeat::Off},1).0.unwrap().id,c.id);
+        assert_eq!(library.queue[0].id,a.id);assert_eq!(library.queue.len(),2);
+        library.history.push(a.clone());assert_eq!(library.candidate(true,true,Modes{shuffle:true,repeat:Repeat::One},1).0.unwrap().id,a.id);
+    }
     #[tokio::test] async fn overlapping_cached_search_waits_instead_of_local429() {
         let state=new_state();
         let mut guard=state.search_cache.lock().await;

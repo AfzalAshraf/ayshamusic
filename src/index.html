@@ -169,6 +169,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(max-height:650px){:root[data-theme="aurora"] #now-playing .now-art{width:min(100%,26dvh);max-height:26dvh;margin-bottom:10px}:root[data-theme="aurora"] #now-playing .now-title{font-size:21px}:root[data-theme="aurora"] #now-playing .now-header{padding-bottom:4px}:root[data-theme="aurora"] #now-playing .now-controls{margin-top:6px}}
 @media(prefers-reduced-motion:reduce){:root[data-theme="aurora"] #quick-picks{scroll-behavior:auto;scroll-snap-type:none}}
 
+.now-mode-controls{display:flex;align-items:center;justify-content:center;gap:14px;flex-shrink:0;margin:2px 0}.now-mode-controls[hidden],.mode-note[hidden]{display:none}.mode-button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:6px 12px;border:1px solid transparent;border-radius:24px;background:transparent;color:var(--sub);font-size:11px}.mode-button .app-icon{width:18px;height:18px}.mode-button[aria-pressed="true"]{color:var(--accent);background:#ffffff09;border-color:var(--border)}.mode-note{font-size:10px;line-height:1.4;text-align:center;color:var(--sub);flex-shrink:0;margin:0 0 4px;max-height:3em;overflow:auto}
 </style>
 </head>
 <body>
@@ -395,6 +396,11 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
     <button class="ctrl-btn favorite-toggle" id="full-favorite" onclick="toggleCurrentFavorite()" aria-label="Add to favorites" aria-pressed="false" title="Add to favorites" disabled><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg></button>
   </div>
+  <div class="now-mode-controls" id="playback-mode-controls" role="group" aria-label="Playback order" hidden>
+    <button class="mode-button" id="full-shuffle" onclick="toggleShuffle()" aria-label="Shuffle off" aria-pressed="false"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#shuffle"></use></svg><span id="shuffle-label">Shuffle off</span></button>
+    <button class="mode-button" id="full-repeat" onclick="cycleRepeat()" aria-label="Repeat off" aria-pressed="false"><svg class="app-icon" aria-hidden="true"><use id="repeat-icon" href="/icons.svg#repeat"></use></svg><span id="repeat-label">Repeat off</span></button>
+  </div>
+  <p class="mode-note" id="playback-mode-note" role="status" hidden></p>
   <p class="song-score" id="full-song-score"></p>
   <p class="full-action-status" id="full-action-status" role="status" aria-live="polite"></p>
   <section class="song-rating song-rating-inline" id="full-song-rating" aria-labelledby="full-song-rating-heading" hidden>
@@ -1794,6 +1800,37 @@ function formatClock(value) {
   return Math.floor(value / 60) + ':' + String(Math.floor(value % 60)).padStart(2, '0');
 }
 
+let playbackModes={shuffle:false,repeat:'off'};
+let playbackModesReady=false, playbackModesBusy=false, playbackModesRequested=false;
+function applyPlaybackModes(value) {
+  if (!value || typeof value.shuffle!=='boolean' || !['off','all','one'].includes(value.repeat)) return;
+  if (playbackModesReady && playbackModes.shuffle===value.shuffle && playbackModes.repeat===value.repeat) return;
+  playbackModes={shuffle:value.shuffle,repeat:value.repeat};playbackModesReady=true;
+  document.getElementById('playback-mode-controls').hidden=false;
+  const shuffle=document.getElementById('full-shuffle'),repeat=document.getElementById('full-repeat');
+  const shuffleLabel='Shuffle '+(value.shuffle?'on':'off'),repeatLabel='Repeat '+value.repeat;
+  shuffle.setAttribute('aria-pressed',String(value.shuffle));shuffle.setAttribute('aria-label',shuffleLabel);
+  repeat.setAttribute('aria-pressed',String(value.repeat!=='off'));repeat.setAttribute('aria-label',repeatLabel);
+  repeat.title=value.repeat==='all'?'Repeat selected songs and queue. Mix recommendations are not added.':value.repeat==='one'?'Repeat this song when it ends. Next still skips.':'Repeat off. Next continues your queue or mix.';
+  document.getElementById('shuffle-label').textContent=shuffleLabel;document.getElementById('repeat-label').textContent=repeatLabel;
+  document.getElementById('repeat-icon').setAttribute('href','/icons.svg#'+(value.repeat==='one'?'repeat-one':'repeat'));
+  const note=document.getElementById('playback-mode-note');note.hidden=value.repeat!=='all';note.textContent=value.repeat==='all'?'Loops your selected songs and queue. Clear queue resets this collection.':'';
+}
+async function discoverPlaybackModes() {
+  if (playbackModesRequested) return;playbackModesRequested=true;
+  try {applyPlaybackModes(await api('GET','/api/playback_modes'));}catch (_) { /* Older Linux/preview backend: do not show unsupported controls. */ }
+}
+async function savePlaybackModes(value) {
+  if (!playbackModesReady || playbackModesBusy) return;
+  playbackModesBusy=true;
+  for (const id of ['full-shuffle','full-repeat']) document.getElementById(id).disabled=true;
+  try {const result=await api('POST','/api/playback_modes',value);applyPlaybackModes(result);}
+  catch(error) {document.getElementById('full-action-status').textContent='Playback order unchanged: '+error.message;}
+  finally {playbackModesBusy=false;for (const id of ['full-shuffle','full-repeat']) document.getElementById(id).disabled=false;}
+}
+async function toggleShuffle(){return savePlaybackModes({...playbackModes,shuffle:!playbackModes.shuffle});}
+async function cycleRepeat(){return savePlaybackModes({...playbackModes,repeat:({off:'all',all:'one',one:'off'})[playbackModes.repeat]});}
+
 function syncNowPlaying() {
   const track = state.current_track;
   const audio = document.getElementById('audio-player');
@@ -1877,6 +1914,7 @@ async function pollStatus() {
       document.getElementById('linux-speaker-settings').hidden = true;
       document.getElementById('android-output-note').hidden = false;
       const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
+      if (!playbackModesBusy) {if (player.playback_modes) applyPlaybackModes(player.playback_modes);else discoverPlaybackModes();}
       // Preparation may be rejecting one profile and trying the next. Only the
       // completed Play/Next transaction may publish a final error/success.
       if (state.nativeStarting || navigationBusy) { syncNowPlaying(); return; }

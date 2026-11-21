@@ -16,7 +16,11 @@ impl Mix {
         self.tracks=tracks.into_iter().take(40).collect();self.fetched=Some(Instant::now());
     }
     pub fn choose(&self,current:&Track,history:&[Track])->Option<Track> {
-        self.tracks.iter().find(|t|!same_song(current,t)&&!history.iter().rev().take(50).any(|old|same_song(old,t))).cloned()
+        self.choose_with_shuffle(current,history,false,0)
+    }
+    pub fn choose_with_shuffle(&self,current:&Track,history:&[Track],shuffle:bool,entropy:usize)->Option<Track> {
+        let candidates:Vec<_>=self.tracks.iter().filter(|t|!same_song(current,t)&&!history.iter().rev().take(50).any(|old|same_song(old,t))).collect();
+        candidates.get(crate::play_modes::pick_index(candidates.len(),shuffle,entropy)).map(|t|(**t).clone())
     }
     pub fn consumed(&mut self,track:&Track) {self.tracks.retain(|t|!same_song(t,track));}
 }
@@ -31,6 +35,12 @@ impl Mix {
         assert_eq!(m.choose(&current,&[old]).unwrap().id,"nexttrack01");
         let next=m.choose(&current,&[]).unwrap();m.consumed(&next);
         assert!(!m.tracks.iter().any(|t|t.id==next.id));
+    }
+    #[test] fn shuffle_chooses_only_fresh_provider_candidates(){
+        let mut mix=Mix::default();let current=t("abcdefghijk","Song A");let old=t("history0001","Song B");
+        mix.fill(0,vec![current.clone(),old.clone(),t("nexttrack01","Song C"),t("nexttrack02","Song D")]);
+        assert_eq!(mix.choose_with_shuffle(&current,&[old.clone()],true,0).unwrap().id,"nexttrack01");
+        assert_eq!(mix.choose_with_shuffle(&current,&[old],true,1).unwrap().id,"nexttrack02");
     }
     #[test] fn stale_prefetch_cannot_replace_new_seed_and_empty_mix_is_not_replay() {
         let mut m=Mix::default();m.reset("oldseed0001");let old=m.generation;

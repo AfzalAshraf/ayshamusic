@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 19/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 20/);
 });
 
 
@@ -122,8 +122,8 @@ test('Media3 is the only delivered Android flavor; Rust still owns source and id
   assert.doesNotMatch(build, /for VARIANT in rustAudio/);
 });
 
-test('supplied black and silver Aysha launcher supports adaptive and legacy icons without recoloring Play', () => {
-  assert.match(read('android-app/app/src/main/res/values/colors.xml'), /#12161B/);
+test('romantic rose-gold Aysha launcher supports adaptive and legacy icons without recoloring Play', () => {
+  assert.match(read('android-app/app/src/main/res/values/colors.xml'), /#210817/);
   for (const icon of ['ic_launcher', 'ic_launcher_round']) {
     const xml = read(`android-app/app/src/main/res/mipmap-anydpi-v26/${icon}.xml`);
     assert.match(xml, /adaptive-icon/);

@@ -9,6 +9,7 @@
 mod android_catalog;
 mod recommendations;
 mod mix;
+mod play_modes;
 mod listening;
 mod range_media;
 mod pcm_stream;
@@ -424,7 +425,7 @@ async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): J
         if let Some(track)=old.filter(|t|t.id!=id) {phone.listening.lock().unwrap().skip(&track);}
         let title=result.1.0["title"].as_str().map(str::to_owned);
         let track=supplied.filter(|t|t.id==id).and_then(|t|t.normalized().ok()).unwrap_or_else(||android_catalog::Track::from_id(&id,title));
-        phone.library.lock().unwrap().remember(track.clone());
+        {let mut library=phone.library.lock().unwrap();library.selected(&track);library.remember(track.clone());}
         android_catalog::start_mix(phone.clone(), &track.id);
         phone.listening.lock().unwrap().flush();
     }
@@ -967,6 +968,7 @@ async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> J
     };
     result.0["track"]=json!(phone.library.lock().unwrap().current);
     result.0["autoplay_error"]=json!(phone.autoplay_error.lock().unwrap().clone());
+    result.0["playback_modes"]=json!(*phone.modes.lock().unwrap());
     result
 }
 
@@ -1242,6 +1244,16 @@ mod api_tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = json_body(response).await;
         assert_eq!(body["error"], "invalid_video_id");
+    }
+
+    #[tokio::test]
+    async fn playback_modes_are_validated_and_roundtrip_without_opening_audio() {
+        let app=router(Arc::new(None));
+        let body=r#"{"shuffle":true,"repeat":"one"}"#;
+        let response=app.clone().oneshot(post("/api/playback_modes",body)).await.unwrap();assert_eq!(response.status(),StatusCode::OK);
+        let request=axum::http::Request::builder().uri("/api/playback_modes").body(Body::empty()).unwrap();
+        assert_eq!(json_body(app.clone().oneshot(request).await.unwrap()).await,json!({"shuffle":true,"repeat":"one"}));
+        let bad=app.clone().oneshot(post("/api/playback_modes",r#"{"shuffle":true,"repeat":"invalid"}"#)).await.unwrap();assert_eq!(bad.status(),StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     #[tokio::test]

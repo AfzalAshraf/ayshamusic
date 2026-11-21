@@ -11,7 +11,7 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
   try {
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    let cancelled=false;const seeks=[];
+    let cancelled=false;const seeks=[];let modes={shuffle:false,repeat:'off'};let rejectMode=false;const modeWrites=[];
     const track={id:'abcdefghijk',title:'Fixture romantic melody',artist:'Fixture artist',thumbnail:'https://img.youtube.com/vi/abcdefghijk/default.jpg'};
     await page.route('**/*',async route=>{
       const url=new URL(route.request().url());
@@ -20,7 +20,8 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
       if(url.pathname==='/icons.svg')return route.fulfill({contentType:'image/svg+xml',body:icons});
       let data={status:'ok'};
       if(url.pathname==='/api/status')data={native_playback:true,audio_engine:'media3'};
-      else if(url.pathname==='/api/player')data={state:'paused',position_secs:20,duration_secs:200,video_id:track.id,track};
+      else if(url.pathname==='/api/player')data={state:'paused',position_secs:20,duration_secs:200,video_id:track.id,track,playback_modes:modes};
+      else if(url.pathname==='/api/playback_modes'){if(route.request().method()==='POST'){if(rejectMode)return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({status:'failed',error:'fixture save failed'})});modes=route.request().postDataJSON();modeWrites.push(modes);}data=modes;}
       else if(url.pathname==='/api/tg/configuration')data={configured:true,saved:true,api_id:12345};
       else if(url.pathname==='/api/tg/status')data={configured:true,authorized:true,saved_tracks:3,failed_tracks:0,wait_seconds:0,quota:{queued_tracks:cancelled?1:2,max_per_window:18},items:[...(!cancelled?[{id:1,video_id:'abcdefghijk',title:'Fixture uploading song',artist:'Artist one',status:'uploading'}]:[]),{id:2,video_id:'nexttrack01',title:'Fixture waiting song',artist:'Artist two',status:'pending'}],active:cancelled?null:{id:1,stage:'uploading',bytes:40,total:100}};
       else if(url.pathname==='/api/tg/cancel'){assert.equal(route.request().postDataJSON().id,1);cancelled=true;data={status:'ok',cancelled:true};}
@@ -55,6 +56,10 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
     // Drive the native range's actual input/change events; fixture checks request
     // identity/position, not ExoPlayer decoding (separate instrumentation test).
     await page.locator('#open-player').click();
+    await page.locator('#full-shuffle').click();assert.deepEqual(modes,{shuffle:true,repeat:'off'});
+    await page.locator('#full-repeat').click();assert.deepEqual(modes,{shuffle:true,repeat:'all'});
+    assert.equal(await page.locator('#full-repeat').getAttribute('aria-label'),'Repeat all');
+
     for (const theme of ['crimson','charcoal','aurora']) {
       await page.evaluate(t=>setColorTheme(t,false),theme);
       for (const viewport of [{width:320,height:568},{width:390,height:640},{width:390,height:844},{width:430,height:932},{width:844,height:390}]) {
@@ -76,6 +81,15 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
       }
     }
     await page.evaluate(()=>setColorTheme('charcoal',false));
+    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'one');
+    assert.equal(await page.locator('#repeat-icon').getAttribute('href'),'/icons.svg#repeat-one');
+    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'off');
+    rejectMode=true;await page.locator('#full-shuffle').click();
+    await page.waitForFunction(()=>document.getElementById('full-action-status').textContent.includes('unchanged'));
+    assert.equal(await page.locator('#full-shuffle').getAttribute('aria-pressed'),'true','failed save must not fake a changed setting');rejectMode=false;
+    await page.locator('#full-repeat').click();assert.equal(modes.repeat,'all');
+    assert.ok(modeWrites.length>=5);
+
     await page.setViewportSize({width:390,height:844});
     await page.locator('#full-seek').evaluate(input=>{input.value='750';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));});
     await page.waitForFunction(()=>!seekBusy);
@@ -91,8 +105,9 @@ const icons=fs.readFileSync(path.join(__dirname,'../src/icons.svg'),'utf8');
     assert.equal(await page.locator('#shared-video-dialog').isVisible(),false);
     await page.reload();await page.locator('.love-skip').click();
     assert.equal(await page.locator('html').getAttribute('data-theme'),'charcoal');
+    await page.waitForFunction(()=>playbackModesReady);assert.deepEqual(await page.evaluate(()=>playbackModes),{shuffle:true,repeat:'all'});
     assert.deepEqual(errors,[]);
-    console.log('PASS Telegram dashboard fixtures: live counters/stages, cancellation, crimson/charcoal at320/390/844, persisted theme, native seek request, no Test button/JS errors');
+    console.log('PASS Telegram dashboard fixtures: live counters/stages, cancellation, crimson/charcoal at320/390/844, persisted theme and shuffle/repeat modes, save failure, compact mode controls, native seek request, no Test button/JS errors');
     await context.close();
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

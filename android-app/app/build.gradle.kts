@@ -18,8 +18,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 19
-        versionName = "1.7.1"
+        versionCode = 20
+        versionName = "1.8.0"
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
