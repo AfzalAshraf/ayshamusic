@@ -1,4 +1,4 @@
-"""Check supplied launcher PNG resources without build-time Pillow dependency."""
+"""Check launcher PNG resources without build-time Pillow dependency."""
 from pathlib import Path
 import struct
 import unittest
@@ -17,7 +17,7 @@ def png_header(path):
 
 
 class LauncherArtworkTests(unittest.TestCase):
-    def test_user_master_is_rgba_and_cropped_square(self):
+    def test_archived_original_master_is_rgba_and_cropped_square(self):
         width, height, depth, color, *_ = png_header(ROOT / "android-app/artwork/aysha-launcher.png")
         self.assertEqual((width, height), (591, 591))
         self.assertEqual((depth, color), (8, 6))
@@ -30,14 +30,14 @@ class LauncherArtworkTests(unittest.TestCase):
                     self.assertEqual(header[:4], (size, size, 8, 6))
 
     def test_adaptive_launchers_reference_supplied_raster_and_dark_background(self):
-        self.assertEqual(png_header(RES / "drawable-nodpi/ic_launcher_artwork.png")[:4], (432, 432, 8, 6))
+        self.assertEqual(png_header(RES / "drawable-nodpi/ic_launcher_artwork.png")[:4], (512, 512, 8, 2))
         for name in ["ic_launcher", "ic_launcher_round"]:
             icon = ET.parse(RES / f"mipmap-anydpi-v26/{name}.xml").getroot()
             self.assertEqual(icon.tag, "adaptive-icon")
             self.assertEqual(icon.find("foreground").attrib[ANDROID + "drawable"], "@drawable/ic_launcher_artwork")
             self.assertEqual(icon.find("background").attrib[ANDROID + "drawable"], "@color/launcher_background")
         colors = {c.attrib["name"]: c.text for c in ET.parse(RES / "values/colors.xml").getroot()}
-        self.assertEqual(colors["launcher_background"], "#12161B")
+        self.assertEqual(colors["launcher_background"], "#210817")
         self.assertFalse((RES / "drawable/ic_launcher_foreground.xml").exists())
 
 
