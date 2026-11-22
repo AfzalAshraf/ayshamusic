@@ -93,7 +93,7 @@ class Media3PlaybackTest {
     }
 
     @Test fun seekForwardAndBackwardWhilePausedThenResume() {
-        server.data = InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { it.readBytes() }
+        server.data = loadLongTone()
         command("play", 0, autoplay = false)
         awaitEvent { it.optBoolean("ready") && it.optString("state") == "paused" }
         PlatformAudio.command(JSONObject().put("op","seek").put("token",token).put("revision",1).put("position",400.0).toString())
@@ -105,7 +105,7 @@ class Media3PlaybackTest {
     }
 
     @Test fun tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed() {
-        server.data = InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { it.readBytes() }
+        server.data = loadLongTone()
         command("play", 0)
         val ready = awaitEvent { it.optBoolean("ready") && it.optDouble("duration") > 590.0 }
         assertTrue(ready.optDouble("duration") < 610.0)
@@ -128,6 +128,16 @@ class Media3PlaybackTest {
         command("play", 0)
         awaitEvent(30000) { it.optString("state") == "playing" && it.optDouble("position") >= 3.0 }
         awaitEvent(20000) { it.optString("state") == "ended" }
+    }
+
+    private fun loadLongTone():ByteArray {
+        // AssetInputStream.available() is the uncompressed size. Read directly
+        // into one allocation rather than readBytes() growing/copying buffers.
+        InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { input ->
+            val bytes=ByteArray(input.available());var pos=0
+            while(pos<bytes.size){val n=input.read(bytes,pos,bytes.size-pos);check(n>0);pos+=n}
+            check(input.read()==-1);return bytes
+        }
     }
 
     private class FixtureServer(@Volatile var data: ByteArray) : Closeable {
@@ -189,22 +199,22 @@ class Media3PlaybackTest {
                     val end = (range?.getOrNull(1)?.toIntOrNull() ?: data.lastIndex).coerceAtMost(data.lastIndex)
                     if (start !in data.indices || end < start) { reply(connection, 416, ByteArray(0)); return }
                     val extra = if (range != null) "Content-Range: bytes $start-$end/${data.size}\r\n" else ""
-                    reply(connection, if (range != null) 206 else 200, data.copyOfRange(start, end + 1), "audio/mp4", extra, first[0] != "HEAD")
+                    reply(connection, if (range != null) 206 else 200, data, "audio/mp4", extra, first[0] != "HEAD", start, end - start + 1)
                 }
                 else -> reply(connection, 404, ByteArray(0))
             }
         }
-        private fun reply(socket: Socket, status: Int, body: ByteArray, type: String = "text/plain", extra: String = "", sendBody: Boolean = true) {
+        private fun reply(socket: Socket, status: Int, body: ByteArray, type: String = "text/plain", extra: String = "", sendBody: Boolean = true, start: Int = 0, count: Int = body.size) {
             val output = socket.getOutputStream()
-            output.write(("HTTP/1.1 $status Fixture\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nAccept-Ranges: bytes\r\n${extra}Connection: close\r\n\r\n").toByteArray())
+            output.write(("HTTP/1.1 $status Fixture\r\nContent-Type: $type\r\nContent-Length: $count\r\nAccept-Ranges: bytes\r\n${extra}Connection: close\r\n\r\n").toByteArray())
             if (sendBody) {
-                if (type == "audio/mp4" && gapMillis > 0 && body.size > 16384) {
-                    output.write(body, 0, 16384)
+                if (type == "audio/mp4" && gapMillis > 0 && count > 16384) {
+                    output.write(body, start, 16384)
                     output.flush()
                     Thread.sleep(gapMillis)
-                    output.write(body, 16384, body.size - 16384)
-                } else output.write(body)
-                if (type == "audio/mp4") mediaBytes.addAndGet(body.size)
+                    output.write(body, start + 16384, count - 16384)
+                } else output.write(body, start, count)
+                if (type == "audio/mp4") mediaBytes.addAndGet(count)
             }
             output.flush()
         }
