@@ -116,6 +116,10 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
+                    if (request.url.scheme == "aysha" && request.url.host == "app") {
+                        if (request.isForMainFrame && trustedSettingsPage(view) && request.url.query == null && request.url.fragment == null) handleAppAction(request.url.path.orEmpty())
+                        return true
+                    }
                     if (request.url.scheme == "aysha" && request.url.host == "retry") {
                         loadServerUrl()
                         return true
@@ -136,7 +140,13 @@ class MainActivity : AppCompatActivity() {
                 override fun onPageFinished(view: WebView, url: String) {
                     val uri = Uri.parse(url)
                     localPageReady = uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && uri.path == "/" && MediaApi.isBackendVerified()
-                    if (localPageReady) deliverShare()
+                    if (localPageReady) {
+                        deliverShare()
+                        AppUpdater.initialize(applicationContext)
+                        AppUpdater.listener={if (!destroyed) publishAppSettings()}
+                        publishAppSettings()
+                        AppUpdater.automatic()
+                    }
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest?, error: android.webkit.WebResourceError) {
@@ -238,6 +248,55 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private fun trustedSettingsPage(view:WebView):Boolean {
+        val uri=Uri.parse(view.url ?: return false)
+        return localPageReady && MediaApi.isBackendVerified() && uri.scheme=="http" && uri.host=="127.0.0.1" && uri.port==BuildConfig.API_PORT && uri.path=="/" && uri.query==null
+    }
+
+    private fun publishAppSettings() {
+        val view=webView ?: return
+        if(!trustedSettingsPage(view))return
+        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("updates",AppUpdater.state())
+        view.evaluateJavascript("if(window.renderNativeAppSettings)renderNativeAppSettings("+value.toString()+")",null)
+    }
+
+    private fun handleAppAction(path:String) {
+        when(path){
+            "/icons" -> showIconPicker()
+            "/check-update" -> AppUpdater.check()
+            "/toggle-updates" -> AppUpdater.toggle()
+            "/install-update" -> AppUpdater.install(this)
+            "/download-update" -> {
+                if(AppUpdater.wifi())AppUpdater.download()
+                else android.app.AlertDialog.Builder(this).setTitle("Download update?").setMessage("This connection may use mobile data. Download the verified update now?").setNegativeButton("Cancel",null).setPositiveButton("Download"){_,_->AppUpdater.download()}.show()
+            }
+        }
+    }
+
+    private fun showIconPicker() {
+        val selected=AppIcons.choices.indexOfFirst{it.id==AppIcons.current(this)}
+        val adapter=object:android.widget.ArrayAdapter<String>(this,android.R.layout.simple_list_item_single_choice,AppIcons.choices.map{it.title}) {
+            override fun getView(position:Int,convertView:View?,parent:android.view.ViewGroup):View {
+                val text=super.getView(position,convertView,parent) as android.widget.TextView
+                val drawable=androidx.core.content.ContextCompat.getDrawable(this@MainActivity,AppIcons.choices[position].preview)
+                val size=(52*resources.displayMetrics.density).toInt();drawable?.setBounds(0,0,size,size)
+                text.setCompoundDrawables(drawable,null,null,null);text.compoundDrawablePadding=(16*resources.displayMetrics.density).toInt()
+                text.minHeight=(76*resources.displayMetrics.density).toInt();return text
+            }
+        }
+        android.app.AlertDialog.Builder(this).setTitle("Choose Aysha’s app icon")
+            .setSingleChoiceItems(adapter,selected){dialog,which->
+                try{AppIcons.select(this,AppIcons.choices[which].id);publishAppSettings();android.widget.Toast.makeText(this,"Icon changed. Your launcher may take a moment to refresh.",android.widget.Toast.LENGTH_LONG).show()}
+                catch(_:Exception){android.widget.Toast.makeText(this,"This launcher could not change the icon. No app data was changed.",android.widget.Toast.LENGTH_LONG).show()}
+                dialog.dismiss()
+            }.setNegativeButton("Close",null).show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if(localPageReady){publishAppSettings();AppUpdater.automatic()}
+    }
+
     private fun acceptShare(incoming: Intent?) {
         if (incoming?.action != Intent.ACTION_SEND || incoming.type != "text/plain") return
         val id = SharedYoutubeLink.videoId(incoming.getStringExtra(Intent.EXTRA_TEXT))
@@ -266,6 +325,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         destroyed = true
+        AppUpdater.listener=null
         // Clean up WebView
         webView?.apply {
             stopLoading()

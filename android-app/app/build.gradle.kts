@@ -18,8 +18,14 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 20
-        versionName = "1.8.0"
+        versionCode = 21
+        versionName = "1.9.0"
+        System.getenv("AYSHA_VERSION_CODE")?.let { value ->
+            val code=value.toInt()
+            require(code in 21..2_100_000_000)
+            versionCode=code
+            versionName="1.9.0.$code"
+        }
 
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
@@ -40,7 +46,7 @@ android {
 
     // Must be declared before buildTypes so the release type can reference it.
     // When KEYSTORE_PATH is unset/missing, the config stays empty and the release
-    // build falls back to the debug signing config below instead of failing.
+    // only explicitly labelled preview builds may use debug signing.
     signingConfigs {
         create("release") {
             val keystorePath = System.getenv("KEYSTORE_PATH")
