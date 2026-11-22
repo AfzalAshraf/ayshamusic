@@ -2931,3 +2931,13 @@ NativeMedia3seek validates currentID/duration/finitebounds/state; command token+
 
 **APKZIP:** https://github.com/AfzalAshraf/ayshamusic/actions/runs/44317291462/artifacts/14432927990
 4,995,978B / ZIPdigest398b8e84dde0c8f7654086af4f04ac472132c9af3ba3bbe2ed001f047af08dd9. Artifactmetadata not innerAPKhash/signature inspection; no repeated disallowed blobdownload attempt. Emulatorreportartifact14433282386/24,589B/digest6e7604608fa385053e6315bc97de077d166929ad7cb96566e89c449765e26c4b. Versioncode16/1.5.0-preview/samepackage17652/launcherAyshaMusic. No blind uninstall. Manifest docs/BUILD16_SYNC_SEEK.md. PhysicalrealTelegramupload/cancel/seek/background/RAM/battery still need acceptance; no new liveproviderprobe and all prior allowances remainsealed. Actiondeprecationwarnings inherited, no failed finaljob. User-reportedfastbuild15 is baseline evidence, not a measured newthroughput claim.
+
+## Main reconciliation for icon picker/update work
+
+Merged origin/main8c49188 into the Arena branch. Kept the newer version20,
+provider-offline Android verification and current source policy. Old main's
+Invidious/IP-substitution fallback and its old public-publishing/debug-signing
+workflow were not reintroduced: they conflict with the approved standalone,
+no-helper and stop-on-challenge constraints. Historical claims remain in that
+commit's history, not as new validation of this build. New publishing is gated
+on stable signing configuration and successful release checks.
