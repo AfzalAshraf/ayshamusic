@@ -93,7 +93,7 @@ class Media3PlaybackTest {
     }
 
     @Test fun seekForwardAndBackwardWhilePausedThenResume() {
-        server.data = loadLongTone()
+        server.longTone = true
         command("play", 0, autoplay = false)
         awaitEvent { it.optBoolean("ready") && it.optString("state") == "paused" }
         PlatformAudio.command(JSONObject().put("op","seek").put("token",token).put("revision",1).put("position",400.0).toString())
@@ -105,7 +105,7 @@ class Media3PlaybackTest {
     }
 
     @Test fun tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed() {
-        server.data = loadLongTone()
+        server.longTone = true
         command("play", 0)
         val ready = awaitEvent { it.optBoolean("ready") && it.optDouble("duration") > 590.0 }
         assertTrue(ready.optDouble("duration") < 610.0)
@@ -120,7 +120,7 @@ class Media3PlaybackTest {
         awaitEvent(100000) { it.optString("state") == "playing" && it.optDouble("position") > 300.0 }
         val ended = awaitEvent(100000) { it.optString("state") == "ended" }
         assertTrue(ended.optDouble("position") > 590.0)
-        assertTrue("Whole long file must actually cross the fixture socket", server.mediaBytes.get() >= server.data.size)
+        assertTrue("Whole long file must actually cross the fixture socket", server.mediaBytes.get() >= server.mediaSize())
     }
 
     @Test fun tenSecondSourceGapDoesNotTripTheDefaultEightSecondReadTimeout() {
@@ -130,17 +130,9 @@ class Media3PlaybackTest {
         awaitEvent(20000) { it.optString("state") == "ended" }
     }
 
-    private fun loadLongTone():ByteArray {
-        // AssetInputStream.available() is the uncompressed size. Read directly
-        // into one allocation rather than readBytes() growing/copying buffers.
-        InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { input ->
-            val bytes=ByteArray(input.available());var pos=0
-            while(pos<bytes.size){val n=input.read(bytes,pos,bytes.size-pos);check(n>0);pos+=n}
-            check(input.read()==-1);return bytes
-        }
-    }
-
     private class FixtureServer(@Volatile var data: ByteArray) : Closeable {
+        @Volatile var longTone = false
+        fun mediaSize():Int = if(longTone) InstrumentationRegistry.getInstrumentation().context.assets.openFd("long-tone.m4a").use{it.length.toInt()} else data.size
         val events = ArrayBlockingQueue<JSONObject>(256)
         val mediaRequests = AtomicInteger()
         val mediaBytes = AtomicInteger()
@@ -196,13 +188,27 @@ class Media3PlaybackTest {
                     if (rejectMedia) { reply(connection, 403, ByteArray(0)); return }
                     val range = headers["range"]?.removePrefix("bytes=")?.split('-')
                     val start = range?.getOrNull(0)?.toIntOrNull() ?: 0
-                    val end = (range?.getOrNull(1)?.toIntOrNull() ?: data.lastIndex).coerceAtMost(data.lastIndex)
-                    if (start !in data.indices || end < start) { reply(connection, 416, ByteArray(0)); return }
-                    val extra = if (range != null) "Content-Range: bytes $start-$end/${data.size}\r\n" else ""
-                    reply(connection, if (range != null) 206 else 200, data, "audio/mp4", extra, first[0] != "HEAD", start, end - start + 1)
+                    val size=mediaSize()
+                    val end = (range?.getOrNull(1)?.toIntOrNull() ?: size-1).coerceAtMost(size-1)
+                    if (start !in 0 until size || end < start) { reply(connection, 416, ByteArray(0)); return }
+                    val extra = if (range != null) "Content-Range: bytes $start-$end/$size\r\n" else ""
+                    if(longTone) replyLong(connection,if(range!=null)206 else 200,start,end-start+1,extra,first[0]!="HEAD")
+                    else reply(connection, if (range != null) 206 else 200, data, "audio/mp4", extra, first[0] != "HEAD", start, end - start + 1)
                 }
                 else -> reply(connection, 404, ByteArray(0))
             }
+        }
+        // Stream the long offline asset with a bounded buffer; holding multiple
+        // full 7 MB copies exceeded the emulator's 16 MB per-process heap.
+        private fun replyLong(socket:Socket,status:Int,start:Int,count:Int,extra:String,sendBody:Boolean) {
+            val output=socket.getOutputStream()
+            output.write(("HTTP/1.1 $status Fixture\r\nContent-Type: audio/mp4\r\nContent-Length: $count\r\nAccept-Ranges: bytes\r\n${extra}Connection: close\r\n\r\n").toByteArray())
+            if(sendBody) InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use { input ->
+                var skipped=0L;while(skipped<start){val n=input.skip(start-skipped);check(n>0);skipped+=n}
+                val buffer=ByteArray(16384);var remaining=count
+                while(remaining>0){val n=input.read(buffer,0,minOf(buffer.size,remaining));check(n>0);output.write(buffer,0,n);remaining-=n;mediaBytes.addAndGet(n)}
+            }
+            output.flush()
         }
         private fun reply(socket: Socket, status: Int, body: ByteArray, type: String = "text/plain", extra: String = "", sendBody: Boolean = true, start: Int = 0, count: Int = body.size) {
             val output = socket.getOutputStream()
