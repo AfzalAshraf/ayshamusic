@@ -25,7 +25,8 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px 16px}.song-card{display:flex;align-items:center;gap:12px;min-width:0;padding:10px 6px;border-radius:12px;cursor:pointer;background:transparent;transition:background .15s;position:relative}.song-card:hover,.song-card:focus-within{background:#ffffff08}.card-thumb{width:56px;height:56px;object-fit:cover;border-radius:9px;flex-shrink:0;background:var(--raised)}.card-info{min-width:0;flex:1}.card-title{font-size:14px;line-height:1.4;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-artist{font-size:12px;color:var(--sub);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-action,.card-heart{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--sub);flex-shrink:0}.card-action:hover,.card-heart:hover{background:#ffffff0c;color:#fff}.card-heart.liked{color:var(--liked)}.card-heart.liked .app-icon{fill:currentColor}.card-action svg,.card-heart svg{width:19px;height:19px}.card-play{display:none}.card-queue{display:none}.song-card:hover .card-queue,.song-card:focus-within .card-queue{display:grid}.chips-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 0 12px;margin-bottom:12px}.chips-row::-webkit-scrollbar{display:none}.chip{min-height:44px;padding:10px 18px;border-radius:12px;background:var(--raised);border:1px solid var(--border);color:var(--text);white-space:nowrap;font-size:12px;font-weight:600}.chip.active{background:var(--text);color:#19181c}.chip:hover{border-color:#777}
 .player-bar{position:fixed;left:208px;right:0;bottom:0;height:88px;border-top:1px solid var(--border);background:#19191cf5;backdrop-filter:blur(20px);z-index:30}.progress-container{height:3px;background:#ffffff10}.progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s linear}.player-content{height:calc(100% - 3px);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 28px}.player-left{display:flex;align-items:center;gap:12px;min-width:0;width:32%;background:transparent;text-align:left;border-radius:8px;min-height:44px}.np-art{width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--raised);flex-shrink:0}.player-text{min-width:0}.np-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.np-artist{font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.player-center{display:flex;align-items:center;gap:8px;flex-shrink:0}.ctrl-btn{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:transparent;color:var(--text);flex-shrink:0}.ctrl-btn:hover{background:#ffffff0c}.play-main{background:var(--text);color:#121214;width:44px;height:44px}.play-main:hover{background:#ddd}.player-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:24%}.vol-box input{accent-color:var(--accent);width:92px;min-height:44px;background:transparent}.time-str{font-size:10px;font-variant-numeric:tabular-nums;color:var(--sub);max-width:115px}.footer{max-width:1180px;margin:36px auto 0;padding:24px 0;border-top:1px solid var(--border);color:var(--dim);font-size:11px;letter-spacing:.2px}
 .bt-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;background:var(--panel);border:1px solid var(--border);border-radius:16px;margin:16px 0}.bt-card small{display:block;color:var(--sub);margin-top:6px;overflow-wrap:anywhere}.liked-count{color:var(--sub);font-size:14px;margin-left:6px}.empty-msg{color:var(--sub);padding:28px 12px;font-size:13px;background:var(--panel);border-radius:12px;grid-column:1/-1}.app-message{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:80;background:#30272d;color:#f4e5ea;border:1px solid #805360;border-radius:12px;padding:12px 18px;font-size:13px;max-width:min(90vw,520px);box-shadow:0 12px 40px #0008}.app-message:empty{display:none}.skeleton-card{height:76px;border-radius:12px;background:linear-gradient(100deg,#19191c 30%,#252529 50%,#19191c 70%);background-size:200% 100%;animation:shimmer 1.5s infinite}@keyframes shimmer{to{background-position:-200% 0}}
-.now-dialog{inset:0;margin:auto;width:480px;max-width:100%;height:min(90dvh,820px);max-height:100dvh;padding:24px 30px;border:1px solid var(--border);border-radius:24px;color:var(--text);background:radial-gradient(ellipse at 50% 0,#4c2b38,transparent 75%),#161317;overflow:auto}.now-dialog::backdrop{background:#000b;backdrop-filter:blur(12px)}.now-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.now-header p{text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#c3b2bc}.now-header strong{display:block;color:#fff;font-size:12px;text-transform:none;letter-spacing:0;margin-top:3px}.now-art{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:#31242d;box-shadow:0 24px 60px #0007;margin-bottom:28px}.now-title{font-size:25px;letter-spacing:-.7px;line-height:1.25;overflow-wrap:anywhere}.now-artist{color:#b7a9b3;margin-top:8px;font-size:14px}.now-time{display:flex;justify-content:space-between;color:#b7a9b3;font-size:11px;margin:12px 0 24px;font-variant-numeric:tabular-nums}.now-progress{margin-top:24px;height:3px;border-radius:4px;background:#ffffff20}.now-progress span{display:block;width:0;height:100%;background:#f7f0f4}.now-controls{display:flex;align-items:center;justify-content:space-evenly;margin:20px 0}.now-controls .play-main{width:68px;height:68px}.now-controls .play-main svg{width:30px;height:30px}.now-volume{display:flex;align-items:center;gap:12px;margin:20px 8px}.now-volume input{width:100%;min-height:44px;accent-color:#eee;background:transparent}.now-volume input,.vol-box input{appearance:none;-webkit-appearance:none;background:transparent;border:0}.now-volume input::-webkit-slider-runnable-track,.vol-box input::-webkit-slider-runnable-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-webkit-slider-thumb,.vol-box input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#f5f1f3;margin-top:-5px}.now-volume input::-moz-range-track,.vol-box input::-moz-range-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-moz-range-thumb,.vol-box input::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#f5f1f3}.now-footer{display:flex;justify-content:space-between;align-items:center;color:#ad9fa9;border-top:1px solid #ffffff10;padding-top:20px;font-size:11px}.now-footer>span{min-width:0;max-width:calc(100% - 76px);line-height:1.6}.dedication-heart{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}.now-footer button{background:transparent;color:inherit;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px}.now-header .ctrl-btn{background:#ffffff08}
+.now-dialog{inset:0;margin:auto;width:480px;max-width:100%;height:min(90dvh,820px);max-height:100dvh;padding:24px 30px;border:1px solid var(--border);border-radius:24px;color:var(--text);background:radial-gradient(ellipse at 50% 0,#4c2b38,transparent 75%),#161317;overflow:auto}.now-dialog::backdrop{background:#000b;backdrop-filter:blur(12px)}.now-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.now-header p{text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#c3b2bc}.now-header strong{display:block;color:#fff;font-size:12px;text-transform:none;letter-spacing:0;margin-top:3px}.now-art{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:#31242d;box-shadow:0 24px 60px #0007;margin-bottom:28px}.now-title{font-size:25px;letter-spacing:-.7px;line-height:1.25;overflow-wrap:anywhere}.now-artist{color:#b7a9b3;margin-top:8px;font-size:14px}.playback-error{color:#f5b8c6;font-size:13px;line-height:1.6;overflow-wrap:anywhere;white-space:normal;margin:0 0 20px}
+.now-time{display:flex;justify-content:space-between;color:#b7a9b3;font-size:11px;margin:12px 0 24px;font-variant-numeric:tabular-nums}.now-progress{margin-top:24px;height:3px;border-radius:4px;background:#ffffff20}.now-progress span{display:block;width:0;height:100%;background:#f7f0f4}.now-controls{display:flex;align-items:center;justify-content:space-evenly;margin:20px 0}.now-controls .play-main{width:68px;height:68px}.now-controls .play-main svg{width:30px;height:30px}.now-volume{display:flex;align-items:center;gap:12px;margin:20px 8px}.now-volume input{width:100%;min-height:44px;accent-color:#eee;background:transparent}.now-volume input,.vol-box input{appearance:none;-webkit-appearance:none;background:transparent;border:0}.now-volume input::-webkit-slider-runnable-track,.vol-box input::-webkit-slider-runnable-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-webkit-slider-thumb,.vol-box input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#f5f1f3;margin-top:-5px}.now-volume input::-moz-range-track,.vol-box input::-moz-range-track{height:3px;border-radius:4px;background:#ffffff40}.now-volume input::-moz-range-thumb,.vol-box input::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#f5f1f3}.now-footer{display:flex;justify-content:space-between;align-items:center;color:#ad9fa9;border-top:1px solid #ffffff10;padding-top:20px;font-size:11px}.now-footer>span{min-width:0;max-width:calc(100% - 76px);line-height:1.6}.dedication-heart{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}.now-footer button{background:transparent;color:inherit;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px}.now-header .ctrl-btn{background:#ffffff08}
 .comfort-intro{max-width:580px;color:var(--sub);margin:-10px 0 24px;font-size:14px;line-height:1.8}.quote-card{position:relative;max-width:720px;overflow:hidden;border:1px solid #70505d55;border-radius:24px;padding:clamp(24px,5vw,48px);background:radial-gradient(ellipse at 90% 0,#76435455,transparent 75%),linear-gradient(145deg,#29202a,#19171d);margin:8px 0 20px;min-height:310px;display:flex;flex-direction:column;justify-content:space-between}.quote-mark{font-family:Georgia,serif;font-size:88px;line-height:.8;color:#e8a3b788;user-select:none;margin:12px 0 20px}.quote-category{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#e9bdcd}.quote-text{font-family:Georgia,"Times New Roman",serif;font-size:clamp(24px,3.5vw,36px);line-height:1.5;letter-spacing:-.4px;overflow-wrap:anywhere;margin:10px 0 24px;max-width:24em}.quote-signature{color:#bca8b6;font-size:11px;letter-spacing:.4px}.quote-actions{display:flex;gap:10px;flex-wrap:wrap;max-width:720px}.quote-actions button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:24px;background:var(--raised);font-size:13px}.quote-actions .quote-next{background:var(--text);color:#171217;flex:1;min-width:150px}.quote-actions button[aria-pressed="true"]{color:#ff9eae;background:#422a37}.quote-filters .chip{min-height:44px}.quote-caption{color:var(--sub);font-size:12px;margin:14px 0;max-width:650px;line-height:1.8}.quote-settings{max-width:720px;margin:28px 0 8px;border-top:1px solid var(--border);padding-top:10px}.quote-settings summary{cursor:pointer;min-height:48px;padding:14px 0;color:#ded4dc;font-size:13px}.quote-opt-in{display:flex;align-items:center;gap:12px;min-height:48px;font-size:13px}.quote-opt-in input{appearance:auto;-webkit-appearance:auto;accent-color:var(--accent);width:20px;height:20px;flex-shrink:0}.quote-reset{min-height:44px;background:transparent;text-decoration:underline;text-underline-offset:4px;color:#c3a7b5;padding:8px 0}.quote-storage{max-width:650px;min-height:1.5em;color:#c6b1bf;font-size:12px;margin-top:12px}
 .now-controls::before{content:"";width:44px;height:44px;flex-shrink:0}.now-controls .favorite-toggle{color:var(--sub);border:1px solid #ffffff22}.now-controls .favorite-toggle.liked{color:var(--liked);background:#ff637516}.favorite-toggle.liked .app-icon{fill:currentColor}.full-action-status{font-size:12px;color:#e9cbd7;line-height:1.6;margin:10px 0;overflow-wrap:anywhere}.full-action-status:empty{display:none}.song-score{font-size:12px;color:#edbbc9;text-align:center}.song-rating{position:fixed;left:50%;bottom:calc(var(--nav) + var(--mini) + env(safe-area-inset-bottom) + 12px);transform:translateX(-50%);z-index:85;width:min(380px,calc(100vw - 24px));max-height:45dvh;overflow:auto;padding:16px;border-radius:18px;background:#2c202c;border:1px solid #805360;box-shadow:0 12px 36px #0007}.song-rating[hidden]{display:none}.song-rating-inline{bottom:calc(12px + env(safe-area-inset-bottom))}.song-rating h3{font-size:14px;margin-bottom:4px}.song-rating-title{font-size:12px;color:#d2bac8;overflow-wrap:anywhere}.song-rating-buttons{display:flex;gap:4px;margin:12px 0 4px}.song-rating-buttons button{flex:1;min-width:44px;min-height:44px;border-radius:10px;background:#ffffff12;color:#ffd091;font-weight:700}.song-rating-dismiss{min-height:44px;padding:8px;background:transparent;color:#cbb7c6;font-size:12px}.song-rating-note{font-size:10px;color:#cbb7c6;line-height:1.5}.song-rating-entry{display:flex;justify-content:space-between;gap:16px;min-height:44px;padding:12px 0;border-bottom:1px solid var(--border);font-size:13px}.song-rating-entry span{min-width:0;overflow-wrap:anywhere}.song-rating-entry strong{color:#edbbc9;white-space:nowrap}
 @media(max-width:900px){
@@ -63,6 +64,112 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heart-particle{animation:heart-flight var(--heart-life) linear both!important}.heart-particle .app-icon{animation:heart-flutter var(--heart-flap) ease-in-out infinite alternate!important}.heart-morph{animation:heart-morph-out .35s ease-out both!important}.butterfly-morph{animation:butterfly-morph-in .35s .1s ease-in both!important}.heart-reveal{transition:opacity .9s ease-out!important}.heart-reveal.is-revealed{transition:opacity .12s ease-out!important}}
 *{scrollbar-width:thin;scrollbar-color:#ffffff20 transparent}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#ffffff20;border-radius:8px}
 
+.tg-fields{display:grid;gap:12px;margin:16px 0}.tg-fields label{display:grid;gap:6px;color:var(--sub);font-size:14px}.tg-fields input{width:100%;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#211b24;color:var(--text);font:inherit}.tg-actions{display:flex;flex-wrap:wrap;gap:10px}#telegram-account p{line-height:1.6}#telegram-account a{color:var(--accent)}#telegram-account .chip{min-height:44px}.settings-card{max-width:620px;margin:20px 0;padding:24px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,#361f2b,#211b24)}.settings-card h3{font-size:21px;margin:14px 0 10px}.settings-card p,.settings-card small{display:block;color:var(--sub);line-height:1.7}.settings-card small{font-size:12px}.settings-symbol{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:16px;background:#e82d4620;color:#fa667c}.settings-symbol .app-icon{width:26px;height:26px}.settings-primary{display:block;min-height:48px;max-width:100%;padding:12px 22px;margin:20px 0 14px;border:0;border-radius:15px;background:#e82d46;color:#fff;font:inherit;font-weight:700;cursor:pointer}.settings-card summary{cursor:pointer;min-height:44px;line-height:44px}.settings-primary:focus-visible{outline:2px solid #fff;outline-offset:4px}
+
+:root{--cloud-surface:linear-gradient(140deg,#3b1722,#24161b);--sync-ring:#ed3659;--telegram-badge:#c91f43}
+:root[data-theme="charcoal"]{--cloud-surface:linear-gradient(140deg,#252527,#1c1c1f);--sync-ring:#62a9cf;--telegram-badge:#3b9fc7;--accent:#9bc8df;--liked:#b1d5e7}
+:root[data-theme="charcoal"] .now-playing-hero{background:linear-gradient(120deg,#29272b,#151416);border-color:#ffffff16}
+:root[data-theme="charcoal"] .theme-card{background:var(--cloud-surface)}
+.cloud-card{background:var(--cloud-surface);padding:24px;max-width:620px}.cloud-header,.sync-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.telegram-mark{width:52px;height:52px;display:grid;place-items:center;background:var(--telegram-badge);border-radius:50%;color:#fff}.telegram-mark svg{width:30px;height:30px;stroke:currentColor;fill:#ffffffcc;stroke-linejoin:round;stroke-width:1.3}.cloud-manage{min-height:44px;padding:8px 18px;border-radius:24px;background:#ffffff10;border:1px solid #ffffff12;font-weight:600}.cloud-card h3{font-size:25px;margin:16px 0}.cloud-card .cloud-badge{display:inline-block;font-size:12px;line-height:1.5;padding:5px 10px;border-radius:20px;background:#ffffff0b;margin:2px 0 18px;overflow-wrap:anywhere}.cloud-card .cloud-badge.connected{background:#4ea46c22;color:#98d3a8}.sync-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.sync-stats>div{min-width:0;border:1px solid #ffffff12;background:#ffffff08;border-radius:16px;padding:14px 12px}.sync-stats span{display:block;text-transform:uppercase;font-size:10px;letter-spacing:1px;color:var(--sub)}.sync-stats strong{display:block;font-size:27px;font-variant-numeric:tabular-nums;margin-top:2px}.cloud-card .cloud-caption{font-size:13px;line-height:1.6;margin-top:24px}.sync-details{margin-top:8px}.sync-details summary{font-size:11px;line-height:1.4;min-height:44px;padding:14px 0;color:var(--sub)}.sync-details small{font-size:11px}.sync-heading h3{font-size:20px;margin:0}.sync-heading>span{font-size:11px;border-radius:18px;background:#ffffff0b;padding:5px 9px;white-space:nowrap}.cloud-card .sync-note{font-size:11px;line-height:1.7;margin:12px 0;color:var(--sub)}.sync-row{display:flex;gap:12px;align-items:center;min-height:76px;padding:10px 0;border-bottom:1px solid #ffffff09}.sync-row img{width:46px;height:46px;border-radius:8px;object-fit:cover}.sync-track{min-width:0;flex:1}.sync-track strong,.sync-track span,.sync-track small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sync-track strong{font-size:13px}.sync-track span{font-size:11px;color:var(--sub)}.sync-track small{font-size:10px;color:#cfbfc7}.sync-cancel{width:46px;height:46px;flex-shrink:0;border-radius:50%;padding:4px;background:conic-gradient(var(--sync-ring) var(--progress),#ffffff10 0)}.sync-cancel>span{width:100%;height:100%;display:grid;place-items:center;border-radius:50%;background:#241d22;font-size:27px;font-weight:300}.theme-card h3{font-size:18px}.theme-card p{font-size:12px;margin-bottom:16px}.theme-card .chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.now-progress{position:relative}.seek-range{position:absolute;inset:-20px 0 auto;width:100%;height:44px;background:transparent!important;appearance:none;-webkit-appearance:none;touch-action:pan-y;cursor:pointer;z-index:2}.seek-range::-webkit-slider-runnable-track{height:3px;background:transparent}.seek-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);margin-top:-5px}.seek-range::-moz-range-track{background:transparent;height:3px}.seek-range::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--text)}.seek-range:disabled::-webkit-slider-thumb{opacity:0}.progress-container{position:relative}.mini-seek{inset:-20px 0 auto;height:44px;opacity:1}.mini-seek:focus-visible,.mini-seek:hover{opacity:1}.player-bar{overflow:visible}.player-bar .progress-container{top:0;bottom:auto}
+@media(max-width:400px){.cloud-card{padding:18px}.cloud-card h3{font-size:23px}.sync-heading h3{font-size:18px}.sync-row{gap:8px}.sync-stats{gap:8px}.sync-stats>div{padding:12px 10px}}
+
+
+/* Player controls are outside the shrinkable content area: Stop never needs scrolling. */
+#now-playing[open]{display:flex;flex-direction:column;overflow:hidden;height:min(96dvh,900px);padding:18px 24px}
+/* Share spare height above/below the music group, never between seek and Play. */
+#now-playing .now-header{flex-shrink:0;margin-bottom:auto;padding-bottom:12px;min-height:44px}
+.now-player-body{flex:0 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 3px 4px}
+#now-playing .now-art{display:block;width:min(100%,36dvh);max-height:36dvh;object-fit:cover;margin:0 auto 14px;border-radius:14px}
+#now-playing .now-title{font-size:clamp(18px,3vh,25px);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#now-playing .now-artist{margin-top:6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#now-playing .now-progress{margin-top:20px}
+#now-playing .now-time{margin:8px 0 4px}
+#now-playing .now-controls{flex-shrink:0;min-height:58px;margin:8px 0 4px;gap:4px;justify-content:space-between}
+#now-playing .now-controls::before{display:none}
+#now-playing .now-controls .play-main{width:58px;height:58px}
+#now-playing .now-volume{flex-shrink:0;margin:0 8px}
+#now-playing .now-footer{flex-shrink:0;margin-top:auto;padding-top:12px;min-height:36px}
+#now-playing .now-footer>span{max-width:100%;font-size:10px}
+#now-playing .full-action-status{max-height:3em;overflow:auto;margin:4px 0;font-size:11px}
+#now-playing .song-score:empty{display:none}
+#now-playing #full-song-rating{bottom:160px;max-height:30dvh}
+.share-dialog{inset:0;margin:auto;width:min(420px,calc(100vw - 32px));max-height:80dvh;overflow:auto;background:#261b23;border:1px solid #ffffff22;border-radius:22px;padding:24px;color:var(--text)}
+.share-dialog::backdrop{background:#000b}.share-dialog h2{font-size:21px}.share-dialog p{font-size:13px;line-height:1.7;margin:14px 0;color:var(--sub)}
+@media(max-width:900px){#now-playing[open]{height:100dvh;padding:calc(8px + env(safe-area-inset-top)) 22px calc(10px + env(safe-area-inset-bottom))}}
+@media(max-height:620px){#now-playing .now-art{width:min(100%,25dvh);max-height:25dvh;margin-bottom:8px}#now-playing .now-volume{display:none}#now-playing .now-header{margin-bottom:4px;padding-bottom:4px}#now-playing .now-footer{padding-top:4px}#now-playing .now-controls{margin-top:4px}#now-playing .song-score{font-size:10px}}
+
+/* Aurora Glass: optional reference-inspired layout, no remote fonts or animated blur. */
+.aurora-only{display:none}
+:root[data-theme="aurora"]{--bg:#070d12;--panel:#132128;--raised:#213138;--accent:#b5e8d2;--text:#f6faf9;--sub:#a8bbc0;--dim:#8c9da5;--liked:#ff6e86;--border:#ffffff14;--cloud-surface:linear-gradient(135deg,#23323fdd,#15252bdd);--sync-ring:#b5e8d2;--telegram-badge:#45879a}
+:root[data-theme="aurora"] body{background:radial-gradient(ellipse at 0 8%,#4e247d55,transparent 48%),radial-gradient(ellipse at 100% 45%,#006b6650,transparent 55%),var(--bg)}
+:root[data-theme="aurora"] .aurora-only{display:block}
+:root[data-theme="aurora"] .classic-only{display:none}
+:root[data-theme="aurora"] .header{background:transparent}
+:root[data-theme="aurora"] .sidebar{background:#0b1117de}
+:root[data-theme="aurora"] .search-bar{background:#ffffff07;border-color:#ffffff18;border-radius:30px}
+:root[data-theme="aurora"] .profile-mark{border:1px solid #b5e8d24d;background:linear-gradient(135deg,#7e57a14d,#317b6c44);color:#e2f9ee}
+:root[data-theme="aurora"] .page-eyebrow{letter-spacing:.6px;text-transform:none;font-size:11px;font-weight:400;margin:12px 0 8px;color:#c8d4d9}
+:root[data-theme="aurora"] .page-heading{font-weight:500;line-height:1.16;letter-spacing:-1.5px;max-width:640px;margin-bottom:28px}
+:root[data-theme="aurora"] .page-heading span{color:inherit}
+:root[data-theme="aurora"] .section-title{font-weight:550;font-size:20px;letter-spacing:-.4px}
+:root[data-theme="aurora"] .section-badge{font-size:10px;letter-spacing:.4px;text-transform:none;color:#b5e8d2}
+:root[data-theme="aurora"] .feature-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}
+.feature-heading h2{font-weight:550;font-size:20px;letter-spacing:-.4px}.feature-heading span{font-size:10px;color:var(--sub)}
+:root[data-theme="aurora"] .now-playing-hero{position:relative;isolation:isolate;min-height:238px;padding:28px;gap:26px;border-radius:28px;border:1px solid #ffffff1b;background:radial-gradient(ellipse at 10% 0,#8156a63d,transparent 75%),linear-gradient(125deg,#2b3541b8,#172b2dcf);box-shadow:0 16px 32px #0003,inset 0 1px #ffffff0c;margin-bottom:30px}
+:root[data-theme="aurora"] .hero-art-box{width:160px;border-radius:50%;box-shadow:0 10px 28px #0006;border:1px solid #ffffff24;flex-shrink:0}
+:root[data-theme="aurora"] .hero-art{aspect-ratio:1;object-fit:cover}
+:root[data-theme="aurora"] .hero-title{font-size:30px;font-weight:550;line-height:1.2;letter-spacing:-1px}
+:root[data-theme="aurora"] .hero-tag{color:#c9e6d9;letter-spacing:1.6px}
+:root[data-theme="aurora"] .hero-artist{color:#b5c4cb;font-size:13px}
+:root[data-theme="aurora"] .btn-hero{background:#e7f5e8;color:#10231e;border:1px solid #ffffff24;border-radius:30px}
+:root[data-theme="aurora"] .btn-stop{background:#ffffff08;color:#d3e2df}
+:root[data-theme="aurora"] #quick-picks{display:grid;grid-auto-flow:column;grid-auto-columns:166px;grid-template-columns:none;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:4px 0 15px;scrollbar-width:thin;scrollbar-color:#8eb5aa55 transparent}
+:root[data-theme="aurora"] #quick-picks .song-card{display:grid;grid-template-columns:1fr 44px;gap:8px 0;align-content:start;padding:12px;border:1px solid #ffffff12;background:linear-gradient(150deg,#ffffff0b,#ffffff03);border-radius:22px;scroll-snap-align:start;position:relative;transition:background .15s}
+:root[data-theme="aurora"] #quick-picks .card-thumb{width:140px;height:140px;border-radius:50%;grid-column:1/-1;aspect-ratio:1;object-fit:cover;margin-bottom:6px;box-shadow:0 8px 18px #0004}
+:root[data-theme="aurora"] #quick-picks .card-info{grid-column:1/-1;min-width:0}
+:root[data-theme="aurora"] #quick-picks .card-title{font-size:13px;font-weight:550}
+:root[data-theme="aurora"] #quick-picks .card-artist{font-size:11px}
+:root[data-theme="aurora"] #quick-picks .card-play{display:grid;position:absolute;right:15px;top:107px;border-radius:50%;background:#e7f5e8;color:#10231e;opacity:1;width:44px;height:44px;box-shadow:0 3px 14px #0005}
+:root[data-theme="aurora"] #quick-picks .card-queue{display:grid;width:44px;height:44px;justify-self:start}
+:root[data-theme="aurora"] #quick-picks .card-heart{justify-self:end}
+:root[data-theme="aurora"] .grid-cards:not(#quick-picks) .song-card{border-bottom:1px solid #ffffff0c;border-radius:0;padding-top:12px;padding-bottom:12px}
+:root[data-theme="aurora"] .card-thumb{border-radius:50%}
+:root[data-theme="aurora"] .player-bar{background:#17272cf2;border-color:#ffffff17}
+:root[data-theme="aurora"] .play-main{background:#e7f5e8;color:#10231e;box-shadow:0 0 0 4px #b5e8d215}
+:root[data-theme="aurora"] .settings-card{background:var(--cloud-surface);border:1px solid #ffffff14}
+:root[data-theme="aurora"] #now-playing{background:radial-gradient(ellipse at 0 0,#55337c66,transparent 65%),radial-gradient(ellipse at 95% 55%,#00736755,transparent 65%),#081316}
+:root[data-theme="aurora"] #now-playing .now-header{border-bottom:1px solid #ffffff0d;padding-bottom:10px}
+:root[data-theme="aurora"] #now-playing .now-header p{color:#a8c5c6}
+:root[data-theme="aurora"] #now-playing .now-art{width:min(100%,42dvh);max-height:42dvh;border-radius:26px;box-shadow:0 24px 40px #0005;margin-bottom:14px}
+:root[data-theme="aurora"] #now-playing .now-title{text-align:center;font-weight:500;font-size:clamp(21px,3.3vh,28px);letter-spacing:-1px}
+:root[data-theme="aurora"] #now-playing .now-artist{text-align:center;color:#b8c9c9}
+:root[data-theme="aurora"] #now-playing .now-controls{margin-top:8px}
+:root[data-theme="aurora"] #now-playing .now-controls .play-main{box-shadow:0 0 0 5px #b5e8d214,0 0 0 8px #b5e8d20b}
+:root[data-theme="aurora"] #now-playing .now-footer{color:#b3c4c5}
+@media(max-width:900px){
+ :root[data-theme="aurora"] .sidebar{background:#0c171df5}
+ :root[data-theme="aurora"] .content-area{padding-left:22px;padding-right:22px}
+ :root[data-theme="aurora"] .page-heading{font-size:32px;max-width:340px;line-height:1.17;margin-bottom:20px}
+ :root[data-theme="aurora"] #tab-home .section-title{margin-top:22px}
+ :root[data-theme="aurora"] .feature-heading{margin-bottom:12px}
+ :root[data-theme="aurora"] .now-playing-hero{padding:20px;gap:18px;min-height:180px}
+ :root[data-theme="aurora"] .hero-art-box{width:31%;max-width:116px}
+ :root[data-theme="aurora"] .hero-title{font-size:23px}
+ :root[data-theme="aurora"] .hero-tag{font-size:8px;letter-spacing:1px}
+ :root[data-theme="aurora"] .hero-artist{font-size:11px;margin:8px 0 14px}
+ :root[data-theme="aurora"] .hero-controls{gap:6px}
+ :root[data-theme="aurora"] .hero-controls .btn-hero{padding:8px 12px}
+ :root[data-theme="aurora"] #quick-picks{grid-auto-columns:150px;gap:12px}
+ :root[data-theme="aurora"] #quick-picks .card-thumb{width:124px;height:124px}
+ :root[data-theme="aurora"] #quick-picks .card-play{top:91px;right:13px}
+ :root[data-theme="aurora"] .section-badge{max-width:90px;text-align:right}
+}
+@media(max-width:350px){:root[data-theme="aurora"] .now-playing-hero{padding:18px;gap:12px}:root[data-theme="aurora"] .hero-art-box{width:28%}:root[data-theme="aurora"] .hero-title{font-size:20px}:root[data-theme="aurora"] .page-heading{font-size:30px}}
+@media(max-height:650px){:root[data-theme="aurora"] #now-playing .now-art{width:min(100%,26dvh);max-height:26dvh;margin-bottom:10px}:root[data-theme="aurora"] #now-playing .now-title{font-size:21px}:root[data-theme="aurora"] #now-playing .now-header{padding-bottom:4px}:root[data-theme="aurora"] #now-playing .now-controls{margin-top:6px}}
+@media(prefers-reduced-motion:reduce){:root[data-theme="aurora"] #quick-picks{scroll-behavior:auto;scroll-snap-type:none}}
+
+.now-mode-controls{display:flex;align-items:center;justify-content:center;gap:14px;flex-shrink:0;margin:2px 0}.now-mode-controls[hidden],.mode-note[hidden]{display:none}.mode-button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:6px 12px;border:1px solid transparent;border-radius:24px;background:transparent;color:var(--sub);font-size:11px}.mode-button .app-icon{width:18px;height:18px}.mode-button[aria-pressed="true"]{color:var(--accent);background:#ffffff09;border-color:var(--border)}.mode-note{font-size:10px;line-height:1.4;text-align:center;color:var(--sub);flex-shrink:0;margin:0 0 4px;max-height:3em;overflow:auto}
 </style>
 </head>
 <body>
@@ -93,7 +200,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <button type="button" class="nav-item" id="nav-explore" aria-label="Explore" onclick="switchTab('explore')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#compass"></use></svg><span>Explore</span></button>
     <button type="button" class="nav-item" id="nav-library" aria-label="Library" onclick="switchTab('library')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#library"></use></svg><span>Library</span></button>
     <button type="button" class="nav-item" id="nav-quotes" aria-label="Quotes" onclick="switchTab('quotes')"><svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/icons.svg#heart"></use></svg><span>Quotes</span></button>
-    <button type="button" class="nav-item" id="nav-bluetooth" aria-label="Bluetooth" onclick="switchTab('bluetooth')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#bluetooth"></use></svg><span>Bluetooth</span></button>
+    <button type="button" class="nav-item" id="nav-settings" aria-label="Settings" onclick="switchTab('settings')"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#settings"></use></svg><span>Settings</span></button>
   </div>
 </div>
 <div class="main-wrapper">
@@ -106,7 +213,8 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <div class="profile-mark" aria-label="Aysha's Music">AYSHA</div>
   </header>
   <main class="content-area" id="content-area">
-    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow">A LITTLE ESCAPE, JUST FOR YOU</p><h2 class="page-heading">Your music.<br><span>Your kind of moment. For you from my heart</span></h2>
+    <section class="tab-page active" id="tab-home" aria-label="Home"><p class="page-eyebrow"><span class="classic-only">A LITTLE ESCAPE, JUST FOR YOU</span><span class="aurora-only">Hi Aysha. Welcome to your little escape.</span></p><h2 class="page-heading"><span class="classic-only">Your music.<br><span>Your kind of moment. For you from my heart</span></span><span class="aurora-only">Listen to your<br>favourite music.</span></h2>
+      <div class="feature-heading aurora-only"><h2>Your soundtrack</h2><span>Made for your moment</span></div>
       <div class="now-playing-hero" id="hero-box">
         <div class="hero-art-box"><img class="hero-art" id="hero-art" alt="Current track artwork" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E"></div>
         <div class="hero-details">
@@ -116,11 +224,10 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
           <div class="hero-controls">
             <button class="btn-hero" id="hero-toggle" aria-label="Play" onclick="togglePlay()"><svg id="hero-play-svg" class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#play"></use></svg><span id="hero-play-label">Play</span></button>
             <button class="btn-hero btn-stop" onclick="stopPlay()"><svg  class="app-icon " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/icons.svg#stop"></use></svg>Stop</button>
-            <button class="btn-hero" id="hero-selftest" aria-label="Run playback selftest" onclick="runSelftest()">Test</button>
           </div>
         </div>
       </div>
-      <div class="section-heading-row"><h2 class="section-title">Quick picks</h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
+      <div class="section-heading-row"><h2 class="section-title"><span class="classic-only">Quick picks</span><span class="aurora-only">On your radar</span></h2><span class="section-badge">Picked for you</span></div><p class="section-subtitle">A little familiar. A little discovery.</p>
       <div class="grid-cards" id="quick-picks"></div>
       <h2 class="section-title">Close to your heart</h2><p class="section-subtitle">Your liked songs, always within reach.</p>
       <div class="grid-cards" id="recent-history"></div>
@@ -182,19 +289,40 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <p class="quote-storage" id="quote-storage-status" role="status" aria-live="polite"></p>
       <p class="quote-caption">A little encouragement, not a promise to make difficult feelings disappear. You can always return to your music.</p>
     </section>
-    <div class="tab-page" id="tab-bluetooth">
-      <div class="section-title">Bluetooth Settings</div>
-      <div class="bt-card" id="bt-status-card">
-        <div><b id="bt-status-text">Status: Checking...</b><small id="bt-device-text">--</small></div>
-        <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
-      </div>
-      <div class="section-title">Configured Speaker</div>
-      <div id="bt-list"></div>
-    </div>
+    <section class="tab-page" id="tab-settings" aria-labelledby="settings-heading">
+      <p class="page-eyebrow">MAKE YOURSELF AT HOME</p>
+      <h2 class="page-heading" id="settings-heading">Settings</h2>
+      <article class="settings-card cloud-card" aria-labelledby="telegram-settings-heading">
+        <div class="cloud-header"><span class="telegram-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 18-7-4 18-6-6-4 3 1-6Zm5 2 9-6-6 9"/></svg></span><button type="button" id="telegram-account-button" class="cloud-manage" aria-label="Add Telegram account" onclick="openTelegramAccount()">Manage</button></div>
+        <h3 id="telegram-settings-heading">Telegram Cloud</h3>
+        <p id="telegram-settings-status" class="cloud-badge" role="status">Checking account status…</p>
+        <div class="sync-stats"><div><span>Saved</span><strong id="tg-saved">—</strong></div><div><span>Syncing</span><strong id="tg-syncing">—</strong></div><div><span>Failed</span><strong id="tg-failed">—</strong></div></div>
+        <p class="cloud-caption">Songs auto-save privately to your Telegram Saved Messages. No channel needed.</p>
+        <details class="sync-details"><summary>How saving works</summary><small>Saving can download a full copy, then upload it, using extra data and temporary storage. Saved counts cover this device’s index, not your whole Telegram account. Upload % measures bytes read into the uploader, not server acknowledgements. A song is Saved only after Telegram confirms its message.</small></details>
+      </article>
+      <article class="settings-card cloud-card" aria-labelledby="sync-heading">
+        <div class="sync-heading"><h3 id="sync-heading">Syncing Queue</h3><span id="tg-remaining">Checking…</span></div>
+        <p id="tg-wait" class="sync-note" role="status"></p>
+        <div id="tg-sync-list"><p class="sync-note">Your queue will appear here.</p></div>
+        <p id="tg-sync-feedback" class="sync-note" role="status"></p>
+      </article>
+      <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button><button id="theme-aurora" class="chip" aria-pressed="false" onclick="setColorTheme('aurora')">Aurora Glass</button></div></article>
+      <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
+      <article class="settings-card" aria-labelledby="app-icon-heading"><h3 id="app-icon-heading">Your Aysha icon</h3><p>Pick from Classic Silver, Rose Gold, Velvet, Cute Rose, Racing Red, Ivory, Butterflies, or Embossed Red.</p><p id="app-icon-current">Available in the Android app.</p><button id="choose-app-icon" class="chip" onclick="nativeAppAction('icons')" disabled>Choose app icon</button><small>Your music, Telegram session and settings stay unchanged. Some launchers refresh slowly.</small></article>
+      <article class="settings-card" aria-labelledby="app-update-heading"><h3 id="app-update-heading">App updates</h3><p id="app-update-version">Android handles installation confirmation.</p><p id="app-update-status" role="status">Available in the Android app. Signed release publishing must be configured before automatic updates are available.</p><div class="tg-actions"><button id="check-app-update" class="chip" onclick="nativeAppAction('check-update')" disabled>Check for updates</button><button id="auto-app-update" class="chip" aria-pressed="false" onclick="nativeAppAction('toggle-updates')" disabled>Wi-Fi auto-download</button><button id="download-app-update" class="chip" onclick="nativeAppAction('download-update')" hidden>Download update</button><button id="install-app-update" class="chip" onclick="nativeAppAction('install-update')" hidden>Install update</button></div><small>When Aysha opens, check at most daily and download on unmetered Wi-Fi. Android asks before installation. Different signing key? Keep the installed app—never uninstall or clear data.</small></article>
+      <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
+        <summary>Linux speaker controls</summary>
+        <div class="bt-card" id="bt-status-card">
+          <div><b id="bt-status-text">Status: Not checked</b><small id="bt-device-text">--</small></div>
+          <button class="chip" onclick="scanBluetooth()">Connect JBL</button>
+        </div>
+        <div id="bt-list"></div>
+      </details>
+    </section>
     <div class="footer">Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</div>
   </main>
   <div class="player-bar" id="player-bar">
-    <div class="progress-container" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-container"><div class="progress-bar" id="progress-bar"></div><input class="seek-range mini-seek" id="mini-seek" aria-label="Seek playback" type="range" min="0" max="1000" value="0" step="1" disabled oninput="previewSeek(this.value)" onchange="commitSeek(this.value)" onpointerdown="beginSeek()" onpointercancel="cancelSeek()" onblur="cancelSeek()"></div>
     <div class="player-content">
       <button class="player-left" id="open-player" onclick="openNowPlaying()" aria-label="Open now playing">
         <img class="np-art" id="np-art" alt="" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%20viewBox%3D%220%200%20600%20600%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23c27886%22/%3E%3Cstop%20offset%3D%22.48%22%20stop-color%3D%22%235f3049%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23211c35%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22r%22%3E%3Cstop%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%22.3%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f9e5d4%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20d%3D%22M0%200h600v600H0z%22/%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22240%22%20r%3D%22270%22%20fill%3D%22url%28%23r%29%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f3d7cf%22%20stroke-opacity%3D%22.2%22%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22208%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22190%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22172%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22154%22/%3E%3C/g%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%22110%22%20fill%3D%22%23241e30%22/%3E%3Ccircle%20cx%3D%22300%22%20cy%3D%22300%22%20r%3D%229%22%20fill%3D%22%23e8c8cc%22/%3E%3Ctext%20x%3D%2244%22%20y%3D%2270%22%20font-family%3D%22sans-serif%22%20font-size%3D%2216%22%20letter-spacing%3D%226%22%20fill%3D%22%23f5e4df%22%3EAYSHA%27S%20MUSIC%3C/text%3E%3Ctext%20x%3D%2244%22%20y%3D%22550%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20letter-spacing%3D%224%22%20fill%3D%22%23f5e4df%22%3ESOMETHING%20JUST%20FOR%20YOU%3C/text%3E%3C/svg%3E">
@@ -226,6 +354,28 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
   <audio id="audio-player" crossorigin="anonymous"></audio>
 </div>
 
+<dialog class="now-dialog" id="telegram-account" aria-labelledby="telegram-heading">
+  <div class="now-header"><h2 id="telegram-heading">Your Telegram account</h2><button type="button" class="chip" onclick="closeTelegramAccount()">Close</button></div>
+  <p class="section-subtitle">Save selected songs to your Saved Messages, then stream saved songs from Telegram first. YouTube is the automatic fallback. Full downloads and uploads continue after skips and use internet data; saving can download a second copy. Only save audio you have permission to store.</p>
+  <p id="telegram-status" role="status" aria-live="polite">Not connected</p>
+  <details><summary>First-time API setup</summary>
+    <p>Open <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer">my.telegram.org/apps</a> in your browser, sign in and create an application to get your API ID and API hash. Enter them only here. They stay in this app’s private storage. Never send us your codes or password.</p>
+    <form class="tg-fields" onsubmit="event.preventDefault(); configureTelegram()">
+      <label>API ID<input id="tg-api-id" inputmode="numeric" type="number" min="1" required autocomplete="off"></label>
+      <label>API hash<input id="tg-api-hash" type="password" maxlength="32" minlength="32" required autocomplete="off"></label>
+      <button class="chip" id="tg-api-save" type="submit">Save API settings</button>
+      <p id="telegram-api-save-status" role="status" aria-live="polite">API settings have not been confirmed saved on this device.</p>
+    </form>
+  </details>
+  <div class="tg-fields">
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('phone')"><label>Phone number with country code<input id="tg-phone" type="tel" maxlength="30" autocomplete="tel" placeholder="+971…" required></label><button class="chip" type="submit">Send login code</button></form>
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('code')"><label>Telegram login code<input id="tg-code" inputmode="numeric" maxlength="12" autocomplete="off" required></label><button class="chip" type="submit">Verify code</button></form>
+    <form class="tg-fields" onsubmit="event.preventDefault(); telegramLogin('password')"><label>Two-step verification password (only if requested)<input id="tg-password" type="password" maxlength="256" autocomplete="off" required></label><button class="chip" type="submit">Verify password</button></form>
+  </div>
+  <p id="telegram-feedback" class="section-subtitle" role="status" aria-live="polite"></p>
+  <div class="tg-actions"><button class="chip" type="button" onclick="refreshTelegramAccount()">Refresh status</button><button class="chip" type="button" onclick="disconnectTelegram()">Disconnect account</button></div>
+  <p class="section-subtitle">Uploads are queued: at most 18/hour with flood-wait handling. Temporary cache: 400 MiB total, 64 MiB per track, up to 20 queued songs. Saves can be delayed or fail; check this status. Telegram cloud storage is not end-to-end encrypted.</p>
+</dialog>
 <dialog class="now-dialog" id="now-playing" aria-labelledby="full-title">
   <div id="heart-effects-player" class="heart-effects" aria-hidden="true"></div>
   <div class="now-header">
@@ -233,17 +383,26 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <p>NOW PLAYING<strong id="full-output">This device</strong></p>
     <button class="ctrl-btn" onclick="queueFromPlayer()" aria-label="Open queue"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#queue"></use></svg></button>
   </div>
+  <div class="now-player-body" id="now-player-body">
   <img class="now-art" id="full-art" alt="Current track artwork">
   <h2 class="now-title" id="full-title">Select a song</h2>
   <p class="now-artist" id="full-artist">Your next favorite is waiting.</p>
-  <div class="now-progress" aria-hidden="true"><span id="full-progress"></span></div>
+  <div class="now-progress"><span id="full-progress"></span><input class="seek-range" id="full-seek" aria-label="Seek song" type="range" min="0" max="1000" value="0" step="1" disabled oninput="previewSeek(this.value)" onchange="commitSeek(this.value)" onpointerdown="beginSeek()" onpointercancel="cancelSeek()" onblur="cancelSeek()"></div>
   <div class="now-time"><span id="full-elapsed">0:00</span><span id="full-duration">Streaming audio</span></div>
+  <p id="full-error" class="playback-error" role="status" aria-live="polite" hidden></p>
+  </div>
   <div class="now-controls">
+    <button class="ctrl-btn" onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg></button>
     <button class="ctrl-btn" onclick="prevTrack()" aria-label="Previous track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#previous"></use></svg></button>
     <button class="ctrl-btn play-main" id="full-play-toggle" onclick="togglePlay()" aria-label="Play"><svg class="app-icon" id="full-play-svg" aria-hidden="true"><use href="/icons.svg#play"></use></svg></button>
     <button class="ctrl-btn" onclick="nextTrack()" aria-label="Next track"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#next"></use></svg></button>
     <button class="ctrl-btn favorite-toggle" id="full-favorite" onclick="toggleCurrentFavorite()" aria-label="Add to favorites" aria-pressed="false" title="Add to favorites" disabled><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#heart"></use></svg></button>
   </div>
+  <div class="now-mode-controls" id="playback-mode-controls" role="group" aria-label="Playback order" hidden>
+    <button class="mode-button" id="full-shuffle" onclick="toggleShuffle()" aria-label="Shuffle off" aria-pressed="false"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#shuffle"></use></svg><span id="shuffle-label">Shuffle off</span></button>
+    <button class="mode-button" id="full-repeat" onclick="cycleRepeat()" aria-label="Repeat off" aria-pressed="false"><svg class="app-icon" aria-hidden="true"><use id="repeat-icon" href="/icons.svg#repeat"></use></svg><span id="repeat-label">Repeat off</span></button>
+  </div>
+  <p class="mode-note" id="playback-mode-note" role="status" hidden></p>
   <p class="song-score" id="full-song-score"></p>
   <p class="full-action-status" id="full-action-status" role="status" aria-live="polite"></p>
   <section class="song-rating song-rating-inline" id="full-song-rating" aria-labelledby="full-song-rating-heading" hidden>
@@ -254,8 +413,9 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
     <p class="song-rating-note">Optional · Only your choice is saved in this browser · Autoplay keeps going</p>
   </section>
   <div class="now-volume"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#volume-low"></use></svg><input id="full-volume" type="range" min="0" max="100" step="5" value="80" aria-label="Playback volume" oninput="changeVol(this.value)"></div>
-  <div class="now-footer"><span>Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</span><button onclick="stopPlay()" aria-label="Stop playback"><svg class="app-icon" aria-hidden="true"><use href="/icons.svg#stop"></use></svg>Stop</button></div>
+  <div class="now-footer"><span>Made with <span class="dedication-heart" role="img" aria-label="love">❤️</span> for Aysha — with love, from Afzal</span></div>
 </dialog>
+<dialog class="share-dialog" id="shared-video-dialog" aria-labelledby="share-heading"><h2 id="share-heading">Shared from YouTube</h2><p>Play this video’s audio and queue it for your connected Telegram account? Saving uses download and upload data.</p><div class="tg-actions"><button class="chip" onclick="confirmSharedVideo()">Play &amp; save</button><button class="chip" onclick="dismissSharedVideo()">Cancel</button></div><p id="share-feedback" role="status"></p></dialog>
 <section class="song-rating" id="song-rating" aria-labelledby="song-rating-heading" hidden>
     <h3 id="song-rating-heading">How was that song?</h3>
     <p class="song-rating-title" id="song-rating-title" aria-live="polite"></p>
@@ -457,7 +617,7 @@ function startLoveIntro() {
 startLoveIntro();
 
 
-let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true, nativePlayback: false };
+let state = { current_track: null, is_playing: false, volume: 80, pos: 0, duration: 0, liked: [], queue: [], playMode: null, stopped: true, nativePlayback: false, nativeStage: 'idle', nativeDuration: null, nativeError: '', nativeStarting: false };
 let durationSec = 0;
 let playbackAttempt = 0;
 
@@ -516,8 +676,10 @@ async function api(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
   if (!r.ok) {
-    const detail = (await r.text()).slice(0, 300);
-    throw new Error('HTTP ' + r.status + ': ' + detail);
+    const raw = (await r.text()).slice(0, 1000);
+    let detail = '';
+    try { const data = JSON.parse(raw); detail = data.detail || data.error || ''; } catch (_) {}
+    throw new Error(String(detail || ('Request failed (HTTP ' + r.status + ')')).slice(0, 300));
   }
   const result = await r.json();
   if (result.status === 'failed') throw new Error(result.error || 'Request failed');
@@ -582,35 +744,184 @@ async function nativeJson(path, body) {
     body: JSON.stringify(body || {}),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const attempts = (data.attempts || []).map(a => a.client + ' [' + (a.status || '?') + (a.visitor === 'attached' ? ', visitor' : '') + '] ' + a.error).join(' | ');
+  if (!r.ok || data.status === 'error' || data.status === 'failed') {
+    const attempts = (data.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
     throw new Error(data.detail || attempts || data.error || ('HTTP ' + r.status));
   }
   return data;
 }
 
-// The Rust side already started the new track, so adopt its metadata instead of
-// resolving again. Keeps the queue/history logic in one place (the player).
-function adoptNativeTrack(track) {
-  const id = nativeVideoId(track);
-  if (!id) throw new Error('No track returned by the player');
-  const previous = state.current_track;
-  state.current_track = {
-    id,
-    video_id: id,
-    title: track.title || 'Playing on this device',
-    artist: track.artist || (previous && previous.artist) || 'This device',
-    url: track.url || '',
-  };
-  state.playMode = 'native';
-  state.stopped = false;
-  state.pos = 0;
-  state.duration = Number(track.duration_secs) || 0;
-  renderSelection(state.current_track);
-  setPlayingState(true);
-  document.getElementById('progress-bar').style.width = '0%';
-  document.getElementById('time-display').textContent = 'Playing on this device...';
+let telegramBusy = false;
+let telegramConfigRevision = 0;
+function renderTelegramConfiguration(config) {
+  const saved = config.saved === true && Number.isInteger(config.api_id) && config.api_id > 0;
+  const field = document.getElementById('tg-api-hash');
+  field.required = !saved;
+  field.placeholder = saved ? 'Saved in app-private storage; not shown' : '32 hexadecimal characters';
+  if (saved && !document.getElementById('tg-api-id').value) document.getElementById('tg-api-id').value = String(config.api_id);
+  document.getElementById('telegram-api-save-status').textContent = saved
+    ? 'API settings saved on this device · API ID ' + config.api_id + '. Hash hidden for privacy. Continue with your phone number below.'
+    : 'API settings have not been confirmed saved on this device.';
 }
+async function refreshTelegramConfiguration() {
+  const revision = telegramConfigRevision;
+  const config = await api('GET', '/api/tg/configuration');
+  if (revision === telegramConfigRevision && !telegramBusy) renderTelegramConfiguration(config);
+  return config;
+}
+async function refreshTelegramAccount() {
+  await refreshTelegramConfiguration();
+  const status = await api('GET', '/api/tg/status');
+  renderTelegramStatus(status);
+}
+function renderTelegramStatus(status) {
+  const queue = status.quota || {};
+  document.getElementById('telegram-account-button').setAttribute('aria-label', status.authorized ? 'Manage Telegram account' : 'Add Telegram account');
+  const summary = (status.authorized ? 'Connected · Signed in · Saved Messages' : status.configured ? 'API configured · Not signed in yet' : 'Complete first-time API setup below') +
+    ' · Saved on Telegram (indexed here): ' + (Number.isInteger(status.saved_tracks) ? status.saved_tracks : 'unknown') +
+    ' · Pending: ' + (queue.queued_tracks || 0) + ' · Failed: ' + (status.failed_tracks || 0) +
+    (queue.cooldown_seconds_left ? ' · Upload cooldown: ' + queue.cooldown_seconds_left + ' seconds' : '') +
+    (status.archive_error ? ' · ' + status.archive_error : '') +
+    (status.authorized ? '. No channel needed. Open Telegram → Saved Messages to see completed uploads.' : '. Saving starts after phone-number sign-in is complete.');
+  document.getElementById('telegram-status').textContent = summary;
+  const badge = document.getElementById('telegram-settings-status');
+  badge.textContent = status.authorized ? '✓ Connected · Saved Messages' : status.configured ? 'API configured · Not signed in yet' : 'Complete first-time API setup';
+  badge.classList.toggle('connected',status.authorized === true);
+  for (const [id,value] of [['tg-saved',status.saved_tracks],['tg-syncing',queue.queued_tracks],['tg-failed',status.failed_tracks]]) document.getElementById(id).textContent=Number.isInteger(value)?String(value):'—';
+  document.getElementById('tg-remaining').textContent=(queue.queued_tracks || 0)+' remaining';
+  document.getElementById('tg-wait').textContent=(status.archive_error ? status.archive_error+' ' : '') +
+    (status.wait_seconds > 0 ? 'Waiting '+status.wait_seconds+'s · '+(queue.status_label || 'Upload pacing')+'. ' : '') +
+    (!status.authorized ? 'Sign in to start saving.' : 'One song at a time · up to '+(queue.max_per_window || 18)+'/hour · minimum 12s gap.');
+  renderSyncQueue(status.items,status.active);
+}
+function renderSyncQueue(items,active) {
+  const list=document.getElementById('tg-sync-list');
+  if (!Array.isArray(items)) { list.innerHTML='<p class="sync-note">Queue status unavailable. Refresh account status to check.</p>'; return; }
+  list.innerHTML=items.slice(0,100).filter(item=>Number.isSafeInteger(item.id)).map(item=>{
+    const progress=active && active.id===item.id ? active : null;
+    const labels={checking:'Checking Saved Messages',resolving:'Preparing download',downloading:'Downloading',validating:'Checking audio',tagging:'Adding song tags & artwork',artwork:'Uploading cover',uploading:'Uploading',finalizing:'Confirming Saved Message'};
+    let label=progress ? labels[progress.stage] || 'Preparing' : item.status==='failed'?'Failed after retries':item.status==='uploading'?'Preparing':'Waiting';
+    const total=progress && Number(progress.total);
+    const percent=total>0 && Number.isFinite(total) ? Math.max(0,Math.min(100,Number(progress.bytes)/total*100)) : null;
+    if (percent!==null) label+=' · '+Math.floor(percent)+'%'+(progress.stage==='uploading'?' read':'');
+    const thumb=/^[A-Za-z0-9_-]{11}$/.test(item.video_id || '') ? '<img loading="lazy" src="https://img.youtube.com/vi/'+item.video_id+'/default.jpg" alt="">' : '';
+    const disabled=progress && progress.stage==='finalizing';
+    return '<div class="sync-row">'+thumb+'<div class="sync-track"><strong>'+escapeHtml(String(item.title || 'Song'))+'</strong><span>'+escapeHtml(String(item.artist || ''))+'</span><small>'+escapeHtml(label)+'</small></div><button class="sync-cancel" style="--progress:'+ (percent===null?0:percent*3.6)+'deg" aria-label="Cancel saving '+escapeHtml(String(item.title || 'song'))+'" '+(disabled?'disabled title="Already committing to Saved Messages"':'')+' onclick="cancelTelegramSave('+item.id+')"><span aria-hidden="true">×</span></button></div>';
+  }).join('') || '<p class="sync-note">All caught up. Selected songs will appear here when queued for saving.</p>';
+}
+async function cancelTelegramSave(id) {
+  try {
+    const result=await nativeJson('/api/tg/cancel',{id});
+    document.getElementById('tg-sync-feedback').textContent=result.cancelled?'Save cancelled. Nothing already saved on Telegram was deleted.':'This save has already finished or left the queue.';
+    await refreshTelegramSummary();
+  } catch(error) { document.getElementById('tg-sync-feedback').textContent=error.message; }
+}
+let nativeAppSettingsReady=false;
+function nativeAppAction(action) {
+  if (!nativeAppSettingsReady || !['icons','check-update','toggle-updates','download-update','install-update'].includes(action)) return;
+  window.location.href='aysha://app/'+action;
+}
+function renderNativeAppSettings(value) {
+  if (!value || !value.updates || typeof value.icon!=='string') return;
+  nativeAppSettingsReady=true;
+  const update=value.updates;
+  document.getElementById('app-icon-current').textContent='Current icon: '+value.icon;
+  document.getElementById('choose-app-icon').disabled=false;
+  document.getElementById('app-update-version').textContent='Installed version: '+String(update.version || '');
+  document.getElementById('app-update-status').textContent=String(update.message || '');
+  document.getElementById('check-app-update').disabled=!!update.busy;
+  const auto=document.getElementById('auto-app-update');auto.disabled=false;auto.setAttribute('aria-pressed',String(!!update.auto));auto.textContent='Wi-Fi auto-download: '+(update.auto?'on':'off');
+  const download=document.getElementById('download-app-update');download.hidden=!update.available || !!update.ready;download.disabled=!!update.busy;
+  const install=document.getElementById('install-app-update');install.hidden=!update.ready;install.disabled=!!update.busy;
+}
+
+function setColorTheme(theme, persist = true) {
+  if (!['crimson','charcoal','aurora'].includes(theme)) theme='crimson';
+  try { document.documentElement.setAttribute('data-theme',theme); } catch (_) {}
+  for (const name of ['crimson','charcoal','aurora']) document.getElementById('theme-'+name).setAttribute('aria-pressed',String(name===theme));
+  try { if (persist) localStorage.setItem('aysha.color-theme.v1',theme); } catch (_) {}
+}
+function restoreColorTheme() {
+  let theme='crimson';try { theme=localStorage.getItem('aysha.color-theme.v1') || theme; } catch (_) {}
+  setColorTheme(theme, false);
+}
+restoreColorTheme();
+let telegramStatusBusy = false;
+async function refreshTelegramSummary() {
+  if (telegramStatusBusy) return;
+  telegramStatusBusy = true;
+  try { renderTelegramStatus(await api('GET', '/api/tg/status')); }
+  catch (_) { document.getElementById('telegram-settings-status').textContent = 'Could not check Telegram. Open account settings to refresh.'; }
+  finally { telegramStatusBusy = false; }
+}
+function clearTelegramSecrets() {
+  for (const id of ['tg-api-hash', 'tg-code', 'tg-password']) document.getElementById(id).value = '';
+}
+async function openTelegramAccount() {
+  if (!state.nativePlayback) { showMessage('Telegram account sign-in is available in the standalone Android app.'); return; }
+  const dialog = document.getElementById('telegram-account');
+  if (!dialog.open) {
+    history.pushState({ ayshaTab: currentTab, ayshaDepth: (history.state && history.state.ayshaDepth || 0) + 1, ayshaTelegram: true }, '', '#' + currentTab + '/telegram');
+    dialog.showModal();
+  }
+  try { await refreshTelegramAccount(); } catch (_) { document.getElementById('telegram-status').textContent = 'Telegram status unavailable'; }
+}
+function closeTelegramAccount() {
+  clearTelegramSecrets();
+  if (history.state && history.state.ayshaTelegram) history.back();
+  else document.getElementById('telegram-account').close();
+}
+async function telegramAction(path, body) {
+  if (telegramBusy) return;
+  telegramBusy = true;
+  document.getElementById('telegram-feedback').textContent = 'Working…';
+  try {
+    const result = await nativeJson(path, body);
+    const messages = { ok:'Done', authorized:'Signed in. New songs will be queued for Saved Messages.', code_sent:'Code sent. Check your Telegram app; delivery is controlled by Telegram.', password_required:'Enter your two-step verification password.', invalid_code:'Invalid or expired code. Try again.', invalid_password:'Incorrect two-step verification password.' };
+    document.getElementById('telegram-feedback').textContent = messages[result.status] || result.error || 'Check your account details and try again.';
+    await refreshTelegramAccount();
+  } catch (error) { document.getElementById('telegram-feedback').textContent = error.message; }
+  finally { clearTelegramSecrets(); telegramBusy = false; }
+}
+async function configureTelegram() {
+  if (telegramBusy) return;
+  telegramBusy = true;
+  ++telegramConfigRevision;
+  const feedback = document.getElementById('telegram-api-save-status');
+  const button = document.getElementById('tg-api-save');
+  const hashField = document.getElementById('tg-api-hash');
+  const apiId = Number(document.getElementById('tg-api-id').value);
+  const apiHash = hashField.value.trim();
+  button.disabled = true;
+  feedback.textContent = 'Saving API settings on this device…';
+  try {
+    if (!Number.isInteger(apiId) || apiId <= 0 || apiId > 2147483647) throw new Error('Enter a positive numeric API ID.');
+    if (apiHash) {
+      if (!/^[a-fA-F0-9]{32}$/.test(apiHash)) throw new Error('API hash must be exactly 32 hexadecimal characters.');
+      const result = await nativeJson('/api/tg/configure', { api_id:apiId, api_hash:apiHash });
+      if (result.saved !== true || result.api_id !== apiId) throw new Error('Save was not confirmed by this app.');
+    }
+    const receipt = await api('GET', '/api/tg/configuration');
+    if (receipt.saved !== true || receipt.api_id !== apiId) throw new Error('Saved settings could not be verified. Enter the API hash and retry.');
+    // Clear only after POST plus a separate local disk-backed receipt agree.
+    hashField.value = '';
+    renderTelegramConfiguration(receipt);
+    document.getElementById('telegram-status').textContent = 'API settings saved · Sign in with your phone number below';
+  } catch (error) {
+    feedback.textContent = error.message + ' Entry retained for retry; closing this dialog clears it.';
+  } finally {
+    document.getElementById('tg-code').value = '';
+    document.getElementById('tg-password').value = '';
+    button.disabled = false;
+    telegramBusy = false;
+  }
+}
+async function telegramLogin(step) {
+  const key = step === 'phone' ? 'phone' : step === 'code' ? 'code' : 'password';
+  const value = document.getElementById('tg-' + key).value;
+  return telegramAction(step === 'phone' ? '/api/tg/send_code' : '/api/tg/verify_code', { [key]:value });
+}
+async function disconnectTelegram() { return telegramAction('/api/tg/disconnect', {}); }
 
 function nativeVideoId(t) {
   return ((t && (t.video_id || t.videoId || t.id)) || '').trim();
@@ -619,60 +930,6 @@ function nativeVideoId(t) {
 function fmtSecs(value) {
   const total = Math.max(0, Math.floor(Number(value) || 0));
   return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
-}
-
-// Render the Rust player's own snapshot (/api/player): position, play/pause,
-// volume and - after a reload or a background change - the track it is playing.
-// It reports position only, so the progress bar is never filled with a guess.
-function renderNativePlayer(player) {
-  const name = String(player.state || 'idle');
-  const playing = name === 'playing';
-  if (player.error) {
-    document.getElementById('time-display').textContent = String(player.error).slice(0, 300);
-    setPlayingState(false);
-    return;
-  }
-  const active = playing || name === 'paused';
-  if (active && player.video_id) {
-    // Adopt the player's track only when nothing is selected locally, so
-    // browsing never overwrites the song the page is about to start.
-    if (!state.current_track) {
-      state.current_track = {
-        id: player.video_id,
-        video_id: player.video_id,
-        title: player.title || 'Playing on this device',
-        artist: 'This device',
-        url: '',
-      };
-      state.playMode = 'native';
-      renderSelection(state.current_track);
-    }
-    state.stopped = false;
-    if (playing !== state.is_playing) setPlayingState(playing);
-    state.pos = Number(player.position_secs) || 0;
-    state.duration = Number(player.duration_secs) || 0;
-    const pct = state.duration > 0 ? Math.min(100, state.pos / state.duration * 100) : 0;
-    document.getElementById('progress-bar').style.width = pct + '%';
-    document.getElementById('time-display').textContent =
-      (state.duration > 0 ? fmtSecs(state.pos) + ' / ' + fmtSecs(state.duration) : fmtSecs(state.pos)) +
-      (name === 'paused' ? ' (paused)' : '');
-    if (document.getElementById('now-playing').open) {
-      syncNowPlaying();
-      document.getElementById('full-elapsed').textContent = formatClock(state.pos);
-      document.getElementById('full-duration').textContent =
-        state.duration > 0 ? formatClock(state.duration) : 'Streaming audio';
-      document.getElementById('full-progress').style.width = pct + '%';
-    }
-  } else if ((name === 'idle' || name === 'stopped') && state.is_playing) {
-    setPlayingState(false);
-  }
-  const volume = Number(player.volume);
-  if (Number.isFinite(volume) && Math.abs(volume * 100 - state.volume) > 0.5) {
-    state.volume = Math.round(volume * 100);
-    document.getElementById('volume-slider').value = state.volume;
-    document.getElementById('full-volume').value = state.volume;
-    updateVolumeIcon(state.volume);
-  }
 }
 
 // One-tap proof that resolve + media fetch work on this phone.
@@ -684,14 +941,13 @@ async function runSelftest() {
     const r = await fetch('/api/selftest?video_id=' + encodeURIComponent(id), { cache: 'no-store' });
     const body = await r.json().catch(() => ({}));
     if (!r.ok || !body.ok) {
-      const attempts = (body.attempts || []).map(a => a.client + ' [' + (a.status || '?') + (a.visitor === 'attached' ? ', visitor' : '') + '] ' + a.error).join(' | ');
+      const attempts = (body.attempts || []).map(a => a.client + ': ' + a.error).join(' | ');
       label.textContent = 'Selftest FAILED: ' + (attempts || body.detail || body.error || ('HTTP ' + r.status));
       console.warn('aysha selftest', body);
       return;
     }
     label.textContent = 'Selftest OK: ' + body.client + ' itag ' + body.itag + ', ' +
-      body.bytes_fetched + ' B in ' + body.elapsed_ms + ' ms' +
-      (body.visitor ? ' (visitor ' + body.visitor.source + ')' : '');
+      body.bytes_fetched + ' B in ' + body.elapsed_ms + ' ms';
     console.info('aysha selftest', body);
   } catch (error) {
     label.textContent = 'Selftest error: ' + error.message;
@@ -703,6 +959,29 @@ function getStreamUrl(t) {
   return '/api/stream?url=' + encodeURIComponent(t.url);
 }
 
+let pendingSharedVideo = null;
+function receiveSharedVideo(id) {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id || '')) return;
+  pendingSharedVideo=id;
+  const intro=document.getElementById('love-intro');if (intro.open) finishLoveIntro();
+  document.getElementById('share-feedback').textContent='';
+  const dialog=document.getElementById('shared-video-dialog');
+  if (!dialog.open) {
+    if (typeof history !== 'undefined') history.pushState({...(history.state || {}),ayshaShare:true,ayshaShareId:id,ayshaDepth:(history.state && history.state.ayshaDepth || 0)+1},'', '#'+currentTab+'/shared');
+    dialog.showModal();
+  }
+}
+function dismissSharedVideo() {
+  pendingSharedVideo=null;document.getElementById('shared-video-dialog').close();
+  if (typeof history !== 'undefined' && history.state && history.state.ayshaShare) history.back();
+}
+async function confirmSharedVideo() {
+  if (!pendingSharedVideo) return;
+  if (!state.nativePlayback) {document.getElementById('share-feedback').textContent='The local player is starting. Please try again shortly.';pollStatus();return;}
+  const id=pendingSharedVideo;dismissSharedVideo();
+  await playSong({id,title:'Shared YouTube song',artist:'',url:'https://www.youtube.com/watch?v='+id,thumbnail:'https://img.youtube.com/vi/'+id+'/hqdefault.jpg'},{shared:true});
+  openNowPlaying();
+}
 async function playSong(t, options = {}) {
   const attempt = ++playbackAttempt;
   renderSelection(t);
@@ -717,19 +996,26 @@ async function playSong(t, options = {}) {
     state.playMode = 'native';
     saveSelection();
     setPlayingState(false);
-    document.getElementById('time-display').textContent = 'Resolving on the server...';
+    state.nativeStarting = true;
+    state.nativeStage = 'resolving'; state.nativeError = ''; state.pos = 0; state.nativeDuration = null;
+    syncNowPlaying();
+    document.getElementById('time-display').textContent = 'Resolving on this device...';
     try {
-      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t) });
+      const info = await nativeJson('/api/play', { video_id: nativeVideoId(t), ...(options.shared ? {} : {track:t}) });
       if (attempt !== playbackAttempt) return;
       if (info.title && info.title !== t.title) { t.title = info.title; renderSelection(t); }
-      state.stopped = false;
-      setPlayingState(true);
+      state.stopped = false; state.nativeStage = 'playing'; state.nativeError = '';
+      setPlayingState(true); syncNowPlaying();
       document.getElementById('time-display').textContent = 'Playing on this device...';
     } catch (error) {
       if (attempt !== playbackAttempt) return;
       state.stopped = true;
       setPlayingState(false);
-      document.getElementById('time-display').textContent = error.message.slice(0, 300);
+      state.nativeStage = 'error'; state.nativeError = error.message.slice(0, 300);
+      document.getElementById('time-display').textContent = state.nativeError;
+      syncNowPlaying();
+    } finally {
+      if (attempt === playbackAttempt) state.nativeStarting = false;
     }
     return;
   }
@@ -790,6 +1076,8 @@ async function togglePlay() {
     document.getElementById('time-display').textContent = 'Select a song first';
     return;
   }
+  // A second tap while preparing cancels instead of starting another request.
+  if (state.nativePlayback && state.nativeStarting) return stopPlay();
   // Stop releases the old stream/mpv process; Pause does not. Restart the
   // retained selection with /api/play instead of resuming an empty source.
   if (state.stopped) {
@@ -826,7 +1114,7 @@ async function stopPlay() {
     } catch (error) {
       document.getElementById('time-display').textContent = 'Stopped on this device; server update failed: ' + error.message;
     }
-    state.stopped = true;
+    state.stopped = true; state.nativeStage = 'idle'; state.nativeError = ''; state.nativeStarting = false;
     state.pos = 0;
     setPlayingState(false);
     document.getElementById('progress-bar').style.width = '0%';
@@ -868,17 +1156,24 @@ let navigationBusy = false;
 async function navigateTrack(direction) {
   if (navigationBusy) return;
   navigationBusy = true;
+  document.getElementById('time-display').textContent = 'Loading your next song…';
+  document.getElementById('full-duration').textContent = 'Loading your next song…';
   try {
-    if (state.nativePlayback) {
-      // Android has no server-side queue: the player picks the next song.
-      const info = await nativeJson('/api/' + direction, { video_id: nativeVideoId(state.current_track) || null });
-      adoptNativeTrack(info.track || info);
-      return;
-    }
     const result = await api('POST', '/api/' + direction);
     if (!result.track) throw new Error('No track returned by server');
     // Navigation already updated server state. Do not add a second history entry.
-    await playSong(result.track, { notifyServer: false, mode: result.mode });
+    if (state.nativePlayback && result.already_started) {
+      state.nativeError = '';
+      state.nativeStage = 'playing';
+      state.current_track = result.track;
+      state.playMode = 'native';
+      state.stopped = false;
+      renderSelection(result.track);
+      saveSelection();
+      setPlayingState(true);
+    } else {
+      await playSong(result.track, { notifyServer: false, mode: result.mode });
+    }
   } catch (error) {
     document.getElementById('time-display').textContent = error.message;
   } finally {
@@ -889,12 +1184,44 @@ async function navigateTrack(direction) {
 async function nextTrack() { return navigateTrack('next'); }
 async function prevTrack() { return navigateTrack('prev'); }
 
+let seeking = false;
+let seekBusy = false;
+let seekVideo = '';
+function seekDuration() {
+  return state.nativePlayback ? state.nativeDuration : document.getElementById('audio-player').duration;
+}
+function beginSeek() { seeking=true; seekVideo=nativeVideoId(state.current_track); }
+function previewSeek(value) {
+  if (!seeking) seekVideo = nativeVideoId(state.current_track);
+  seeking = true;
+  if (!seekVideo) seekVideo = nativeVideoId(state.current_track);
+  const duration = seekDuration();
+  const position = Number(value) / 1000 * duration;
+  for (const id of ['full-seek','mini-seek']) document.getElementById(id).value = value;
+  document.getElementById('full-elapsed').textContent = formatClock(position);
+  document.getElementById('time-display').textContent = 'Seek to ' + formatClock(position);
+}
+function cancelSeek() { seeking=false; seekVideo=''; }
+async function commitSeek(value) {
+  const id = seekVideo || nativeVideoId(state.current_track);
+  cancelSeek();
+  const duration = seekDuration();
+  if (seekBusy || !Number.isFinite(duration) || duration <= 0 || id !== nativeVideoId(state.current_track)) return;
+  const fraction = Number(value) / 1000;
+  if (!Number.isFinite(fraction)) return;
+  const position = Math.max(0,Math.min(1,fraction)) * duration;
+  seekBusy=true;
+  try {
+    if (state.nativePlayback) await nativeJson('/api/seek',{position,video_id:id});
+    else document.getElementById('audio-player').currentTime=position;
+    state.pos=position;
+    document.getElementById('time-display').textContent=formatClock(position);
+  } catch (error) { showMessage('Could not seek: ' + error.message); }
+  finally { seekBusy=false; syncNowPlaying(); }
+}
 async function seekTrack(e) {
-  const audio = document.getElementById('audio-player');
-  if (!audio.duration || audio.duration === 0) return;
-  const r = e.currentTarget.getBoundingClientRect();
-  const pct = (e.clientX - r.left) / r.width;
-  audio.currentTime = pct * audio.duration;
+  const r=e.currentTarget.getBoundingClientRect();
+  return commitSeek((e.clientX-r.left)/r.width*1000);
 }
 
 async function changeVol(v) {
@@ -934,21 +1261,23 @@ function updateVolumeIcon(v) {
 
 function renderGrid(tracks, containerId, showHeart) {
   const c = document.getElementById(containerId);
-  c.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  const likedIds = new Set(state.liked.map(t => t.id));
+  const queuedIds = new Set((state.queue || []).map(t => t.id));
   if (!tracks || !tracks.length) {
     c.innerHTML = '<div class="empty-msg">No results found.</div>';
     return;
   }
   tracks.forEach(t => {
-    const isLiked = state.liked.some(l => l.id === t.id);
-    const qIn = state.queue ? state.queue.some(q => q.id === t.id) : false;
+    const isLiked = likedIds.has(t.id);
+    const qIn = queuedIds.has(t.id);
     const card = document.createElement('div');
     card.className = 'song-card';
     card.tabIndex = 0;
     card.setAttribute('role', 'group');
     card.setAttribute('aria-label', t.title + ' by ' + t.artist);
     card.innerHTML =
-      '<img class="card-thumb" alt="" loading="lazy" src="https://img.youtube.com/vi/' + t.id + '/hqdefault.jpg">' +
+      '<img class="card-thumb" alt="" loading="lazy" decoding="async" width="140" height="140" src="https://img.youtube.com/vi/' + encodeURIComponent(t.id) + '/hqdefault.jpg">' +
       '<div class="card-info">' +
       '<div class="card-title">' + escapeHtml(t.title) + '</div>' +
       '<div class="card-artist">' + escapeHtml(t.artist) + '</div>' +
@@ -967,12 +1296,13 @@ function renderGrid(tracks, containerId, showHeart) {
     card.onkeydown = event => {
       if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); playSong(t); }
     };
-    c.appendChild(card);
+    fragment.appendChild(card);
   });
+  c.replaceChildren(fragment);
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 async function toggleLike(t) {
@@ -1178,7 +1508,8 @@ async function searchTracks(query, label) {
     renderGrid(Array.isArray(result) ? result : [], 'explore-cards', true);
   } catch (error) {
     if (generation === searchGeneration) {
-      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again to retry.</div>';
+      loadedTabs.delete('explore');
+      document.getElementById('explore-cards').innerHTML = '<div class="empty-msg">Could not load music. Search again or tap Explore to retry.</div>';
       showMessage(error.message);
     }
   } finally {
@@ -1194,20 +1525,29 @@ async function fetchCategory(cat, sourceEvent) {
 
 async function loadHome() {
   showLoading('quick-picks');
-  const picks = await api('GET', '/api/search?q=Aysha%20love%20songs');
-  document.getElementById('quick-picks').setAttribute('aria-busy', 'false');
-  const pt = Array.isArray(picks) ? picks : (picks.results || []);
-  renderGrid(pt, 'quick-picks', true);
-  await refreshFavorites().catch(() => []);
-  renderGrid(state.liked, 'recent-history', true);
-  loadQueue().catch(() => {});
+  // Local favorites/queue must not wait behind provider search. No speculative
+  // media download, persistent search cache or extra provider requests.
+  const picksTask = (async () => {
+    try {
+      const picks = await api('GET', '/api/search?q=Malayalam%20Tamil%20romantic%20melody%20songs');
+      const pt = Array.isArray(picks) ? picks : (picks.results || []);
+      renderGrid(pt, 'quick-picks', true);
+    } catch (error) {
+      document.getElementById('quick-picks').innerHTML = '<div class="empty-msg">Could not load picks. Tap Home to retry.</div>';
+      throw error;
+    } finally { document.getElementById('quick-picks').setAttribute('aria-busy', 'false'); }
+  })();
+  const favoritesTask = refreshFavorites().then(() => renderGrid(state.liked, 'recent-history', true));
+  const results = await Promise.allSettled([picksTask, favoritesTask, loadQueue()]);
+  const failed = results.find(result => result.status === 'rejected');
+  if (failed) throw failed.reason;
 }
 
 async function loadLiked() {
   renderSongRatings();
-  await refreshFavorites().catch(() => []);
+  await refreshFavorites();
   renderGrid(state.liked, 'full-history', true);
-  loadQueue().catch(() => {});
+  loadQueue();
 }
 
 async function loadQueue() {
@@ -1424,12 +1764,13 @@ function resetQuotePreferences() {
     : 'Reset for this page only. Browser storage could not be cleared; saved choices may return after reload.';
 }
 
-const appTabs = ['home', 'explore', 'library', 'quotes', 'bluetooth'];
+const appTabs = ['home', 'explore', 'library', 'quotes', 'settings'];
 let currentTab = 'home';
 const tabScroll = new Map();
 const loadedTabs = new Set();
 
 function renderTab(tab, options = {}) {
+  if (tab === 'bluetooth') tab = 'settings'; // Preserve old bookmarked links.
   if (!appTabs.includes(tab)) tab = 'home';
   const content = document.getElementById('content-area');
   tabScroll.set(currentTab, content.scrollTop || 0);
@@ -1446,9 +1787,9 @@ function renderTab(tab, options = {}) {
   // loaded. Preserve existing views, but fetch missing content on that return.
   if (options.load === false && loadedTabs.has(tab)) return;
   let work;
-  if (tab === 'bluetooth') work = loadBluetooth();
+  if (tab === 'settings') { loadedTabs.add(tab); refreshTelegramSummary(); return; }
   else if (tab === 'library') work = loadLiked();
-  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Jazz');
+  else if (!loadedTabs.has(tab)) work = tab === 'home' ? loadHome() : fetchCategory('Romantic melody');
   loadedTabs.add(tab);
   if (work) Promise.resolve(work).catch(error => {
     loadedTabs.delete(tab);
@@ -1458,6 +1799,7 @@ function renderTab(tab, options = {}) {
 }
 
 function switchTab(tab, options = {}) {
+  if (tab === 'bluetooth') tab = 'settings';
   if (!appTabs.includes(tab)) return;
   if (currentTab !== tab) {
     const depth = (history.state && history.state.ayshaDepth || 0) + 1;
@@ -1479,6 +1821,37 @@ function formatClock(value) {
   return Math.floor(value / 60) + ':' + String(Math.floor(value % 60)).padStart(2, '0');
 }
 
+let playbackModes={shuffle:false,repeat:'off'};
+let playbackModesReady=false, playbackModesBusy=false, playbackModesRequested=false;
+function applyPlaybackModes(value) {
+  if (!value || typeof value.shuffle!=='boolean' || !['off','all','one'].includes(value.repeat)) return;
+  if (playbackModesReady && playbackModes.shuffle===value.shuffle && playbackModes.repeat===value.repeat) return;
+  playbackModes={shuffle:value.shuffle,repeat:value.repeat};playbackModesReady=true;
+  document.getElementById('playback-mode-controls').hidden=false;
+  const shuffle=document.getElementById('full-shuffle'),repeat=document.getElementById('full-repeat');
+  const shuffleLabel='Shuffle '+(value.shuffle?'on':'off'),repeatLabel='Repeat '+value.repeat;
+  shuffle.setAttribute('aria-pressed',String(value.shuffle));shuffle.setAttribute('aria-label',shuffleLabel);
+  repeat.setAttribute('aria-pressed',String(value.repeat!=='off'));repeat.setAttribute('aria-label',repeatLabel);
+  repeat.title=value.repeat==='all'?'Repeat selected songs and queue. Mix recommendations are not added.':value.repeat==='one'?'Repeat this song when it ends. Next still skips.':'Repeat off. Next continues your queue or mix.';
+  document.getElementById('shuffle-label').textContent=shuffleLabel;document.getElementById('repeat-label').textContent=repeatLabel;
+  document.getElementById('repeat-icon').setAttribute('href','/icons.svg#'+(value.repeat==='one'?'repeat-one':'repeat'));
+  const note=document.getElementById('playback-mode-note');note.hidden=value.repeat!=='all';note.textContent=value.repeat==='all'?'Loops your selected songs and queue. Clear queue resets this collection.':'';
+}
+async function discoverPlaybackModes() {
+  if (playbackModesRequested) return;playbackModesRequested=true;
+  try {applyPlaybackModes(await api('GET','/api/playback_modes'));}catch (_) { /* Older Linux/preview backend: do not show unsupported controls. */ }
+}
+async function savePlaybackModes(value) {
+  if (!playbackModesReady || playbackModesBusy) return;
+  playbackModesBusy=true;
+  for (const id of ['full-shuffle','full-repeat']) document.getElementById(id).disabled=true;
+  try {const result=await api('POST','/api/playback_modes',value);applyPlaybackModes(result);}
+  catch(error) {document.getElementById('full-action-status').textContent='Playback order unchanged: '+error.message;}
+  finally {playbackModesBusy=false;for (const id of ['full-shuffle','full-repeat']) document.getElementById(id).disabled=false;}
+}
+async function toggleShuffle(){return savePlaybackModes({...playbackModes,shuffle:!playbackModes.shuffle});}
+async function cycleRepeat(){return savePlaybackModes({...playbackModes,repeat:({off:'all',all:'one',one:'off'})[playbackModes.repeat]});}
+
 function syncNowPlaying() {
   const track = state.current_track;
   const audio = document.getElementById('audio-player');
@@ -1489,10 +1862,17 @@ function syncNowPlaying() {
   document.getElementById('full-output').textContent = state.playMode === 'bt' ? 'Home Bluetooth speaker' : 'This device';
   const artwork = document.getElementById('hero-art').src;
   if (document.getElementById('full-art').src !== artwork) document.getElementById('full-art').src = artwork;
-  document.getElementById('full-elapsed').textContent = formatClock(audio.currentTime);
-  document.getElementById('full-duration').textContent = Number.isFinite(audio.duration) ? formatClock(audio.duration) : 'Streaming audio';
-  document.getElementById('full-progress').style.width = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.min(100, audio.currentTime / audio.duration * 100) + '%' : '0%';
+  const position = state.nativePlayback ? state.pos : audio.currentTime;
+  const duration = state.nativePlayback ? state.nativeDuration : audio.duration;
+  const nativeLabel = ({ resolving: 'Resolving on this phone…', buffering: 'Buffering audio…', playing: 'Playing on this phone', paused: 'Paused', ended: 'Finished', idle: 'Ready — tap Play', error: 'Playback could not start' })[state.nativeStage];
+  if (!seeking) document.getElementById('full-elapsed').textContent = formatClock(position);
+  document.getElementById('full-duration').textContent = state.nativePlayback && (state.nativeStage !== 'playing' || !Number.isFinite(duration)) ? nativeLabel : (Number.isFinite(duration) ? formatClock(duration) : 'Streaming audio');
+  const canSeek = Number.isFinite(duration) && duration > 0 && (!state.nativePlayback || ['playing','paused','buffering'].includes(state.nativeStage));
+  for (const id of ['full-seek','mini-seek']) { const input=document.getElementById(id); input.disabled=!canSeek; if (!seeking && !seekBusy) input.value=canSeek?Math.min(1000,position/duration*1000):0; }
+  if (!seeking) document.getElementById('full-progress').style.width = Number.isFinite(duration) && duration > 0 ? Math.min(100, position / duration * 100) + '%' : '0%';
   document.getElementById('full-volume').value = state.volume;
+  document.getElementById('full-error').hidden = !state.nativeError;
+  document.getElementById('full-error').textContent = state.nativeError;
 }
 
 function openNowPlaying() {
@@ -1517,27 +1897,81 @@ function queueFromPlayer() {
 }
 
 function initializeNavigation() {
-  const requested = location.hash.slice(1).split('/')[0];
+  const requested = location.hash.slice(1).split('/')[0].replace(/^bluetooth$/, 'settings');
   const tab = appTabs.includes(requested) ? requested : 'home';
   history.replaceState({ ayshaTab: tab, ayshaDepth: 0 }, '', '#' + tab);
   window.addEventListener('popstate', event => {
     const dialog = document.getElementById('now-playing');
     const next = event.state || { ayshaTab: 'home' };
+    const share=document.getElementById('shared-video-dialog');
+    if (!next.ayshaShare && share.open) {share.close();pendingSharedVideo=null;}
+    if (next.ayshaShare && /^[A-Za-z0-9_-]{11}$/.test(next.ayshaShareId || '') && !share.open) {pendingSharedVideo=next.ayshaShareId;share.showModal();}
     if (dialog.open && !next.ayshaPlayer) dialog.close();
+    const account = document.getElementById('telegram-account');
+    if (account.open && !next.ayshaTelegram) { account.close(); clearTelegramSecrets(); }
+    if (next.ayshaTelegram && !account.open) account.showModal();
     renderTab(next.ayshaTab || 'home', { load: false });
     if (next.ayshaPlayer && !dialog.open) { syncNowPlaying(); dialog.showModal(); }
     renderRatingPrompt();
   });
   document.getElementById('now-playing').addEventListener('cancel', event => { event.preventDefault(); closeNowPlaying(); });
+  document.getElementById('shared-video-dialog').addEventListener('cancel',event=>{event.preventDefault();dismissSharedVideo();});
+  document.getElementById('telegram-account').addEventListener('cancel', event => { event.preventDefault(); closeTelegramAccount(); });
+  document.getElementById('telegram-account').addEventListener('close', clearTelegramSecrets);
   renderTab(tab);
 }
 
+let statusPollBusy = false;
 async function pollStatus() {
+  if (statusPollBusy) return;
+  statusPollBusy = true;
   try {
-    const st = await api('GET', '/api/status');
+    // Native capability is fixed for this page/backend; /api/player is the
+    // authoritative native state. Avoid a redundant status request every tick.
+    const st = state.nativePlayback ? null : await api('GET', '/api/status');
     if (st && st.native_playback === true) state.nativePlayback = true;
     if (state.nativePlayback) {
-      renderNativePlayer(await (await fetch('/api/player', { cache: 'no-store' })).json());
+      // Apply output UI even if capability was already known at page startup.
+      document.getElementById('linux-speaker-settings').hidden = true;
+      document.getElementById('android-output-note').hidden = false;
+      const player = await (await fetch('/api/player', { cache: 'no-store' })).json();
+      if (!playbackModesBusy) {if (player.playback_modes) applyPlaybackModes(player.playback_modes);else discoverPlaybackModes();}
+      // Preparation may be rejecting one profile and trying the next. Only the
+      // completed Play/Next transaction may publish a final error/success.
+      if (state.nativeStarting || navigationBusy) { syncNowPlaying(); return; }
+      // A resolver refusal happens before there is a player error. Do not erase
+      // it on the next idle poll, nor let an old track replace a pending selection.
+      if (state.nativeError && !player.error && (!player.track || player.track.id === nativeVideoId(state.current_track))) { syncNowPlaying(); return; }
+      if (state.nativeStarting && player.video_id !== nativeVideoId(state.current_track)) return;
+      state.nativeStage = player.state;
+      state.pos = Number(player.position_secs) || 0;
+      state.nativeDuration = Number.isFinite(player.duration_secs) ? player.duration_secs : null;
+      if (player.error) {
+        state.nativeError = String(player.error).slice(0, 300);
+        state.stopped = true; setPlayingState(false);
+        document.getElementById('time-display').textContent = state.nativeError;
+        syncNowPlaying(); return;
+      }
+      state.nativeError = '';
+      if (player.state === 'buffering') {
+        document.getElementById('time-display').textContent = 'Buffering audio on this phone…';
+        syncNowPlaying(); return;
+      }
+      if (player.track && player.track.id === player.video_id && (!state.current_track || state.current_track.id !== player.track.id)) {
+        state.current_track = player.track;
+        state.playMode = 'native';
+        renderSelection(player.track);
+        saveSelection();
+      }
+      if (player.state === 'playing' || player.state === 'paused') {
+        state.stopped = false;
+        const playing = player.state === 'playing';
+        if (playing !== state.is_playing) setPlayingState(playing);
+      }
+      if ((player.state === 'idle' || player.state === 'ended') && state.playMode === 'native') { state.stopped = true; setPlayingState(false); }
+      syncNowPlaying();
+      document.getElementById('time-display').textContent =
+        player.autoplay_error || (player.state === 'ended' ? 'Loading your next song…' : fmtSecs(player.position_secs) + (player.state === 'paused' ? ' (paused)' : ''));
       return;
     }
     // Global server metadata is not evidence that this browser has an audio
@@ -1574,8 +2008,10 @@ async function pollStatus() {
       document.getElementById('time-display').textContent = 'Loading...';
     }
   } catch (e) {}
+  finally { statusPollBusy = false; }
 }
-setInterval(pollStatus, 400);
+setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);
+setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 2000);
 
 document.getElementById('audio-player').addEventListener('ended', function() {
   if (state.playMode === 'browser' && !state.stopped) {

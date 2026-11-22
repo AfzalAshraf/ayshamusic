@@ -8,7 +8,7 @@ import android.util.Log
  * 
  * The native function signature must match:
  *   JNIEXPORT void JNICALL Java_com_afzal_ayshamusic_RustBridge_startServer(
- *       JNIEnv* env, jclass clazz, jstring filesDir, jstring cacheDir
+ *       JNIEnv* env, jobject receiver, jstring filesDir, jstring cacheDir, jobject context, jint port, jstring engine, jstring instance
  *   )
  */
 object RustBridge {
@@ -17,10 +17,10 @@ object RustBridge {
 
     // Native method declaration
     @Suppress("UNUSED_PARAMETER")
-    private external fun startServer(filesDir: String, cacheDir: String)
+    private external fun startServer(filesDir: String, cacheDir: String, context: Context, port: Int, engine: String, instance: String)
 
     /**
-     * Starts the Rust HTTP server on 127.0.0.1:5050.
+     * Starts the Rust HTTP server on the variant-specific loopback port.
      * Must be called once from MainActivity.onCreate().
      */
     fun startServer(context: Context) {
@@ -35,7 +35,10 @@ object RustBridge {
         Log.i(TAG, "Starting Rust server with filesDir=$filesDir, cacheDir=$cacheDir")
         
         try {
-            startServer(filesDir, cacheDir)
+            // CPAL needs a JVM + long-lived application Context before audio opens.
+            // Never retain an Activity: it may be destroyed while playback continues.
+            PlatformAudio.initialize(context.applicationContext)
+            startServer(filesDir, cacheDir, context.applicationContext, BuildConfig.API_PORT, BuildConfig.AUDIO_ENGINE, MediaApi.instanceId)
             serverStarted = true
             Log.i(TAG, "Rust server start request sent successfully")
         } catch (e: UnsatisfiedLinkError) {
@@ -47,5 +50,11 @@ object RustBridge {
     /**
      * Checks if the server has been started.
      */
+    @Suppress("unused")
+    fun platformCommand(command: String) { PlatformAudio.command(command) }
+
+    @Suppress("unused")
+    fun squareCover(bytes: ByteArray): ByteArray? = AlbumArtwork.squareJpeg(bytes)
+
     fun isServerStarted(): Boolean = serverStarted
 }

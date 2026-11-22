@@ -12,7 +12,7 @@ class UpgradeBaselineTests(unittest.TestCase):
     def test_both_served_footers_have_the_exact_dedication(self):
         page = (ROOT / "src/index.html").read_text()
         main = re.search(r'<div class="footer">(.*?)</div>', page, re.S)
-        expanded = re.search(r'<div class="now-footer"><span>(.*?)</span><button', page, re.S)
+        expanded = re.search(r'<div class="now-footer"><span>(.*?)</span></div>', page, re.S)
         for match in (main, expanded):
             self.assertIsNotNone(match)
             text = html.unescape(re.sub(r"<[^>]+>", "", match.group(1)))

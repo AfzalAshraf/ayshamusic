@@ -1,11 +1,24 @@
 //! Shared library target for the Aysha Music Android APK.
 //!
-//! Phase 2 scope: JNI entry point, a local Axum server bound to
-//! `127.0.0.1:5050`, the persistent Telegram queue/quota endpoints and the
-//! Telegram login (`send_code` -> `verify_code` -> optional 2FA).
-//!
-//! Later phases wire in the pure-Rust YouTube extractor, the rodio player and
-//! the `/api/tg/quota` sidebar gauge in the player page.
+//! A variant-specific loopback Axum server embeds the UI, catalogue, Rust
+//! YouTube resolution and Telegram Saved Messages pipeline. Audio decode/output
+//! is Rust rodio/CPAL or the explicitly approved Android Media3 bridge; startup
+//! instance/engine/port identity must match before Kotlin loads this server.
+
+#![cfg(feature = "phone")]
+mod android_catalog;
+mod recommendations;
+mod mix;
+mod play_modes;
+mod listening;
+mod range_media;
+mod pcm_stream;
+mod audio_engine;
+mod source_selection;
+mod platform_audio;
+mod tg_storage;
+mod archive_progress;
+mod song_metadata;
 
 pub mod player;
 pub mod tg_auth;
@@ -14,14 +27,14 @@ pub mod tg_session;
 pub mod youtube;
 
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 use tg_auth::TgOutcome;
 use tg_cache::TelegramCacheManager;
 
@@ -31,9 +44,17 @@ const INDEX_HTML: &str = include_str!("index.html");
 /// `(files_dir, cache_dir)` supplied by Android on startup.
 static PATHS: OnceLock<(String, String)> = OnceLock::new();
 static SERVER_STARTED: OnceLock<()> = OnceLock::new();
+static STARTUP: OnceLock<(u16, String, String)> = OnceLock::new();
+fn api_port()->u16 { STARTUP.get().map(|s|s.0).unwrap_or(5050) }
+fn audio_engine_name()->&'static str { STARTUP.get().map(|s|s.1.as_str()).unwrap_or("rust") }
+fn instance_id()->&'static str { STARTUP.get().map(|s|s.2.as_str()).unwrap_or("host") }
 
 /// Playback thread, started lazily on the first `/api/play`.
-static PLAYER: OnceLock<player::Player> = OnceLock::new();
+static PLAYER: OnceLock<audio_engine::Player> = OnceLock::new();
+static TG_CACHE: OnceLock<Arc<TelegramCacheManager>> = OnceLock::new();
+// Serializes Stop with source handoff, including a Play still resolving remotely.
+static PLAY_TICKET: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+fn cache_manager() -> Option<Arc<TelegramCacheManager>> { TG_CACHE.get().cloned() }
 /// Shared HTTP client for YouTube resolution and media streaming.
 static HTTP_CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
 /// Visitor identity for InnerTube, cached for the process and on disk.
@@ -54,12 +75,12 @@ async fn visitor(client: &reqwest::Client) -> &'static youtube::Visitor {
 
 /// Only `/api/play` may open the audio device. Read/control endpoints must
 /// never acquire hardware just because the UI polls them.
-fn started_player() -> Option<&'static player::Player> {
+fn started_player() -> Option<&'static audio_engine::Player> {
     PLAYER.get()
 }
 
-fn player() -> &'static player::Player {
-    PLAYER.get_or_init(player::Player::spawn)
+fn player() -> &'static audio_engine::Player {
+    PLAYER.get_or_init(audio_engine::Player::spawn)
 }
 
 fn http_client() -> Option<&'static reqwest::Client> {
@@ -116,23 +137,33 @@ pub fn boot(files_dir: String, cache_dir: String) {
 
 /// Builds the HTTP router with the given cache handle.
 pub fn router(state: SharedCache) -> Router {
+    router_with_phone(state, android_catalog::new_state())
+}
+fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Router {
     Router::new()
+        .merge(android_catalog::routes())
         .route("/", get(index))
         .route("/api/status", get(status))
+        .route("/api/platform/event", post(platform_audio::receive_event))
+        .route("/api/platform/media/{token}", get(platform_audio::media))
         .route("/api/tg/quota", get(tg_quota))
         .route("/api/tg/send_code", post(tg_send_code))
         .route("/api/tg/verify_code", post(tg_verify_code))
         .route("/api/tg/status", get(tg_status))
+        .route("/api/tg/cancel", post(tg_cancel))
+        .route("/api/seek", post(seek))
+        .route("/api/tg/configure", post(tg_configure))
+        .route("/api/tg/configuration", get(tg_configuration))
+        .route("/api/tg/disconnect", post(tg_disconnect))
         .route("/api/play", post(play))
-        .route("/api/search", get(search_tracks))
-        .route("/api/next", post(next_track))
-        .route("/api/prev", post(prev_track))
         .route("/api/pause", post(pause))
         .route("/api/resume", post(resume))
         .route("/api/stop", post(stop))
         .route("/api/volume", post(volume))
         .route("/api/player", get(player_status))
         .route("/api/selftest", get(selftest))
+        .layer(Extension(phone))
+        .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
         .with_state(state)
 }
 
@@ -157,22 +188,49 @@ async fn serve(files_dir: String, cache_dir: String) {
     };
 
     let _ = PATHS.set((files_dir, cache_dir));
-    let app = router(Arc::new(manager));
+    if let Some(cache)=&manager {
+        let _=TG_CACHE.set(cache.clone());
+        tokio::spawn(tg_storage::worker(cache.clone()));
+    }
+    let phone = android_catalog::new_state();
+    let sampling = phone.clone();
+    tokio::spawn(async move {
+        let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop { timer.tick().await; let phone=sampling.clone(); let _=tokio::task::spawn_blocking(move || sample_listening(&phone)).await; }
+    });
+    let autoplay=phone.clone();
+    tokio::spawn(async move {
+        let mut last_end=None;
+        let mut timer=tokio::time::interval(std::time::Duration::from_secs(1));
+        loop {
+            timer.tick().await;
+            let ticket=*PLAY_TICKET.lock().unwrap();
+            let ended=started_player().is_some_and(|p|p.snapshot()["state"]=="ended");
+            if ended && last_end!=Some(ticket) {
+                last_end=Some(ticket);
+                let result=android_catalog::auto_next(autoplay.clone(),ticket).await;
+                if !result.0.is_success() && *PLAY_TICKET.lock().unwrap()==ticket && started_player().is_some_and(|p|p.snapshot()["state"]=="ended") {
+                    *autoplay.autoplay_error.lock().unwrap()=Some("Your mix paused. Choose another song or tap Next.".into());
+                }
+            }
+        }
+    });
+    let app = router_with_phone(Arc::new(manager), phone);
 
     // Loopback only: the WebView talks to 127.0.0.1, the phone's LAN cannot.
-    match tokio::net::TcpListener::bind("127.0.0.1:5050").await {
+    match tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, api_port())).await {
         Ok(listener) => {
-            println!("ayshamusic: listening on http://127.0.0.1:5050");
+            println!("ayshamusic: listening on loopback port {} ({})", api_port(), audio_engine_name());
             if let Err(error) = axum::serve(listener, app).await {
                 eprintln!("ayshamusic: server stopped: {error}");
             }
         }
-        Err(error) => eprintln!("ayshamusic: bind 127.0.0.1:5050 failed: {error}"),
+        Err(error) => eprintln!("ayshamusic: bind loopback port {} failed: {error}", api_port()),
     }
 }
 
-async fn index() -> axum::response::Html<&'static str> {
-    axum::response::Html(INDEX_HTML)
+async fn index() -> axum::response::Html<String> {
+    axum::response::Html(INDEX_HTML.replace("nativePlayback: false", "nativePlayback: true"))
 }
 
 async fn status() -> Json<Value> {
@@ -181,9 +239,15 @@ async fn status() -> Json<Value> {
         "phase": 2,
         "server": "ayshamusic",
         "backend": "rust",
+        "audio_engine": audio_engine_name(),
+        "instance_id": instance_id(),
+        "api_port": api_port(),
         // The page uses this to switch from <audio>/proxy streaming to the
         // in-app Rust player. The Linux server does not send it.
         "native_playback": true,
+        "build_id": option_env!("GITHUB_SHA").unwrap_or("local"),
+        "playback_baseline": "7b09cde-1.2.1-media-client",
+        "native_media_input": if audio_engine_name()=="media3" {"loopback_aac_ranges"} else {"seekable_aac_ranges"},
     }))
 }
 
@@ -228,7 +292,9 @@ async fn tg_send_code(
     let Some(manager) = state.as_ref() else {
         return unavailable();
     };
-    Json(manager.telegram().send_code(&body.phone).await.to_json())
+    let outcome=manager.telegram().send_code(&body.phone).await;
+    if outcome==TgOutcome::Authorized {tg_storage::pause(false);}
+    Json(outcome.to_json())
 }
 
 #[derive(Deserialize)]
@@ -255,7 +321,52 @@ async fn tg_verify_code(
         (None, Some(code)) => telegram.verify_code(code).await,
         (None, None) => TgOutcome::Error("code_or_password_required".to_string()),
     };
+    if outcome==TgOutcome::Authorized {tg_storage::pause(false);}
     Json(outcome.to_json())
+}
+
+#[derive(Deserialize)]
+struct TgConfigureBody {api_id:i32,api_hash:String}
+async fn tg_configure(State(state):State<SharedCache>,Json(body):Json<TgConfigureBody>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    match manager.telegram().configure(body.api_id,&body.api_hash).await {
+        Ok(())=>{let mut receipt=manager.telegram().configuration();receipt["status"]=json!("ok");(StatusCode::OK,Json(receipt))},
+        Err(error)=>api_error(StatusCode::BAD_REQUEST,"telegram_setup",error),
+    }
+}
+async fn tg_configuration(State(state):State<SharedCache>)->(StatusCode,Json<Value>) {
+    match state.as_ref() {
+        Some(manager)=>(StatusCode::OK,Json(manager.telegram().configuration())),
+        None=>(StatusCode::SERVICE_UNAVAILABLE,unavailable()),
+    }
+}
+async fn tg_disconnect(State(state):State<SharedCache>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else {return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    tg_storage::pause(true);
+    match manager.telegram().disconnect().await {
+        Ok(())=>{let _=manager.clear_pending();let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);let _=started_player().map(audio_engine::Player::stop);(StatusCode::OK,Json(json!({"status":"ok"})))},
+        Err(error)=>api_error(StatusCode::BAD_GATEWAY,"telegram_disconnect",error),
+    }
+}
+
+#[derive(Deserialize)] struct CancelSave {id:i64}
+async fn tg_cancel(State(state):State<SharedCache>,Json(body):Json<CancelSave>)->(StatusCode,Json<Value>) {
+    let Some(manager)=state.as_ref() else{return (StatusCode::SERVICE_UNAVAILABLE,unavailable());};
+    match archive_progress::cancel(manager,body.id) {
+        Ok(cancelled)=>(StatusCode::OK,Json(json!({"status":"ok","cancelled":cancelled}))),
+        Err(reason)=>api_error(StatusCode::CONFLICT,"save_not_cancelled",reason),
+    }
+}
+#[derive(Deserialize)] struct SeekBody {position:f64,video_id:String}
+async fn seek(Json(body):Json<SeekBody>)->(StatusCode,Json<Value>) {
+    let Some(player)=started_player() else{return api_error(StatusCode::CONFLICT,"seek_unavailable","Play a song first".into());};
+    match player.platform() {
+        Some(platform)=>match platform.seek(&body.video_id,body.position) {
+            Ok(())=>(StatusCode::OK,Json(json!({"status":"ok"}))),
+            Err(reason)=>api_error(StatusCode::BAD_REQUEST,"seek_unavailable",reason),
+        },
+        None=>api_error(StatusCode::NOT_IMPLEMENTED,"seek_unavailable","Seeking is available in Android and browser playback".into()),
+    }
 }
 
 /// `GET /api/tg/status` - login state for the login modal / sidebar.
@@ -266,6 +377,14 @@ async fn tg_status(State(state): State<SharedCache>) -> Json<Value> {
 
     let status = manager.telegram().status().await;
     Json(json!({
+        "archive_error":tg_storage::last_error(),
+        "failed_tracks":manager.failed_tracks().unwrap_or(0),
+        "saved_tracks":manager.saved_tracks().ok(),
+        "items":manager.sync_items().ok(),
+        "active":archive_progress::snapshot(),
+        "wait_seconds":manager.seconds_until_allowed().ok(),
+        "quota":manager.quota_status().ok(),
+        "destination":"Saved Messages",
         "authorized": status.authorized,
         "connected": status.connected,
         "needs_password": status.needs_password,
@@ -280,6 +399,8 @@ struct PlayBody {
     /// Optional: `android`, `ios` or `tv`. Omit to fall back across all three.
     #[serde(default)]
     client: Option<String>,
+    #[serde(default)]
+    track: Option<android_catalog::Track>,
 }
 
 fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Json<Value>) {
@@ -293,22 +414,40 @@ fn api_error(status: StatusCode, code: &str, message: String) -> (StatusCode, Js
 /// YouTube's own body per client. Resolves the audio URL, then streams the
 /// media through a bounded ring buffer into the rodio/cpal playback thread;
 /// returns once playback has been handed over, not when the track ends.
-async fn play(Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
-    let Some(client) = http_client() else {
-        return api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "http_client",
-            "could not build HTTP client".into(),
-        );
-    };
-    let forced = match forced_client(body.client.as_deref()) {
-        Ok(forced) => forced,
-        Err(response) => return response,
-    };
-    match start_track(client, body.video_id.trim(), forced).await {
-        Ok(payload) => (StatusCode::OK, Json(payload)),
-        Err(response) => response,
+async fn play(Extension(phone): Extension<android_catalog::Phone>, Json(body): Json<PlayBody>) -> (StatusCode, Json<Value>) {
+    let Ok(_permit)=phone.operation_slot.try_acquire() else {return api_error(StatusCode::TOO_MANY_REQUESTS,"play_busy","Track change already running".into());};
+    let old=phone.library.lock().unwrap().current.clone();
+    sample_listening(&phone);
+    let supplied=body.track.clone();
+    let id=body.video_id.trim().to_owned();
+    let result=play_audio(body).await;
+    if result.0.is_success() {
+        if let Some(track)=old.filter(|t|t.id!=id) {phone.listening.lock().unwrap().skip(&track);}
+        let title=result.1.0["title"].as_str().map(str::to_owned);
+        let track=supplied.filter(|t|t.id==id).and_then(|t|t.normalized().ok()).unwrap_or_else(||android_catalog::Track::from_id(&id,title));
+        {let mut library=phone.library.lock().unwrap();library.selected(&track);library.remember(track.clone());}
+        android_catalog::start_mix(phone.clone(), &track.id);
+        phone.listening.lock().unwrap().flush();
     }
+    result
+}
+async fn play_audio(body: PlayBody) -> (StatusCode, Json<Value>) {
+    let Some(client)=http_client() else {return api_error(StatusCode::SERVICE_UNAVAILABLE,"http_client","HTTP client unavailable".into());};
+    let forced=match forced_client(body.client.as_deref()) {Ok(value)=>value,Err(error)=>return error};
+    match start_track(client,body.video_id.trim(),forced).await {
+        Ok(payload)=>{
+            if let (Some(cache),Some(track))=(cache_manager(),body.track.as_ref()) {
+                if track.id==body.video_id.trim() {let _=cache.update_source(&track.id,&track.artist);}
+            }
+            (StatusCode::OK,Json(payload))
+        },Err(error)=>error
+    }
+}
+fn sample_listening(phone: &android_catalog::Phone) {
+    let Some(player)=started_player() else {return;};
+    let snapshot=player.snapshot();
+    let track=phone.library.lock().unwrap().current.clone();
+    if let Some(track)=track {phone.listening.lock().unwrap().observe(&track,&snapshot);}
 }
 
 /// Resolves `android` / `ios` / `tv` for a request, or the API error to return.
@@ -337,21 +476,6 @@ fn duration_from(audio: &youtube::ResolvedAudio) -> f64 {
     }
 }
 
-/// Video ids started this session, newest last. `/api/prev` walks it back.
-static PLAYED: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-fn remember_played(video_id: &str) {
-    let mut played = PLAYED.lock().unwrap();
-    played.retain(|seen| seen != video_id);
-    played.push(video_id.to_string());
-    let excess = played.len().saturating_sub(20);
-    played.drain(..excess);
-}
-
-fn last_played() -> Option<String> {
-    PLAYED.lock().unwrap().last().cloned()
-}
-
 /// Resolve + start one video. Shared by `/api/play`, `/api/next` and `/api/prev`.
 async fn start_track(
     client: &reqwest::Client,
@@ -368,73 +492,62 @@ async fn start_track(
         ));
     }
 
+    // A new selection supersedes *all* earlier resolve/prepare futures. Stop
+    // actual output before any network wait, including a replacement that fails.
+    let ticket={
+        let mut current=PLAY_TICKET.lock().unwrap();*current=current.wrapping_add(1);
+        if let Some(player)=started_player(){player.stop().map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"audio_stop_failed",e))?;}
+        *current
+    };
+
+    if forced.is_none() {
+        if let Some(cache)=cache_manager() {
+            // Telegram must not add a15s cloud search to every uncached skip.
+            if let Ok(Ok(Some(media)))=tokio::time::timeout(std::time::Duration::from_secs(4),tg_storage::lookup(&cache,video_id)).await {
+                if start_native(media,ticket).await.is_ok() {
+                    return Ok(json!({"status":"playing","video_id":video_id,"source":"telegram","telegram_archive":"saved"}));
+                }
+                // User approved YouTube fallback if Telegram lookup/read/decode fails.
+            }
+        }
+    }
     let visitor = visitor(client).await;
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
-    let resolved = match forced {
-        Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
-        None => youtube::resolve_audio(client, video_id, visitor_value).await,
-    };
-
-    let audio = match resolved {
-        Ok(audio) => audio,
-        Err(error @ ResolveError::InvalidVideoId) => {
-            return Err(api_error(
-                StatusCode::BAD_REQUEST,
-                "invalid_video_id",
-                error.to_string(),
-            ))
+    let profiles=forced.map(|p|vec![p]).unwrap_or_else(||youtube::playback_clients(audio_engine_name() == "media3").to_vec());
+    let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(60);
+    let selected=source_selection::select(&profiles,|profile| async move {
+        if *PLAY_TICKET.lock().unwrap()!=ticket {return Err("play_cancelled".into());}
+        if tokio::time::Instant::now()>=deadline {return Err("source_prepare_deadline".into());}
+        let attempt=async {
+            let audio=youtube::resolve_forced(client,video_id,profile,visitor_value).await.map_err(|e|e.to_string())?;
+            start_native(player::Media {
+                video_id:audio.video_id.clone(),title:audio.title.clone(),client:audio.client,
+                itag:audio.itag,url:audio.url.clone(),user_agent:audio.user_agent(),
+                content_length:audio.content_length,fetch:None,
+            },ticket).await.map_err(|(_,error)|error["detail"].as_str().unwrap_or("audio_prepare_failed").to_string())?;
+            Ok(audio)
+        };
+        match tokio::time::timeout_at(deadline,attempt).await {
+            Ok(result)=>result,
+            Err(_)=>{stop_if_current(ticket);Err("source_prepare_deadline".into())}
         }
-        Err(ResolveError::AllClientsFailed(attempts)) => {
-            // Surface YouTube's own body for every client that was tried.
-            let attempts_json: Vec<Value> =
-                attempts.iter().map(youtube::ClientAttempt::to_json).collect();
-            let detail = ResolveError::AllClientsFailed(attempts).to_string();
-            return Err((
-                StatusCode::BAD_GATEWAY,
-                Json(json!({
-                    "status": "error",
-                    "error": "unresolved",
-                    "detail": detail,
-                    "attempts": attempts_json,
-                })),
-            ));
-        }
-        Err(error) => {
-            return Err(api_error(
-                StatusCode::BAD_GATEWAY,
-                "unresolved",
-                error.to_string(),
-            ))
-        }
-    };
-
-    let duration_secs = duration_from(&audio);
-    let (tx, rx) = player::stream_channel();
-    tokio::spawn(pump_media(
-        client.clone(),
-        audio.video_id.clone(),
-        forced.map(|profile| profile.name),
-        visitor.attached().then(|| visitor.value.clone()),
-        audio.url.clone(),
-        tx,
-    ));
-
-    if let Err(error) = player().play(
-        &audio.video_id,
-        audio.title.clone(),
-        audio.client,
-        audio.itag,
-        duration_secs,
-        rx,
-    ) {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "playback_unavailable",
-            error,
-        ));
+    }).await;
+    if *PLAY_TICKET.lock().unwrap()!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Replaced or stopped while preparing".into()));}
+    let audio=selected.map_err(|attempts| {
+        stop_if_current(ticket);
+        let detail=ResolveError::AllClientsFailed(attempts.clone()).to_string();
+        (StatusCode::BAD_GATEWAY,Json(json!({"status":"error","error":"audio_sources_unavailable","detail":detail,"attempts":attempts.iter().map(youtube::ClientAttempt::to_json).collect::<Vec<_>>()})))
+    })?;
+    let duration_secs=duration_from(&audio);
+    let mut archive = "not_connected";
+    if let Some(cache)=cache_manager() {
+        let path=cache.cached_path(video_id);
+        archive=if cache.queued_tracks().unwrap_or(20)>=20 { "queue_full" }
+          else if cache.enqueue(video_id,&path,&audio.title.as_deref().unwrap_or("YouTube track").chars().take(300).collect::<String>(),"").is_ok() { "queued" }
+          else { "queue_error" };
     }
-    remember_played(&audio.video_id);
 
+    if matches!(archive,"queue_full"|"queue_error") {tg_storage::warn("The save queue is full or unavailable. This song is playing but was not queued for Telegram.");}
     Ok(json!({
         "status": "playing",
         "video_id": audio.video_id,
@@ -446,230 +559,26 @@ async fn start_track(
         "duration_secs": duration_secs,
         "client": audio.client,
         "forced": forced.is_some(),
+        "source":"youtube",
+        "telegram_archive":archive,
     }))
 }
 
-#[derive(Deserialize)]
-struct SearchQuery {
-    #[serde(default)]
-    q: Option<String>,
-    #[serde(default)]
-    limit: Option<usize>,
+fn stop_if_current(ticket:u64) {
+    let current=PLAY_TICKET.lock().unwrap();
+    if *current==ticket {if let Some(player)=started_player(){let _=player.stop();}}
 }
 
-/// `GET /api/search?q=...` - InnerTube search rendered as page track cards.
-async fn search_tracks(Query(query): Query<SearchQuery>) -> (StatusCode, Json<Value>) {
-    let Some(q) = query
-        .q
-        .as_deref()
-        .map(str::trim)
-        .filter(|q| !q.is_empty())
-        .map(str::to_string)
-    else {
-        return api_error(StatusCode::BAD_REQUEST, "missing_query", "q is required".into());
+async fn start_native(media: player::Media,ticket:u64) -> Result<(), (StatusCode, Json<Value>)> {
+    let ready={
+        let current=PLAY_TICKET.lock().unwrap();
+        if *current!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Playback was stopped while preparing".into()));}
+        player().play(media).map_err(|e|api_error(StatusCode::SERVICE_UNAVAILABLE,"playback_unavailable",e))?
     };
-    let Some(client) = http_client() else {
-        return api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "http_client",
-            "could not build HTTP client".into(),
-        );
-    };
-    let visitor = visitor(client).await;
-    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
-    let limit = query.limit.unwrap_or(20).clamp(1, 50);
-
-    match youtube::search(client, &q, visitor_value, limit).await {
-        Ok(hits) => {
-            let results: Vec<Value> = hits
-                .iter()
-                .map(|hit| {
-                    json!({
-                        "id": hit.video_id,
-                        "video_id": hit.video_id,
-                        "title": hit.title,
-                        "artist": if hit.channel.is_empty() { "YouTube" } else { &hit.channel },
-                        "url": format!("https://www.youtube.com/watch?v={}", hit.video_id),
-                        "thumbnail": format!("https://img.youtube.com/vi/{}/hqdefault.jpg", hit.video_id),
-                    })
-                })
-                .collect();
-            (
-                StatusCode::OK,
-                Json(json!({ "status": "ok", "query": q, "results": results })),
-            )
-        }
-        Err(error) => api_error(StatusCode::BAD_GATEWAY, "search_failed", error.to_string()),
-    }
-}
-
-#[derive(Deserialize, Default)]
-struct NavBody {
-    #[serde(default)]
-    video_id: Option<String>,
-}
-
-/// `POST /api/next` - play a *different* song in the same mood.
-///
-/// The seed is a search for songs similar to the current title; candidates that
-/// are the same video or the same song under another upload are skipped, so
-/// pressing Next never repeats what is playing.
-async fn next_track(Json(body): Json<NavBody>) -> (StatusCode, Json<Value>) {
-    let Some(client) = http_client() else {
-        return api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "http_client",
-            "could not build HTTP client".into(),
-        );
-    };
-    let current = body
-        .video_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| youtube::valid_video_id(id))
-        .map(str::to_string)
-        .or_else(last_played);
-    let Some(current) = current else {
-        return api_error(
-            StatusCode::BAD_REQUEST,
-            "no_current_track",
-            "play a song first, or send video_id".into(),
-        );
-    };
-
-    let snapshot = player().snapshot();
-    let current_title = if snapshot["video_id"].as_str() == Some(current.as_str()) {
-        snapshot["title"].as_str().map(str::to_string)
-    } else {
-        None
-    };
-    let seed = current_title
-        .as_deref()
-        .map(youtube::normalized_title)
-        .filter(|title| !title.is_empty());
-    let query = match &seed {
-        Some(seed) => format!("{seed} similar songs"),
-        None => "romantic melody songs".to_string(),
-    };
-
-    let visitor = visitor(client).await;
-    let visitor_value = visitor.attached().then(|| visitor.value.as_str());
-    let hits = match youtube::search(client, &query, visitor_value, 20).await {
-        Ok(hits) => hits,
-        Err(error) => return api_error(StatusCode::BAD_GATEWAY, "search_failed", error.to_string()),
-    };
-    let candidates = choose_candidates(hits, &current, current_title.as_deref(), 5);
-    if candidates.is_empty() {
-        return api_error(
-            StatusCode::BAD_GATEWAY,
-            "no_related",
-            format!("no different song found for '{query}'"),
-        );
-    }
-
-    let mut failures: Vec<Value> = Vec::new();
-    for hit in candidates {
-        match start_track(client, &hit.video_id, None).await {
-            Ok(mut payload) => {
-                payload["query"] = json!(query);
-                payload["track"] = json!({
-                    "id": hit.video_id,
-                    "video_id": hit.video_id,
-                    "title": payload["title"].clone(),
-                    "artist": if hit.channel.is_empty() { "YouTube" } else { &hit.channel },
-                    "url": format!("https://www.youtube.com/watch?v={}", hit.video_id),
-                });
-                return (StatusCode::OK, Json(payload));
-            }
-            Err((_, Json(error))) => failures.push(error),
-        }
-    }
-
-    let detail = failures
-        .first()
-        .and_then(|failure| {
-            failure["detail"]
-                .as_str()
-                .or_else(|| failure["error"].as_str())
-        })
-        .map(|why| format!("related songs were found but none could be played: {why}"))
-        .unwrap_or_else(|| "related songs were found but none could be resolved".to_string());
-    (
-        StatusCode::BAD_GATEWAY,
-        Json(json!({
-            "status": "error",
-            "error": "no_related_playable",
-            "detail": detail,
-            "attempts": failures,
-        })),
-    )
-}
-
-/// Drops the song that is playing - by video id and by song identity - then
-/// keeps the first `limit` candidates. A different upload of the same song is
-/// still "the same song", which is the repeat the listener hears.
-fn choose_candidates(
-    hits: Vec<youtube::SearchHit>,
-    current_id: &str,
-    current_title: Option<&str>,
-    limit: usize,
-) -> Vec<youtube::SearchHit> {
-    hits.into_iter()
-        .filter(|hit| hit.video_id != current_id)
-        .filter(|hit| match current_title {
-            Some(title) => !youtube::same_song(title, &hit.title),
-            None => true,
-        })
-        .take(limit)
-        .collect()
-}
-
-/// `POST /api/prev` - step back through the tracks started this session.
-async fn prev_track(Json(body): Json<NavBody>) -> (StatusCode, Json<Value>) {
-    let Some(client) = http_client() else {
-        return api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "http_client",
-            "could not build HTTP client".into(),
-        );
-    };
-    let current = body
-        .video_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| youtube::valid_video_id(id))
-        .map(str::to_string)
-        .or_else(last_played);
-
-    let previous = {
-        let mut played = PLAYED.lock().unwrap();
-        if let Some(current) = &current {
-            while played.last() == Some(current) {
-                played.pop();
-            }
-        }
-        played.pop()
-    };
-    let Some(previous) = previous else {
-        return api_error(
-            StatusCode::NOT_FOUND,
-            "no_previous",
-            "no earlier track in this session".into(),
-        );
-    };
-
-    match start_track(client, &previous, None).await {
-        Ok(mut payload) => {
-            payload["track"] = json!({
-                "id": previous,
-                "video_id": previous,
-                "title": payload["title"].clone(),
-                "artist": "This device",
-                "url": format!("https://www.youtube.com/watch?v={previous}"),
-            });
-            (StatusCode::OK, Json(payload))
-        }
-        Err(response) => response,
+    match tokio::time::timeout(std::time::Duration::from_secs(45),ready).await {
+        Ok(Ok(Ok(())))=>{if *PLAY_TICKET.lock().unwrap()==ticket {Ok(())}else{Err(api_error(StatusCode::CONFLICT,"play_cancelled","Replaced or stopped while preparing".into()))}},
+        Ok(Ok(Err(error)))=>Err(api_error(StatusCode::BAD_GATEWAY,"audio_prepare_failed",error)),
+        _=>{stop_if_current(ticket);Err(api_error(StatusCode::GATEWAY_TIMEOUT,"audio_prepare_timeout","Audio preparation did not complete".into()))}
     }
 }
 
@@ -789,6 +698,15 @@ async fn pump_media(
     }
 }
 
+/// Keep playback, archive and diagnostic acquisition on the same engine policy.
+async fn resolve_default(client: &reqwest::Client, video_id: &str, visitor: Option<&str>) -> Result<youtube::ResolvedAudio, youtube::ResolveError> {
+    if audio_engine_name() == "media3" {
+        youtube::resolve_forced(client, video_id, youtube::VISIONOS, visitor).await
+    } else {
+        youtube::resolve_audio(client, video_id, visitor).await
+    }
+}
+
 async fn re_resolve(
     client: &reqwest::Client,
     video_id: &str,
@@ -797,7 +715,7 @@ async fn re_resolve(
 ) -> Result<youtube::ResolvedAudio, String> {
     let resolved = match forced.and_then(youtube::client_by_name) {
         Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor).await,
-        None => youtube::resolve_audio(client, video_id, visitor).await,
+        None => resolve_default(client, video_id, visitor).await,
     };
     resolved.map_err(|error| error.to_string())
 }
@@ -810,7 +728,7 @@ fn send_stream_error(
 }
 
 async fn pause() -> Json<Value> {
-    match started_player().map(player::Player::pause) {
+    match started_player().map(audio_engine::Player::pause) {
         Some(Ok(())) => Json(json!({ "status": "paused" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
@@ -818,15 +736,17 @@ async fn pause() -> Json<Value> {
 }
 
 async fn resume() -> Json<Value> {
-    match started_player().map(player::Player::resume) {
+    match started_player().map(audio_engine::Player::resume) {
         Some(Ok(())) => Json(json!({ "status": "playing" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
     }
 }
 
-async fn stop() -> Json<Value> {
-    match started_player().map(player::Player::stop) {
+async fn stop(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
+    sample_listening(&phone);phone.listening.lock().unwrap().flush();
+    let mut ticket=PLAY_TICKET.lock().unwrap();*ticket=ticket.wrapping_add(1);
+    match started_player().map(audio_engine::Player::stop) {
         Some(Ok(())) => Json(json!({ "status": "stopped" })),
         Some(Err(error)) => Json(json!({ "status": "error", "detail": error })),
         None => Json(json!({ "status": "idle" })),
@@ -911,7 +831,7 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     let visitor_value = visitor.attached().then(|| visitor.value.as_str());
     let resolved = match forced {
         Some(profile) => youtube::resolve_forced(client, video_id, profile, visitor_value).await,
-        None => youtube::resolve_audio(client, video_id, visitor_value).await,
+        None => resolve_default(client, video_id, visitor_value).await,
     };
     let audio = match resolved {
         Ok(audio) => audio,
@@ -948,7 +868,7 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
     };
     let response = match media
         .get(&audio.url)
-        .header(reqwest::header::USER_AGENT, youtube::ANDROID.user_agent)
+        .header(reqwest::header::USER_AGENT, audio.user_agent())
         .header(reqwest::header::RANGE, "bytes=0-65535")
         .send()
         .await
@@ -1017,7 +937,6 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
         "visitor": {
             "source": visitor.source.as_str(),
             "attached": visitor.attached(),
-            "preview": visitor.preview(),
         },
         "resolve_ms": resolve_ms,
         "elapsed_ms": started.elapsed().as_millis() as u64,
@@ -1035,8 +954,8 @@ async fn selftest(Query(query): Query<SelftestQuery>) -> (StatusCode, Json<Value
 /// `GET /api/player` - playback state for the now-playing UI.
 ///
 /// Does not start the audio thread: polling the UI must not open the device.
-async fn player_status() -> Json<Value> {
-    match started_player() {
+async fn player_status(Extension(phone): Extension<android_catalog::Phone>) -> Json<Value> {
+    let mut result = match started_player() {
         Some(player) => Json(player.snapshot()),
         None => Json(json!({
             "state": "idle",
@@ -1046,35 +965,103 @@ async fn player_status() -> Json<Value> {
             "position_secs": 0.0,
             "error": null,
         })),
-    }
+    };
+    result.0["track"]=json!(phone.library.lock().unwrap().current);
+    result.0["autoplay_error"]=json!(phone.autoplay_error.lock().unwrap().clone());
+    result.0["playback_modes"]=json!(*phone.modes.lock().unwrap());
+    result
 }
 
 #[cfg(target_os = "android")]
 mod android {
     use super::boot;
     use jni::{
-        objects::{JObject, JString},
+        objects::{GlobalRef, JObject, JString},
         JNIEnv, JavaVM,
     };
-    use std::ffi::c_void;
+    use std::{ffi::c_void, sync::Mutex};
 
-    /// Caches the JavaVM for later callbacks (e.g. MediaSession updates).
+    // Pin the APPLICATION context, not a JNI local ref or a short-lived Activity.
+    // Its lifetime is the process lifetime, just like the native server/player.
+    // This mutex serializes initialization (ndk-context must be set exactly once).
+    static AUDIO_CONTEXT: Mutex<Option<GlobalRef>> = Mutex::new(None);
+    static PLATFORM: std::sync::OnceLock<(JavaVM, GlobalRef)> = std::sync::OnceLock::new();
+
+    pub(super) fn platform_command(text: &str)->Result<(),String> {
+        let (vm, bridge)=PLATFORM.get().ok_or("Android audio bridge unavailable")?;
+        let mut env=vm.attach_current_thread().map_err(|_|"Android audio thread attachment failed")?;
+        let text=env.new_string(text).map_err(|_|"Android audio command allocation failed")?;
+        let result=env.call_method(bridge.as_obj(),"platformCommand","(Ljava/lang/String;)V",&[jni::objects::JValue::Object(text.as_ref())]);
+        if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
+    }
+
+    pub(super) fn square_cover(bytes:&[u8])->Option<Vec<u8>> {
+        let (vm,bridge)=PLATFORM.get()?;
+        let mut env=vm.attach_current_thread().ok()?;
+        let bytes=env.byte_array_from_slice(bytes).ok()?;
+        let value=env.call_method(bridge.as_obj(),"squareCover","([B)[B",&[jni::objects::JValue::Object(bytes.as_ref())]);
+        let value=match value {Ok(value)=>value,Err(_)=>{let _=env.exception_clear();return None;}};
+        let array=value.l().ok()?;if array.is_null(){return None;}
+        env.convert_byte_array(jni::objects::JByteArray::from(array)).ok().filter(|bytes|!bytes.is_empty() && bytes.len()<=200_000)
+    }
+
+    pub(super) fn audio_context_ready() -> bool {
+        AUDIO_CONTEXT.lock().map(|context| context.is_some()).unwrap_or(false)
+    }
+
+    fn initialize_audio_context(env: &mut JNIEnv<'_>, context: &JObject<'_>) -> Result<(), String> {
+        let mut stored = AUDIO_CONTEXT.lock().map_err(|_| "Android audio context lock unavailable")?;
+        if stored.is_some() {
+            return Ok(());
+        }
+        if context.is_null() {
+            return Err("Android application context is missing".into());
+        }
+        let vm = env.get_java_vm().map_err(|_| "Could not get Android JavaVM")?;
+        let global = env.new_global_ref(context).map_err(|_| "Could not retain Android application context")?;
+        // SAFETY: called once under AUDIO_CONTEXT before boot starts workers;
+        // JVM lives for this process, and the GlobalRef is retained for that same
+        // lifetime. Never release while a CPAL thread could still use the pointers.
+        unsafe {
+            ndk_context::initialize_android_context(
+                vm.get_java_vm_pointer().cast(),
+                global.as_obj().as_raw().cast(),
+            );
+        }
+        *stored = Some(global);
+        Ok(())
+    }
+
+    /// JNI version negotiation only. Context is supplied explicitly at startup.
     #[no_mangle]
     pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::sys::jint {
         jni::sys::JNI_VERSION_1_6
     }
 
-    /// Kotlin: `RustBridge.startServer(filesDir, cacheDir)`.
+    /// Kotlin supplies application context plus variant port/engine and process instance ID.
     ///
     /// `RustBridge` is a Kotlin `object`, so the receiver is a `jobject`
     /// (not a `jclass`).
     #[no_mangle]
     pub extern "system" fn Java_com_afzal_ayshamusic_RustBridge_startServer<'local>(
         mut env: JNIEnv<'local>,
-        _receiver: JObject<'local>,
+        receiver: JObject<'local>,
         files_dir: JString<'local>,
         cache_dir: JString<'local>,
+        context: JObject<'local>,
+        port: jni::sys::jint,
+        engine: JString<'local>,
+        instance: JString<'local>,
     ) {
+        let engine: String=match env.get_string(&engine) {Ok(v)=>v.into(),Err(_)=>return};
+        let instance: String=match env.get_string(&instance) {Ok(v)=>v.into(),Err(_)=>return};
+        if !matches!((port,engine.as_str()),(17651,"rust")|(17652,"media3")) || instance.len()<16 || instance.len()>128 {
+            let _=env.throw_new("java/lang/IllegalArgumentException","Invalid backend identity");return;
+        }
+        let vm=match env.get_java_vm(){Ok(v)=>v,Err(_)=>return};
+        let bridge=match env.new_global_ref(&receiver){Ok(v)=>v,Err(_)=>return};
+        let _=PLATFORM.set((vm,bridge));
+        let _=super::STARTUP.set((port as u16,engine,instance));
         let files_dir: String = match env.get_string(&files_dir) {
             Ok(value) => value.into(),
             Err(_) => return,
@@ -1084,6 +1071,10 @@ mod android {
             Err(_) => return,
         };
 
+        if let Err(error) = initialize_audio_context(&mut env, &context) {
+            let _ = env.throw_new("java/lang/IllegalStateException", error);
+            return;
+        }
         boot(files_dir, cache_dir);
     }
 }
@@ -1219,6 +1210,31 @@ mod api_tests {
     }
 
     #[tokio::test]
+    async fn telegram_configuration_save_has_a_local_persistent_hash_free_receipt() {
+        let dirs=TempDirs::new("configuration-receipt");
+        let manager=Arc::new(dirs.manager());let app=router(Arc::new(Some(manager.clone())));
+        let request=json!({"api_id":12345,"api_hash":"a".repeat(32)}).to_string();
+        let response=app.clone().oneshot(post("/api/tg/configure",&request)).await.unwrap();
+        assert_eq!(response.status(),StatusCode::OK);
+        let saved=json_body(response).await;assert_eq!(saved["saved"],true);assert_eq!(saved["api_id"],12345);
+        assert!(!saved.to_string().contains("api_hash"));assert!(!saved.to_string().contains(&"a".repeat(32)));
+        let restarted=Arc::new(dirs.manager());let app=router(Arc::new(Some(restarted)));
+        let response=app.oneshot(axum::http::Request::builder().uri("/api/tg/configuration").body(Body::empty()).unwrap()).await.unwrap();
+        let receipt=json_body(response).await;assert_eq!(receipt["saved"],true);assert_eq!(receipt["api_id"],12345);
+        assert!(!dirs.root.join("files").join(tg_auth::SESSION_FILE).exists(),"saving and verifying must not connect or create Telegram session");
+    }
+
+    #[tokio::test]
+    async fn stop_cancels_a_play_still_preparing_before_audio_is_opened() {
+        let ticket=*PLAY_TICKET.lock().unwrap();
+        let app=router(Arc::new(None));
+        app.oneshot(post("/api/stop","{}")).await.unwrap();
+        let media=player::Media {video_id:"abcdefghijk".into(),title:None,client:"ANDROID",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:None};
+        let result=start_native(media,ticket).await.unwrap_err();
+        assert_eq!(result.0,StatusCode::CONFLICT);assert_eq!(result.1.0["error"],"play_cancelled");
+    }
+
+    #[tokio::test]
     async fn play_rejects_malformed_video_ids_without_touching_youtube() {
         let app = router(Arc::new(None));
         let response = app
@@ -1228,6 +1244,39 @@ mod api_tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = json_body(response).await;
         assert_eq!(body["error"], "invalid_video_id");
+    }
+
+    #[tokio::test]
+    async fn playback_modes_are_validated_and_roundtrip_without_opening_audio() {
+        let app=router(Arc::new(None));
+        let body=r#"{"shuffle":true,"repeat":"one"}"#;
+        let response=app.clone().oneshot(post("/api/playback_modes",body)).await.unwrap();assert_eq!(response.status(),StatusCode::OK);
+        let request=axum::http::Request::builder().uri("/api/playback_modes").body(Body::empty()).unwrap();
+        assert_eq!(json_body(app.clone().oneshot(request).await.unwrap()).await,json!({"shuffle":true,"repeat":"one"}));
+        let bad=app.clone().oneshot(post("/api/playback_modes",r#"{"shuffle":true,"repeat":"invalid"}"#)).await.unwrap();assert_eq!(bad.status(),StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn phone_learning_reset_preserves_queue_and_likes_without_opening_audio() {
+        let app=router(Arc::new(None));
+        let track=r#"{"id":"abcdefghijk","title":"Romantic song","artist":"A"}"#;
+        for route in ["/api/queue_add","/api/like"] {
+            assert_eq!(app.clone().oneshot(post(route,track)).await.unwrap().status(),StatusCode::OK);
+        }
+        let get=|uri|axum::http::Request::builder().uri(uri).body(Body::empty()).unwrap();
+        let profile=json_body(app.clone().oneshot(get("/api/recommendation/profile")).await.unwrap()).await;
+        assert_eq!(profile["learned_tracks"],1);assert_eq!(profile["local_only"],true);
+        assert_eq!(app.clone().oneshot(post("/api/recommendation/reset","{}")).await.unwrap().status(),StatusCode::OK);
+        let profile=json_body(app.clone().oneshot(get("/api/recommendation/profile")).await.unwrap()).await;
+        assert_eq!(profile["learned_tracks"],0);
+        for uri in ["/api/liked","/api/queue"] {
+            let items=json_body(app.clone().oneshot(get(uri)).await.unwrap()).await;
+            assert_eq!(items.as_array().unwrap().len(),1);
+        }
+        let page=app.oneshot(get("/")).await.unwrap();
+        let body=page.into_body().collect().await.unwrap().to_bytes();
+        let html=std::str::from_utf8(&body).unwrap();
+        assert!(html.contains("nativePlayback: true"));assert!(!html.contains("id=\"next-mood\""));
     }
 
     /// Live diagnostic (not in the default suite): shows exactly what each
@@ -1306,25 +1355,6 @@ mod api_tests {
             .unwrap_or_default()
             .to_string();
         assert!(state == "idle" || state == "error", "unexpected state {state}");
-    }
-
-    #[test]
-    fn next_skips_the_same_song_even_when_the_upload_differs() {
-        let hit = |id: &str, title: &str| youtube::SearchHit {
-            video_id: id.to_string(),
-            title: title.to_string(),
-            channel: "Channel".to_string(),
-        };
-        let hits = vec![
-            hit("aaaaaaaaaaa", "Tum Hi Ho (Official Video)"),
-            hit("bbbbbbbbbbb", "Tum Hi Ho - Lyrical Video"),
-            hit("ccccccccccc", "Kesariya"),
-            hit("ddddddddddd", "Tum Hi Ho 2"),
-            hit("eeeeeeeeeee", "Tum Hi Ho"),
-        ];
-        let picked = choose_candidates(hits, "fffffffffff", Some("Tum Hi Ho"), 5);
-        let ids: Vec<&str> = picked.iter().map(|hit| hit.video_id.as_str()).collect();
-        assert_eq!(ids, vec!["ccccccccccc", "ddddddddddd"]);
     }
 
     #[tokio::test]

@@ -1,0 +1,127 @@
+# Telegram account and saved-song playback
+
+## Current build16 dashboard and cancellation
+
+[Build16 download and acceptance](BUILD16_SYNC_SEEK.md) supersedes delivery-time notes below. Settings shows real app-indexed Saved/Syncing/Failed counts, bounded queue metadata, measured download/uploader-read progress and current stage. Upload read progress is not server acknowledgement. Saved only follows confirmed message indexing. No channel needed.
+
+The user explicitly chose X = cancel this pending save, including active transfer where possible; never delete an existing Saved Message. Final message commit cannot be recalled; UI/API refuses cancellation then. Persistent cancelled status survives restarts, while deliberately selecting that song again can enqueue a fresh attempt. Automatic saving after skips remains the default unless that pending save is explicitly cancelled. Existing18/hour/12sgap/sequential/FloodWait protections remain; the quota is conservative app policy, not a Telegram-wide restriction. Existing-message reuse no longer consumes a new-upload quota slot. Phone acceptance for actual upload/progress/cancel is still pending.
+
+## User-approved choices
+
+The user explicitly selected these options in this session:
+
+1. Their own **Saved Messages**, not a bot, public channel or another person's chat.
+2. Save every successfully downloaded selected song, **even after skipping**.
+3. Try YouTube automatically when a saved song cannot be opened from Telegram.
+4. Provide **guided setup** for the user's own Telegram API ID/API hash.
+
+This is an in-app Rust MTProto feature, not an Arena connector. No Telegram
+credentials, account codes or passwords should be sent in chat or committed to Git.
+
+## Save-feedback correction on the working branch
+
+Installed code10 cleared the hash after every request, including failures; a blank
+field therefore did not prove whether saving succeeded. The working branch now
+verifies the app-private file and a separate local configuration receipt before
+clearing the hash. On failure it retains the entry until retry/dialog close. A
+saved/API-ID/hash-hidden confirmation appears beside Save and on reopening; the
+hash is never returned or stored in browser storage. This is not real account
+validation and has **not yet been delivered as a new playback-fixed APK**.
+
+Code10 music playback remains blocked; see `PLAYBACK_BLOCKER.md`. Do not interpret
+the prior green build/artifact links as successful device playback.
+
+## Phone setup
+
+1. Install either identified candidate: **Aysha Rust Audio** or **Aysha Android Audio**.
+   They are separate installs with separate sessions/preferences; no old-app data is
+   imported. Use the matching launcher label, not the previous Telegram test app.
+2. Go to **Settings (gear) → Add Telegram account**. The card is always visible,
+   even before account configuration. These controls are not on Now Playing.
+3. Expand **First-time API setup**. Follow the link to the official
+   `https://my.telegram.org/apps` in your browser, sign in and create an application
+   to obtain your developer API ID and API hash. The APK does not bundle shared
+   credentials. Telegram controls whether that setup is available to your account.
+4. Enter the API ID and API hash **inside this app** and choose Save API settings.
+5. Enter your phone number with country code and request a login code. Check your
+   Telegram app; code delivery is controlled by Telegram, not guaranteed SMS.
+6. Verify the code. If requested, enter the account's two-step verification password.
+   Codes, password and API-hash input fields are cleared after requests/on closing.
+7. Refresh status to confirm authorization and check pending/failed uploads.
+
+Developer credentials and the MTProto session are stored only in the app-private
+files directory. Auth/session writes are atomic and mode0600 on Android/Unix;
+Android backup is disabled. Password/code inputs are not saved in browser storage.
+The persisted MTProto session contains authentication material: app-private storage
+is not a claim of Android Keystore encryption or protection from a compromised OS.
+
+## Playback and saving
+
+- A validated YouTube video ID is the identity of a song in the archive.
+- Replay checks a local Saved Messages message-ID index first, then bounded Saved
+  Messages search if needed. Captions must start with the exact `#yt_<video_id>`
+  marker; fuzzy search matches and other chat content are not trusted as identity.
+- A found Telegram media file is streamed in aligned chunks through Rust's bounded
+  range input. Rust Audio decodes with rodio/Symphonia; Android Audio sends a
+  token-scoped loopback byte stream to Media3/ExoPlayer. Both use the same Rust
+  YouTube resolver and Telegram implementation; neither loads a full file into RAM.
+- Telegram connection/search is bounded. Missing/deleted/unavailable/unsupported
+  saved media at startup falls back to the normal YouTube resolver and range player.
+  A read error later in an already playing Telegram stream is surfaced; seamless
+  mid-track failover/resume is **not yet implemented**.
+- A YouTube track accepted by decoder/output is queued for saving. A single worker
+  resolves/downloads a complete copy to temporary app-private disk, validates that
+  it decodes, then uploads a document to **Saved Messages** with title/ID caption.
+- This worker is independent of playback and intentionally finishes after a skip.
+  It may download a second full copy of the audio; this and uploads consume data.
+  No claim of a zero-copy archive or mobile-data/Wi-Fi scheduling is made.
+- New songs can play without configuring Telegram. Their bounded save queue waits
+  for account setup; a full/unavailable queue reports a warning in account status.
+- Saved-message IDs persist across restarts. The worker checks for an existing save
+  before uploading again. Deleted saves can be recreated on a later YouTube play.
+- Files are sent only after complete-length checks and decoder validation. A partial
+  `.part` file is never published as a successful save. Old partials are discarded
+  on worker startup and overwritten on retry.
+
+## Limits and recovery
+
+- Existing **400MiB total temporary audio cache** retained; per-track guard64MiB.
+- At most20 pending/uploading saves. Once full, further plays can still work but are
+  not guaranteed a save; account status reports the problem. No unlimited disk use.
+- App upload pacing: at most18/hour, minimum12seconds between files; this is our
+  limiter, not a promise of Telegram's allowance. Server FloodWait pauses uploads.
+- Saves retry at most3 times before becoming failed; retrying playback explicitly
+  can requeue a completed/deleted/failed archive record. Pending saves are protected
+  from eviction; completed/unneeded cached files make room for new ones.
+- Provider rejection, Telegram/API errors, insufficient storage, process death and
+  account restrictions can delay or fail a save. Pending metadata survives restart;
+  force-stop/background restrictions can suspend work. Background/screen-lock
+  operation is not certified by host CI.
+- Disconnect pauses work, attempts server session revocation, clears local pending
+  saves/message index/session after successful revocation, and stops pending/native
+  playback. If revocation fails, the UI reports it; retry while connected. Uploaded
+  Saved Messages are **not deleted**. Developer API settings and bounded local
+  YouTube cache may remain until app data is cleared.
+- Telegram Saved Messages is cloud storage, **not end-to-end encrypted**. Only save
+  content you have permission to copy/store and comply with source/service terms.
+
+## Evidence boundary
+
+The latest QA ledger records the exact APK source, CI checks and artifact link.
+Offline fixtures test demux/decoding, cancellation, range contracts, queue/index
+behavior and credential-file privacy. They do not log into a real Telegram account,
+prove real uploads/downloads, satisfy music-provider restrictions or establish
+physical-phone audibility. No user account was accessed during implementation.
+
+## Current install-test artifacts
+
+There are now **two** audio variants. See `docs/DUAL_AUDIO_APKS.md` for package,
+launcher and engine identities and `docs/LOCAL_QA_LEDGER.md` for the exact source,
+CI evidence and artifact links. Both are standalone Android8+/ARM64 candidates,
+not production-signed store releases. GitHub sign-in/repository access may be
+required and CI artifacts expire after14days.
+
+The old source99972a3, code8, **Aysha Music Telegram** artifact is superseded:
+the user's physical phone reported an IO decode failure at0:00. Its green CI did
+not establish real phone sound. Neither new candidate should be described as
+phone-audio or real-account accepted until that evidence exists.

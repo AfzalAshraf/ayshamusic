@@ -1,0 +1,8 @@
+Aysha build14 source-profile reference
+
+VISIONOS public protocol profile fields were reviewed against the MIT-licensed
+youtubei.js18.3.0 Constants/HTTPClient modules (https://github.com/LuanRT/YouTube.js).
+The complete upstream MIT notice is included as youtubejs-profile-LICENSE.txt.
+This APK does not bundle the full YouTube.js library, a Node executable, a
+JavaScript signing interpreter, or NewPipe Extractor. Rust implements the bounded
+direct-AAC metadata/range pipeline; Android Media3 performs playback.

@@ -24,7 +24,8 @@ test('preview labels both opening and home, retains effects and disables polling
   assert.ok(html.includes('heartPointerClick'));
   assert.ok(html.includes('Delius'));
   assert.ok(html.includes('Made with'));
-  assert.ok(!html.includes('setInterval(pollStatus, 400);'));
+  assert.ok(!html.includes('setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);'));
+  assert.ok(!html.includes("currentTab === 'settings') refreshTelegramSummary(); }, 2000)"));
   assert.ok(!html.includes('speed-insights'));
   assert.ok(!html.includes('Reveal a tiny heart'));
 });

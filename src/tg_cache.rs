@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS upload_history (
 );
 CREATE INDEX IF NOT EXISTS idx_upload_history_uploaded_at ON upload_history(uploaded_at);
 
+CREATE TABLE IF NOT EXISTS saved_tracks (video_id TEXT PRIMARY KEY, message_id INTEGER NOT NULL);
+
 CREATE TABLE IF NOT EXISTS tg_meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -216,7 +218,9 @@ impl TelegramCacheManager {
         let changed = conn.execute(
             "INSERT OR IGNORE INTO upload_queue
                  (video_id, file_path, title, artist, caption, status, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)",
+             VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)
+             ON CONFLICT(video_id) DO UPDATE SET status='pending', retry_count=0, last_error=NULL, updated_at=excluded.updated_at
+             WHERE upload_queue.status IN ('done','failed','cancelled')",
             params![
                 video_id,
                 file_path.to_string_lossy(),
@@ -229,7 +233,27 @@ impl TelegramCacheManager {
         Ok(changed > 0)
     }
 
+    pub fn update_source(&self,id:&str,source:&str)->Result<()> {
+        let source=source.chars().filter(|c|!c.is_control()).take(300).collect::<String>();
+        self.conn().execute("UPDATE upload_queue SET artist=?2 WHERE video_id=?1 AND status='pending'",params![id,source])?;Ok(())
+    }
+    pub fn save_active(&self,id:i64)->Result<bool> {Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM upload_queue WHERE id=?1 AND status='uploading')",[id],|r|r.get(0))?)}
+    pub fn cancel_save(&self,id:i64)->Result<bool> {Ok(self.conn().execute("UPDATE upload_queue SET status='cancelled',updated_at=?2 WHERE id=?1 AND status IN ('pending','uploading','failed')",params![id,now_ts()])?>0)}
+    /// Only public metadata, never local paths, captions or Telegram credentials.
+    pub fn sync_items(&self)->Result<serde_json::Value> {
+        let conn=self.conn();let mut stmt=conn.prepare("SELECT id,video_id,title,artist,status FROM upload_queue WHERE status IN ('pending','uploading','failed') ORDER BY CASE status WHEN 'uploading' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,id LIMIT 100")?;
+        let rows=stmt.query_map([],|r|Ok(serde_json::json!({"id":r.get::<_,i64>(0)?,"video_id":r.get::<_,String>(1)?,"title":r.get::<_,String>(2)?,"artist":r.get::<_,String>(3)?,"status":r.get::<_,String>(4)?})))?;
+        Ok(serde_json::Value::Array(rows.collect::<std::result::Result<Vec<_>,_>>()?))
+    }
+
     /// Number of tracks still waiting for Telegram.
+    pub fn clear_pending(&self)->Result<()> { self.conn().execute("DELETE FROM upload_queue",[])?; self.conn().execute("DELETE FROM saved_tracks",[])?;Ok(()) }
+    /// Indexed Saved Messages, not a claim to count the user's entire cloud.
+    pub fn saved_tracks(&self)->Result<u32> {Ok(self.conn().query_row("SELECT COUNT(*) FROM saved_tracks",[],|row|row.get(0))?)}
+    pub fn saved_message(&self,id:&str)->Result<Option<i32>> {Ok(self.conn().query_row("SELECT message_id FROM saved_tracks WHERE video_id=?1",[id],|r|r.get(0)).optional()?)}
+    pub fn remember_saved(&self,id:&str,message:i32)->Result<()> {self.conn().execute("INSERT INTO saved_tracks(video_id,message_id) VALUES(?1,?2) ON CONFLICT(video_id) DO UPDATE SET message_id=excluded.message_id",params![id,message])?;Ok(())}
+    pub fn forget_saved(&self,id:&str)->Result<()> {self.conn().execute("DELETE FROM saved_tracks WHERE video_id=?1",[id])?;Ok(())}
+    pub fn failed_tracks(&self)->Result<u32> { Ok(self.conn().query_row("SELECT COUNT(*) FROM upload_queue WHERE status='failed'",[],|row|row.get(0))?) }
     pub fn queued_tracks(&self) -> Result<u32> {
         let conn = self.conn();
         let count: i64 = conn.query_row(
@@ -280,7 +304,7 @@ impl TelegramCacheManager {
     pub fn mark_done(&self, id: i64) -> Result<()> {
         let conn = self.conn();
         conn.execute(
-            "UPDATE upload_queue SET status = 'done', last_error = NULL, updated_at = ?2 WHERE id = ?1",
+            "UPDATE upload_queue SET status = 'done', last_error = NULL, updated_at = ?2 WHERE id = ?1 AND status='uploading'",
             params![id, now_ts()],
         )?;
         Ok(())
@@ -295,7 +319,7 @@ impl TelegramCacheManager {
                  retry_count = retry_count + 1,
                  last_error = ?3,
                  updated_at = ?4
-             WHERE id = ?1",
+             WHERE id = ?1 AND status='uploading'",
             params![id, MAX_UPLOAD_RETRIES, error, now_ts()],
         )?;
         Ok(())
@@ -477,10 +501,16 @@ impl TelegramCacheManager {
 
     /// Deletes the oldest cached files until the budget is met.
     /// Files still present in `upload_queue` are never deleted.
-    pub fn evict_lru(&self) -> Result<EvictionReport> {
+    pub fn evict_lru(&self) -> Result<EvictionReport> { self.evict_to(self.max_cache_bytes) }
+    pub fn make_room(&self,needed:u64)->Result<bool> {
+        if needed>self.max_cache_bytes {return Ok(false);}
+        let target=self.max_cache_bytes-needed;
+        Ok(self.evict_to(target)?.remaining_bytes<=target)
+    }
+    fn evict_to(&self,target:u64) -> Result<EvictionReport> {
         let protected: HashSet<String> = {
             let conn = self.conn();
-            let mut statement = conn.prepare("SELECT file_path FROM upload_queue")?;
+            let mut statement = conn.prepare("SELECT file_path FROM upload_queue WHERE status IN ('pending','uploading')")?;
             let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
             rows.collect::<std::result::Result<HashSet<_>, _>>()?
         };
@@ -505,13 +535,13 @@ impl TelegramCacheManager {
             remaining_bytes: total,
             ..EvictionReport::default()
         };
-        if total <= self.max_cache_bytes {
+        if total <= target {
             return Ok(report);
         }
 
         files.sort_by(|left, right| left.2.cmp(&right.2).then_with(|| left.0.cmp(&right.0)));
         for (path, bytes, _) in files {
-            if total <= self.max_cache_bytes {
+            if total <= target {
                 break;
             }
             if protected.contains(&path.to_string_lossy().to_string()) {
@@ -584,6 +614,52 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.root);
         }
+    }
+
+    #[test]
+    fn archive_makes_room_without_evicting_pending_uploads() {
+        let dirs=TempManager::new("room",100,0);
+        let old=dirs.write_cache_file("abcdefghijk",50);
+        let pending=dirs.write_cache_file("12345678901",40);
+        dirs.manager.enqueue("12345678901",&pending,"Song","").unwrap();
+        assert!(dirs.manager.make_room(50).unwrap());
+        assert!(!old.exists());assert!(pending.exists());
+        assert!(!dirs.manager.make_room(70).unwrap());
+    }
+
+    #[test] fn cancellation_is_persistent_and_late_worker_results_cannot_revive_it() {
+        let dirs=TempManager::new("cancel-save",100,0);let c=&dirs.manager;
+        let path=c.cached_path("abcdefghijk");c.enqueue("abcdefghijk",&path,"Song","Artist").unwrap();
+        let item=c.take_next_pending().unwrap().unwrap();assert!(c.save_active(item.id).unwrap());
+        let signal=crate::archive_progress::begin(item.id);
+        crate::archive_progress::finalizing(c,item.id).unwrap();
+        assert!(crate::archive_progress::cancel(c,item.id).is_err());
+        crate::archive_progress::stage(item.id,"uploading",Some(100));
+        assert!(crate::archive_progress::cancel(c,item.id).unwrap());
+        assert!(!c.save_active(item.id).unwrap());
+        crate::archive_progress::clear(item.id);
+        drop(signal);
+        c.mark_failed(item.id,"late error").unwrap();c.mark_done(item.id).unwrap();
+        assert_eq!(c.queued_tracks().unwrap(),0);assert!(c.take_next_pending().unwrap().is_none());
+        assert_eq!(c.sync_items().unwrap(),serde_json::json!([]));
+        assert!(!c.cancel_save(item.id).unwrap());assert_eq!(c.saved_tracks().unwrap(),0);
+    }
+    #[test]
+    fn saved_message_index_is_private_to_connection_and_retry_is_explicit() {
+        let dirs=TempManager::new("saved-index",100,0);
+        let cache=&dirs.manager;
+        assert_eq!(cache.saved_tracks().unwrap(),0);
+        cache.remember_saved("abcdefghijk",42).unwrap();
+        cache.remember_saved("abcdefghijk",42).unwrap();
+        assert_eq!(cache.saved_tracks().unwrap(),1);
+        assert_eq!(cache.saved_message("abcdefghijk").unwrap(),Some(42));
+        cache.forget_saved("abcdefghijk").unwrap();assert_eq!(cache.saved_message("abcdefghijk").unwrap(),None);
+        let path=cache.cached_path("abcdefghijk");
+        assert!(cache.enqueue("abcdefghijk",&path,"Song","").unwrap());
+        assert!(!cache.enqueue("abcdefghijk",&path,"Song","").unwrap());
+        let item=cache.take_next_pending().unwrap().unwrap();cache.mark_done(item.id).unwrap();
+        assert!(cache.enqueue("abcdefghijk",&path,"Song","").unwrap(),"a deleted remote message must be replaceable");
+        cache.clear_pending().unwrap();assert_eq!(cache.queued_tracks().unwrap(),0);
     }
 
     #[test]

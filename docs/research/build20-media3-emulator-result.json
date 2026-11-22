@@ -1,0 +1,58 @@
+{
+  "run": 44929889579,
+  "source": "1f723ceb92847e2f2a2b06590748d2e377c3dc32",
+  "job": 136925300290,
+  "conclusion": "success",
+  "annotations": [
+    {
+      "annotation_level": "warning",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-java@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "title": ""
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS acceptsOnlySingleCanonicalYoutubeVideoLinks",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS squareArtworkIsBoundedJpegAndRejectsInvalidInput",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS actualMedia3ContinuesPastTwoSecondsPausesResumesAndEnds",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS tenSecondSourceGapDoesNotTripTheDefaultEightSecondReadTimeout",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS pauseBeforeReadyIsHonoredThenResumeActuallyPlays",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS tenMinuteTrackPlaysAllTheWayAtFourTimesSpeed",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS seekForwardAndBackwardWhilePausedThenResume",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "notice",
+      "message": "PASS rejectedInputReportsErrorInsteadOfFalsePlaying",
+      "title": "Media3 emulator"
+    },
+    {
+      "annotation_level": "warning",
+      "message": "setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.",
+      "title": ""
+    }
+  ]
+}

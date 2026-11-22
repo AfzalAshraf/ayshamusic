@@ -3,12 +3,6 @@ name: Android APK
 on:
   push:
     branches: [main, "arena/**"]
-    paths:
-      - "android-app/**"
-      - "src/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/android.yml"
   pull_request:
     paths:
       - "android-app/**"
@@ -17,9 +11,9 @@ on:
       - "Cargo.lock"
   workflow_dispatch:
 
-# `write` lets the job publish the built APK as a release asset.
+# Build install-test artifacts only; publishing is a separate explicit operation.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-${{ github.ref }}
@@ -33,6 +27,7 @@ jobs:
       MAX_APK_MB: "15"
       WARN_APK_MB: "12"
       CARGO_TERM_COLOR: always
+      AYSHA_PREVIEW: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +50,7 @@ jobs:
 
       # rodio/cpal link ALSA on the Linux runner, which ships no dev headers.
       - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+        run: sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y libasound2-dev pkg-config ffmpeg
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -74,8 +69,50 @@ jobs:
 
       - name: Rust checks (host)
         run: |
-          cargo test --lib
-          cargo check --bin music-server
+          mkdir -p "$RUNNER_TEMP/aysha-media"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=5' -c:a aac "$RUNNER_TEMP/aysha-media/tail.m4a"
+          ffmpeg -hide_banner -loglevel error -i "$RUNNER_TEMP/aysha-media/tail.m4a" -c copy -movflags +faststart "$RUNNER_TEMP/aysha-media/front.m4a"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'color=c=red:s=320x320' -frames:v 1 "$RUNNER_TEMP/aysha-media/cover.jpg"
+          export AYSHA_MEDIA_FIXTURES="$RUNNER_TEMP/aysha-media"
+          if ! cargo test --lib --features phone --locked > "$RUNNER_TEMP/phone-tests.log" 2>&1; then
+            cat "$RUNNER_TEMP/phone-tests.log"
+            python3 -c 'import os; s=open(os.environ["RUNNER_TEMP"]+"/phone-tests.log").read()[-14000:]; print("::error title=Rust phone tests::"+s.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))'
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/phone-tests.log"
+          cargo check --bin music-server --locked
+
+      - name: Generate offline emulator audio fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/emulator-media"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=440:duration=8' -c:a aac -b:a 128k -movflags +faststart "$RUNNER_TEMP/emulator-media/tone.m4a"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i 'sine=frequency=330:duration=600' -c:a aac -b:a 96k -movflags +faststart "$RUNNER_TEMP/emulator-media/long-tone.m4a"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-emulator-audio-fixtures
+          path: ${{ runner.temp }}/emulator-media/*.m4a
+          retention-days: 3
+
+      - name: Configure gated production signing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.AYSHA_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.AYSHA_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.AYSHA_KEY_ALIAS }}
+          KEY_PASSWORD_VALUE: ${{ secrets.AYSHA_KEY_PASSWORD }}
+          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" && test -n "$STORE_PASSWORD" && test -n "$ALIAS" && test -n "$KEY_PASSWORD_VALUE"
+          [[ "$EXPECTED_CERT" =~ ^[a-fA-F0-9]{64}$ ]]
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          chmod 600 "$RUNNER_TEMP/release.jks"
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=$KEY_PASSWORD_VALUE" >> "$GITHUB_ENV"
+          echo "AYSHA_PREVIEW=0" >> "$GITHUB_ENV"
+          echo "AYSHA_VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
       - name: Build Rust library + release APK
         run: |
@@ -84,98 +121,126 @@ jobs:
 
       - name: Enforce APK size budget
         run: |
-          bash android-app/scripts/measure_apk_size.sh \
-            android-app/app/build/outputs/apk/release/app-release.apk
+          for variant in androidAudio; do
+            bash android-app/scripts/measure_apk_size.sh android-app/app/build/outputs/apk/$variant/release/*.apk
+          done
 
-      - name: Upload APK
+      - name: Validate production signing identity
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
+        env:
+          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK=$(find android-app/app/build/outputs/apk/androidAudio/release -name '*.apk' -print -quit)
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/cert.txt"
+          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/cert.txt" | tr '[:upper:]' '[:lower:]')
+          expected=$(printf '%s' "$EXPECTED_CERT" | tr '[:upper:]' '[:lower:]')
+          test "$actual" = "$expected"
+          test "$(grep -c '^Signer #[0-9]* certificate SHA-256 digest:' "$RUNNER_TEMP/cert.txt")" = 1
+
+      - name: Upload Android Audio APK
         uses: actions/upload-artifact@v4
         with:
-          name: ayshamusic-arm64-release
-          path: android-app/app/build/outputs/apk/release/*.apk
+          name: ayshamusic-android-audio-arm64
+          path: android-app/app/build/outputs/apk/androidAudio/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
-      # A durable download that does not expire with artifacts. The tag is
-      # replaced on every build, so `apk-latest` always serves the newest APK.
-      - name: Hash the release APK
-        id: apk-hash
-        run: |
-          APK=android-app/app/build/outputs/apk/release/app-release.apk
-          echo "sha=$(sha256sum "$APK" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "size=$(stat -c%s "$APK")" >> "$GITHUB_OUTPUT"
+      - name: Android website contract regressions
+        run: node --test tests/android.test.cjs
 
-      - name: Publish APK release
-        if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+
+      # Branch fixes are test artifacts, never overwrite the public main release.
+
+  # The explicit production-source proof was consumed by43743729439 and passed.
+  # Routine CI remains provider-offline; new live work needs a reviewed gate.
+
+  media3-emulator-fixture:
+    needs: build-apk
+    # Actual Android decoder/control validation; no YouTube/account access and
+    # no claim of complete Rust JNI/provider integration or physical audio.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          tag_name: apk-latest
-          name: Aysha Music APK (latest)
-          body: |
-            Aysha Music 1.3.0 (versionCode 6), arm64-v8a, from ${{ github.sha }}.
+          distribution: temurin
+          java-version: "17"
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      # Reuse fixtures from the job whose toolchain/package setup is verified;
+      # Ubuntu 24 package mirrors have timed out before instrumentation starts.
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-emulator-audio-fixtures
+          path: android-app/app/src/androidTest/assets
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: cd android-app && ./gradlew --no-daemon -PayshaEmulatorTests=true connectedAndroidAudioDebugAndroidTest
+      - name: Annotate actual instrumentation outcomes
+        if: always()
+        run: |
+          python3 - <<'PYTEST'
+          import glob,xml.etree.ElementTree as E
+          paths=glob.glob('android-app/app/build/outputs/androidTest-results/connected/**/*.xml',recursive=True)
+          if not paths:
+              print('::warning title=Media3 emulator::No instrumentation result; emulator validation NOT PASSED')
+          for path in paths:
+              for case in E.parse(path).getroot().iter('testcase'):
+                  failed=case.find('failure')
+                  skipped=case.find('skipped')
+                  status='FAIL' if failed is not None else ('SKIP' if skipped is not None else 'PASS')
+                  detail='' if failed is None else ' '+(failed.attrib.get('message','')+' '+''.join(failed.itertext()))[:5000]
+                  message=(status+' '+case.attrib.get('name','unknown')+detail).replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+                  print('::notice title=Media3 emulator::'+message)
+          PYTEST
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: media3-emulator-fixture-results
+          path: |
+            android-app/app/build/outputs/androidTest-results/
+            android-app/app/build/reports/androidTests/
+          if-no-files-found: warn
 
-            SHA-256: ${{ steps.apk-hash.outputs.sha }}
-            Size: ${{ steps.apk-hash.outputs.size }} bytes
-            Verify a download with: sha256sum app-release.apk
-            (This hash identifies the bytes CI built from this commit; a local
-            rebuild will differ, because Rust builds are not reproducible.)
-
-            Bot-screening fallback:
-            - When every InnerTube client answers "Sign in to confirm you're not
-              a bot" (typical for label music videos from datacenter IPs), the
-              resolver now falls back to public Invidious instances and plays
-              their local=true proxy, which fetches from the instance's IP.
-            - Instances are tried in order and can be replaced at runtime with
-              AYSHA_INVIDIOUS="https://a,https://b".
-            - Only AAC-in-MP4 formats are chosen, because this build ships the
-              rodio mp4 decoder; WebM/Opus would not decode.
-            - Proven with a real release: Despacito (kJQP7kiw5Fk) resolved via
-              the fallback to itag 140, 4,557,665 bytes downloaded, ffprobe AAC
-              44.1 kHz stereo 281.57 s, ffmpeg decoded every packet, and the
-              app's own decoder produced non-silent samples.
-            - NOT verified: sound from a phone speaker. No device was available.
-
-            Playback fix (1.2.1):
-            - Audio was cut off roughly 12 seconds into every track: the media
-              stream used the API HTTP client, whose 12 s total timeout aborted
-              the body mid-transfer. Media now uses its own client (connect
-              timeout + 30 s read-stall guard, no overall cap).
-            - Verified on the build host through the app's own code path: the
-              full track streamed to its declared 3,449,447 bytes, and both
-              ffprobe and ffmpeg decoded it (AAC, 44.1 kHz, stereo, 213.09 s).
-            - NOT verified: audio from a phone speaker. No device was available;
-              the release is published without a playback-on-device test.
-
-            Library and navigation on Android:
-            - /api/search is implemented (InnerTube search), so Home, Explore and
-              the search bar return real songs on the phone instead of 404.
-            - /api/next plays a *different* song: it searches for songs similar to
-              the current title and skips the same video and the same song under
-              another upload ("(Official Video)" vs "- Lyrical Video").
-            - /api/prev walks back through the tracks started this session.
-            - /api/player now includes duration_secs, so the progress bar fills.
-
-            Known limits: Favorites, Queue and Bluetooth are still Linux-server
-            features and return 404 on the phone. The fallback depends on a
-            third-party public instance, so it can be slow or unavailable; when
-            it fails the app shows the per-client refusals instead of pretending
-            to play.
-
-            UI:
-            - The page's play/pause/resume/stop/volume controls call the Rust
-              endpoints directly, and every 400 ms the page renders /api/player:
-              position, paused marker, volume, and the track name after a reload.
-
-            Resolution changes:
-            - InnerTube client versions are current (Android 20.10.38 / iOS 20.10.4);
-              the previous 19.x versions returned HTTP 400 FAILED_PRECONDITION.
-            - A visitor id is fetched from /youtubei/v1/visitor_id, cached in
-              filesDir/yt_visitor.json and sent as X-Goog-Visitor-Id plus
-              client.visitorData on every player request.
-            - /api/selftest and /api/play failures report each attempt's client,
-              HTTP status, visitor-id attachment and YouTube's own body.
-
-            Honest limit: CI proves the APK builds, packages and fits the size
-            budget; it cannot prove audio comes out of a phone speaker.
-            Debug-signed, minSdk 26.
-          files: android-app/app/build/outputs/apk/release/app-release.apk
-          make_latest: true
+  publish-signed-update:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
+    needs: [build-apk, media3-emulator-fixture]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: aysha-production-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ayshamusic-android-audio-arm64
+          path: release-apk
+      - name: Publish only current main, with pinned signer and immutable version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA" || { echo 'Main moved; refusing stale release'; exit 1; }
+          code=$((1000 + GITHUB_RUN_NUMBER))
+          mkdir -p publish
+          cp release-apk/*.apk publish/AyshaMusic-arm64.apk
+          APK_SIZE=$(stat -c%s publish/AyshaMusic-arm64.apk)
+          APK_SHA=$(sha256sum publish/AyshaMusic-arm64.apk | cut -d' ' -f1)
+          export APK_SIZE APK_SHA code EXPECTED_CERT
+          python3 - <<'PYJSON'
+          import json,os
+          code=int(os.environ['code'])
+          data={'schema':1,'package_id':'com.afzal.ayshamusic.androidaudio10','version_code':code,'version_name':f'1.9.0.{code}','abi':'arm64-v8a','min_sdk':26,'size':int(os.environ['APK_SIZE']),'sha256':os.environ['APK_SHA'],'certificate_sha256':os.environ['EXPECTED_CERT'].lower(),'url':f'https://github.com/AfzalAshraf/ayshamusic/releases/download/android-v{code}/AyshaMusic-arm64.apk'}
+          with open('publish/update.json','w') as f: json.dump(data,f,indent=2)
+          PYJSON
+          gh release create "android-v$code" publish/AyshaMusic-arm64.apk publish/update.json --target "$GITHUB_SHA" --title "Aysha Music 1.9.0.$code" --notes "Signed ARM64 Android update for commit $GITHUB_SHA. Android requires your confirmation to install." --latest

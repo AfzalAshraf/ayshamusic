@@ -10,18 +10,43 @@ import java.net.URL
  */
 object MediaApi {
     private const val TAG = "MediaApi"
-    private const val BASE = "http://127.0.0.1:5050"
+    val baseUrl = "http://127.0.0.1:${BuildConfig.API_PORT}"
+    val instanceId: String = java.util.UUID.randomUUID().toString()
+    @Volatile private var verified = false
+
+    fun isBackendVerified(): Boolean = verified
+
+    fun verifyBackend(): Boolean {
+        return try {
+            val status = org.json.JSONObject(get("/api/status") ?: run { verified = false; return false })
+            (status.optString("instance_id") == instanceId &&
+                status.optString("audio_engine") == BuildConfig.AUDIO_ENGINE &&
+                status.optInt("api_port") == BuildConfig.API_PORT).also { verified = it }
+        } catch (_: Exception) { verified = false; false }
+    }
     private const val TIMEOUT_MS = 1500
+    private val posts = java.util.concurrent.Executors.newSingleThreadExecutor()
+    // Playback-ready events must reach Rust while a control request is waiting
+    // for preparation; putting both on one executor causes a circular wait.
+    private val events = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val navigation = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val navigating = java.util.concurrent.atomic.AtomicBoolean(false)
 
     fun post(path: String, body: String? = null) {
-        Thread {
+        if (!verified) return
+        val event = path == "/api/platform/event"
+        val trackChange = path == "/api/next" || path == "/api/prev"
+        if (trackChange && !navigating.compareAndSet(false, true)) return
+        // Pause/Stop remain independent of a slow navigation as well.
+        val executor = if (event) events else if (trackChange) navigation else posts
+        executor.execute {
             var connection: HttpURLConnection? = null
             try {
-                val url = URL(BASE + path)
+                val url = URL(baseUrl + path)
                 connection = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = TIMEOUT_MS
-                    readTimeout = TIMEOUT_MS
+                    readTimeout = if (trackChange) 60000 else TIMEOUT_MS
                     setRequestProperty("Content-Type", "application/json")
                     if (body != null) {
                         doOutput = true
@@ -37,14 +62,16 @@ object MediaApi {
                 Log.w(TAG, "POST $path failed: ${e.message}")
             } finally {
                 connection?.disconnect()
+                if (trackChange) navigating.set(false)
             }
-        }.start()
+        }
     }
 
     fun get(path: String): String? {
+        if (!verified && path != "/api/status") return null
         var connection: HttpURLConnection? = null
         return try {
-            val url = URL(BASE + path)
+            val url = URL(baseUrl + path)
             connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = TIMEOUT_MS

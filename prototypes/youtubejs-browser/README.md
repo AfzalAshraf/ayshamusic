@@ -1,0 +1,107 @@
+# Isolated permissive browser extractor evaluation
+
+**Not integrated into the APK. No live network transport. No playback claim.**
+
+User approved on-device extraction, then rejected GPL integration/relicensing.
+NewPipe is excluded. This evaluates MIT **youtubei.js18.3.0**'s explicit **web**
+entry/bundle against fabricated offline responses. No Node executable would be
+shipped: Node here runs development tests, analogous to existing frontend tests.
+An API29 Android WebView passes the isolated fixture described below; the
+production app's WebView/backend integration is **not implemented or tested**.
+
+## Reproduce (diagnostic/offline fixtures)
+
+```sh
+npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
+npm test --prefix prototypes/youtubejs-browser
+node prototypes/youtubejs-browser/build-android-fixture.mjs
+# Optional desktop Chromium fixture check, existing test-only tools outside repo:
+BROWSER_TEST_MODULES=/path/to/test-tools/node_modules \
+  node prototypes/youtubejs-browser/test/browser.cjs
+```
+
+Test tools: playwright-core1.65.0 and @sparticuz/chromium153.0.0, as used by the
+existing mobile browser CI. On the Arena sandbox Chromium needs
+`LD_LIBRARY_PATH=/tmp/al2023/lib`; CI Ubuntu has the system libraries. First local
+browser setup attempts failed because Chromium is ESM-only and libnspr4 was not
+on the path; both setup issues corrected before reporting a pass. Browser test
+filters out packaged Chromium's disable-web-security/allow-insecure-content
+flags. No CORS/security disabling is proposed for production.
+
+`fixture-adapter.mjs` constructs a real library session **locally for testing**,
+disables player/config/session-cache retrieval and injects a response-only fetch
+function. There is no call to global/native fetch. It accepts exactly one fixture
+player request; initialization unexpectedly contacting any other endpoint fails.
+The standalone browser test intercepts every page request and rejects anything
+outside its fabricated local origin. No music-provider query is run.
+
+Selection rejects video mismatch, provider denials, live/upcoming/private media,
+video/DRM/OTF/non-AAC formats, unsafe source URLs, unknown/oversized length and
+cipher/`n` transformation requirements. Returned URL is **private internal data**,
+not a status response. Future integration would require Rust revalidation and
+head/tail checks. Fixture result explicitly says `media_validated:false` and
+`playback_tested:false`.
+
+## Pinning and licenses
+
+- youtubei.js18.3.0, MIT, published2026-10-23; package-lock has npm integrity.
+  https://github.com/LuanRT/YouTube.js
+- Resolved source-module dependencies: @bufbuild/protobuf2.17.0
+  (Apache-2.0 AND BSD-3-Clause), fflate0.8.3 (MIT), meriyah7.4.1 (ISC).
+  meriyah overridden because registry latest7.4.2 is dated2026-11-08, later than
+  the session date. All selected versions were available by2026-11-07.
+- Browser test additionally checks upstream's packaged self-contained browser
+  bundle from the same npm18.3.0 tarball; SHA256:
+  `343518935745d56c7ee4082d6e59c568f6a19a5e78c0e3386a38892260d37d38`.
+  npm overrides do **not** rewrite embedded prebundled dependency code. Before
+  shipping, rebuild from pinned reviewed source modules, enumerate embedded
+  versions/notices and audit that exact artifact, not only npm's dependency tree.
+- npm audit of installed source-module graph reported zero known advisories at
+  evaluation time. This is not a security certification or an audit of embedded
+  prebundled code, provider behavior or Android runtime.
+- No upstream code/binary is vendored or redistributed in Git here. No app
+  license changed. Shipping would require retaining MIT/ISC/BSD/Apache notices;
+  permissive is not the same as notice-free. Inspect third-party source as well
+  as top-level metadata before final distribution.
+
+## Android fixture experiment
+
+`build-android-fixture.mjs` now rebuilds a separate test-only IIFE from the locked
+source modules with esbuild0.28.0 (MIT, development only), targetChrome70. It copies
+MIT/ISC/Apache/BSD notices into the generated test assets; protobuf's npm tarball
+omits its root Apache license, so a reviewed copy from protobuf-es v2.17.0 commit
+`01a8c3b7c95d17758c641b2b9e8ee2f14a3ee9d7` is preserved in `notices/`.
+Desktop Chromium passes both the upstream bundle and this rebuilt fixture.
+
+A separate `permissive-extractor-offline.yml` builds a **test APK only**, copies
+the prototype Kotlin class/generated assets into ignored androidTest locations,
+and runs one API29 emulator WebView fixture. This is separate from the production
+APK workflow: no main source/dependency/assets change, no Rust/JNI dependency,
+no native JavaScript bridge, WebView network blocked and every resource request
+intercepted. Checks AAC fixture parsing, denial/video mismatch/cipher rejection,
+no unexpected resource/navigation and no console errors. **PASS** on source
+`7f730d8`, run [44137583809](https://github.com/AfzalAshraf/ayshamusic/actions/runs/44137583809),
+job134231278450, one actual instrumentation test. Safe check annotation saved in
+`docs/research/permissive-android-webview-annotations.json`. Earlier runs failed
+because the fixture did not define WebView's implicit same-origin favicon; adding
+an explicit empty favicon response resolved the sole unexpected-resource count,
+without permitting any external request. No source or playback test is part of
+this experiment; API29 is not API26/minSdk, a current physical phone or R8 proof.
+
+## Unresolved gates
+
+1. Default browser evaluator **throws** when asked to decipher. Do not use
+   `eval`/`new Function` on downloaded player scripts in a privileged UI WebView.
+   A vetted sandboxed interpreter/transform implementation and its license,
+   resource limits, Android size and engine isolation are still needed for signed
+   formats. Direct fixture URLs avoid this requirement and do not prove it away.
+2. Upstream HTTPClient defaults to `credentials:include` and automatic redirects.
+   A native bounded transport must override both, allowlist metadata endpoints,
+   validate every redirect, reject credentials/cookies, latch restrictions,
+   enforce time/request/byte budgets and redact all upstream errors. Do not call
+   browser fetch directly or disable CORS/WebView security.
+3. A fresh, explicitly justified source test must respect the sealed CI challenge
+   and stop rules. No alternate client/network/proxy retry was made here.
+4. Production Android WebView integration/minSdk26/R8/JNI/cancellation, Rust handoff/Telegram archive,
+   complete affected-song playback and physical phone/network acceptance remain
+   open. Existing APK and UI are unchanged. Do not deliver this as a fixed APK.

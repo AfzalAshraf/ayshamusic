@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 
 /**
- * MainActivity - Ultra-minimal fullscreen WebView pointing to localhost:5050.
+ * MainActivity - Fullscreen WebView pointing to the verified variant-specific loopback server.
  * 
  * Key properties:
  * - No Jetpack Compose, no Navigation, no Fragments
@@ -30,10 +30,13 @@ import androidx.core.view.WindowCompat
 class MainActivity : AppCompatActivity() {
     private companion object {
         private const val TAG = "MainActivity"
-        private const val SERVER_URL = "http://127.0.0.1:5050"
+        private val SERVER_URL get() = MediaApi.baseUrl
     }
 
+    @Volatile private var destroyed = false
     private var webView: WebView? = null
+    private var pendingSharedId: String? = null
+    private var localPageReady = false
     private var backCallbackRegistered = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
 
@@ -60,8 +63,13 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(webView!!)
 
+        pendingSharedId = savedInstanceState?.getString("shared_video")
+        if (savedInstanceState == null) acceptShare(intent)
         setupWebView()
         loadServerUrl()
+        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 100)
+        }
         
         // Register predictive back callback (Android 14+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -97,7 +105,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Mixed content - allow HTTP on localhost
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 }
                 
                 // User agent
@@ -108,8 +116,16 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
+                    if (request.url.scheme == "aysha" && request.url.host == "app") {
+                        if (request.isForMainFrame && trustedSettingsPage(view) && request.url.query == null && request.url.fragment == null) handleAppAction(request.url.path.orEmpty())
+                        return true
+                    }
+                    if (request.url.scheme == "aysha" && request.url.host == "retry") {
+                        loadServerUrl()
+                        return true
+                    }
                     // Keep localhost navigation in WebView
-                    if (url.startsWith("http://127.0.0.1:5050") || url.startsWith("https://127.0.0.1:5050")) {
+                    if (request.url.scheme == "http" && request.url.host == "127.0.0.1" && request.url.port == BuildConfig.API_PORT) {
                         return false
                     }
                     // Open external links in browser
@@ -118,25 +134,41 @@ class MainActivity : AppCompatActivity() {
                         startActivity(intent)
                         return true
                     }
-                    return false
+                    return true
+                }
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    val uri = Uri.parse(url)
+                    localPageReady = uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && uri.path == "/" && MediaApi.isBackendVerified()
+                    if (localPageReady) {
+                        deliverShare()
+                        AppUpdater.initialize(applicationContext)
+                        AppUpdater.listener={if (!destroyed) publishAppSettings()}
+                        publishAppSettings()
+                        AppUpdater.automatic()
+                    }
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest?, error: android.webkit.WebResourceError) {
                     Log.e(TAG, "WebView error: ${error.description} (${error.errorCode})")
+                    if (request?.isForMainFrame == true && request.url.host == "127.0.0.1") {
+                        view.post { if (!destroyed) showLocalStartupError() }
+                    }
                 }
             }
 
             // WebChromeClient for console logs, fullscreen video, etc.
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage): Boolean {
-                    Log.d("WebViewConsole", "[${consoleMessage.messageLevel()}] ${consoleMessage.message()} (${consoleMessage.sourceId()}:${consoleMessage.lineNumber()})")
+                    // Provider/session errors may contain private data; no raw console forwarding in release.
+                    if (BuildConfig.DEBUG) Log.d("WebViewConsole", "${consoleMessage.messageLevel()}: local UI message")
                     return true
                 }
 
                 override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
                     // Grant media permissions for audio playback
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        request.grant(request.resources)
+                        request.deny()
                     }
                 }
             }
@@ -152,13 +184,31 @@ class MainActivity : AppCompatActivity() {
         // Accept cookies for session persistence
         CookieManager.getInstance().setAcceptCookie(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            CookieManager.getInstance().setAcceptThirdPartyCookies(webView!!, true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView!!, false)
         }
     }
 
     private fun loadServerUrl() {
-        webView!!.loadUrl(SERVER_URL)
-        Log.i(TAG, "Loading $SERVER_URL")
+        localPageReady = false
+        webView!!.loadData("<html><body style='background:#100d13;color:#fff;font-family:sans-serif;padding:32px'>Starting Aysha Music…</body></html>", "text/html", "UTF-8")
+        Thread {
+            var ready = false
+            for (attempt in 1..30) {
+                if (destroyed) return@Thread
+                if (MediaApi.verifyBackend()) { ready = true; break }
+                Thread.sleep(200)
+            }
+            runOnUiThread {
+                if (!destroyed) {
+                    if (ready) webView?.loadUrl(SERVER_URL)
+                    else showLocalStartupError()
+                }
+            }
+        }.start()
+    }
+
+    private fun showLocalStartupError() {
+        webView?.loadData("<html><meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#100d13;color:white;font-family:sans-serif;padding:32px'><h2>Local player could not open</h2><p>Aysha runs inside this APK. No external Aysha server is required.</p><p><a style='color:#f2bdc8' href='aysha://retry'>Retry local player</a></p></body></html>", "text/html", "UTF-8")
     }
 
     // Predictive back gesture (Android 14+)
@@ -198,17 +248,84 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        // Handle deep links if needed
-        intent.data?.let { uri ->
-            if (uri.toString().startsWith("http://127.0.0.1:5050")) {
-                webView?.loadUrl(uri.toString())
+    private fun trustedSettingsPage(view:WebView):Boolean {
+        val uri=Uri.parse(view.url ?: return false)
+        return localPageReady && MediaApi.isBackendVerified() && uri.scheme=="http" && uri.host=="127.0.0.1" && uri.port==BuildConfig.API_PORT && uri.path=="/" && uri.query==null
+    }
+
+    private fun publishAppSettings() {
+        val view=webView ?: return
+        if(!trustedSettingsPage(view))return
+        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("updates",AppUpdater.state())
+        view.evaluateJavascript("if(window.renderNativeAppSettings)renderNativeAppSettings("+value.toString()+")",null)
+    }
+
+    private fun handleAppAction(path:String) {
+        when(path){
+            "/icons" -> showIconPicker()
+            "/check-update" -> AppUpdater.check()
+            "/toggle-updates" -> AppUpdater.toggle()
+            "/install-update" -> AppUpdater.install(this)
+            "/download-update" -> {
+                if(AppUpdater.wifi())AppUpdater.download()
+                else android.app.AlertDialog.Builder(this).setTitle("Download update?").setMessage("This connection may use mobile data. Download the verified update now?").setNegativeButton("Cancel",null).setPositiveButton("Download"){_,_->AppUpdater.download()}.show()
             }
         }
     }
 
+    private fun showIconPicker() {
+        val selected=AppIcons.choices.indexOfFirst{it.id==AppIcons.current(this)}
+        val adapter=object:android.widget.ArrayAdapter<String>(this,android.R.layout.simple_list_item_single_choice,AppIcons.choices.map{it.title}) {
+            override fun getView(position:Int,convertView:View?,parent:android.view.ViewGroup):View {
+                val text=super.getView(position,convertView,parent) as android.widget.TextView
+                val drawable=androidx.core.content.ContextCompat.getDrawable(this@MainActivity,AppIcons.choices[position].preview)
+                val size=(52*resources.displayMetrics.density).toInt();drawable?.setBounds(0,0,size,size)
+                text.setCompoundDrawables(drawable,null,null,null);text.compoundDrawablePadding=(16*resources.displayMetrics.density).toInt()
+                text.minHeight=(76*resources.displayMetrics.density).toInt();return text
+            }
+        }
+        android.app.AlertDialog.Builder(this).setTitle("Choose Aysha’s app icon")
+            .setSingleChoiceItems(adapter,selected){dialog,which->
+                try{AppIcons.select(this,AppIcons.choices[which].id);publishAppSettings();android.widget.Toast.makeText(this,"Icon changed. Your launcher may take a moment to refresh.",android.widget.Toast.LENGTH_LONG).show()}
+                catch(_:Exception){android.widget.Toast.makeText(this,"This launcher could not change the icon. No app data was changed.",android.widget.Toast.LENGTH_LONG).show()}
+                dialog.dismiss()
+            }.setNegativeButton("Close",null).show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if(localPageReady){publishAppSettings();AppUpdater.automatic()}
+    }
+
+    private fun acceptShare(incoming: Intent?) {
+        if (incoming?.action != Intent.ACTION_SEND || incoming.type != "text/plain") return
+        val id = SharedYoutubeLink.videoId(incoming.getStringExtra(Intent.EXTRA_TEXT))
+        if (id == null) android.widget.Toast.makeText(this, "Share one supported YouTube video link", android.widget.Toast.LENGTH_LONG).show()
+        else pendingSharedId = id
+    }
+
+    private fun deliverShare() {
+        if (!localPageReady || !MediaApi.isBackendVerified()) return
+        val id = pendingSharedId ?: return
+        pendingSharedId = null
+        webView?.evaluateJavascript("receiveSharedVideo(" + org.json.JSONObject.quote(id) + ")", null)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        pendingSharedId?.let { outState.putString("shared_video", it) }
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptShare(intent)
+        deliverShare()
+    }
+
     override fun onDestroy() {
+        destroyed = true
+        AppUpdater.listener=null
         // Clean up WebView
         webView?.apply {
             stopLoading()

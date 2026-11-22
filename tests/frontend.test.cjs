@@ -99,7 +99,7 @@ test('disconnect uses the disconnect endpoint', async () => {
 test('HTTP failures are not silently converted to empty JSON', async () => {
   const h = harness();
   h.context.fetch = async () => ({ ok: false, status: 400, text: async () => 'invalid request' });
-  await assert.rejects(h.context.api('POST', '/api/play', track), /HTTP 400: invalid request/);
+  await assert.rejects(h.context.api('POST', '/api/play', track), /Request failed \(HTTP 400\)/);
 });
 
 test('Bluetooth script errors appear in the interface', async () => {
@@ -1030,4 +1030,280 @@ test('a rejected mobile play leaves a retryable selection and no fake playing st
   assert.equal(h.element('audio-player').paused, true);
   assert.equal(h.element('audio-player').src, '');
   assert.equal(h.element('hero-play-label').textContent, 'Play');
+});
+
+test('Android play uses native JSON including track metadata, not missing stream route', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback = true', h.context);
+  await h.context.playSong(track);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].url, '/api/play');
+  const body = JSON.parse(h.calls[0].opts.body);
+  assert.equal(body.video_id, track.id);
+  assert.equal(body.track.title, track.title);
+  assert.notEqual(h.element('audio-player').played, true);
+});
+
+test('Android navigation already starts playback and never creates a second play request', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback = true', h.context);
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({url, opts});
+    return { ok: true, json: async () => ({ status:'playing', track, mode:'native', already_started:true }) };
+  };
+  await h.context.nextTrack();
+  assert.deepEqual(h.calls.map(c => c.url), ['/api/next']);
+  assert.equal(h.element('hero-play-label').textContent, 'Pause');
+  assert.notEqual(h.element('audio-player').played, true);
+});
+
+test('native API logical errors cannot masquerade as successful playback', async () => {
+  const h = harness();
+  h.context.fetch = async () => ({ok: true, json: async () => ({ status:'error', detail:'device unavailable' })});
+  await assert.rejects(h.context.nativeJson('/api/resume'), /device unavailable/);
+});
+
+test('failed Explore search invalidates loaded state so tapping the tab retries', async () => {
+  const h = harness();
+  vm.runInContext("loadedTabs.add('explore')", h.context);
+  h.context.fetch = async () => ({ ok:false, status:502, text: async () => 'provider unavailable' });
+  await h.context.searchTracks('music', 'Music');
+  assert.equal(vm.runInContext("loadedTabs.has('explore')", h.context), false);
+  assert.match(h.element('explore-cards').innerHTML, /tap Explore to retry/);
+});
+
+test('native full player uses Rust position/duration, not the unused HTML audio element', () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='playing'; state.pos=65; state.nativeDuration=120", h.context);
+  h.element('audio-player').currentTime = 0;
+  h.context.syncNowPlaying();
+  assert.equal(h.element('full-elapsed').textContent, '1:05');
+  assert.equal(h.element('full-duration').textContent, '2:00');
+  assert.ok(parseFloat(h.element('full-progress').style.width) > 50);
+});
+
+test('native full player shows buffering and decoder errors rather than perpetual Streaming audio', () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='buffering'", h.context);
+  h.context.syncNowPlaying();
+  assert.match(h.element('full-duration').textContent, /Buffering/);
+  vm.runInContext("state.nativeStage='error'; state.nativeError='media_range_http_403'", h.context);
+  h.context.syncNowPlaying();
+  assert.equal(h.element('full-duration').textContent, 'Playback could not start');
+  assert.equal(h.element('full-error').textContent, 'media_range_http_403');
+});
+
+test('resolver rejection persists through idle polls and is separated from the clock', async () => {
+  const h = harness();
+  vm.runInContext("state.nativePlayback=true; state.nativeStage='error'; state.nativeError='YouTube rejected this playback request (HTTP 400: failedPrecondition). Audio has not started.'", h.context);
+  h.context.fetch = async url => ({ ok: true, json: async () => url === '/api/status' ? { native_playback:true } : { state:'idle',error:null,position_secs:0 } });
+  await h.context.pollStatus();
+  assert.match(h.element('full-error').textContent, /HTTP 400/);
+  assert.equal(h.element('full-error').hidden, false);
+  assert.equal(h.element('full-elapsed').textContent, '0:00');
+  assert.doesNotMatch(h.element('full-duration').textContent, /ANDROID|failedPrecondition/);
+});
+
+test('player contains no learning controls or explanatory clutter', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  assert.doesNotMatch(html, /automatic-recommendations|resetListeningPreferences|Reset learning|Next learns from|id="next-mood"|setRecommendationMood/);
+  const catalog = fs.readFileSync(path.join(__dirname, '../src/android_catalog.rs'), 'utf8');
+  assert.match(catalog, /youtube::mix/);
+  assert.doesNotMatch(catalog, /fetch_search\(http,.*preferences/);
+});
+
+test('Telegram credentials go only to the in-app API and secrets are cleared', async () => {
+  const h = harness();
+  h.context.fetch = async (url, opts) => {
+    h.calls.push({url,opts});
+    return {ok:true,json:async () => ({status:'ok',saved:true,api_id:12345,configured:true})};
+  };
+  h.element('tg-api-id').value = '12345';
+  h.element('tg-api-hash').value = 'a'.repeat(32);
+  h.element('tg-code').value = '12345';
+  h.element('tg-password').value = 'private-password';
+  await h.context.configureTelegram();
+  const request = h.calls.find(call => call.url === '/api/tg/configure');
+  assert.deepEqual(JSON.parse(request.opts.body), { api_id:12345, api_hash:'a'.repeat(32) });
+  assert.ok(h.calls.every(call => call.url.startsWith('/api/')));
+  for (const id of ['tg-api-hash','tg-code','tg-password']) assert.equal(h.element(id).value, '');
+  assert.equal(h.storage.size, 0); assert.equal(h.quoteStorage.size, 0);
+});
+
+test('Telegram login clears code and password even when its API fails', async () => {
+  const h = harness();
+  h.element('tg-code').value = '12345'; h.element('tg-password').value = 'private-password';
+  h.context.fetch = async () => { throw new Error('Network unavailable'); };
+  await h.context.telegramLogin('code');
+  assert.equal(h.element('tg-code').value, ''); assert.equal(h.element('tg-password').value, '');
+  assert.equal(h.element('telegram-feedback').textContent, 'Network unavailable');
+});
+
+
+test('native source fallback does not leave an intermediate403 error over successful playback or break Pause', async () => {
+  const h = harness();
+  vm.runInContext('state.nativePlayback=true',h.context);
+  let release;
+  h.context.fetch = async (url,opts) => {
+    h.calls.push({url,opts});
+    if (url === '/api/play') return new Promise(resolve => {release = resolve;});
+    const data = url === '/api/status' ? {native_playback:true} : url === '/api/player'
+      ? {state:'error',video_id:track.id,error:'media_range_http_403'} : {status:'paused'};
+    return {ok:true,json:async () => data};
+  };
+  const starting = h.context.playSong(track);
+  await h.context.pollStatus();
+  assert.equal(vm.runInContext('state.nativeError',h.context),'');
+  release({ok:true,json:async () => ({status:'playing'})});
+  await starting;
+  assert.equal(vm.runInContext('state.nativeError',h.context),'');
+  await h.context.togglePlay();
+  assert.equal(h.calls.at(-1).url,'/api/pause');
+  assert.equal(h.element('play-toggle').attributes['aria-label'],'Play');
+});
+
+test('tapping during native preparation cancels and a late successful response cannot restart playback', async () => {
+  const h = harness();vm.runInContext('state.nativePlayback=true',h.context);
+  let release;
+  h.context.fetch = async (url,opts) => {
+    h.calls.push({url,opts});
+    if (url === '/api/play') return new Promise(resolve => {release=resolve;});
+    return {ok:true,json:async () => ({status:'stopped'})};
+  };
+  const starting=h.context.playSong(track);
+  await h.context.togglePlay();
+  assert.deepEqual(h.calls.map(c=>c.url),['/api/play','/api/stop']);
+  release({ok:true,json:async () => ({status:'playing'})});await starting;
+  assert.equal(vm.runInContext('state.stopped',h.context),true);
+  assert.equal(h.element('play-toggle').attributes['aria-label'],'Play');
+});
+
+
+test('Telegram setup retains the entered hash on save failure, with visible feedback beside Save', async () => {
+  const h=harness();h.element('tg-api-id').value='12345';h.element('tg-api-hash').value='a'.repeat(32);
+  h.context.fetch=async () => ({ok:false,status:400,json:async () => ({status:'error',detail:'Could not save credentials'})});
+  await h.context.configureTelegram();
+  assert.equal(h.element('tg-api-hash').value,'a'.repeat(32));
+  assert.match(h.element('telegram-api-save-status').textContent,/Could not save credentials.*retained/);
+  assert.equal(h.element('tg-api-save').disabled,false);
+  h.context.clearTelegramSecrets();assert.equal(h.element('tg-api-hash').value,'');
+});
+
+test('Telegram setup does not clear the hash or claim success without a matching local read-back receipt', async () => {
+  const h=harness();h.element('tg-api-id').value='12345';h.element('tg-api-hash').value='b'.repeat(32);
+  h.context.fetch=async url => ({ok:true,json:async () => ({status:'ok',saved:true,api_id:url==='/api/tg/configure'?12345:99999})});
+  await h.context.configureTelegram();
+  assert.equal(h.element('tg-api-hash').value,'b'.repeat(32));
+  assert.match(h.element('telegram-api-save-status').textContent,/could not be verified/);
+});
+
+test('Telegram saved API receipt restores visible status after reopening without requesting or returning the hash', async () => {
+  const h=harness();h.element('tg-api-id').value='';h.element('tg-api-hash').value='';
+  h.context.fetch=async (url,opts) => {h.calls.push({url,opts});return {ok:true,json:async () => ({saved:true,api_id:12345,configured:true})};};
+  await h.context.refreshTelegramConfiguration();
+  assert.equal(h.element('tg-api-id').value,'12345');assert.equal(h.element('tg-api-hash').required,false);
+  assert.match(h.element('telegram-api-save-status').textContent,/saved on this device.*12345.*hidden/);
+  assert.deepEqual(h.calls.map(c=>c.url),['/api/tg/configuration']);
+  await h.context.configureTelegram();
+  assert.ok(h.calls.every(c=>c.url==='/api/tg/configuration'));
+});
+
+test('Telegram settings distinguishes API-only setup from authorized account and actual indexed saves', () => {
+  const h=harness();
+  h.context.renderTelegramStatus({configured:true,authorized:false,saved_tracks:0,quota:{queued_tracks:2},failed_tracks:1});
+  assert.match(h.element('telegram-settings-status').textContent,/Not signed in yet/);
+  assert.equal(h.element('telegram-account-button').attributes['aria-label'],'Add Telegram account');
+  h.context.renderTelegramStatus({configured:true,authorized:true,saved_tracks:3,quota:{queued_tracks:2,cooldown_seconds_left:60},failed_tracks:1});
+  const text=h.element('telegram-status').textContent;
+  assert.match(text,/Signed in/); assert.match(text,/indexed here\): 3/);
+  assert.match(text,/Pending: 2/);assert.match(text,/Failed: 1/);
+  assert.match(text,/60 seconds/);assert.match(text,/No channel needed/);
+  assert.match(h.element('telegram-settings-status').textContent,/Connected · Saved Messages/);
+  assert.equal(h.element('tg-saved').textContent,'3');
+});
+
+test('polls never overlap slow status requests and always release guard after failure', async () => {
+  const h=harness();let release;let calls=0;
+  h.context.fetch=()=>{calls++;return new Promise(resolve=>{release=resolve;});};
+  const first=h.context.pollStatus();await h.context.pollStatus();assert.equal(calls,1);
+  release({ok:false,status:503,text:async()=>''});await first;
+  h.context.fetch=async()=>{calls++;throw new Error('offline');};
+  await h.context.pollStatus();assert.equal(calls,2);
+});
+
+test('player has no diagnostic build receipts, and normal polling is once per second', () => {
+  const html=fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8');
+  assert.doesNotMatch(html,/native-build-receipt|settings-build-receipt|Android Audio · Media3/);
+  assert.match(html,/if \(!document.hidden\) pollStatus\(\); }, 1000/);
+});
+
+test('API errors show the useful message rather than raw JSON', async () => {
+  const h=harness();h.context.fetch=async()=>({ok:false,status:503,text:async()=>JSON.stringify({error:'Please try again shortly'})});
+  await assert.rejects(h.context.api('GET','/api/search?q=romance'),/^Error: Please try again shortly$/);
+});
+
+test('native seeking posts a bounded position and current song identity without starting a new source', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true;state.nativeDuration=200;state.nativeStage="paused";state.current_track={id:"abcdefghijk"};state.pos=10',h.context);
+  await h.context.commitSeek(750);
+  const request=h.calls.find(c=>c.url==='/api/seek');
+  assert.deepEqual(JSON.parse(request.opts.body),{position:150,video_id:'abcdefghijk'});
+  assert.equal(vm.runInContext('state.pos',h.context),150);
+  assert.ok(!h.calls.some(c=>c.url==='/api/play'));
+  assert.equal(h.element('audio-player').playCount,0);
+});
+
+test('seek drag is not overwritten by poll rendering and cannot jump a newly selected song', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true;state.nativeDuration=100;state.nativeStage="playing";state.current_track={id:"abcdefghijk"};state.pos=10',h.context);
+  h.context.beginSeek();h.context.previewSeek(800);h.context.syncNowPlaying();
+  assert.equal(h.element('full-seek').value,800);
+  assert.equal(h.element('full-elapsed').textContent,'1:20');
+  vm.runInContext('state.current_track={id:"different01"}',h.context);
+  await h.context.commitSeek(800);assert.equal(h.calls.length,0);
+});
+
+test('browser seeking uses the shared audio element and unavailable duration is disabled', async () => {
+  const h=harness();h.element('audio-player').duration=80;
+  await h.context.commitSeek(500);assert.equal(h.element('audio-player').currentTime,40);assert.equal(h.calls.length,0);
+  h.element('audio-player').duration=NaN;h.context.syncNowPlaying();assert.equal(h.element('full-seek').disabled,true);
+});
+
+test('sync queue renders real stages, escapes metadata and only shows measured progress', () => {
+  const h=harness();h.context.renderSyncQueue([{id:1,video_id:'abcdefghijk',title:'<img onerror=bad>',artist:'Artist',status:'uploading'},{id:2,title:'Waiting',status:'pending'}],{id:1,stage:'uploading',bytes:25,total:100});
+  const html=h.element('tg-sync-list').innerHTML;
+  assert.match(html,/Uploading · 25% read/);assert.match(html,/--progress:90deg/);
+  assert.match(html,/&lt;img onerror=bad&gt;/);assert.doesNotMatch(html,/<img onerror/);
+  assert.match(html,/cancelTelegramSave\(1\)/);assert.match(html,/>Waiting</);
+  h.context.renderSyncQueue([{id:1,title:'Done soon',status:'uploading'}],{id:1,stage:'finalizing',bytes:100,total:100});
+  assert.match(h.element('tg-sync-list').innerHTML,/disabled title="Already committing/);
+  h.context.renderSyncQueue([],null);assert.match(h.element('tg-sync-list').innerHTML,/All caught up/);
+});
+
+test('theme is an allowlisted local preference and restoration alone writes nothing', () => {
+  const h=harness();assert.equal(h.quoteStorage.size,0);
+  h.context.setColorTheme('charcoal');assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'charcoal');
+  assert.equal(h.element('theme-charcoal').attributes['aria-pressed'],'true');
+  h.context.setColorTheme('untrusted');assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'crimson');
+});
+
+test('home contains no playback Test button', () => {
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8'),/id="hero-selftest"|>Test<\/button>/);
+});
+
+test('YouTube share validates ID and does not start audio before explicit confirmation', () => {
+  const h=harness();h.element('shared-video-dialog').showModal=function(){this.open=true;};
+  h.context.receiveSharedVideo('https://evil.test');assert.equal(h.element('shared-video-dialog').open,undefined);
+  h.context.receiveSharedVideo('abcdefghijk');assert.equal(h.element('shared-video-dialog').open,true);
+  assert.equal(h.calls.length,0);assert.equal(h.element('audio-player').playCount,0);
+});
+
+test('confirmed native share omits untrusted placeholder metadata and uses the actual resolved title', async () => {
+  const h=harness();
+  h.element('shared-video-dialog').showModal=function(){this.open=true;};h.element('shared-video-dialog').close=function(){this.open=false;};
+  // Overlay routing is covered in Chromium; isolate the real playback transaction.
+  h.context.openNowPlaying=()=>{};
+  h.context.fetch=async(url,opts)=>{h.calls.push({url,opts});return {ok:true,json:async()=>({status:'playing',title:'Actual provider title'})};};
+  vm.runInContext('state.nativePlayback=true',h.context);
+  h.context.receiveSharedVideo('abcdefghijk');await h.context.confirmSharedVideo();
+  const body=JSON.parse(h.calls.find(c=>c.url==='/api/play').opts.body);
+  assert.deepEqual(body,{video_id:'abcdefghijk'});assert.equal(vm.runInContext('state.current_track.title',h.context),'Actual provider title');
 });

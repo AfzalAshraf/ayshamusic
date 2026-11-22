@@ -31,3 +31,11 @@ Scope: the local Rust-served src/index.html, not the separate legacy src/www ass
 Run the existing frontend and Python regressions, then tests/mobile.browser.cjs using the test-only browser dependencies documented in docs/MOBILE_UI.md. Inspect generated screenshots as well as dimensions. The browser suite uses explicit API fixtures; it does not prove live audio, Bluetooth, Access authentication, session isolation or hardware back behavior on a particular phone.
 
 Acceptance requires real Android Chromium portrait/rotation, Back, screen lock/background, network changes, touch targets and error-state checks. UI readiness may reach 4/5 on automated desktop Chromium emulation, not 5/5 until actual target-device evidence and remaining UI acceptance checks pass.
+
+## Sync and seeking evidence rules (build16)
+
+- Reference mockup counters/songs are never production defaults. Render real bounded queue metadata and explicit missing-data states. Keep Manage separate from counters; allowlist local theme choices without storing account/listening secrets or writing on restoration.
+- A stream-reader callback measures bytes consumed by an uploader, not server acknowledgement. Label accordingly; do not call100%read “Saved”. Separate downloading/checking/uploading/confirming and explain app quota waits.
+- X must cancel persistent queue work and active future where possible, with a serialized final-send boundary. Disabling X during commit is more truthful than claiming to recall a cloud message. Never delete existing messages to simulate cancellation.
+- Native sliders require a real bridge seek operation, current-song identity, finite duration/bounds and stale-event revision rejection. Preserve paused state and don't restart a source just to seek/open NowPlaying. Drag/keyboard preview must survive status updates. Unknown durations disabled. Test actualExoPlayer seek separately from browser request fixtures.
+- Build16 adds tests/sync-seek.browser.cjs and actual emulator forward/back paused/resume fixture. Offline green is not real account upload/cancellation or physical-device acceptance. One desktop butterfly timing assertion transiently failed then passed unchanged locally/finalCI; don't hide that history or weaken unrelated assertions to ship a feature.

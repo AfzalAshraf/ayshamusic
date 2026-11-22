@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # rodio/cpal link ALSA on Linux; the runner image does not ship the headers.
-      - name: Audio dev libraries
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
       - name: Rust regression tests
         run: cargo test
       - name: Build local server
@@ -62,8 +59,21 @@ jobs:
       - name: Portrait layout and browser navigation
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/mobile.browser.cjs
 
+      - name: Telegram dashboard, themes and seek fixtures (no live accounts)
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/sync-seek.browser.cjs
+
+      - name: Aurora layout and loading performance fixtures (provider-offline)
+        run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/aurora.browser.cjs
+
       - name: Generated Vercel static preview browser checks
         run: BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node tests/vercel-preview.browser.cjs
+
+      - name: Isolated permissive extractor fixtures (no provider access)
+        run: |
+          npm ci --prefix prototypes/youtubejs-browser --ignore-scripts --no-audit --no-fund
+          npm test --prefix prototypes/youtubejs-browser
+          node prototypes/youtubejs-browser/build-android-fixture.mjs
+          BROWSER_TEST_MODULES="$RUNNER_TEMP/aysha-browser/node_modules" node prototypes/youtubejs-browser/test/browser.cjs
 
   rust-extract-prototype:
     runs-on: ubuntu-latest
@@ -157,3 +167,17 @@ jobs:
         with:
           name: rust-direct-lock
           path: prototypes/rust-direct/Cargo.lock
+
+  rust-source-guard-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: prototypes/rust-source-check
+      - name: Offline source guard regressions (live permission consumed)
+        run: |
+          cargo generate-lockfile --manifest-path prototypes/rust-source-check/Cargo.toml
+          cargo test --locked --manifest-path prototypes/rust-source-check/Cargo.toml
+          cargo run --locked --manifest-path prototypes/rust-source-check/Cargo.toml -- --approved-once

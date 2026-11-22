@@ -1814,248 +1814,1130 @@ QA3/5,measured performance1/5 unchanged until real workload resource acceptance.
 Next: host runs documented read-only monitor during ordinary listening and optionally
 one Next/Previous, sends summary and approximate tap times. Do not rerun native watch.
 
-## 2026-11-14 — Backend & Database: pure-Rust playback chain + APK repack
+## 2026-11-07 — Product & Architecture: inspect newer standalone Android work
 
-Scope: Android APK only. The Linux `music-server` path (`src/main.rs`, `src/index.html`)
-is untouched; no dependency, endpoint or service change affects installed Linux playback.
+User redirects goal to publishable standalone APK, same website UI, no external
+Aysha server. Fetched origin/main bf37384 (no branch switch): it contains Android
+work absent from session HEAD eca0265. Android CI43584788099 success; apk-latest
+metadata7,108,929bytes explicitly debug-signed/physical playback unverified.
+Inspected JNI/library/router/UI/Kotlin/manifest/Gradle/workflow. Missing Android
+search/queue/likes/next/prev/icons routes remain referenced by UI/media service;
+startup race and WebView hardening/signing/publication issues documented in
+ANDROID_STANDALONE_REVIEW.md. APK compilation is not a working full website clone.
+Attempted gh release download: asset-host redirect blocked/EOF; no binary validation
+or APK fabricated. No main merge, remote host change, source/provider probe or
+publication. Existing approved audible Linux path untouched, trackedpyc deletion
+preserved. Pending publishing-channel choice Play versus direct APK. No code change
+or new test run claimed; audit uses exact source and CI metadata. Architecture2/5,
+Android feature completeness1/5,device/release acceptance0/5. Latest supplied Linux
+RAM not remeasured:6.4512MBcurrent/67.592192MBhistoricalpeak/0swap, rust-resolved;
+not phone memory. No fresh Android RAM measurement exists.
 
-Code manifest:
-- `src/youtube.rs` (new): InnerTube `player` resolution, client fallback
-  ANDROID -> IOS -> TVHTML5, highest-bitrate `audio/mp4` (AAC) only, HTTPS host
-  allow-list (`*.googlevideo.com`, no userinfo, port 443), strict 11-char video id.
-- `src/player.rs` (new): dedicated audio thread owning cpal/AAudio; rodio 0.23
-  (`playback`+`mp4`); 8-chunk (~128 KiB) bounded ring from `bytes_stream` ->
-  blocking `Read`; pause/resume/stop/volume/position; device error surfaces as
-  `state:"error"` instead of panic.
-- `src/lib.rs`: `/api/play`, `/api/pause`, `/api/resume`, `/api/stop`,
-  `/api/volume`, `/api/player`. Only `/api/play` opens the audio device; the
-  read/control endpoints never do (corrected after review).
-- Build: `rodio` dependency; `cargo ndk -P 26` (AAudio is API 26+); Gradle
-  `minSdk` 24 -> 26; Linux CI job installs `libasound2-dev pkg-config`.
+## 2026-11-07 — QA & Debugging: standalone APK icons/HTTP404 repair
 
-Evidence (agent workspace, not the user's phone):
-- `cargo test --lib` -> 25 passed, 0 failed, 1 ignored (`live_resolve_*`).
-- `cargo ndk -P 26 -t arm64-v8a ... build --release --lib --features android` -> OK.
-- `bash android-app/scripts/build_apk.sh` -> BUILD SUCCESSFUL.
-- APK 7,094,569 bytes (6.77 MB), gate 15 MB PASS. `libayshamusic.so` 6.09 MB,
-  Stored (uncompressed, mmap-friendly); `classes.dex` 0.70 MB.
-- `unzip -lv` confirms one native lib under `lib/arm64-v8a/`.
+User reports APK UI looks nice but icons absent, music fails HTTP404/tap tab retry.
+Exact source defects in origin/main bf37384: Android router lacks /icons.svg and
+/api/search while embedded page requests both. No provider probe needed to identify
+missing local routes; not a CDN403/Linux failure. Merged newer main onto this fixed
+session branch (a4aed70merge), preserving Linux source/installation/UI regressions
+and unrelated pyc deletion; resolved shared Cargo/index/workflow/ignore/ledger files.
 
-Errors / open risks:
-- Live resolution from this datacenter IP failed: ANDROID and IOS returned HTTP 400
-  `FAILED_PRECONDITION`, TVHTML5 returned `UNPLAYABLE`. That is a source-egress
-  signal, NOT proof of device failure. Do not retry guessed client versions from
-  here; verify `/api/play` on a phone with mobile/Wi-Fi egress first.
-- No device or emulator: no audible playback, no MediaSession check, no RSS.
-  "Playing" is therefore unverified; do not report it as working.
-- `minSdk` 26 drops Android 7.x. Required by the AAudio backend; needs acceptance.
-- Server RAM not remeasured; no fresh cgroup value exists for this build.
-- Session file still stores the MTProto key in plaintext (unchanged, flagged earlier).
+Implemented android_catalog.rs: correct-MIME embedded SVG; fixed HTTPS search with
+one slot/12s/2MiB/query200/traversal/output20bounds, strictIDs/normalizedURLs, no shell/
+helper/hostedfallback; queue/likes/history bounded200and navigation routes, transactional
+on successful playback with one manual/nav operation at a time. Process-memory only,
+not persistent sync. No provider/autoplay-discovery experiment. Native flag embedded
+before first tap; JSONplay carries track metadata; native Next/Prev starts once, errors
+invalidate Explore loaded state; Android startup readiness wait. Media ring backpressure
+moved off Tokio workers/split16KiB; remove12stotal-songdeadline,retainidle/connecttimeout
+and resolver/search request deadlines. No codec/quality/client-rotation change.
 
-Ratings unchanged: Backend 2/5 (playback unverified on target), QA 3/5,
-measured performance 1/5 until a real device RSS/audio run.
+cb0b4bb gates phone audio/Telegram dependencies behind phone/android Cargo features,
+no default Linux ALSA/Telegram runtime requirement. Existing main Rustls configuration
+retained. 800427b packages version1.0.1-preview / com.afzal.ayshamusic.preview / Aysha
+Music Preview, installs alongside old app so ephemeral debug keys do not force data
+loss. Branch workflow read-only/artifact-only; DOES NOT overwrite public apk-latest
+or create production release. Keystores/APKs/buildoutputs ignored. No host reinstall.
 
-Next: install the APK, `POST /api/play {"video_id":"dQw4w9WgXcQ"}`, then poll
-`GET /api/player`; run `android-app/scripts/measure_rss.sh --watch 60`. If
-`/api/play` fails on-device, capture the `detail` string before changing clients.
+Verification: local137PythonPASS/87NodePASS(includes4newnativebehavior+4Androidcontract
+checks),shellsyntax/diffcheckPASS. CI43586093333(cb0b4bb)AndroidallstepsPASS; Linux
+43586093327all5PASS. FINALAndroid43586401555(800427b)allstepsPASS2m57s: phone-feature
+Rusttests,hostbincheck,Androidcrosscompile,GradleassembleRelease,APKgating/upload,route
+checks. Artifact14110452124nameayshamusic-arm64-release,ZIP3,665,841bytes (NOT APK
+size or RAM); GitHub-reported archiveSHA25662956cd2817450924cc688e572d4a00883bc393c5ed1e618511569897532a8f1.
+FinalLinux43586401622coretest/mobile/audio/directPASS,extractprototypependingatwrite.
+NetworkallowlistblocksGHAlog/assetredirecthosts->EOF; noAPKbinary/signatureinspection
+or physicaldeviceaudio fabricated. Manualworkflowdispatch403permissionsnotneeded:
+push builds ran successfully; no credential solicitation. Superseded inspection audit
+linked to ANDROID_APK_FIX.md with exact side-by-side install/artifact/device checks.
 
-## 2026-11-14 (b) — Backend & Database: per-client error bodies, forced client, 403 refresh
+Remaining: actual phone icons/search/audibility/sustained/background/control recovery;
+provider behavior/rights/store readiness and production signing unaccepted. New502
+search/resolve/provider errors need exact layer review, not raw logs/repeated Test or
+weakened validation. EmptyNext409requiresqueue,notmoreautomaticprovideracquisition.
+LegacyLinuxlisteninguntouched; AndroidRAMNOTMEASURED. Latest supplied Linux RAM not
+remeasured6.4512MBcurrent/67.592192MBhistoricalpeak/0swap,notphoneresourceproof.
+RatingsAndroidcontract2/5,QA3/5,device/releaseacceptance0/5untilhostreceipt. Next user
+opens Preview (not old app),checks symbols/search/tapqueuedtrack with Linuxserveroff;
+sends exact NEW error and stage only if it fails. No repeated diagnostic install loop.
 
-Manifest:
-- `src/youtube.rs`: `ClientAttempt { client, error }`; `AllClientsFailed(Vec<ClientAttempt>)`;
-  `resolve_forced`; `client_by_name("android"|"ios"|"tv", name-insensitive)`;
-  `summarize_error_body` keeps YouTube's `error.message (reason)` (<=300 chars,
-  single line, never logs the URL); unplayable prefers `errorScreen...simpleText`.
-- `src/lib.rs`: `/api/play` accepts optional `"client"` (400 `unknown_client` otherwise);
-  failures return `{error:"unresolved", detail, attempts:[{client,error}...]}`;
-  `pump_media` re-resolves exactly once when the media URL 403s (or the stream
-  errors) *before any byte reaches the decoder*; post-byte failures are reported,
-  never silently restarted (restarting would corrupt the AAC stream).
+## 2026-11-07 — QA: standalone APK fetching, no audio / Streaming label
 
-Evidence (agent workspace; egress is a datacenter IP):
-- `cargo test --lib` -> 30 passed, 0 failed, 1 ignored.
-- `cargo test --lib live_play -- --ignored --nocapture` -> 502 with all three
-  bodies: ANDROID/IOS `HTTP 400 Bad Request: Precondition check failed.
-  (failedPrecondition)`; TVHTML5 `video is not playable: YouTube is no longer
-  supported in this application or device.` Proves the new surface works; still
-  NOT proof the phone will fail (different egress).
-- `bash android-app/scripts/build_apk.sh` -> BUILD SUCCESSFUL, APK 7,105,625 bytes
-  (6.78 MB), 15 MB gate PASS.
+User confirms retrieval from YouTube but song not playing, generic Streaming label;
+asks to fix streamer and confirm self-contained APK. Clarified app embeds UI/catalogue,
+resolver, streamer/decoder/output with phone-localRust listener; no Linux/Vercel/hosted
+Aysha backend, still requires Internet/provider availability. Fetch success does not
+prove CDN bytes/decoding/sound. No rawlogs/repeated provider probe requested.
 
-Decisions:
-- minSdk 26 accepted as the floor: cpal's only Android output backend is AAudio
-  (API 26); Android 8.0+ is the practical device population. No OpenSL fallback.
-- 403 refresh is pre-audio only; seamless mid-track recovery would need a
-  seekable disk spool and decoder restart, which is not implemented or claimed.
+Inspected player.rs/lib.rs and fetched newer origin/main05f0a1a: player still has same
+forward-only unseekableChannelReader. Did NOT import new visitor/client acquisition
+experiments from1c2c7bf; this report already fetches and does not justify that scope.
+Reproduced concrete transport defect in CI-generated realM4A: moov-after-mdat requires
+seeking, oldwith_seekable(false) decoder fails; newRead+Seek+byte_len demux/decode
+nonzerosamples+duration for both tail and frontindex. This is a verified source defect,
+NOT a declaration that the phone's exact failure cause/audibility was independently
+observed. Also fullplayerusedunusedHTMLaudio clock/genericStreamingaudio label.
 
-Ratings unchanged: Backend 2/5, QA 3/5, measured performance 1/5 (no device run,
-no fresh RAM measurement).
+36b7538/48c72e3patch: newrange_media.rs64KiBstrictHTTPS206rangeinput with Content-Range/
+length/total/type/identityvalidation,512MiBmax/16,384requestlimit,8sconnect/12srequest,
+seek-tail-return/cancel/cachebounds, matching resolverUA. No whole-songRAM/diskdownload,
+unknownredirect/URLfallback or qualitycodecchange. Removes formerringpump/autore-resolve
+path; refuses invalid/ignoredranges explicitly, no403guardrelaxation. Decoder/output
+readyoneshot+40sdeadline afterexistingboundedresolver, not mereURL->playing. Lazydevice
+openingretry, failfastcommands, cancel/generation/lateStopprotection and midstreamerrors.
+pcm_stream.rs bounded8x4096samples+prime, max2workers, network/decode OFF real-time
+callback; nonblocking starvation silence/buffering and position excludes thatsilence.
+NativeUIreadsRustposition/duration/stages and visibleerror in fullplayer. Sameicons/
+search/libraryfixesretained. Linuxruntime/service/installunmodified. Nativebuffersizes
+NOT fullphoneRAMor50MBacceptance. Deviceaudiofocus/background/manyformatsstillunproved.
 
-Next: on-phone `POST /api/play` (optionally `"client":"android"`), read the
-`attempts` array if it fails, then `android-app/scripts/measure_rss.sh --watch 60`.
+Newversion1.0.2-preview/packagecom.afzal.ayshamusic.streamfix/launcherAyshaMusicStreamFix
+installsalongsideoldPreview,avoidsforcinguninstallwithfreshCIdebugkey. Artifacttestonly,
+no productionkey/storepublication/publicapk-latestoverwrite. Source48c72e3AndroidCI
+43587570184ALLPASS3m51s:phoneRusttests(realFFmpegAACfront/tailoldfailure/newdecode),
+Androidcrossbuild/Gradle,sizegate,artifactupload,websitecontracts. Linux43587570191ALL5
+PASS. Locally137Python/89NodePASS,diffcheckPASS. TestsHTTP206/200/403/missingrange,
+wrongoffset/length/seek/cancel,PCMnoblockposition,stalegeneration,fullplayernativeclock/
+errors. No upstream/liveCDN/audiohardwareprobe by agent. No locallyavailableCargo;
+CIactuallycompiled/testedRust. GitHubartifact/logredirectnetworklimitsremain;noAPKbytes/
+signatureinspectionfabricated. Artifact14111150675ayshamusic-arm64-releaseZIP3,687,512B,
+GitHubarchiveSHA2566de2fec9b252d44b1dc102a968d91e2f1728b193e28840c5b8cb8a9ec60707f6.
+NewANDROID_STREAM_FIX.mdhasdownload/install/expectedoutcomes/failurebranches;priorguide
+markedhistorical. Preserveunrelatedtrackedpycdeletion. QAactive3/5,Androidcontract2/5,
+phoneaudibility/releaseacceptance0/5untiluserreceipt. PhoneRAMNOTMEASURED;oldLinuxservice
+6.4512MBcurrent/67.592192MBpeak/0swapNOTREMEASURED/notphoneRAM. Next:openStreamFixNOT
+oldapp,searchonce/tapone,checkaudibleadvancingposition;onfailureexactnewstate/errorand
+whetherclockmoves,notrepeatedTest/nativewatch or Linuxinstallation.
 
-## 2026-11-14 (c) — Backend & Database: visitor id + current InnerTube client versions (v1.1.0)
+## 2026-11-07 — QA: screenshot provider400; strict Rust choice; mood Next
 
-Root cause found: the HTTP 400 `FAILED_PRECONDITION` was NOT the datacenter IP.
-Client versions 19.44.38 (ANDROID) and 19.45.4 (IOS) are rejected; 20.10.38 /
-20.10.4 return `playabilityStatus=OK` with direct audio URLs from the same host.
+Screenshot/user: ANDROID/IOS HTTP400 failedPrecondition, TVunplayable; noaudibility.
+This is resolver-layer refusal BEFORE range/decoder, not proof previousAACfixiswrong
+or that player/CDN works. Longerrorcollideswithtimeinfullplayer. UseralsoasksNextlike
+romantic/melody taste, NOT same-name uploads. Inspected newer origin/main0a3de4c title-
+seedednext(mainuses'<title> similar songs'); didNOTimportthatundesiredsearch strategy.
 
-Changes:
-- `src/youtube.rs`: ANDROID 20.10.38, IOS 20.10.4 (TVHTML5 unchanged, still a
-  fallback). Visitor id fetched from `/youtubei/v1/visitor_id`, validated,
-  cached to `filesDir/yt_visitor.json`, reused across restarts, sent both as
-  `X-Goog-Visitor-Id` and `client.visitorData`. `ClientAttempt` now carries
-  `status` and `visitor` fields beside YouTube's body.
-- `src/lib.rs`: visitor resolved once per process (`OnceLock`) before the first
-  resolve; `/api/play` and `/api/selftest` fail fast on malformed ids before any
-  network; selftest reports `visitor {source, attached, preview}`.
-- Page: attempt lines show `[status, visitor]`; selftest label shows visitor source.
-- Version: versionCode 2 / versionName 1.1.0.
+Offered consequential on-deviceNewPipeExtractor vs strictRust with GPL/core-language
+tradeoff. ask_userextractor_architecture selectedstrict_rust. Recorded AGENTS; no
+NewPipe/Javaextractor/Python/Node/offhost/token/proxyfallback added. ExistingKotlin/HTML
+UI unchanged except focusederror/moodcontrols. No blanket allbugs/publishready claim.
 
-Evidence (this host, same egress that used to fail):
-- `cargo test --lib` -> 33 passed, 0 failed, 2 ignored.
-- `cargo test --lib live_resolve -- --ignored --nocapture` -> visitor
-  source=network attached=true; resolved ANDROID itag 140; media HTTP 206.
-- `cargo test --lib live_play -- --ignored --nocapture` -> `/api/play` HTTP 200,
-  `{"status":"playing","client":"ANDROID","itag":140,"content_length":3449447}`.
-- `build_apk.sh` -> BUILD SUCCESSFUL, 6.81 MB, gate PASS; badging shows
-  versionCode 2 / 1.1.0; `.so` contains `X-Goog-Visitor-Id`, `visitorData`,
-  `yt_visitor.json`, `20.10.38`.
+0d5f461compatibilitycandidate: Android21.26.364/iOS21.26.4 fields/UA/OS matching reviewed
+upstreamprofilefacts, bodyuserAgent matchesheaders. Referenceyt-dlp_base.pycommit
+12ac9aca79671420724227aca37bc888c604a6f8(fileinspectiononly,noPythonruntime). Default
+TVprofile removed; legacyexplicitTV aliasretained. PlayerJSON1MiB/12sbound. Anonymous
+visitorData reused ONLY fromactualnormal search/playerresponse, sane16–1024ASCII,
+30minprocessmemory/noextrafetch/disk/log/preview/synthesis. Screenshot400typedterminal
+PreconditionFailed->youtube_precondition_failed, nootherprofile/songrotationonrefusal.
+NoevidencethesechangesactuallyclearYouTube'sprecondition:liveprovider/CDN/audio remains
+OPEN. Upstreamalsoindicatesprooftokenrequirements: don'trepresentrequestformatfixas
+bypassorCDNsuccess. No watch/auth/challengeexperiment,guardrelaxation,codecqualitychange.
 
-Still open: no device run (audible playback unverified), RSS not remeasured,
-debug-signed, MediaSession/queue/offline untouched by this pass.
+Recommendations.rs mood-onlysearchRomantic(default)/Melody, oneboundedsearch+onechosen
+candidateperNext. Explicitqueuefirst/Previoushistorypreserved. Locallikedartist/channel
+andmoodwordscore,providerorderforties;excludeID/normalizednamevariantsandlast50played.
+Noallcandidateplaybackretry; failurekeepsqueue/current/history. No privatefavorite title
+queries. MetadataheuristicNOTfingerprinting/audioanalysis/personalizedAI;languages/
+transliterationscanstillmissduplicates,labelsarenotalwaysartists. No suitablecandidate
+->clearconflict,insteadofseedreplay. Mood/likesprocessmemoryonly. NoEOFautoplayadded.
+UIwrappedpersistentfull-errorseparateclock,notidlepolloverwrite; pendingselectionguard;
+Romantic/Melodypicker; compiledSHAreceiptsoactualAPKsourcecanbeidentified.
 
-Device expectation: Test button -> `Selftest OK: ANDROID itag 140, <n> B in <ms>
-(visitor disk|network)`. If it fails, the message lists
-`ANDROID [<status>, visitor] <YouTube body>` per client.
+Verification137Python/91NodePASS,diffcheckPASS. Android43589877314at0d5f461ALLPASS2m57s:
+Rustrequest/header/body/visitorfixture,terminal400classification,moodroute/pureselection
+fixtures,realfront/tailAACtests,Androidcrossbuild/Gradle,sizegate,artifactupload/contracts.
+Linux43589877315ALL5PASS. No liveYouTube/provider/phone/hostmeasurement executed. APK
+networkredirectdownloadrestrictionunchanged;noindependentbinary/signatureinspection.
+Version1.0.3-preview/packagecom.afzal.ayshamusic.rust4/launcherAyshaMusicRust4 toinstall
+alongsideoldsignedtestapps. No productionkey/publicrelease/storeclaim. Artifact14111903921
+ayshamusic-arm64-releaseZIP3,709,490B(notAPKsize/RAM),GitHubarchiveSHA256
+341dc12bd3b6c6828cc5834d9f88b716d51f8a1ece8102099504447a34d8ed2f.
+STRICT_RUST_PROVIDER_AND_NEXT.mdhasexactdownload/install/acceptanceandSTOP-if400branch;
+priorstreamguidedoesnotclaimfixofnew400. Unrelatedtrackedpycdeletionpreserved.
 
-## 2026-11-14 (d) — Android frontend: render /api/player (v1.1.1)
+QA3/5,Androidcontract2/5,liveprovider/device/release0/5stillblocked. PhoneRAMNOTMEASURED;
+oldLinux6.4512MBcurrent/67.592192MBhistoricalpeak/0swapNOTREMEASURED/notAPKtotal.
+NextdeviceowneropensRust4(checkSHA0d5f461),onePlayattempt; if400remains,stop/unaccepted,
+notmoreblindclientretry. OnlyafteraudibilitytestmoodNextwithEMPTYqueue; manualqueue
+orderseparately. Do not promisefullyfledgedpublicationwhileproviderrejectionunresolved.
 
-The page already called `/api/play`, `/api/pause`, `/api/resume`, `/api/stop`
-(`nativeJson`) and polled `/api/player`; what was missing was rendering that
-snapshot. Added `renderNativePlayer()` and routed the native poll branch through
-it, so the UI now shows:
-- position + `(paused)` marker from `position_secs`;
-- play/pause icon from `state`;
-- volume sliders and mute icon from `volume`;
-- after a reload (or an external change) the playing track's id/title, since
-  native sessions are not in `sessionStorage` and previously showed nothing.
+## Follow-up — Rust4 device refusal, main 1.2.1 integration, automatic local learning
 
-Guard: the player's track is adopted only when `state.current_track` is empty, so
-browsing never overwrites the song the page is about to start. Duration is not in
-the snapshot, so the progress bar is deliberately left unfilled rather than guessed.
+**Active department: QA/debugging.** Latest user screenshot shows installed Rust4
+`0d5f461` at 0:00 with Android/iOS **no audio-only AAC stream offered**. This is
+before media acquisition/decoding, not the older HTTP400. User explicitly rejects
+Romantic/Melody dropdown and requests inference from actual listening behavior.
 
-Evidence:
-- `node --check` on the extracted inline script -> OK.
-- `node --test tests/frontend.test.cjs` -> 73 pass.
-- One-off DOM harness (deleted): adopts track + renders `1:03`, volume 40, pause
-  icon; paused renders `0:05 (paused)`; later snapshots do not overwrite the
-  selection; error text surfaces; idle clears the playing state.
-- `build_apk.sh` -> BUILD SUCCESSFUL, 6.81 MB, gate PASS; badging 1.1.1 / code 3;
-  `.so` contains `renderNativePlayer`, `/api/player`, `api/play/pause/resume/stop`.
+### Source and acceptance contract
 
-Not verified: visual layout and real device taps (no device/emulator here).
+- Keep: approved page/dedication, strict-Rust standalone phone core, working Linux
+  mode, queue priority and Previous. No Java/Python/Node extractor or off-host helper.
+- Merge `efb0613` integrates main parent `7b09cdef26db88a97b03980717acd488c60e9955`.
+  Follow-up source `60837191f5e722271ec51d9d8ff8decde842d10a` adds stronger contracts
+  and clears stale native errors after successful Next. Merge fully resolved.
+- Main's separate API/media clients are retained: media has no whole-track 12s cap.
+  Main resolver/persistent visitor/FIFO player are the current playback baseline.
+  Old branch range/PCM modules are unwired; do not count old fixture results as
+  tests of this player. Old branch terminal400/version/visitor behavior was
+  superseded by main, not kept alongside it. No new live provider probes here.
+- Other agent's main ledger reports full 3,449,447B/107.6s transfer, AAC/ffmpeg and
+  non-silent rodio evidence for one video; other catalogue videos were bot-screened.
+  Main release 1.2.1 and CI metadata inspected, host measurements NOT rerun here.
+  The media timeout fix does NOT prove the screenshot's pre-media refusal cleared.
+- No mood picker/API. Rust five-second sampling uses real player progress; initial
+  baselines, pauses, position jumps, failed plays and searches are not listening.
+  At most 300 local profiles; seconds, short skips, likes and completions feed a
+  simple metadata style/channel heuristic. No trained model/audio fingerprinting.
+  No-history fallback is generic discovery, not forced Romantic.
+- Explicit queue first; one bounded aggregate-preference search when empty; filter
+  same-title variants and recent history. At most one selected candidate resolved.
+  Failure keeps queue/current/history. Previous uses session history. Natural-end
+  autoplay was not added; selection is automatic when Next is invoked.
+- Private, bounded, atomic profile file with Unix0600; Android backup already off.
+  Listening logs not uploaded; inferred style/favored channel goes in the normal
+  search query. Reset clears learned profile without clearing queue/favorite-list
+  UI. Learned like weight persists; favorite-list/queue/history remain session-only.
+  Periodic saves may lose recent samples on force-kill. See
+  `STRICT_RUST_PROVIDER_AND_NEXT.md` for exact scoring and acceptance boundaries.
 
-## 2026-11-14 (e) — Android backend: duration, search, Next/Previous (v1.2.0)
+### Verification and build manifest
 
-- `src/player.rs`: `duration_secs` in the status/snapshot; set from the resolved
-  format and cleared on stop/stream-end. `/api/player` therefore reports length,
-  and the page fills the progress bar from it.
-- `src/lib.rs`: `/api/play` was refactored into `start_track()` shared with the
-  new `/api/next` and `/api/prev`; a 20-entry session history powers prev.
-  `/api/search?q=` now exists (Home, Explore and the search bar were returning
-  404 on the phone). `/api/next` seeds an InnerTube search with the playing
-  title, then `choose_candidates` drops the current video id and any candidate
-  that is the same song under another upload; it tries up to five candidates.
-- `src/youtube.rs`: `search()` + renderer parser (`videoRenderer` and the mobile
-  `compactVideoRenderer`), `normalized_title` / `same_song` (brackets and
-  upload noise stripped, exact match after that, so "Song 2" stays distinct).
-- Page: native Next/Previous adopt the player's new track, progress uses
-  `duration_secs`, Home tolerates the still-missing favorites/queue endpoints.
+- Local **91 Node tests PASS**, **137 Python tests PASS**, `git diff --check` PASS.
+- **Android CI 43591553488 at 6083719: SUCCESS**, job132437186497, 3m30s. All steps
+  passed: host Rust phone tests (including actual-progress/failed-play/seek/pause,
+  weighted preference, skip, bound, persistence/private permissions and route-reset
+  contracts), Linux binary check, Android Rust crosscompile/Gradle, APK-size gate,
+  upload and Android website contracts. Default suite does not hit live providers.
+  Test counts from unavailable redirected logs are not invented.
+- **Linux CI43591553492 at6083719: SUCCESS, all five jobs**: default Rust/server,
+  Rust-audio prototype, Rust-extract prototype, Rust-direct prototype and mobile
+  browser (including static preview). These do not establish device audibility.
+- Build: **1.2.2-preview/code6**, **com.afzal.ayshamusic.learn6**, launcher
+  **Aysha Music Listening**, Android8+/ARM64. Installs alongside old test packages;
+  no forced uninstall or profile import. CI uses preview/debug signing unless
+  production secrets are explicitly supplied; no publication or main-release change.
+- Download **ayshamusic-arm64-release** artifact **14112747190**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43591553488/artifacts/14112747190
+  GitHub-reported archive size **3,707,064B**, ZIP SHA256
+  `f544ca6056db5ab169a8cf91fce6bff1d94e2abcb8b867ff4e666ebe80d75c84`.
+  Size/digest refer to the artifact archive, NOT installed APK size or RAM. Extract
+  `app-release.apk`. GitHub sign-in/repository access may be needed; retention14days.
+- `gh run download` attempted once and failed EOF at the blocked Azure artifact
+  redirect. Artifact metadata and green CI are verified; no independent local APK
+  signature/badging/binary inspection. No stale/partial APK offered as this build.
+- No user Linux service install/restart, live provider call, phone/emulator audio
+  test, RAM measurement, store signing or public release performed. Unrelated
+  tracked pyc deletion remains unstaged/preserved.
 
-Evidence:
-- `cargo test --lib` -> 37 passed, 0 failed, 2 ignored (offline).
-- `/api/search?q=romantic melody hindi songs` -> HTTP 200, 19 results
-  (first: zeVWTY31Vn8 "Top 30 Romantic Hindi Songs…").
-- `/api/play` -> 200, `duration_secs` 211.17 for dQw4w9WgXcQ.
-- `/api/next` -> 502 `no_related_playable` on this host: every candidate came
-  back `LOGIN_REQUIRED / "Sign in to confirm you're not a bot"` for ANDROID, IOS
-  and TV. Fresh visitors (three, separate) did not change it, and kJQP7kiw5Fk,
-  JGwWNGJdvx8, 3JZ_D3ELwOQ, zeVWTY31Vn8 all fail while dQw4w9WgXcQ succeeds,
-  so this is IP-level bot screening, not a client/version problem.
-- Candidate selection is proven offline: `next_skips_the_same_song_even_when_the_upload_differs`
-  drops "Tum Hi Ho (Official Video)", "Tum Hi Ho - Lyrical Video" and keeps
-  "Kesariya" and "Tum Hi Ho 2".
-- `build_apk.sh` -> BUILD SUCCESSFUL, 6.85 MB, gate PASS; badging 1.2.0 / code 4;
-  `.so` contains duration_secs, api/search, api/next, api/prev, compactVideoRenderer.
+### Remaining gates / recovery
 
-Not verified: audible playback, a real Next/Previous transition, and any tap on a
-device. Favorites/Queue/Bluetooth remain Linux-only (404 on the phone).
+QA **3/5**: build/offline/API/browser evidence green, device/provider evidence open.
+Phone playback/publication **not accepted**. The user need not run a Linux server;
+acceptance is actual audible output with advancing timer in the correctly identified
+candidate. If no-AAC/provider rejection remains, stop and retain that result, not
+repeat blind profile/watch/reinstall attempts or claim timeout fixed resolution.
+Only after playback works can listening history personalize Next; separately check
+empty-queue different-song selection, queue order, Previous and reset. Phone RAM
+**NOT MEASURED**; Linux RAM **not remeasured**, old service figures not APK totals.
+Recovery: old phone packages/data and main public1.2.1 release are untouched; source
+merge can be reverted on this branch without restarting the working Linux service.
 
-## 2026-11-14 (f) — Playback: media client split, audio path proven (v1.2.1)
+## Follow-up — unexpected close on Play; Android context initialization
 
-Root cause of "resolves but never plays": `youtube::http_client()` sets a **12 s
-total request timeout**, and `pump_media` streamed audio with that same client.
-Every track therefore died roughly twelve seconds in with
-`error decoding response body` — reproduced here at 376,832 bytes.
+**Active department: QA/debugging.** User reports 'it unexpectedly closed when i
+click play' and asks for a reverse/reusable project prompt. Exact installed source,
+Android version and crash stack are not supplied; do not silently equate the report
+with proof of a particular SIGABRT or provider success.
 
-Fix:
-- `youtube::media_client()` — connect timeout 10 s, `read_timeout` 30 s, no
-  overall timeout. `pump_media` and `/api/selftest` use it; the API client keeps
-  its 12 s cap for InnerTube calls. `re_resolve` still takes the API client.
+### Evidence and narrow correction
 
-Evidence (host, same code the APK runs):
-- `/api/selftest` -> 200, `media_status: 206`, `media_content_type: audio/mp4`,
-  `bytes_fetched: 65536`, itag 140, ANDROID.
-- Range `bytes=0-2047` -> 206, 2048 bytes, `content-type: audio/mp4`,
-  `content-range: bytes 0-2047/3449447`.
-- Full pump to EOF -> 3,449,447 bytes in 107.6 s, exactly the declared
-  `content_length` (before the fix it aborted at 376,832).
-- `/tmp/aysha_full_track.m4a`: ffprobe 7.0.2 -> `aac`, 44100 Hz, 2 ch,
-  duration 213.089524 s, size 3449447; `ffmpeg -f null -` decodes every packet
-  (`FFMPEG_DECODE_OK`); header `ftyp dash / iso6 / mp41 / moov`.
-- In-test decode via rodio (the app's own decoder): 48,000 samples, 44.1 kHz,
-  stereo, non-silent.
-- `cargo test --lib` -> 37 passed, 3 ignored; frontend 73 pass.
+- Inspected locked CPAL0.18.2 source, tag `v0.18.2` at
+  `e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7`, via GitHub API (file inspection only):
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/mod.rs
+  opens AAudio and calls `AudioManager::get_mixer_bursts()`;
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/java_interface/audio_manager.rs
+  calls `get_context()`;
+  https://github.com/RustAudio/cpal/blob/v0.18.2/src/host/aaudio/java_interface/utils.rs
+  directly calls `ndk_context::android_context()`.
+- ndk-context source/package0.1.1 inspected at
+  https://github.com/rust-mobile/ndk-context/blob/0eb252bf2306f6ca477430a35e88298e634c0b24/ndk-context/src/lib.rs
+  has `ANDROID_CONTEXT.expect("android context was not initialized")` and requires
+  initialization exactly once with valid process-lifetime pointers. In this app,
+  JNI_OnLoad only negotiated a version; nothing initialized ndk-context. This is
+  a real crash-capable Android path. Cargo release `panic = "abort"` kills the APK
+  rather than showing an ordinary Rust playback error. No source tweak to timeout
+  or provider versions addresses that initialization omission.
+- Fix `d6fd6a08b60f5ea630b88e73e044006aed47033d`: Kotlin supplies
+  `context.applicationContext` through the actual JNI signature. Rust gets the VM,
+  pins a GlobalRef, serializes initialization under a mutex and initializes the
+  existing shared ndk-context0.1.1 instance before boot/worker creation. A retained
+  application reference avoids dangling local refs or retaining destroyed Activities;
+  duplicate startup does not double-initialize. No teardown while native workers live.
+  The player checks the initialization invariant before opening CPAL and returns a
+  player error for the missing-context path instead of entering the dependency panic.
+- Follow-up `9f7f9d03e1453966dc84255b716a9b1410b53223`: R8 keeps RustBridge object,
+  instance and both methods; removed stale static/two-string-only keep signatures.
+- Only an existing transitive Rust dependency becomes a direct Android-only optional
+  dependency, with the same locked0.1.1 version. No new extractor/backend/codec,
+  Android permission, Java audio engine or provider call. JNI initialization is not
+  a non-Rust playback helper. Media-client1.2.1 fix and local listening remain intact.
+- Corrected inherited inaccurate 'only decoded128KiB/flat RSS' comment: transfer
+  queue has eight compressed-media chunks, variable chunk sizes plus decoder/device
+  buffers. No whole-process memory bound follows; phone RAM NOT MEASURED.
+- User-requested reverse prompt: `docs/REUSABLE_PROJECT_PROMPT.md`, a copyable project
+  requirements/history/next-task prompt, presented in the file viewer. It is a
+  reconstruction of the user's project request, not system or developer prompts.
 
-Still blocked here: any video except dQw4w9WgXcQ returns
-`LOGIN_REQUIRED — "Sign in to confirm you're not a bot"` for ANDROID, IOS and
-TV from this IP (fresh visitors do not help), so music-catalogue tracks cannot
-be resolved from this host at all; that happens before a media URL exists, so
-there is nothing to proxy. On-device speaker playback remains unverified.
+### Local verification and acceptance limits
 
-## 2026-11-14 (g) — Bot-screening fallback + published SHA-256 (v1.3.0)
+**94 Node tests PASS / 137 Python tests PASS**, diffcheckPASS. Added source contracts
+for matching Context argument across Kotlin/JNI, application-vs-Activity context,
+initialization-before-boot order, retained global reference/exactly-once lock, audio
+invariant guard and release shrinker. These are static/source contracts, NOT device
+runtime tests. Rust/Android compilation is performed by CI; sandbox has no toolchain.
 
-- `src/youtube.rs`: when every InnerTube client fails with a screening message
-  (`looks_screened`: "not a bot" / LOGIN_REQUIRED / "sign in"), `resolve_audio`
-  now falls back to `resolve_via_public`, which asks public Invidious instances
-  for the title + formats and plays their `/latest_version?…&local=true` proxy.
-  Instances: `yt.chocolatemoo53.com`, `invidious.nerdvpn.de`, `yewtu.be`;
-  overridable at runtime with `AYSHA_INVIDIOUS="https://a,https://b"`.
-- Format choice prefers `audio/mp4`/`audio/aac` because this build ships only
-  rodio's `mp4` decoder; WebM/Opus would not decode. The public failure is added
-  to `attempts[]` as client `INVIDIOUS`, so diagnostics stay honest.
-- `.github/workflows/android.yml`: new "Hash the release APK" step publishes
-  SHA-256 and byte size in the release body.
+Expected result of the narrow patch: CPAL can read a valid Android context when
+Play opens the audio sink. This does not prove that provider resolution, FIFO decode,
+physical output, focus or background behavior will succeed. No live provider or
+phone/emulator execution performed. If the close persists, obtain the actual app
+identity/Android crash section before more unrelated changes. Do not call it fixed
+on the phone based on build success alone.
 
-Evidence with a real, screened track (`kJQP7kiw5Fk` — Despacito):
-- InnerTube from this IP: ANDROID/IOS `LOGIN_REQUIRED "Sign in to confirm you're
-  not a bot"`, TVHTML5 "no longer supported"; also WEB, WEB_EMBEDDED_PLAYER,
-  WEB_REMIX, WEB_CREATOR, ANDROID_TESTSUITE, MWEB, ANDROID_VR, embed page, and
-  direct googlevideo fetch all refused (403/LOGIN_REQUIRED). Public instances
-  are refused too except yt.chocolatemoo53.com.
-- `resolve_audio` -> client INVIDIOUS, itag 140, title "Luis Fonsi - Despacito
-  ft. Daddy Yankee", content_length 4,557,665.
-- `POST /api/play` -> 200 `{"client":"INVIDIOUS","itag":140,"duration_secs":279.2}`.
-- `GET /api/selftest?video_id=kJQP7kiw5Fk` -> 200, `client=INVIDIOUS`,
-  `media_status=206`, `bytes_fetched=65536`.
-- Range bytes=0-2047 -> 206 `audio/mp4`, `content-range: bytes 0-2047/4557665`.
-- Full download 4,557,665 bytes in 1.43 s (== declared length).
-- ffprobe: `aac`, 44100 Hz, 2 ch, 281.565170 s, 4,557,665 bytes;
-  `ffmpeg -f null -` decodes every packet; rodio decodes 48,000 samples,
-  non-silent.
-- `cargo test --lib` -> 38 passed, 3 ignored; integration
-  `cargo test --test public_fallback -- --ignored` -> 2 passed; frontend 73.
+### Verified crash-fix candidate manifest
 
-Not verified: speaker playback on a device. The fallback depends on a
-third-party instance, so it can move or rate-limit; `AYSHA_INVIDIOUS` covers that.
+- **Android43592475037 at9f7f9d0: SUCCESS**, job132439956892, 2m51s. Host Rust phone
+  tests + Linux binary check, Android Rust/JNI crosscompile/Gradle/R8, size gate,
+  artifact upload and Android website contracts all passed. No live provider tests
+  or physical/emulator audio execution. Counts from redirected logs not invented.
+- **Linux43592474963 at9f7f9d0: SUCCESS, all five jobs**. Main Rust/server/Python/
+  frontend/scripts, audio/extract/direct prototypes and mobile/static-preview browser
+  regressions green. These host jobs do not execute Android context initialization.
+- **1.2.3-preview/code7**, package **com.afzal.ayshamusic.context7**, launcher
+  **Aysha Music Audio Fix**; source receipt **9f7f9d0**. Android8+/ARM64, separate
+  test package to preserve old signed apps/data; no production signing/publication.
+- Artifact **14113285899**, **ayshamusic-arm64-release**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43592475037/artifacts/14113285899
+  Extract `app-release.apk`. Repository access/sign-in may be needed, retention14days.
+  GitHub-reported ZIP size **3,717,081bytes**, archive SHA256
+  `7890f218b77abf7aa21a76e2a7f52efc6e6f8c525f6917a26e99ac009f3f7c38`.
+  This is artifact ZIP metadata, not installed APK size or RAM. Sandbox redirect
+  restrictions remain; no independent binary/signature/badging inspection claimed.
+- **QA3/5**, device-crash attribution/audible playback/publication still OPEN. This
+  candidate corrects the verified initialization omission, not a claimed confirmed
+  phone crash stack. No new provider/client/watch/decoder experiments. No Linux
+  installation/restart, phone RAM or Linux RAM remeasurement. Public main1.2.1
+  release and old app data untouched; unrelated tracked pyc deletion preserved.
+
+Optional **diagnostic** only if the corrected candidate still closes and ADB is
+already available: `adb logcat -b crash -d -v brief`. Review locally and share only
+the Aysha package's fatal exception/native abort section, not other apps, signed
+URLs or credentials. Also identify the launcher/source receipt and Android version.
+A successful next step means remaining open and producing actual audible music
+with advancing time; an ordinary provider error means crash may be avoided but
+resolution is still not accepted. Repeated identical reinstalls are not a plan.
+
+## Follow-up — remove learning clutter from Now Playing
+
+**Active department: UI/UX frontend.** User screenshot `image-3.png`, receipt
+`9f7f9d0`, rejects the Reset learning button on the player. Removed the entire
+learning explanation/button block, its CSS, frontend handler and visibility update
+from `src/index.html`. No replacement control was added elsewhere. Rust learning,
+preferences, Next ranking and the internal reset API are unchanged. Controls,
+visible playback errors and exact dedication are preserved. Reusable project
+prompt/current guidance updated so the rejected block is not added back.
+
+Local **94 Node / 137 Python PASS**, `git diff --check` PASS. Replaced the obsolete
+frontend reset-action test with an absence regression for learning clutter and a
+contract that the backend still uses preferences. No new physical screenshot/layout
+inspection or APK installation; the installed app will not change until a later
+APK is built/installed. No public release or Linux restart. UI readiness remains
+4/5 historical, real target-device validation for this removal pending.
+
+Separate evidence: screenshot shows **audio decode failed: The format of the data
+has not been recognized.** The displayed error is no longer the older no-AAC
+resolver report. The app is open in this screenshot, but this is not proof all
+crashes are fixed or audio works. This scoped UI edit does not change the decoder,
+provider or media path, and does not hide the error. Decode failure remains OPEN.
+
+## Follow-up — seekable AAC input and approved Telegram user-account archive
+
+**Active department: QA/debugging and scoped implementation of the approved flow.**
+User requests the actual fixed APK, further playback correction, personal Telegram
+storage/replay and explicitly says to ask instead of assume. Existing screenshot
+`image-3.png` identifies9f7f9d0 and an unrecognized-format decode error. Not audible
+acceptance. No new crash stack or song response bytes were supplied.
+
+### Explicit user choices (ask_user)
+
+- `telegram_destination=saved_messages`: own Saved Messages, no bot/channel.
+- `telegram_save_trigger=every_selected`: complete selected downloads and save even
+  after a skip; additional data/temporary storage explained in the question.
+- `telegram_fallback=youtube_fallback`: prefer saved Telegram media, otherwise
+  automatically try YouTube.
+- `telegram_credentials=guided_setup`: in-app guidance and credential entry, not an
+  assumption of bundled API credentials. No secret/code/password requested in chat.
+
+An Arena Telegram connector lookup returned unsupported. The app feature does not
+use/require an Arena connector: it uses the already-approved Rust grammers MTProto
+client directly on the phone. No external Aysha service, Java extractor or bot.
+
+### Decoder correction and evidence
+
+The 1.2.1 integration had left old branch range/PCM modules unwired and used main's
+nonseekable FIFO input. Main's successful full-file/Cursor decode test was not proof
+that its FIFO could demux tail-index MP4. Reconnected `range_media`/`pcm_stream`,
+known byte length/seekable AAC decoding, dedicated network/decode threads and bounded
+ready-PCM queue. Starvation inserts silence without advancing music position.
+Canceling a full PCM queue releases its worker. Status generations prevent stale
+work replacing current state; Stop cancels source handoff even during resolution.
+
+Android CI now generates real front-index and tail-index AAC fixtures. Its test
+reproduces the old nonseekable tail-index failure, then decodes non-silent samples
+through the new seekable range reader. This is a reproduced defect with real AAC,
+not a confirmed inspection of the phone's selected-song bytes. Both initial draft
+and final host-Rust CI steps passed; final full build outcome recorded below.
+
+Main1.2.1 persistent visitor/resolver and API/media-client separation are preserved.
+Native playback now uses validated64KiB range requests, with a12s per-request
+budget, not a12s whole-track timer. Full archive downloads use main's no-total-
+timeout media client, with a separate15minute archive-operation budget. No live
+provider/watch/client-version/auth/proof experiments or codecs/helpers added.
+The old FIFO pump is an opt-in diagnostic only; native playback does not use it.
+Android context/GlobalRef/R8 fixes retained. Default Linux source/service unchanged.
+
+### Telegram implementation and bounds
+
+- Library-only account dialog: official my.telegram.org/apps guidance, in-app
+  API ID/hash save, phone/code/optional2FA sign-in, connection/upload status and
+  disconnect. No player reset-learning block or mood picker. API/hash/code/password
+  fields are not saved in browser storage and sensitive inputs clear after requests
+  and modal close, including failure paths. No secrets logged/committed.
+- API credentials/session private atomic0600 writes, backup disabled. MTProto auth
+  session persists, not the login code or 2FA password. App-private JSON is not
+  Android Keystore encryption; Saved Messages is not end-to-end encrypted.
+- Validated video ID → persisted Saved Messages message-ID index; fetch fresh message
+  references first. Bounded search fallback accepts only exact first-line
+  `#yt_<video_id>` markers, in self-user Saved Messages. Never search another chat.
+- Telegram media aligned-chunk fetching implements the same seekable-reader trait;
+  no full-file-in-RAM replay. Connection/search is within a15s budget. Startup
+  lookup/read/decode failure falls back to normal YouTube. Mid-track read failures
+  remain visible; seamless mid-track source resume is not implemented/claimed.
+- Successfully prepared YouTube tracks enqueue metadata. A sequential persistent
+  worker waits for account setup/authorization, checks duplicate saves, downloads
+  the full file (even after skips), verifies length/decodability and uploads the
+  exact AAC file as a Saved Messages document. It can download a second full copy;
+  this data cost is disclosed in the account dialog and guide.
+- 400MiB cache retained,64MiB per-file guard, at most20 pending/uploading tracks;
+  queue-full/error warning exposed in account status. App limiter18uploads/hour,
+  minimum12s between files, actual FloodWait handling, at most3retries. Not a claim
+  of Telegram's permitted throughput. Pending files protected; completed files can
+  be evicted/reserve space for new downloads. Startup removes old partial files.
+  Partial/truncated/undecodable files are never uploaded as successful saves.
+- Saved message IDs recorded on success; deleted saves can be recreated, completed/
+  failed queue records requeued on a later explicit play. Revocation on disconnect
+  is attempted before clearing local session/queue/index; uploaded messages are
+  not deleted. A failed revocation is reported, with work paused for retry.
+  Remaining disk cache/API developer settings may remain app-private.
+- Every selected song cannot be guaranteed a cloud save when quota/storage/queue/
+  provider/account/background restrictions prevent it; these are visible states,
+  not silently fabricated successful uploads. No OS background/force-stop guarantee.
+
+### Source and local checks
+
+Implementation de0ab69, message-index/cache/privacy tests77f0584, PCM/source-order
+contracts9873765, bounded connection and Stop-handoff correction99972a3.
+**98 Node tests PASS / 137 Python tests PASS**, diffcheckPASS. Added front/tail AAC,
+seek/range contract, callback starvation/cancellation, private setup without network,
+Saved Messages exact match/index/deleted-save requeue/cache reservation, source
+ordering, credential routing/clearing and Stop-during-prepare checks. Host fixture
+and static tests do not constitute a real Telegram login/upload/replay or phone
+speaker test. Reusable prompt/current guide updated. User guide:
+`docs/TELEGRAM_SAVED_MESSAGES.md`.
+
+### Final candidate build manifest (source99972a3)
+
+- **Android43594634691 SUCCESS**, job132446482742,3m39s. Host phone Rust tests with
+  generated real front/tail AAC fixtures passed, Linux binary check passed, Android
+  Rust/JNI/Gradle/R8 compiled, size gate passed, artifact uploaded and Android website
+  contracts passed. No live provider/authentication/device audio in those tests.
+- **Linux43594634703 SUCCESS, all five jobs**: main Rust/server/checkers/frontend/
+  scripts, Rust audio/extract/direct prototypes and mobile/static-preview browser.
+- Final local rerun **98 Node PASS / 137 Python PASS / diffcheck PASS**. No fresh
+  physical-phone or native account-dialog visual inspection. Browser fixtures do
+  not certify real account integration, phone audio focus or background operation.
+- **1.3.0-preview/code8**, launcher **Aysha Music Telegram**, package
+  **com.afzal.ayshamusic.telegram8**, ARM64/Android8+, receipt **99972a3**. Separate
+  test package preserves old apps/data despite ephemeral CI signer; existing
+  Telegram sessions are not migrated/imported. No production signing or store claim.
+- Artifact **14113683577**, **ayshamusic-arm64-release**:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43594634691/artifacts/14113683577
+  Extract `app-release.apk`. Sign-in/repository access may be required, retention14d.
+  GitHub-reported archive **4,099,582bytes**, ZIP SHA256
+  `f3c4aad1298836550b87a4b6076e412d123053cd8ed71d0204a51f0fcd43d69d`.
+  These are ZIP metadata, not APK installed size or RAM. Download attempted once
+  for this artifact; sandbox external redirect failed. No independent local APK
+  badging/signature/binary inspection claimed. No stale/partial binary attached.
+- QA **3/5**: meaningful offline decoder/range/privacy/queue and build evidence,
+  but phone audibility/provider coverage/real Telegram login-upload-stream-replay
+  and production release remain OPEN. It would be false to promise every failure
+  is solved, seamless mid-track failover, universally available songs, or store
+  readiness based on this build. Phone RAM NOT MEASURED; Linux RAM not remeasured.
+- No user Linux service install/restart, live provider/auth probe, public main APK
+  replacement, bot/account access or source bypass. Unrelated tracked pyc deletion
+  remains unstaged/preserved. Prior intermediate Android builds were canceled by
+  newer source pushes; the successful source above is the one to deliver.
+
+Phone steps: install/open the correctly named candidate; account setup is in
+Library → Telegram account, with API guidance and code/optional2FA inside the app.
+Never paste secrets here. Playback acceptance means audible music with advancing
+position, not merely native-ready. Telegram acceptance requires a real saved file
+in the user's Saved Messages and a subsequent Telegram-source replay; startup
+failure should visibly/operationally fall back to YouTube as documented. If a new
+error occurs, retain receipt and exact wrapped message rather than repeat unchanged
+installs or unrelated client/watch experiments. Old packages and main release are
+untouched for recovery; uploaded user messages are never deleted by disconnect.
+
+
+## Dual audio candidates — supersedes source99972a3
+
+**Phone result:** The user's screenshot for99972a3 reports0:00 with
+`audio_decode_failed: An IO error occurred while reading, writing, or seeking the
+stream.` Previous fixture/build success must not be described as audible-phone
+success. User also could not find account setup.
+
+**Approved change:** two standalone installable APKs: existing Rust audio and
+Media3/ExoPlayer **audio only**, keeping the Rust resolver/Telegram backend and UI.
+Rounded red **launcher only**, not the Play button. Settings gear replaces the
+Bluetooth nav; Add Telegram account is prominent/always accessible in Settings.
+See `docs/DUAL_AUDIO_APKS.md` for scope, identities, data isolation and limitations.
+
+- Source **ee050dc**: Android **43717366715 SUCCESS**; Rust host fixtures, native
+  ARM64/JNI, both Gradle/R8 flavors, separate15MiB size gates and contracts passed.
+  Linux **43717366678 SUCCESS**, all five jobs.
+- First-build artifacts (not the final receipt/UI follow-up):
+  Rust Audio14162859840, ZIP4,146,556bytes; Android Audio14163650226,
+  ZIP4,663,126bytes. API metadata verified unexpired. These are archive sizes,
+  not installed APK size or memory. Full log retrieval failed at the restricted
+  results-receiver redirect; job/step success comes from GitHub's jobs API.
+- Local **100 Node PASS / 137 Python PASS / diffcheck PASS**.
+- Local Chromium full suite PASS: both native Settings engine fixtures at320x740,
+  390x844 and844x390, account modal access/Back/Forward/secret clearing; general
+  seven viewports320px through1440px and real static-preview iframe touch/mouse.
+  Native tests are UI-only JSON fixtures; media output is stubbed. Screenshot
+  visually inspected. Initial browser launch lacked libnspr4; package-bundled
+  libraries via `LD_LIBRARY_PATH=/tmp/al2023/lib` resolved it. A same-document
+  navigation issue in the new test harness was fixed with about:blank navigation.
+- Old/new5050 app reuse was possible by code inspection, not phone-proven. New
+  variants use5061/5062 and a per-process instance/engine/port match before WebView
+  load. Signed provider URLs and credentials stay in Rust for both engines.
+- Real song resolution/playback, physical audio, Telegram auth/upload/replay,
+  audio focus/background/screen-lock, Android RAM and production signing remain
+  **UNVERIFIED**. No new live provider/client experiment or user-account access.
+- Older apps/data/public release preserved. Tracked pyc deletion left unstaged.
+
+A follow-up source build will include explicit engine/build receipts in Settings
+and Now Playing plus expanded native-UI browser coverage. Its final CI/artifact
+manifest follows below after completion; do not deliver first-build artifacts as
+though they include those follow-up changes.
+
+
+### Final dual APK manifest — source e39acae
+
+- Android **43717901021 SUCCESS**, job132823298040,3m37s. Every build/fixture/size/
+  upload/contract step succeeded (GitHub jobs API). Both artifacts exist/unexpired:
+  - Rust: [14163606203](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163606203),
+    `ayshamusic-rust-audio-arm64`, ZIP **4,146,565bytes**, SHA256
+    `92ad63441dcbd4018d3ab47d068110dc7af62477e32dde7ab717b6ef70d816e0`.
+  - Android: [14163108083](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43717901021/artifacts/14163108083),
+    `ayshamusic-android-audio-arm64`, ZIP **4,662,962bytes**, SHA256
+    `a8ea320a9764b2deaf4b89d8be96bde164279c743c6b8373dbb68b7c770ece64`.
+- These are GitHub archive metadata, not APK size/RAM. No local binary download,
+  signature/badging inspection or device install claimed. Prior log download was
+  restricted at the results-receiver host; no unchanged retry or fabricated file.
+- Version1.3.1-preview/code9, package/labels as documented. Both APKs contain the
+  final Settings/engine receipt and red launcher. Android-specific service/bridge
+  compiled successfully, but no physical-device playback has been performed.
+- Linux **43717901027**: four jobs passed; mobile-browser failed on a **new test
+  race**, not a build error: the assertion read initial `Not connected` immediately
+  after opening the dialog before the async fixture status refresh completed.
+  Follow-up changes only the browser test to wait for the refreshed status before
+  asserting. Native Settings six-case local rerun PASS after fix. Final CI result
+  is recorded below when complete; the APK sources are unchanged by this test fix.
+- Warnings: action runtime deprecations/setup-java-v4 and ubuntu-latest image
+  migration. No production-signing, store-publication or all-crashes-fixed claim.
+
+
+### Regression follow-up result — c2c4e32
+
+[Linux43718290998](https://github.com/AfzalAshraf/ayshamusic/actions/runs/43718290998)
+**SUCCESS, all five jobs**, including mobile-browser/real static-preview browser,
+main Rust/server/checkers/frontend and the three Rust prototypes. The async-dialog
+wait fixed the new harness race. Local final native Settings six-case rerun,
+100 Node contracts and137 Python tests also passed. No APK source changed after
+**e39acae**; deliver the two artifacts from Android43717901021 above. This final
+ledger update is documentation only and does not imply any new physical-phone,
+account or RAM acceptance.
+
+
+## Code10: phone403/pause and blocked Rust WebView correction
+
+New user evidence: e39acae Android Audio sometimes audible but cannot pause;
+screenshots for Tony Ann DISCOVERY and Ash Self-Discovery both show
+`media3_input_failed: media_range_http_403` at0:00. Rust local127.0.0.1 page did
+not open. Do not discount the report because prior CI succeeded.
+
+Confirmed by **actual local Chromium experiment**:5061 returns `ERR_UNSAFE_PORT`
+without contacting the healthy listening HTTP server; the configured replacement
+ports17651/17652 both navigate200. Chromium source `net/base/port_util.cc` also
+lists5061 as SIPS-blocked. This is a specific startup defect, not evidence of an
+external Aysha server dependency. All components remain APK-local except normal
+YouTube/Telegram internet services. No new live provider experiment was performed.
+
+Corrections: generation tickets on every selection; stop old output before any
+resolution wait; token-specific stop on Media3 replace/failure; revisioned pause/
+resume callbacks; preserve resolved client User-Agent; existing-profile fallback
+through actual native preparation with shared60second deadline; suppress interim
+fallback errors in UI and cancel instead of double-start while pending. Rust
+remains decode/output in the Rust flavor. No purported ExoPlayer Rust clone or
+replacement extractor was introduced. New version1.3.2-preview/code10 has distinct
+`.rustaudio10`/`.androidaudio10` packages, labels ending10, ports17651/17652.
+
+Local checks: **102 Node PASS / 137 Python PASS / diffcheck PASS**; real loopback
+navigation reproduction and six native Settings fixtures PASS. New offline Rust
+fixtures cover source403 fallback, total rejection/cancellation bounds, orphan
+output on failed replacement, stale pause/playing/error revisions and Stop.
+Android/host CI results follow when complete. Unrelated tracked pyc deletion
+preserved unstaged. Credentials never requested; real new phone behavior,
+Telegram auth/upload/replay and RAM remain unverified.
+
+
+### Final code10 artifact manifest — source2267dba
+
+- Android **43734169086 SUCCESS**, job132872987409,3m29s: host phone Rust tests
+  (including new source-selection/control fixtures), native/JNI, both Gradle/R8
+  APK builds, size gates, artifact uploads and Android contracts all succeeded.
+- Linux **43734169078 SUCCESS**, all five jobs, same source2267dba: full browser
+  suite includes real blocked5061/safe configured-port navigation, Settings and
+  existing layout/history/preview tests. Main Rust/server and all prototypes pass.
+- Rust Audio artifact **14169379011**, ZIP4,152,883bytes:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14169379011
+  SHA256 `3092e096314ebfa87e7fd6300d1e5a7b8bf7fbc34bc9570cd70b53f2478a615d`.
+- Android Audio artifact **14170310564**, ZIP4,665,896bytes:
+  https://github.com/AfzalAshraf/ayshamusic/actions/runs/43734169086/artifacts/14170310564
+  SHA256 `e862aa649652bf20d906df02ae215f1cd22ff6014daf59079d95a76fca976245`.
+- Metadata verified via GitHub API, both unexpired. Sizes/digests are ZIP archive
+  metadata, not installed size/RAM or locally inspected APK signatures. Prior
+  restricted artifact/log download behavior was not retried unchanged.
+- Offline tests additionally retain Pause intent before the first platform Play
+  command, not only after ready. Source-profile fallback does not imply bypassing
+  provider403 restrictions or live provider acceptance. New phone/user-account
+  acceptance remains OPEN; no external Aysha server, live extraction experiment,
+  public release replacement or production-signing claim.
+- Earlier Android builds were cancelled automatically by newer source pushes.
+  Attempt to cancel redundant older Linux runs was denied by integration's actions
+  permission (403); no retries/credential requests. Final above completed normally.
+- Local102Node/137PythonPASS; tracked unrelated pyc deletion remains unstaged.
+
+
+## Latest phone rejection and approved Rust-only source experiment
+
+Code10/source2267dba: user reports Rust no music, Media3 starts then stops on every
+song; screenshots image7/image8 show source403 (Rust ANDROID/IOS errors, truncated
+TV details; Media3 media_range_http_403). Prior green builds did not fix playback.
+User also reports API-hash disappearance; original UI cleared it on failure too,
+so persistence on that particular phone is not established either way.
+
+Source540c8c7 Telegram-only correction: verified app-private write/read-back receipt,
+local hash-free configuration endpoint, visible feedback beside Save, retained
+entry on failure, saved status on reopen and idempotent unchanged credentials.
+**105Node/137Python local PASS**, native Chromium six-case save/reopen/privacy
+fixtures PASS. **Android43736467314 SUCCESS**, **Linux43736467342 SUCCESS all five**.
+No real account validation/authentication or user session was accessed.
+
+User then explicitly chose Rust-only extractor work (Rust JS runtime allowed) and
+one bounded public-video CI experiment (12requests/8MiB/60s/two ranges). Rusty_ytdl
+PR62 revisionb390352a5db4b57aa630e8dc7b427fb560feccd5 isolated in
+`prototypes/rust-source-check`; never added as an APK dependency. Built and guard-
+tested in **43737916216**, source7fe2ab2, job132884517889. Sole live step failed:
+`candidate_media_host_rejected`, metadata stage, **3requests /1,389,875 transport
+bytes reserved-or-used /1,453ms**, **zero media GETs**. A rejected URL guard does
+not establish the exact URL issue or prove403 for this candidate. No range/decode/
+Android/phone gate passed. Sanitized result checked from the GitHub annotation,
+retained in docs/research/rust-source-once-result.json; external artifact metadata
+14170963008 verified. No raw signed URL/HTML/playerJS/account secret was retained.
+
+Manual API dispatch was permission-denied and started nothing. Initial explicit
+push failed YAML parse with zero jobs; corrected SHA/message gated run above is
+the **single** live experiment. Allowance is now CONSUMED; workflow gates removed/
+disabled, CLI live flag sealed false, automatic offline guard tests added. No live
+retry without new user approval. Playback remains BLOCKED; no further APK is
+being delivered as a playback fix. Preserve unstaged unrelated pyc deletion.
+
+
+## Build11 — user-requested image9 launcher, renewed bounded source recheck
+
+Source938b364. The user explicitly requested another check and both APKs, and
+changed the launcher to supplied image9. Cropped metallic A/AYSHA artwork, five
+legacy density pairs and a safe-zone adaptive foreground are generated from the
+checked-in master; no player UI/SVG/Play/dedication changes. Build11 (1.3.3-preview)
+retains existing code10 package IDs and safe ports; signing update caveat documented.
+Telegram receipt/retained-input fix is included. Local **105Node/137Python PASS**
+before adding3 launcher-resource tests. APKs are user-requested updates, not a
+claim of restored source playback.
+
+Run43739826775: **APK build job132890296348 SUCCESS**, both artifacts/size gates
+passed; separate source job132890296562 compiled then failed its single live gate.
+Revised local AAC selection excludes invalid URLs before ranking; safe categories
+report **27formats /2AAC (139,140) /both URLs empty**, despite content lengths.
+3requests/1,383,134bytes reserved-or-used/1,355ms; no media requests. Earlier
+ambiguous media-host rejection is now narrowed to empty extracted URL strings,
+not proof of a specific provider/parser/cipher root cause. Evidence JSON retained
+under docs/research. Research artifact14172625123; no APK dependency integration.
+Linux43739826787 **SUCCESS all six jobs**, including offline source guards.
+
+Renewed allowance now consumed and sealed again; no retries. New offline launcher
+resource checks added (PNG dimensions/alpha and matching adaptive resources).
+
+
+### Final sealed build11 artifacts
+
+Source10a46e6: **Android43740368278 SUCCESS** (build job132891981138), **Linux
+43740368277 SUCCESS all six jobs**. No additional live experiment. Local final
+**105Node/140Python PASS**, YAML parse/diff checks PASS. Latest ZIP artifacts:
+Rust14172287438 (4,451,276bytes, SHA256a1acbbda37959bfa6f794335ac395b7f79a86fcabc189004271a259af776bc7c),
+Android14172127833 (4,965,527bytes, SHA256e942420cfa2defd75d9185b9a3706618eaaa736a1f6a34ae88e567c85df07dde).
+GitHub metadata verified; no binary re-download claim. Sent as requested icon/
+Telegram save updates with explicit unresolved source warning, not "playback fixed".
+Both packages share previous code10 IDs; ephemeral signing may reject in-place
+updates, and uninstall erases app-private sessions. Device acceptance remains open.
+
+## Media3-only repair request — screenshot10/11, source10a46e6
+
+User rejected Rust Audio and requested Media3-only repair, research-first, ECC
+skills and authorized GitHub build/install/test work. Physical phone images:
+image10 Android Audio/Media3/10a46e6 starts1–2s then `media_range_http_403`;
+image11 never starts, ANDROID/IOS `media_range_http_302`, TV unsupported-client
+message. Do not infer decoder failure from these source errors. No direct phone
+access exists in this environment; authorization is not a device connection.
+
+Research through GitHub: NewPipeExtractor dev YoutubeStreamExtractor explicitly
+requires n transformation before accepting some stream URLs; yt-dlp _video.py
+handles advertised formats without URL as possible SABR-only responses. _base.py
+records mandatory Po-token policy for some VR HTTPS sources. These are compatibility
+findings, not an authorization to bypass provider access controls or add a Java/
+Python extractor. NewPipe/yt-dlp were reviewed as references, not integrated.
+ECC d2ef2680594f9a17526a6e1a2e18b3d242c5d17b pinned under vendor/ecc: all314 skills/
+620support files, MIT license/provenance/hashes retained, no hooks/installers/
+observers executed, no permanent-model-memory claim. Relevant search-first,
+rust-testing, security-review and verification-loop consulted. New project skill
+records failed hypotheses and source-read acceptance gates.
+
+Implemented before CI (outcomes pending): Media3-only flavor/artifact/script,
+build12/1.3.4-preview, same androidaudio10 package/port; Rust Linux/core preserved.
+HttpFetch manually follows at most3 validated HTTPS-googlevideo redirects with
+Range/UA/identity preserved, original query untouched, one12s deadline, no403
+retry; rejects downgrade/non-CDN/credentials/loops before next request. Media3
+preflights first and tail/index, retains at most128KiB of validated probes rather
+than redownloading/discarding the first block; later failures still visible.
+Added real HTTP redirect/strict range/cache regressions, and actual production
+Kotlin PlatformAudio instrumentation with a generated AAC loopback fixture for
+>2s continuity, pause/resume/end, pre-ready pause, and initial403. Emulator fixture
+mode excludes JNI/providers and refuses release tasks; it is not phone/sound or
+YouTube acceptance. Production release checks embedded ARM64 Rust .so exists.
+
+One exact-parent, attempt1 gated source diagnostic planned with the user's new
+GitHub testing authorization: SAME production resolver/HttpFetch/PreparedFetch,
+fixed public video, max16requests/8MiB encrypted transport/60s external kill,
+up to12range operations across existing profiles, no credentials/new clients,
+no raw URL/provider body artifacts. Offline regressions/build first. Must inspect
+before any further attempt; remove live gate after consumption. Previous isolated
+Rust/Boa experiments remain disabled and are not APK dependencies.
+
+
+### Media3 repair validation — df47e72
+
+Android43743729439 **SUCCESS all3jobs**; Linux43743729437 **SUCCESS all6jobs**.
+Source proof132902322957 **PASS**, production resolver/HttpFetch/PreparedFetch,
+ANDROID/itag140/AAC3,449,447byte source, first/tail/2spaced later ranges; **6requests,
+493,636transport bytes reserved-or-used,420ms**. Exact safe JSON under docs/research.
+One CI public video only, not a baseline A/B measurement or proof for screenshot
+songs/phone region/full playback. No new client/extractor/access bypass introduced.
+
+Actual API29 Android instrumentation job132902323164 **all3tests PASS**: >2s
+continuity→pause/resume→end, pre-ready pause→resume, initial403→honest error. Test
+APKs installed on emulator, actual PlatformAudio/Media3; fixture excludes JNI/
+provider acquisition, so not complete release/phone/speaker acceptance. Report
+artifact14172808696; production source evidence14173701105. Media3-only release
+job132902323255 PASS, artifact14173548053. See ANDROID_MEDIA3_REPAIR.md for hashes.
+
+Previous attempt64e40b7 had a SUCCESS release/host regression job but source build
+blocked on existing incomplete Cargo.lock **before live execution** and redundant
+emulator SDK setup failed before boot. Browser failed an obsolete two-port count.
+Corrected only those setup/assertion conditions; then outcomes above. Applied the
+successful CI-generated two-edge lock diff (no dependency version changes), restored
+--locked production commands. Live CLI/job sealed after successful consumption.
+Local final **106Node/142Python PASS**, local browser seven-viewports/six native
+Settings and actual preview iframe controls PASS. New learning appended to project
+source-playback skill; pinned upstream skills were not executed or auto-installed.
+
+Build12 phone acceptance and screenshot-track playback are OPEN; do not promise
+all403s gone, ask for secrets, claim remote phone installation or repeat old
+broken APKs. Current source fix covers validated CDN redirects/preflight/cache,
+not arbitrary provider policy/challenge bypass. Source/QA evidence rating3/5;
+Linux/service RAM not remeasured (not the target-device budget measurement).
+
+
+### Final Media3-only corrective APK — source6a17353
+
+Android43744233478 **SUCCESS both jobs**, release132903895012,
+emulator132903894729; all3production Kotlin Media3 fixture tests PASS again.
+Linux43744233521 **SUCCESS all6jobs**. Root Cargo.lock now matches CI-resolved
+feature edges; --locked host tests/check and ARM64 release build PASS. No additional
+live source request; source-proof CLI/job remain sealed. Production resolver/
+range/preflight/Kotlin bridge unchanged from passing df47e72 source proof.
+
+Deliverable Android/Media3 Audio12 ZIP artifact**14173776736**,4,968,212bytes,
+SHA256bdb7ac90e3347da51cb564def5a3297a3a47b7e3ac2028985283a8518015f069.
+Emulator report14174000304, SHA256e2a54d8e71d19561f0444e13e6116324d115a8fc7618b6697133a9e27f32700e.
+Metadata/annotations verified, not local binary inspection. User given tested
+corrective candidate with source6a17353 identity and explicit no-phone/no-all403-
+resolved claim; not asked to repeat the known-unmodified code11 install. Single
+Media3 APK only, Rust Audio Android flavor/upload gone, Linux Rust retained.
+No physical-phone/source-track/background/focus/Telegram-login/signing/RAM claims.
+Unrelated tracked pyc deletion intentionally unstaged.
+
+
+## Long-song follow-up — build12 phone rejection, exact new error not supplied
+
+User reports songs play only seconds and long selections show an error; no new
+screenshot/song/installed receipt yet. Asked once while investigating, not required
+to begin offline work. Do not assume this is the same403 or a duration hard cap.
+
+Inspected Media3 1.8.0 official DefaultHttpDataSource source through GitHub:
+DEFAULT_READ_TIMEOUT_MILLIS=8*1000, while Rust per-block permits12s and worker15s.
+Patched actual PlatformAudio media-source factory to bounded20s read/8s connect,
+not an unlimited read or total-song timeout. A valid10s later source gap should
+survive instead of the Android reader giving up before Rust's own deadline.
+
+Found a request-scoping defect introduced with build12 redirects: successful
+redirect targets were persisted for ALL later ranges. A temporary signed target
+can belong to one range; promoting it can invalidate later chunks/tail seeks.
+Now every fetch begins at the original signed source, retains strict3-hop/HTTPS/
+CDN guards and12s deadline, and caches only validated first/tail bytes, not targets.
+Added real local HTTP response fixture covering request-specific redirect targets
+across five sequential/seek blocks; no provider requests or allowlist exception.
+
+Added bounded-memory >10MiB synthetic full-stream Rust verification (>150later
+reads), actual Media3 ten-minute encoded AAC playback at4x (not ten wall-clock
+minutes), and10s source-gap Android test. Existing8s controls/error tests retained.
+Error text now identifies prepare head/tail vs stream and failing offset without
+URLs/secrets. No source/profile/codec swap, whole-song predownload, policy bypass
+or new live-provider test. Build13/1.3.5-preview; Media3-only/icon/Telegram unchanged.
+Local107Node/142Python PASS, YAML/diff checks PASS; Rust and Android outcomes
+PENDING CI, not yet a physical-phone fix claim.
+
+
+### Long-song corrective build13 validated — source3d24f7f
+
+Android44029768380 **SUCCESS both jobs**. Release133858634390 built Media3-only
+ARM64 APK and passed all host phone/range/prepared/actual-loopback tests. Emulator
+133858633925 **all5tests PASS**, including full600sAAC playback at real4x to end,
+10s body-gap survival, existing pause/resume/end, pre-ready pause and honest403.
+Actual Kotlin/ExoPlayer, generated local data; no physical phone/provider account
+claim. Rust synthetic >10MiB iterates >150later blocks with bounded probe memory;
+actual channel/Axum body and late seek also pass. No total song timeout was removed:
+Android inactivity deadline now20s above Rust12s/worker15s, redirect targets no
+longer persisted across ranges. Source HTTPS/host/deadline/size guards retained.
+
+Linux44029768439 **SUCCESS all6jobs**. Local107Node/142Python PASS, YAML/diff PASS.
+2e4427e Android44029628665 superseded/cancelled after adding the actual-loopback
+long test; final source3d24f7f green. No new live-provider probe and no reactivation
+of consumed source experiments. Last known bounded provider read remains prior
+build12 CI proof, not represented as build13 phone/source acceptance.
+
+APK ZIP14305435131,4,969,329bytes, SHA25654b8f915b51e69ce74dcf573e3ed25a3a592af624235d177eacf31e4b537c8d6.
+Emulator report14305360956,23,253bytes, SHA256bc771142d475c42d4fb0ed3789eb230a0bce11dec4f7e58cfd3f4089c0595661.
+Metadata/annotation verified, not local ZIP inspection. Safe test names/results
+retained in docs/research/media3-long-track-emulator-result.json. Media3-only,
+image9 launcher/Settings/Telegram fix/dedication preserved. Physical song/error,
+background/network change/hours-long real time/real Telegram session/signing/RAM
+remain unverified. QA3/5; Linux/service RAM not remeasured. Unrelated pyc deletion
+preserved unstaged. Deliver as tested corrective build, not "all long songs fixed".
+
+
+## Image12 rejects build13 — exact track and source-phase evidence
+
+User confirms "not playing now", screenshot receipt**3d24f7f**, Suno Aisha Best
+Song - Aisha|Sonam Kapoor|Abhay Deol|Javed Akhtar|Amit Trivedi|Ash King,
+SonyMusicIndiaVEVO. ANDROID and IOS both `media_prepare_tail_failed:
+media_range_http_403; stage=prepare`. Head succeeded; tail was forbidden before
+Media3 started. TV displayed reason truncated after "video is not"; do not invent
+its unseen full text. Build13 is **not accepted**; previous tone/long/mid-range CI
+passes cannot overrule it. Retained tail gate; no decoder/time-limit workaround.
+
+Research: NuvioMobile issue1829 describes matching Android/iOS head206/tail403
+pattern and possible provider token requirements; Kodi issue1481 describes initial
+ranges then403. These are external reports, not proof of the phone's root cause.
+Kopuz PR735 sequential fallback reviewed, not adopted as a way to disguise rejected
+source access. Current yt-dlp _base.py head e6275c2b72fe178d54c490c9d775097aa8184457
+VISIONOS public-client recipe reviewed as an isolated compatibility candidate;
+no yt-dlp runtime, Java extractor, credential/token bypass or APK client change.
+
+User's standing GitHub research/test authorization used for one bounded exact-
+target investigation, source2c9e1ed, run44121609464/job134174181338. Max16HTTPS
+requests/8MiB transport/60s external kill; fixed title/channel exact match required,
+no auto substitution or wrong-song success claim. Search uniquely identified
+**fAzO3s7Dgnw**, exact title/SonyMusicIndiaVEVO. Baseline ANDROID metadata then
+returned **provider_sign_in_or_bot_challenge**. Stopped **3requests /339,873bytes
+reserved-or-used /1,009ms**, **zero media requests**, candidate **NOT RUN**.
+Thus CI did NOT reproduce the phone's tail403 and did NOT validate a replacement.
+Safe result saved docs/research/suno-aisha-source-result.json. No raw URL/token/
+provider-body retained. Old public-video proof remains separate/consumed.
+
+Live workflow disabled/CLI sealed after this attempt. Offline research build/
+regressions passed; local107Node PASS and YAML/diff checks PASS. No new APK sent
+as a fix. Asked explicit scope decision before introducing an on-device Android
+extractor because Rust-only extraction remains standing until revised; everything
+still must stay in APK, Rust Telegram/backend retained. Physical source/song/
+phone/background/signing/RAM acceptance remains OPEN, QA3/5. No service RAM
+remeasurement. Unrelated pyc deletion preserved.
+
+## On-device Android extraction approved; licensing decision pending
+
+User selected `allow_android_extractor`: Java/Kotlin extraction may now be
+researched and integrated **if validated**; Rust retains Telegram/backend,
+Media3 retains output, everything stays in APK. This explicitly relaxes only
+the prior Rust-only extraction boundary, not source/challenge or evidence gates.
+Reviewed NewPipe Extractor v0.27.0, commit
+7d4d691846acfa3c5af4b2c124955ee4c11cd3e8. Its primary VisionOS path is materially
+different from failing production ANDROID/IOS, but it is **not tested evidence**
+of source access. No provider calls or APK/runtime changes this evaluation.
+API latest v0.27.1 is dated after session date; not selected. GPL-3.0-or-later
+and missing root app LICENSE require owner licensing decision before linking
+or distributing. Asked that decision, rather than assuming permission to
+relicense. Full findings/gates: docs/research/ANDROID_EXTRACTOR_EVALUATION.md.
+No new compile/test/playback claim; this turn is source/licensing research only.
+
+## GPL rejected — permissive browser-extractor offline evaluation
+
+Owner selected **avoid_gpl**: no app relicensing/NewPipe integration. Updated
+AGENTS/reusable prompt to preserve both this choice and prior permission for an
+on-device Android extractor. No root LICENSE change, no GPL dependency added.
+Department: source-playback research, QA2/5 (offline proof only).
+
+Reviewed sealedtx/java-youtube-downloader3.3.1 (Unlicense,2025-05-27). Upstream
+open issues141(download403)/148(transformation)/150(null extraction) and stale
+release provide no credible source fix; not integrated or probed live.
+Reviewed MIT YouTube.js, as-of-session GitHub ec7ef07aa194e7ecc58634f27932fed1164ebb8f,
+and npm youtubei.js18.3.0 (published2026-10-23). Browser entry can run without a
+Node executable; existing Android WebView is a possible runtime, not yet proven.
+Isolated prototype **prototypes/youtubejs-browser**, pinned npm lock/integrity,
+install scripts disabled. Resolved module licenses MIT/Apache/BSD/ISC; meriyah
+pinned7.4.1 because7.4.2 is dated after session. No package/node_modules shipped.
+
+**Local verification:**39/39 tests PASS exercising the real library's web
+session/parser with response-only in-memory fetch; exact ID, direct AAC and
+negative restriction/format/source selection. Actual desktop Chromium loaded
+packaged browser bundle, parsed one fabricated AAC response and rejected login,
+wrong-ID and cipher fixtures: PASS; unexpected external page requests0, page
+errors0, console output0. No global/native provider fetch exists in this harness;
+no live source requests. Browser flags do not disable web security. Initial
+browser setup failed on ESM module resolution then missing libnspr4; fixed by
+explicit dynamic import and sandbox library path, then successful rerun. npm audit
+source-module graph0known advisories, not bundled-code audit/security certification.
+Safe metrics: docs/research/permissive-browser-extractor-result.json.
+
+**Limitations:** default browser evaluator throws for decipher requests; no
+interpreter has been added. Prototype refuses cipher/n URLs rather than falsely
+calling them playable. Upstream fetch defaults include credentials/follow;
+production would need bounded allowlisted native transport and terminal challenge
+latch, not CORS disabling/unsafe eval. Packaged bundle contains embedded dependency
+code not changed by npm overrides; rebuild/audit exact pinned source artifact and
+notices before shipping. Android WebView/minSdk/R8/JNI, Rust handoff/head-tail,
+complete affected-song playback, Telegram and physical-network acceptance are
+**not tested**. APK/backend/UI unchanged; no new APK supplied as a fix. All prior
+provider probes remain sealed. RAM not remeasured. Existing tracked pyc deletion
+left untouched. Diagnostic reproduce commands and next gates in prototype README.
+Added offline fixture step to existing browser CI; result pending at commit time.
+
+### Test-only Android WebView experiment prepared
+
+Rebuilt fixture from locked source modules using pinned esbuild0.28.0 (build-time
+only), targetChrome70; preserved upstream MIT/ISC/Apache/BSD notices including
+protobuf-es v2.17.0 root Apache license absent from its npm tarball. Local desktop
+Chromium passes both upstream and rebuilt bundle. New separate offline workflow
+copies prototype Kotlin test/generated assets into ignored androidTest locations
+and runs one API29 actual WebView check. Network blocked/intercepted, no native
+JS bridge, no provider requests, no release APK produced by that workflow.
+Android result **pending**, not a success claim. Main Android sources/deps/assets
+remain unchanged. YAML/shell/diff checks pass. Previous local regressions:
+107Node/142Python PASS. Source/decode/full song/phone/Telegram/RAM still unproven.
+
+### First Android WebView experiment failed — not a provider test
+
+Run44135768425/sourcea6d16b8/job134224757444 compiled and ran the isolated
+instrumentation test, which **failed**. Annotation emitted FAIL but omitted the
+XML failure text (it read only the message attribute; Android JUnit used text).
+Action log download blocked by environment EOF, so do not guess an Android or
+library diagnosis from the truncated build tail. Improved offline-only failure
+annotation plus WebView-version/console/fixture diagnostics; one revised offline
+run is justified to expose the actual compatibility/assertion failure. No provider
+call or APK source change. Linux44135768370 all6jobs PASS including new39fixtures
+and desktop browser; not Android acceptance. Desktop rebuilt fixture remains PASS.
+
+### Actual Android failure exposed
+
+Run44136717635/source52e77d5/job134228133503 returned JUnit assertion:
+`No network/navigation or unexpected asset request expected:<0> but was:<1>`.
+Earlier assertions (actual browser parser/AAC result, explicit not-playback flags,
+login/ID/cipher rejection) passed before that assertion; overall test still FAIL.
+No evidence of a provider request: all unlisted requests blocked. Added an explicit
+empty **same-origin /favicon.ico** fixture response for WebView's possible implicit
+icon request, while retaining strict rejection/assertion for ALL other requests.
+Also added first-unexpected host/path (no query/body) diagnostic, so any remaining
+failure is identified rather than weakening the network gate. An offline rerun
+will determine whether the implicit icon accounts for the single request; do not
+call this a source fix or assert the hypothesis before that evidence.
+
+### Final permissive offline evaluation result (source7f730d8)
+
+**Android44137583809/job134231278450 SUCCESS:** one actual API29 WebView fixture
+PASS (`pinnedMitLibraryParsesOfflineInActualAndroidWebView`). Defining the empty
+same-origin favicon fixture resolved the single unexpected-resource assertion;
+all other requests still rejected, network blocked, native JS bridge absent,
+console errors0. Supports basic real-Android direct-AAC parsing and denial/ID/
+cipher selection behavior, not provider/Media3 playback. Safe actual check
+annotation saved docs/research/permissive-android-webview-annotations.json.
+Linux44137583882 **all6jobs SUCCESS**, including candidate39offline tests and
+packaged+source-rebuilt desktop Chromium checks. Local fresh npm-ci/install-scripts
+OFF,39tests/build PASS;107Node/142Python previously PASS on this isolated change.
+
+Updated prototype README and result JSON with actual proof, including separate
+source-rebuilt SHA25645e5d7a834bfbdced099876aeab9473ccf0839494570e3e9cabb0d8f05ebc5b6.
+QA3/5 for this **offline candidate/component**, not fixed-song acceptance. No GPL
+linking, root license change, external helper, provider request or new production
+APK. Android minSdk26/current-phone/R8/JNI/native transport/sandboxed decipher,
+Rust head-tail handoff/Telegram and complete affected-song playback remain open.
+The browser prototype is **not yet an approved/validated production replacement**.
+No memory/service remeasurement. Physical playback is still failing build13;
+retain its evidence and don't send it as working. No user install requested.
+
+## User requests installable candidate, not research-only delivery
+
+User: "i need always a fixed app if u didnt give me how can i check it".
+Acknowledged practical need to provide an installable meaningful-change APK while
+not promising fixed before physical acceptance. Build14 actual production patch:
+Media3 default one researched VISIONOS1.02 public-client profile (MIT protocol
+reference), no staleANDROID/IOS/TV rotation; matching UA through media/archive,
+strict exact ID/direct AAC and length/signing/restriction filtering. No full MIT
+extractor library/runtime integration claim; no GPL dependency or root license
+change. Head/tail preflight and Media3 retained. Terminal challenge guard also
+stops legacy fallback on explicit challenges. Metadata2MiB cap/12s and no automatic
+redirects, safe candidate errors; archive/selftest same default policy. Existing
+non-Media3 defaults/main Linux unchanged. All live allowances remain sealed;
+no public provider test in this turn and no challenge retry from CI.
+
+Local108Node/142Python PASS; new Rust local-HTTP request/parser/metadata-limit/
+redirect/redaction/policy tests added, compilation/build outcome pending. ARM64
+standalone candidate14/1.3.6-preview, same package/port. No user install/uninstall
+claimed. Cannot list GitHub Actions secrets (integration permission403); no
+credential request and no claim of stable release-signing verification. Existing
+tracked pyc deletion preserved. Build manifest docs/BUILD14_SOURCE_CANDIDATE.md.
+Will supply actual build link only after success; phone/song still unverified.
+
+Build14 packaging follow-up: include upstream MIT profile-reference notice/license
+as APK assets, without relicensing the app or including the full JS library. This
+packaging-only follow-up supersedes the first in-flight build; no provider test
+was started. Final APK source receipt/artifact must identify the final revision.
+
+### Build14 delivered — actual artifact, source2928821
+
+Android44141628349 **SUCCESS both jobs** release134245832199 and emulator
+134245832747. Rust host checks (including new actual local-HTTP source/policy
+regressions) PASS, ARM64 native/release/R8 build and size gate PASS. Five real
+Media3 tests PASS again: past2s/pause/resume/end, pre-ready pause,600s@4x complete,
+10s source gap, rejected403 honest error. Safe annotations saved
+`docs/research/build14-media3-emulator-result.json`. These fixtures deliberately
+exclude production JNI/provider; not affected-song or physical audibility proof.
+Linux44141628223 **SUCCESS all6jobs**. Local108Node/142Python PASS. Earlier
+44141466585 canceled/superseded for MIT notice packaging, not a source-test failure.
+
+Download https://github.com/AfzalAshraf/ayshamusic/actions/runs/44141628349/artifacts/14354662898
+Artifact `ayshamusic-android-audio-arm64`, ZIP4,972,583bytes,
+SHA256e1213a3743f83d0185011c9fdfe8719892f25cae367d32e301f04ccda96c4170,
+metadata source2928821b3fff5a96a42e6be44390bd2500b15c6a verified. No local APK
+byte inspection, stable signing or physical install claim. Emulator report artifact
+14354658218,23,026bytes, SHA256a22849a458e9d688a9653d498063de708eaa7333e6dfc01d8744e1ac33a5c915.
+
+Actual delivery now includes an installable meaningful source-change candidate,
+not another synthetic-only report or unchanged13. Label Aysha Android Audio14,
+1.3.6-preview/code14, Android8+/ARM64, same package/port. User can test exact
+Suno Aisha/SonyMusicIndiaVEVO once, confirm receipt2928821 and audible full-song
+progress. Any sign-in/challenge/source denial remains terminal; do not request
+credentials, retries or blind uninstall. If update conflicts, preserve existing
+settings/session and arrange a separate install path rather than deleting them.
+
+QA3/5 candidate/offline pipeline; actual song/provider/phone remains OPEN. No
+new live provider request, helper runtime, GPL integration or app relicensing.
+No Telegram/background/current RAM/service remeasurement. Docs manifest and
+current APK entry point updated; unrelated pyc deletion untouched.
+
+## Build15 Mix/responsiveness candidate (2026-11-07)
+
+- User confirms build14/source2928821 physical playback and advancing for screenshot songs. Preserve acquisition; exact Suno Aisha/full-song/background/archive remain unproven.
+- Implemented actual anonymous RD seed mix metadata queue; provider order/current+recent/title-variant exclusion; metadata warmup only. Removed generic preference-search Next. Local search429 replaced by bounded single-flight/cache; Next isolated. Independent Kotlin ready-event executor fixes code-level control/event circular wait risk. Telegram-first lookup capped4s. Native natural-end supervisor added with ticket checks; physical background acceptance pending.
+- UI: Telegram configuration vs authorization and app-indexed saved/pending/failed/cooldown visible in Settings, no channel required; removed engine/build labels; launcher Aysha Music; nonoverlapping1s visible polling (was400ms).
+- Local113Node/142PythonPASS; responsive Chromium suitePASS incl7sizes/nativeSettings/iframe. No new live source probes. Rust/ARM64/APK/emulator CI pending. Performance mechanisms identified in code, not a measured phone latency/RAM improvement.
+- Manifest/acceptance/risks: docs/BUILD15_MIX_UPGRADE.md. No hosted helper/GPL runtime/dependency added; same package/session. Do not uninstall on signing conflict.
+
+### Build15 delivered artifact and final checks
+
+Source **2d8bf5ab001d44f153aaecb86dbec3cccce73381**. Android44149184745 **SUCCESS** both jobs release134272532279/emulator134272531721; Rust host checks, ARM64/R8, APK size and Android contractsPASS.5Media3 fixturesPASS including600s@4x/10s gap; saved safe annotations docs/research/build15-media3-emulator-result.json. Linux44149184711 **SUCCESS all6jobs**. Local113Node/142PythonPASS, full responsive browser+generated static-preview suitesPASS.390pxSettings screenshot inspected (no overflow/build labels; API-only distinct from signed-in).
+
+**Download:** https://github.com/AfzalAshraf/ayshamusic/actions/runs/44149184745/artifacts/14357224361
+ZIP4,981,010B, SHA256493c301a6f80f03a4087254cc4b64a967b60a3ded29b2a07cb99135af253b2d3 (artifact metadata, NOT innerAPK). Local `gh run download` reached disallowed blob-storage redirect/EOF; no bytes obtained or local signature inspection claimed. Link remains hosted on GitHub/14day retention. No workaround/alternate upload attempted. Preview signing continuity unverified; never blind uninstall. Actual Mix/Next speed/natural-end screen-off/archive-upload/RAM acceptance pending physical phone. No new live provider probes. Workflow action deprecation warnings remain; no failed jobs for final source. Manifest docs/BUILD15_MIX_UPGRADE.md; launcherAyshaMusic/code15/1.4.0-preview/samepackage17652.
+
+## Build16 — sync dashboard, cancellation, themes and seeking delivered
+
+User reports build15 “Works nice” and fast. New reference images request crimson/charcoal TelegramCloud cards, Manage pill, real stats, upload queue/rings/X, removal of HomeTest and draggable seeking. User explicitly selected **cancel_save** (do not delete already-saved messages).
+
+Source **d84ea2369a500780e816576f72b3608ecaa0093a**: telemetry uses actual download-written bytes/uploader-read bytes (not server ack); server-confirmed message required for Saved. UI details disclose semantics, unknown totals get no invented percent. Queue exposes100public-metadata rows max/no paths/captions/secrets. Cancellation persists and cancels active future viaNotify; select biased, final-send boundary serialized, lateworkererror/done cannot revive cancellation, partial removed. Finalizing messages cannot be cancelled/recalled. Future selected playback can enqueue again; skips still save by default. Existing saves no longer consume newupload quota.18/hour/12sgap/oneworker/5spoll/FloodWait retained and shown; no unapproved quota weakening.
+
+NativeMedia3seek validates currentID/duration/finitebounds/state; command token+revision, preservespause, realseekTo. Mini/full accessible draggable/keyboard controls share state; no secondPlay. Browserseek uses existing audio; Rust-onlynative explicitly unsupported. HomeTest removed. Crimson/Charcoalallowlistedlocaltheme; read-onlyrestoration; no newdependencies/profilechanges. Settings-onlyvisible2stelemetry; staticpreview disablespolling.
+
+**Checks:** local119Node/142PythonPASS. Dedicated browserdashboard/cancel/themes320/390/844/native seek-requestPASS; fullresponsive7sizes+nativeSettings6fixtures+iframePASS on rerun; staticpreview390/1440PASS. Initialdesktopbutterflycount0-after400ms test transiently failed (animationcodeunchanged), root timing cause not proven; unchanged test rerun/finalCI PASS, no assertion weakened.390pxCrimson screenshot inspected. Supersededc64Android44316879710cancelled forsourceupdate, not testfailure.
+
+**Android44317291462 SUCCESS** release134846834928 and emulator134846834444; Rusthost/ARM64/R8/APKsize/contractsPASS. All6Media3testsPASS including seekForwardAndBackwardWhilePausedThenResume,600s@4x,10sgap. Safeannotations docs/research/build16-media3-emulator-result.json. **Linux44317291647 SUCCESS all6jobs**, including new sync-seekbrowserworkflowstep.
+
+**APKZIP:** https://github.com/AfzalAshraf/ayshamusic/actions/runs/44317291462/artifacts/14432927990
+4,995,978B / ZIPdigest398b8e84dde0c8f7654086af4f04ac472132c9af3ba3bbe2ed001f047af08dd9. Artifactmetadata not innerAPKhash/signature inspection; no repeated disallowed blobdownload attempt. Emulatorreportartifact14433282386/24,589B/digest6e7604608fa385053e6315bc97de077d166929ad7cb96566e89c449765e26c4b. Versioncode16/1.5.0-preview/samepackage17652/launcherAyshaMusic. No blind uninstall. Manifest docs/BUILD16_SYNC_SEEK.md. PhysicalrealTelegramupload/cancel/seek/background/RAM/battery still need acceptance; no new liveproviderprobe and all prior allowances remainsealed. Actiondeprecationwarnings inherited, no failed finaljob. User-reportedfastbuild15 is baseline evidence, not a measured newthroughput claim.
+
+## Main reconciliation for icon picker/update work
+
+Merged origin/main8c49188 into the Arena branch. Kept the newer version20,
+provider-offline Android verification and current source policy. Old main's
+Invidious/IP-substitution fallback and its old public-publishing/debug-signing
+workflow were not reintroduced: they conflict with the approved standalone,
+no-helper and stop-on-challenge constraints. Historical claims remain in that
+commit's history, not as new validation of this build. New publishing is gated
+on stable signing configuration and successful release checks.

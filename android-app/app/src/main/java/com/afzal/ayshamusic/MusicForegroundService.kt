@@ -25,7 +25,7 @@ import androidx.media.app.NotificationCompat.MediaStyle
 /**
  * Foreground media service.
  *
- * Responsibilities (no playback itself - Rust/rodio owns the audio):
+ * Responsibilities (selected Rust or Media3 engine owns audio):
  *  - foregroundServiceType="mediaPlayback" notification
  *  - partial WakeLock while playing
  *  - AudioManager focus + ACTION_AUDIO_BECOMING_NOISY (pause on headphone unplug)
@@ -79,6 +79,7 @@ class MusicForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        RustBridge.startServer(this)
         createChannels()
         setupMediaSession()
         registerReceiver(
@@ -121,10 +122,9 @@ class MusicForegroundService : Service() {
 
     private fun play() {
         acquireWakeLock()
-        requestAudioFocus()
+        if (BuildConfig.AUDIO_ENGINE == "rust") requestAudioFocus()
         playing = true
         MediaApi.post("/api/resume")
-        MediaApi.post("/api/play")
         startForeground(NOTIFICATION_ID, buildNotification())
         updateState(true)
     }

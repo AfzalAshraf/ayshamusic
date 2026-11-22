@@ -105,6 +105,126 @@ async function checkInteractiveSandbox(context) {
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 }
 
+// Actual local HTTP servers: reproduce WebView/Chromium's blocked SIP port,
+// then navigate the retained Media3 port. No provider or external server involved.
+async function checkStandalonePorts(context) {
+  const http = require('node:http');
+  const servers = [];
+  let page;
+  try {
+    const gradle = fs.readFileSync(path.join(root,'android-app/app/build.gradle.kts'),'utf8');
+    const ports = [...gradle.matchAll(/"API_PORT", "(\d+)"/g)].map(match => Number(match[1]));
+    assert.deepEqual(ports,[17652]);
+    assert.ok(ports.every(port => port !== 5061 && port !== 5060));
+    for (const port of [5061, ...ports]) {
+      page = await context.newPage();
+      let hits = 0;
+      const server = http.createServer((request, response) => {
+        hits++;
+        response.writeHead(200, {'Content-Type':'text/html'});
+        response.end('<h1>Standalone on-phone backend</h1>');
+      });
+      servers.push(server);
+      await new Promise((resolve,reject) => {server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+      if (port === 5061) {
+        await assert.rejects(page.goto(`http://127.0.0.1:${port}/`), /ERR_UNSAFE_PORT/);
+        assert.equal(hits,0,'Browser blocks5061 before contacting a healthy local server');
+      } else {
+        const response = await page.goto(`http://127.0.0.1:${port}/`);
+        assert.equal(response.status(),200);
+        assert.equal(await page.locator('h1').textContent(),'Standalone on-phone backend');
+        assert.ok(hits>0);
+      }
+      await page.close();
+    }
+    console.log('PASS real loopback navigation: old5061 ERR_UNSAFE_PORT, retained Media3 port17652 accessible');
+  } finally {
+    if (page && !page.isClosed()) await page.close();
+    for (const server of servers) {server.closeAllConnections();await new Promise(resolve => server.close(resolve));}
+  }
+}
+
+// Native-UI fixture only: no Android playback or real account is simulated.
+async function checkNativeSettings(context) {
+  for (const engine of ['rust', 'media3']) {
+    const page = await context.newPage();
+    const errors = [];
+    let configuredId = null;
+    page.on('pageerror', e => errors.push(e.message));
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/') return route.fulfill({contentType:'text/html',body:html.replace('nativePlayback: false', 'nativePlayback: true')});
+      if (url.pathname === '/icons.svg') return route.fulfill({contentType:'image/svg+xml',body:icons});
+      let data = {status:'ok'};
+      if (url.pathname === '/api/status') data = {native_playback:true,audio_engine:engine,build_id:'abcdef0'.padEnd(40, '1')};
+      else if (url.pathname === '/api/player') data = {state:'idle',video_id:null,position_secs:0,error:null};
+      else if (url.pathname === '/api/tg/status') data = {configured:configuredId!==null,authorized:false,quota:{queued_tracks:0},failed_tracks:0};
+      else if (url.pathname === '/api/tg/configure') {
+        const body = route.request().postDataJSON();
+        assert.equal(body.api_hash,'a'.repeat(32));configuredId=body.api_id;
+        data = {status:'ok',configured:true,saved:true,api_id:configuredId};
+      }
+      else if (url.pathname === '/api/tg/configuration') data = {configured:configuredId!==null,saved:configuredId!==null,api_id:configuredId};
+      else if (url.pathname === '/api/search' || url.pathname === '/api/liked' || url.pathname === '/api/queue') data = [];
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
+    });
+    for (const viewport of [{width:320,height:740},{width:390,height:844},{width:844,height:390}]) {
+      configuredId = null;
+      await page.setViewportSize(viewport);
+      await page.goto('about:blank');
+      await page.goto('https://native-settings.test/#bluetooth');
+      await page.locator('.love-skip').click();
+      await page.locator('#love-intro').waitFor({state:'hidden'});
+      await page.locator('#tab-settings.active').waitFor();
+      await page.locator('#android-output-note').waitFor({state:'visible'});
+      assert.equal(await page.locator('#settings-build-receipt, #native-build-receipt').count(),0);
+      await page.waitForFunction(() => document.getElementById('telegram-settings-status').textContent.includes('first-time API setup'));
+      assert.ok(await page.locator('#linux-speaker-settings').isHidden());
+      assert.ok(await page.locator('#android-output-note').isVisible());
+      const add = page.getByRole('button',{name:'Add Telegram account',exact:true});
+      assert.ok(await add.isVisible());
+      const target = await add.boundingBox();
+      assert.ok(target.width >= 44 && target.height >= 44);
+      await add.click();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      await page.waitForFunction(() => document.getElementById('telegram-status').textContent.includes('first-time API setup'));
+      assert.match(await page.locator('#telegram-status').textContent(),/first-time API setup/);
+      assert.ok(await page.locator('#telegram-account').evaluate(el => el.scrollWidth <= el.clientWidth));
+      await page.locator('#telegram-account details').first().locator('summary').click();
+      await page.locator('#tg-api-hash').fill('test-only-not-a-secret');
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.goForward();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.locator('#tg-api-id').fill('12345');
+      await page.locator('#tg-api-hash').fill('a'.repeat(32));
+      await page.locator('#tg-api-save').click();
+      await page.waitForFunction(() => document.getElementById('telegram-api-save-status').textContent.includes('saved on this device'));
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      assert.match(await page.locator('#telegram-api-save-status').textContent(),/12345.*hidden/);
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      await add.click();
+      await page.locator('#telegram-account').waitFor({state:'visible'});
+      await page.waitForFunction(() => document.getElementById('telegram-api-save-status').textContent.includes('saved on this device'));
+      assert.match(await page.locator('#tg-api-hash').getAttribute('placeholder'),/Saved in app-private/);
+      assert.equal(await page.locator('#tg-api-hash').inputValue(),'');
+      await page.keyboard.press('Escape');
+      await page.locator('#telegram-account').waitFor({state:'hidden'});
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      if (viewport.width === 390 && engine === 'media3' && process.env.UI_SCREENSHOT_DIR) {
+        fs.mkdirSync(process.env.UI_SCREENSHOT_DIR,{recursive:true});
+        await page.screenshot({path:path.join(process.env.UI_SCREENSHOT_DIR,'mobile-native-settings.png')});
+      }
+      console.log(`PASS native Settings fixture ${engine} ${viewport.width}x${viewport.height}: visible account setup, Back/Forward and cleared secrets`);
+    }
+    assert.deepEqual(errors,[]);
+    await page.close();
+  }
+}
+
 let activeViewport = 'startup';
 (async () => {
   const { default: binary } = await import(pathToFileURL(path.join(modules, '@sparticuz/chromium/build/index.js')).href);
@@ -117,6 +237,9 @@ let activeViewport = 'startup';
       HTMLMediaElement.prototype.play = function() { window.mediaPlayAttempts++; return Promise.resolve(); };
       HTMLMediaElement.prototype.pause = function() {};
     });
+    await checkStandalonePorts(context);
+    await checkNativeSettings(context);
+    if (process.env.NATIVE_SETTINGS_ONLY === '1') return;
     await checkInteractiveSandbox(context);
     const page = await context.newPage();
     for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 412, height: 915 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
@@ -170,13 +293,15 @@ let activeViewport = 'startup';
       assert.ok(skipBox.width >= 44 && skipBox.height >= 44 && skipBox.y >= 0 && skipBox.y + skipBox.height <= viewport.height);
       assert.ok(await page.evaluate(async () => (await document.fonts.load('18px "Delius"', 'AYSHA')).length === 1), 'Cute font loads locally inside the HTML');
       // Touch produces one burst (not pointerup + synthetic-click duplicates), even in a native modal.
-      await page.locator('#love-intro-title').tap();
-      {
-        // Sample the short-lived burst in one round trip, without font-loading
-        // or many protocol calls consuming its animation lifetime.
-        const burst = await page.evaluate(async () => {
+      // Capture in the real tap's event turn and sample the actual CSS animation
+      // timeline deterministically. Host CPU/protocol delays must not consume a
+      // 2.2s particle lifetime or change a nominal 400ms displacement sample.
+      await page.evaluate(() => {
+        document.addEventListener('click', () => {
           const host = document.getElementById('heart-effects-intro');
           const first = host.querySelector('.is-butterfly');
+          const animations = host.getAnimations({subtree:true});
+          for (const animation of animations) { animation.pause(); animation.currentTime = 0; }
           const sample = { count:host.querySelectorAll('.heart-burst').length,
             letters:[...host.querySelectorAll('.love-letter-glyph')].map(el => el.textContent),
             hearts:host.querySelectorAll('.love-letter-heart use').length,
@@ -186,14 +311,17 @@ let activeViewport = 'startup';
             flight:getComputedStyle(first).animationName,
             flutter:getComputedStyle(first.querySelector('.butterfly-morph svg')).animationName,
             y:first.getBoundingClientRect().y };
-          // Touch release must not cancel flights. Keep measurement in the page
-          // so protocol latency does not consume the short animation lifetime.
           document.dispatchEvent(new PointerEvent('pointerout', { pointerType: 'touch', relatedTarget: null }));
-          await new Promise(resolve => setTimeout(resolve, 400));
+          for (const animation of animations) animation.currentTime = 400;
           sample.afterCount = host.querySelectorAll('.heart-burst').length;
           sample.afterY = first.getBoundingClientRect().y;
-          return sample;
-        });
+          window.__heartTouchSample = sample;
+          for (const animation of animations) animation.play();
+        }, {once:true});
+      });
+      await page.locator('#love-intro-title').tap();
+      {
+        const burst = await page.evaluate(() => window.__heartTouchSample);
         assert.equal(burst.count, 12);
         assert.deepEqual(burst.letters, ['A','Y','S','H','A']);
         assert.equal(burst.hearts, 5);
@@ -246,7 +374,7 @@ let activeViewport = 'startup';
         await page.screenshot({ path: path.join(process.env.UI_SCREENSHOT_DIR, 'mobile-home.png') });
       }
       // The fifth navigation item remains touchable on narrow phones.
-      for (const name of ['Home', 'Explore', 'Library', 'Quotes', 'Bluetooth']) {
+      for (const name of ['Home', 'Explore', 'Library', 'Quotes', 'Settings']) {
         const box = await page.getByRole('button', { name, exact: true }).boundingBox();
         assert.ok(box && box.width >= 44 && box.height >= 44, `${name} target at ${viewport.width}`);
         assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `${name} stays within viewport`);
@@ -293,7 +421,7 @@ let activeViewport = 'startup';
       await page.goBack();
       await page.getByRole('button', { name: 'Explore', exact: true }).click();
       await page.locator('#explore-cards .song-card').first().waitFor();
-      assert.equal(await page.locator('#explore-title').textContent(), 'Jazz');
+      assert.equal(await page.locator('#explore-title').textContent(), 'Romantic melody');
       await page.getByRole('button', { name: 'Malayalam', exact: true }).click();
       await page.locator('#explore-cards .song-card').first().waitFor();
       assert.equal(await page.locator('#explore-title').textContent(), 'Malayalam');
@@ -326,14 +454,14 @@ let activeViewport = 'startup';
         await page.waitForFunction(() => document.getElementById('hero-play-label').textContent === 'Pause');
         assert.equal(playRegistrations.length, 2, 'Hero Play must restart the stopped selection');
         await page.locator('#open-player').click();
-        await page.locator('.now-footer button').click();
+        await page.locator('#now-playing [aria-label="Stop playback"]').click();
         await page.locator('#full-play-toggle').click();
         await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Pause');
         assert.equal(playRegistrations.length, 3, 'Expanded Play must also restart after Stop');
         await page.waitForFunction(() => (document.getElementById('audio-player').getAttribute('src') || '').includes('sample1'));
         assert.match(await page.locator('#audio-player').getAttribute('src'), /sample1/);
         // Stop clears the server track, then reload must recover from tab storage.
-        await page.locator('.now-footer button').click();
+        await page.locator('#now-playing [aria-label="Stop playback"]').click();
         await page.waitForFunction(() => document.getElementById('full-play-toggle').getAttribute('aria-label') === 'Play');
         await page.reload();
         await page.locator('.love-skip').click();
