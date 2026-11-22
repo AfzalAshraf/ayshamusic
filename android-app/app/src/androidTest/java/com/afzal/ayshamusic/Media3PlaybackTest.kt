@@ -132,7 +132,7 @@ class Media3PlaybackTest {
 
     private class FixtureServer(@Volatile var data: ByteArray) : Closeable {
         @Volatile var longTone = false
-        fun mediaSize():Int = if(longTone) InstrumentationRegistry.getInstrumentation().context.assets.openFd("long-tone.m4a").use{it.length.toInt()} else data.size
+        fun mediaSize():Int = if(longTone) InstrumentationRegistry.getInstrumentation().context.assets.open("long-tone.m4a").use{it.available()} else data.size
         val events = ArrayBlockingQueue<JSONObject>(256)
         val mediaRequests = AtomicInteger()
         val mediaBytes = AtomicInteger()
