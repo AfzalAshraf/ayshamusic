@@ -22,9 +22,7 @@ test('Android native capability is embedded before first interaction, not only p
 
 test('Android branch APK build never overwrites the main public release', () => {
   const workflow = read('.github/workflows/android.yml');
-  assert.match(workflow, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main' && vars\.AYSHA_RELEASE_ENABLED == 'true'/);
-  assert.match(workflow, /needs: \[build-apk, media3-emulator-fixture\]/);
-  assert.match(workflow, /AYSHA_SIGNING_CERT_SHA256/);
+  assert.doesNotMatch(workflow, /contents: write|gh release create|AYSHA_RELEASE_ENABLED/);
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /cargo test --lib/);
   assert.match(workflow, /AYSHA_PREVIEW: "1"/);
@@ -37,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 21/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 22/);
 });
 
 
@@ -194,23 +192,15 @@ test('shared links are ID-only and handed to the verified local page, not loaded
   assert.match(read('android-app/app/build.gradle.kts'),/Production release requires your release keystore/);
 });
 
-test('native icon picker and gated updater keep critical safety boundaries', () => {
+test('native icon picker remains while automatic updater is removed', () => {
   const manifest = read('android-app/app/src/main/AndroidManifest.xml');
   for (const name of ['Rose','Classic','Velvet','Cute','Red','Ivory','Butterflies','Embossed']) {
     assert.match(manifest, new RegExp('android:name="\\.Launcher'+name+'"'));
   }
   assert.equal((manifest.match(/android:enabled="true" android:exported="true" android:icon="@mipmap\/ic_/g)||[]).length, 1);
-  assert.match(manifest, /android:authorities="\$\{applicationId\}\.updates" android:exported="false"/);
-  const policy=read('android-app/app/src/main/java/com/afzal/ayshamusic/UpdatePolicy.kt');
-  assert.match(policy, /incoming==installed/);
-  assert.match(policy, /archive\.packageName==context\.packageName/);
-  assert.match(policy, /release\.code>version\(current\)/);
-  assert.match(policy, /release-assets\.githubusercontent\.com/);
+  assert.doesNotMatch(manifest, /REQUEST_INSTALL_PACKAGES|FileProvider/);
   const activity=read('android-app/app/src/main/java/com/afzal/ayshamusic/MainActivity.kt');
   assert.match(activity, /request\.isForMainFrame && trustedSettingsPage/);
-  const updater=read('android-app/app/src/main/java/com/afzal/ayshamusic/AppUpdater.kt');
-  assert.match(updater, /!cm\.isActiveNetworkMetered/);
-  assert.match(updater, /TRANSPORT_WIFI/);
-  assert.match(updater, /ACTION_MANAGE_UNKNOWN_APP_SOURCES/);
-  assert.doesNotMatch(updater, /ACTION_DELETE|deletePackage|clearApplicationUserData/);
+  assert.doesNotMatch(activity, /AppUpdater|install-update|check-update/);
+  assert.doesNotMatch(read('src/index.html'), /app-update-heading|check-update|auto-app-update/);
 });

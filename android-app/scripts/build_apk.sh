@@ -14,8 +14,8 @@
 #   SKIP_RUST=1        reuse an existing jniLibs .so
 #
 # Signing (optional): KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS,
-# KEY_PASSWORD. Without them the release APK is debug-signed (see
-# app/build.gradle.kts), which is fine for local size/behaviour checks.
+# KEY_PASSWORD. Without them production builds fail; set AYSHA_PREVIEW=1
+# explicitly for a debug-signed test APK, which may not update an installed app.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

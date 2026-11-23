@@ -93,27 +93,6 @@ jobs:
           path: ${{ runner.temp }}/emulator-media/*.m4a
           retention-days: 3
 
-      - name: Configure gated production signing
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
-        env:
-          KEYSTORE_B64: ${{ secrets.AYSHA_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.AYSHA_KEYSTORE_PASSWORD }}
-          ALIAS: ${{ secrets.AYSHA_KEY_ALIAS }}
-          KEY_PASSWORD_VALUE: ${{ secrets.AYSHA_KEY_PASSWORD }}
-          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          test -n "$KEYSTORE_B64" && test -n "$STORE_PASSWORD" && test -n "$ALIAS" && test -n "$KEY_PASSWORD_VALUE"
-          [[ "$EXPECTED_CERT" =~ ^[a-fA-F0-9]{64}$ ]]
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          chmod 600 "$RUNNER_TEMP/release.jks"
-          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-          echo "KEYSTORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=$KEY_PASSWORD_VALUE" >> "$GITHUB_ENV"
-          echo "AYSHA_PREVIEW=0" >> "$GITHUB_ENV"
-          echo "AYSHA_VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
-
       - name: Build Rust library + release APK
         run: |
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
@@ -124,19 +103,6 @@ jobs:
           for variant in androidAudio; do
             bash android-app/scripts/measure_apk_size.sh android-app/app/build/outputs/apk/$variant/release/*.apk
           done
-
-      - name: Validate production signing identity
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
-        env:
-          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          APK=$(find android-app/app/build/outputs/apk/androidAudio/release -name '*.apk' -print -quit)
-          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/cert.txt"
-          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/cert.txt" | tr '[:upper:]' '[:lower:]')
-          expected=$(printf '%s' "$EXPECTED_CERT" | tr '[:upper:]' '[:lower:]')
-          test "$actual" = "$expected"
-          test "$(grep -c '^Signer #[0-9]* certificate SHA-256 digest:' "$RUNNER_TEMP/cert.txt")" = 1
 
       - name: Upload Android Audio APK
         uses: actions/upload-artifact@v4
@@ -207,40 +173,3 @@ jobs:
             android-app/app/build/outputs/androidTest-results/
             android-app/app/build/reports/androidTests/
           if-no-files-found: warn
-
-  publish-signed-update:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AYSHA_RELEASE_ENABLED == 'true'
-    needs: [build-apk, media3-emulator-fixture]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    concurrency:
-      group: aysha-production-publish
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: ayshamusic-android-audio-arm64
-          path: release-apk
-      - name: Publish only current main, with pinned signer and immutable version
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_CERT: ${{ vars.AYSHA_SIGNING_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          test "$(git rev-parse origin/main)" = "$GITHUB_SHA" || { echo 'Main moved; refusing stale release'; exit 1; }
-          code=$((1000 + GITHUB_RUN_NUMBER))
-          mkdir -p publish
-          cp release-apk/*.apk publish/AyshaMusic-arm64.apk
-          APK_SIZE=$(stat -c%s publish/AyshaMusic-arm64.apk)
-          APK_SHA=$(sha256sum publish/AyshaMusic-arm64.apk | cut -d' ' -f1)
-          export APK_SIZE APK_SHA code EXPECTED_CERT
-          python3 - <<'PYJSON'
-          import json,os
-          code=int(os.environ['code'])
-          data={'schema':1,'package_id':'com.afzal.ayshamusic.androidaudio10','version_code':code,'version_name':f'1.9.0.{code}','abi':'arm64-v8a','min_sdk':26,'size':int(os.environ['APK_SIZE']),'sha256':os.environ['APK_SHA'],'certificate_sha256':os.environ['EXPECTED_CERT'].lower(),'url':f'https://github.com/AfzalAshraf/ayshamusic/releases/download/android-v{code}/AyshaMusic-arm64.apk'}
-          with open('publish/update.json','w') as f: json.dump(data,f,indent=2)
-          PYJSON
-          gh release create "android-v$code" publish/AyshaMusic-arm64.apk publish/update.json --target "$GITHUB_SHA" --title "Aysha Music 1.9.0.$code" --notes "Signed ARM64 Android update for commit $GITHUB_SHA. Android requires your confirmation to install." --latest

@@ -18,15 +18,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 21
-        versionName = "1.9.0"
-        System.getenv("AYSHA_VERSION_CODE")?.let { value ->
-            val code=value.toInt()
-            require(code in 21..2_100_000_000)
-            versionCode=code
-            versionName="1.9.0.$code"
-        }
-
+        versionCode = 22
+        versionName = "2.0.0"
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
             abiFilters += if (emulatorTests) "x86_64" else "arm64-v8a"
