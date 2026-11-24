@@ -147,9 +147,7 @@ jobs:
           arch: x86_64
           target: default
           disable-animations: true
-          script: |
-            cd android-app
-            bash -o pipefail -c './gradlew --no-daemon -PayshaEmulatorTests=true connectedAndroidAudioDebugAndroidTest 2>&1 | tee "$RUNNER_TEMP/aysha-emulator-gradle.log"'
+          script: cd android-app && bash -o pipefail -c './gradlew --no-daemon -PayshaEmulatorTests=true connectedAndroidAudioDebugAndroidTest 2>&1 | tee "$RUNNER_TEMP/aysha-emulator-gradle.log"'
       - name: Annotate emulator startup failures
         if: failure()
         run: |
