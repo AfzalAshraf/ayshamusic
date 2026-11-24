@@ -10,6 +10,7 @@ mod android_catalog;
 mod recommendations;
 mod mix;
 mod play_modes;
+mod color_theme;
 mod listening;
 mod range_media;
 mod pcm_stream;
@@ -1244,6 +1245,21 @@ mod api_tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = json_body(response).await;
         assert_eq!(body["error"], "invalid_video_id");
+    }
+
+    #[tokio::test]
+    async fn rust_theme_api_validates_and_roundtrips() {
+        let app=router(Arc::new(None));
+        let req=axum::http::Request::builder().uri("/api/color_theme").body(Body::empty()).unwrap();
+        assert_eq!(app.clone().oneshot(req).await.unwrap().status(), StatusCode::OK);
+        let response=app.clone().oneshot(post("/api/color_theme",r#"{"theme":"aurora"}"#)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let request=axum::http::Request::builder().uri("/api/color_theme").body(Body::empty()).unwrap();
+        let bytes=axum::body::to_bytes(app.clone().oneshot(request).await.unwrap().into_body(),1024).await.unwrap();
+        assert_eq!(serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()["theme"],"aurora");
+        for bad in [r#"{"theme":"invalid"}"#,r#"{"theme":"crimson","unexpected":true}"#] {
+            assert_eq!(app.clone().oneshot(post("/api/color_theme",bad)).await.unwrap().status(),StatusCode::UNPROCESSABLE_ENTITY);
+        }
     }
 
     #[tokio::test]

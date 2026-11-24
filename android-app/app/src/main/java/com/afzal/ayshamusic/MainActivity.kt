@@ -142,10 +142,7 @@ class MainActivity : AppCompatActivity() {
                     localPageReady = uri.scheme == "http" && uri.host == "127.0.0.1" && uri.port == BuildConfig.API_PORT && uri.path == "/" && MediaApi.isBackendVerified()
                     if (localPageReady) {
                         deliverShare()
-                        AppUpdater.initialize(applicationContext)
-                        AppUpdater.listener={if (!destroyed) publishAppSettings()}
                         publishAppSettings()
-                        AppUpdater.automatic()
                     }
                 }
 
@@ -256,20 +253,14 @@ class MainActivity : AppCompatActivity() {
     private fun publishAppSettings() {
         val view=webView ?: return
         if(!trustedSettingsPage(view))return
-        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("updates",AppUpdater.state())
+        val value=org.json.JSONObject().put("icon",AppIcons.title(this))
         view.evaluateJavascript("if(window.renderNativeAppSettings)renderNativeAppSettings("+value.toString()+")",null)
     }
 
     private fun handleAppAction(path:String) {
         when(path){
             "/icons" -> showIconPicker()
-            "/check-update" -> AppUpdater.check()
-            "/toggle-updates" -> AppUpdater.toggle()
-            "/install-update" -> AppUpdater.install(this)
-            "/download-update" -> {
-                if(AppUpdater.wifi())AppUpdater.download()
-                else android.app.AlertDialog.Builder(this).setTitle("Download update?").setMessage("This connection may use mobile data. Download the verified update now?").setNegativeButton("Cancel",null).setPositiveButton("Download"){_,_->AppUpdater.download()}.show()
-            }
+
         }
     }
 
@@ -294,7 +285,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if(localPageReady){publishAppSettings();AppUpdater.automatic()}
+        if(localPageReady)publishAppSettings()
     }
 
     private fun acceptShare(incoming: Intent?) {
@@ -325,7 +316,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         destroyed = true
-        AppUpdater.listener=null
         // Clean up WebView
         webView?.apply {
             stopLoading()

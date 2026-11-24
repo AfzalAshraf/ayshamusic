@@ -1285,6 +1285,16 @@ test('theme is an allowlisted local preference and restoration alone writes noth
   h.context.setColorTheme('untrusted');assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'crimson');
 });
 
+test('Android palette selections are serialized to Rust without affecting web preferences', async () => {
+  const h=harness();
+  vm.runInContext('state.nativePlayback=true',h.context);
+  h.context.setColorTheme('aurora');h.context.setColorTheme('charcoal');
+  await vm.runInContext('themeWrites',h.context);
+  const writes=h.calls.filter(c=>c.url==='/api/color_theme');
+  assert.deepEqual(writes.map(c=>JSON.parse(c.opts.body).theme),['aurora','charcoal']);
+  assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'charcoal');
+});
+
 test('home contains no playback Test button', () => {
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8'),/id="hero-selftest"|>Test<\/button>/);
 });

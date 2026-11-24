@@ -309,7 +309,6 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button><button id="theme-aurora" class="chip" aria-pressed="false" onclick="setColorTheme('aurora')">Aurora Glass</button></div></article>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <article class="settings-card" aria-labelledby="app-icon-heading"><h3 id="app-icon-heading">Your Aysha icon</h3><p>Pick from Classic Silver, Rose Gold, Velvet, Cute Rose, Racing Red, Ivory, Butterflies, or Embossed Red.</p><p id="app-icon-current">Available in the Android app.</p><button id="choose-app-icon" class="chip" onclick="nativeAppAction('icons')" disabled>Choose app icon</button><small>Your music, Telegram session and settings stay unchanged. Some launchers refresh slowly.</small></article>
-      <article class="settings-card" aria-labelledby="app-update-heading"><h3 id="app-update-heading">App updates</h3><p id="app-update-version">Android handles installation confirmation.</p><p id="app-update-status" role="status">Available in the Android app. Signed release publishing must be configured before automatic updates are available.</p><div class="tg-actions"><button id="check-app-update" class="chip" onclick="nativeAppAction('check-update')" disabled>Check for updates</button><button id="auto-app-update" class="chip" aria-pressed="false" onclick="nativeAppAction('toggle-updates')" disabled>Wi-Fi auto-download</button><button id="download-app-update" class="chip" onclick="nativeAppAction('download-update')" hidden>Download update</button><button id="install-app-update" class="chip" onclick="nativeAppAction('install-update')" hidden>Install update</button></div><small>When Aysha opens, check at most daily and download on unmetered Wi-Fi. Android asks before installation. Different signing key? Keep the installed app—never uninstall or clear data.</small></article>
       <details id="linux-speaker-settings" class="settings-card" ontoggle="if(this.open) loadBluetooth()">
         <summary>Linux speaker controls</summary>
         <div class="bt-card" id="bt-status-card">
@@ -818,34 +817,48 @@ async function cancelTelegramSave(id) {
 }
 let nativeAppSettingsReady=false;
 function nativeAppAction(action) {
-  if (!nativeAppSettingsReady || !['icons','check-update','toggle-updates','download-update','install-update'].includes(action)) return;
-  window.location.href='aysha://app/'+action;
+  if (!nativeAppSettingsReady || action!=='icons') return;
+  window.location.href='aysha://app/icons';
 }
 function renderNativeAppSettings(value) {
-  if (!value || !value.updates || typeof value.icon!=='string') return;
+  if (!value || typeof value.icon!=='string') return;
   nativeAppSettingsReady=true;
-  const update=value.updates;
   document.getElementById('app-icon-current').textContent='Current icon: '+value.icon;
   document.getElementById('choose-app-icon').disabled=false;
-  document.getElementById('app-update-version').textContent='Installed version: '+String(update.version || '');
-  document.getElementById('app-update-status').textContent=String(update.message || '');
-  document.getElementById('check-app-update').disabled=!!update.busy;
-  const auto=document.getElementById('auto-app-update');auto.disabled=false;auto.setAttribute('aria-pressed',String(!!update.auto));auto.textContent='Wi-Fi auto-download: '+(update.auto?'on':'off');
-  const download=document.getElementById('download-app-update');download.hidden=!update.available || !!update.ready;download.disabled=!!update.busy;
-  const install=document.getElementById('install-app-update');install.hidden=!update.ready;install.disabled=!!update.busy;
 }
 
+let themeRevision=0;
+let themeWrites=Promise.resolve();
+function saveNativeTheme(theme) {
+  themeWrites=themeWrites.catch(()=>{}).then(()=>nativeJson('/api/color_theme',{theme})).catch(()=>{});
+}
 function setColorTheme(theme, persist = true) {
   if (!['crimson','charcoal','aurora'].includes(theme)) theme='crimson';
   try { document.documentElement.setAttribute('data-theme',theme); } catch (_) {}
   for (const name of ['crimson','charcoal','aurora']) document.getElementById('theme-'+name).setAttribute('aria-pressed',String(name===theme));
   try { if (persist) localStorage.setItem('aysha.color-theme.v1',theme); } catch (_) {}
+  if (persist && state.nativePlayback) { themeRevision++; saveNativeTheme(theme); }
 }
 function restoreColorTheme() {
   let theme='crimson';try { theme=localStorage.getItem('aysha.color-theme.v1') || theme; } catch (_) {}
   setColorTheme(theme, false);
 }
 restoreColorTheme();
+// On an existing installation preserve the WebView preference on first launch.
+// A choice made while the initial request is in flight always wins.
+if (state.nativePlayback) {
+  const initialRevision=themeRevision;
+  api('GET','/api/color_theme').then(result=>{
+    if(themeRevision!==initialRevision)return;
+    if(result && ['crimson','charcoal','aurora'].includes(result.theme)) {
+      setColorTheme(result.theme,false);
+      try { localStorage.setItem('aysha.color-theme.v1',result.theme); } catch (_) {}
+    } else if(result && result.theme===null) {
+      const current=document.documentElement.getAttribute('data-theme') || 'crimson';
+      saveNativeTheme(current);
+    }
+  }).catch(()=>{});
+}
 let telegramStatusBusy = false;
 async function refreshTelegramSummary() {
   if (telegramStatusBusy) return;
