@@ -11,6 +11,7 @@ mod recommendations;
 mod mix;
 mod play_modes;
 mod color_theme;
+mod shared_link;
 mod listening;
 mod range_media;
 mod pcm_stream;
@@ -1037,6 +1038,19 @@ mod android {
     #[no_mangle]
     pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _reserved: *mut c_void) -> jni::sys::jint {
         jni::sys::JNI_VERSION_1_6
+    }
+
+    /// Parse shared text locally; return only a validated video ID, never a URL.
+    #[no_mangle]
+    pub extern "system" fn Java_com_afzal_ayshamusic_RustBridge_sharedVideoId<'local>(
+        mut env: JNIEnv<'local>, _receiver: JObject<'local>, text: JString<'local>,
+    ) -> jni::sys::jstring {
+        if text.is_null() { return std::ptr::null_mut(); }
+        let input: String = match env.get_string(&text) { Ok(value) => value.into(), Err(_) => return std::ptr::null_mut() };
+        match super::shared_link::video_id(&input).and_then(|id| env.new_string(id).ok()) {
+            Some(id) => id.into_raw(),
+            None => std::ptr::null_mut(),
+        }
     }
 
     /// Kotlin supplies application context plus variant port/engine and process instance ID.

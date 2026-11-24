@@ -8,6 +8,7 @@ Preserve the approved Android-first Aysha design and local Rust/systemd producti
 
 ## Relevant specialist skills
 
+- [Incremental Rust migration](skills/rust-migration/SKILL.md) — consult for app upgrades and preserve the milestone plan.
 - [Android frontend](skills/mobile-frontend/SKILL.md)
 - [SVG iconography](skills/icons/SKILL.md)
 - [QA and debugging](skills/qa-debugging/SKILL.md)

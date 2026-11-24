@@ -290,7 +290,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun acceptShare(incoming: Intent?) {
         if (incoming?.action != Intent.ACTION_SEND || incoming.type != "text/plain") return
-        val id = SharedYoutubeLink.videoId(incoming.getStringExtra(Intent.EXTRA_TEXT))
+        val text = incoming.getStringExtra(Intent.EXTRA_TEXT)
+        val id = if (text == null || text.length > 4096) null else try {
+            RustBridge.sharedVideoId(text)
+        } catch (_: UnsatisfiedLinkError) { null }
         if (id == null) android.widget.Toast.makeText(this, "Share one supported YouTube video link", android.widget.Toast.LENGTH_LONG).show()
         else pendingSharedId = id
     }

@@ -11,8 +11,11 @@ import java.io.ByteArrayOutputStream
 @RunWith(AndroidJUnit4::class)
 class ShareArtworkTest {
     @Test fun acceptsOnlySingleCanonicalYoutubeVideoLinks() {
-        for (url in listOf("https://youtu.be/abcdefghijk?si=abc", "Watch https://www.youtube.com/watch?v=abcdefghijk", "https://music.youtube.com/watch?v=abcdefghijk&list=test", "https://youtube.com/shorts/abcdefghijk", "https://m.youtube.com/live/abcdefghijk")) assertEquals(url,"abcdefghijk",SharedYoutubeLink.videoId(url))
-        for (url in listOf("https://youtube.com.evil.test/watch?v=abcdefghijk", "https://youtube.com@evil.test/watch?v=abcdefghijk", "http://youtu.be/abcdefghijk", "https://youtube.com/watch?v=abcdefghijk&v=another0001", "https://youtube.com/playlist?list=x", "https://youtu.be/short", "https://youtu.be/abcdefghijk https://youtu.be/nexttrack01", "https://youtube.com:444/watch?v=abcdefghijk", "javascript:alert(1)", "x".repeat(5000))) assertNull(url,SharedYoutubeLink.videoId(url))
+        // The offline x86 emulator deliberately excludes the Rust JNI library.
+        // Run these bridge checks on an ARM64 device/build that includes it.
+        org.junit.Assume.assumeTrue(android.os.Build.SUPPORTED_ABIS.contains("arm64-v8a"))
+        for (url in listOf("https://youtu.be/abcdefghijk?si=abc", "Watch https://www.youtube.com/watch?v=abcdefghijk", "https://music.youtube.com/watch?v=abcdefghijk&list=test", "https://youtube.com/shorts/abcdefghijk", "https://m.youtube.com/live/abcdefghijk")) assertEquals(url,"abcdefghijk",RustBridge.sharedVideoId(url))
+        for (url in listOf("https://youtube.com.evil.test/watch?v=abcdefghijk", "https://youtube.com@evil.test/watch?v=abcdefghijk", "http://youtu.be/abcdefghijk", "https://youtube.com/watch?v=abcdefghijk&v=another0001", "https://youtube.com/playlist?list=x", "https://youtu.be/short", "https://youtu.be/abcdefghijk https://youtu.be/nexttrack01", "https://youtube.com:444/watch?v=abcdefghijk", "javascript:alert(1)", "x".repeat(5000))) assertNull(url,RustBridge.sharedVideoId(url))
     }
     @Test fun squareArtworkIsBoundedJpegAndRejectsInvalidInput() {
         assertNull(AlbumArtwork.squareJpeg(byteArrayOf(1,2,3)))

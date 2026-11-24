@@ -15,6 +15,9 @@ object RustBridge {
     private const val TAG = "RustBridge"
     private var serverStarted = false
 
+    // Bounded share parsing is implemented in Rust. Android retains intent delivery.
+    external fun sharedVideoId(text: String): String?
+
     // Native method declaration
     @Suppress("UNUSED_PARAMETER")
     private external fun startServer(filesDir: String, cacheDir: String, context: Context, port: Int, engine: String, instance: String)

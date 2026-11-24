@@ -18,8 +18,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 22
-        versionName = "2.0.0"
+        versionCode = 23
+        versionName = "2.1.0"
         // CRITICAL: Only arm64-v8a for minimal APK size
         ndk {
             abiFilters += if (emulatorTests) "x86_64" else "arm64-v8a"
