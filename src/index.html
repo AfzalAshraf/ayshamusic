@@ -1650,6 +1650,47 @@ const comfortQuotes = [
 ].map(([id, category, text]) => ({ id, category, text }));
 const quoteStorageKey = 'aysha.comfort.v1';
 const quoteState = { loaded: false, category: 'all', currentId: 'love-1', saved: [], more: {}, personalize: false, storageAvailable: true };
+// WebView storage remains a rollback/failure mirror; Rust is authoritative
+// after successful migration. Dirty records survive an interrupted write.
+const quoteDirtyKey = 'aysha.comfort.rust-pending.v1';
+let quoteRevision=0, quoteRustRead=null, quoteRustWrites=Promise.resolve(), quoteRustAvailable=true;
+function quoteRecord() { return {version:1,saved:[...quoteState.saved],more:{...quoteState.more},personalize:quoteState.personalize}; }
+function markQuoteDirty() { try { localStorage.setItem(quoteDirtyKey,'1'); } catch (_) {} }
+function syncQuoteToRust(record, revision) {
+  quoteRustWrites=quoteRustWrites.catch(()=>{}).then(async()=>{
+    if (!(await quoteRustRead)) { quoteRustAvailable=false; return; }
+    try {
+      await nativeJson('/api/quote_preferences',record);
+      quoteRustAvailable=true;
+      if (revision===quoteRevision) { try {localStorage.removeItem(quoteDirtyKey);} catch (_) {} }
+    } catch (_) { quoteRustAvailable=false; }
+    if (quoteState.loaded) renderQuote();
+  });
+}
+function loadRustQuotePreferences() {
+  if (!state.nativePlayback || quoteRustRead) return;
+  const revision=quoteRevision;
+  quoteRustRead=api('GET','/api/quote_preferences').then(result=>{
+    const data=result && result.preferences;
+    let dirty=false;try { dirty=localStorage.getItem(quoteDirtyKey)==='1'; } catch (_) {}
+    if (revision!==quoteRevision) return true; // a newer user edit wins
+    if (dirty || data===null) {
+      // An unreadable WebView store is not evidence of an empty preference.
+      if (!quoteState.storageAvailable) throw new Error('Local preferences unavailable');
+      markQuoteDirty();
+      // Enqueue only after this read resolves; never await the queue here.
+      syncQuoteToRust(quoteRecord(),quoteRevision);
+    } else if (data && data.version===1) {
+      quoteState.saved=Array.isArray(data.saved)?data.saved:[];
+      quoteState.more=data.more || {};
+      quoteState.personalize=data.personalize===true;
+      try {localStorage.setItem(quoteStorageKey,JSON.stringify(data));} catch (_) {quoteState.storageAvailable=false;}
+      renderQuote();
+    } else { throw new Error('Invalid quote preference response'); }
+    quoteRustAvailable=true;return true;
+  }).catch(()=>{quoteRustAvailable=false; if(quoteState.loaded)renderQuote();return false;});
+}
+
 
 function initializeQuotes() {
   if (!quoteState.loaded) {
@@ -1671,6 +1712,7 @@ function initializeQuotes() {
       }
     } catch (_) { quoteState.storageAvailable = false; }
   }
+  loadRustQuotePreferences();
   renderQuote();
 }
 
@@ -1679,6 +1721,10 @@ function persistQuoteChoices() {
     localStorage.setItem(quoteStorageKey, JSON.stringify({ version: 1, saved: quoteState.saved, more: quoteState.more, personalize: quoteState.personalize }));
     quoteState.storageAvailable = true;
   } catch (_) { quoteState.storageAvailable = false; }
+  if (state.nativePlayback) {
+    quoteRevision++;markQuoteDirty();loadRustQuotePreferences();
+    syncQuoteToRust(quoteRecord(),quoteRevision);
+  }
 }
 
 function quoteWeight(quote) {
@@ -1728,8 +1774,9 @@ function renderQuote() {
   document.getElementById('quote-selection-note').textContent = quoteState.personalize
     ? 'The “For you” mix favors categories you explicitly save or choose, with a little variety. No mood or viewing tracking.'
     : 'An untailored mix of gentle messages. Enable optional personalization below to use “More like this”.';
-  document.getElementById('quote-storage-status').textContent = quoteState.storageAvailable
-    ? '' : 'Browser storage is unavailable or could not be read. Your choices work on this page, but may not survive a reload.';
+  document.getElementById('quote-storage-status').textContent = !quoteState.storageAvailable
+    ? 'Browser storage is unavailable or could not be read. Your choices may not survive a reload.'
+    : (!quoteRustAvailable && state.nativePlayback ? 'Saved on this device; Rust settings could not be synced yet.' : '');
   document.querySelectorAll('[data-quote-category]').forEach(button => {
     const active = button.dataset.quoteCategory === quoteState.category;
     button.classList.toggle('active', active);
@@ -1771,6 +1818,10 @@ function resetQuotePreferences() {
   quoteState.currentId = 'love-1';
   try { localStorage.removeItem(quoteStorageKey); quoteState.storageAvailable = true; }
   catch (_) { quoteState.storageAvailable = false; }
+  if (state.nativePlayback) {
+    quoteRevision++;markQuoteDirty();loadRustQuotePreferences();
+    syncQuoteToRust(quoteRecord(),quoteRevision);
+  }
   renderQuote();
   document.getElementById('quote-storage-status').textContent = quoteState.storageAvailable
     ? 'Saved quotes and preferences deleted. Personalization is off.'

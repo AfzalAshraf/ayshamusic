@@ -1295,6 +1295,38 @@ test('Android palette selections are serialized to Rust without affecting web pr
   assert.equal(h.quoteStorage.get('aysha.color-theme.v1'),'charcoal');
 });
 
+test('Android migrates existing quote choices to Rust and preserves the local mirror', async () => {
+  const quotes=new Map([['aysha.comfort.v1',JSON.stringify({version:1,saved:['love-1'],more:{love:2},personalize:true})]]);
+  const h=harness(false,new Map(),quotes);
+  vm.runInContext('state.nativePlayback=true',h.context);
+  h.context.fetch=async(url,opts)=>{h.calls.push({url,opts});return {ok:true,json:async()=>url==='/api/quote_preferences' && opts.method==='GET'?{preferences:null}:{status:'ok'}};};
+  h.context.initializeQuotes();
+  await vm.runInContext('quoteRustRead',h.context);await vm.runInContext('quoteRustWrites',h.context);
+  const sent=h.calls.find(c=>c.url==='/api/quote_preferences' && c.opts.method==='POST');
+  assert.deepEqual(JSON.parse(sent.opts.body),{version:1,saved:['love-1'],more:{love:2},personalize:true});
+  assert.ok(quotes.has('aysha.comfort.v1'));assert.equal(quotes.has('aysha.comfort.rust-pending.v1'),false);
+});
+
+test('a new quote choice wins over a delayed Rust read', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true',h.context);
+  let resolve;const waiting=new Promise(r=>resolve=r);
+  h.context.fetch=async(url,opts)=>{h.calls.push({url,opts});if(url==='/api/quote_preferences' && opts.method==='GET'){await waiting;return {ok:true,json:async()=>({preferences:{version:1,saved:['rest-1'],more:{},personalize:false}})};}return {ok:true,json:async()=>({status:'ok'})};};
+  h.context.initializeQuotes();h.context.toggleQuoteSave();resolve();
+  await vm.runInContext('quoteRustRead',h.context);await vm.runInContext('quoteRustWrites',h.context);
+  const post=h.calls.filter(c=>c.url==='/api/quote_preferences' && c.opts.method==='POST').at(-1);
+  assert.deepEqual(JSON.parse(post.opts.body).saved,['love-1']);
+  assert.equal(JSON.parse(h.quoteStorage.get('aysha.comfort.v1')).saved[0],'love-1');
+});
+
+test('failed Rust quote sync retains dirty local preference for retry', async () => {
+  const h=harness();vm.runInContext('state.nativePlayback=true',h.context);
+  h.context.fetch=async()=>{throw new Error('backend unavailable');};
+  h.context.initializeQuotes();h.context.toggleQuoteSave();
+  await vm.runInContext('quoteRustRead',h.context);await vm.runInContext('quoteRustWrites',h.context);
+  assert.equal(h.quoteStorage.get('aysha.comfort.rust-pending.v1'),'1');
+  assert.equal(JSON.parse(h.quoteStorage.get('aysha.comfort.v1')).saved[0],'love-1');
+});
+
 test('home contains no playback Test button', () => {
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src/index.html'),'utf8'),/id="hero-selftest"|>Test<\/button>/);
 });

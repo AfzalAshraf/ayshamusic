@@ -11,6 +11,7 @@ mod recommendations;
 mod mix;
 mod play_modes;
 mod color_theme;
+mod quote_preferences;
 mod shared_link;
 mod listening;
 mod range_media;
@@ -1259,6 +1260,18 @@ mod api_tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = json_body(response).await;
         assert_eq!(body["error"], "invalid_video_id");
+    }
+
+    #[tokio::test]
+    async fn quote_preferences_api_validates_and_roundtrips() {
+        let app=router(Arc::new(None));
+        let body=r#"{"version":1,"saved":["love-1"],"more":{"rest":2},"personalize":true}"#;
+        assert_eq!(app.clone().oneshot(post("/api/quote_preferences",body)).await.unwrap().status(),StatusCode::OK);
+        let request=axum::http::Request::builder().uri("/api/quote_preferences").body(Body::empty()).unwrap();
+        assert_eq!(json_body(app.clone().oneshot(request).await.unwrap()).await["preferences"],serde_json::from_str::<serde_json::Value>(body).unwrap());
+        for bad in [r#"{"version":1,"saved":["bad-1"],"more":{},"personalize":true}"#,r#"{"version":1,"saved":[],"more":{"love":9},"personalize":false}"#] {
+            assert_eq!(app.clone().oneshot(post("/api/quote_preferences",bad)).await.unwrap().status(),StatusCode::UNPROCESSABLE_ENTITY);
+        }
     }
 
     #[tokio::test]

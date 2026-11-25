@@ -11,9 +11,11 @@ Aim: move suitable first-party app logic and preferences into Rust in small, tes
 
 3. **Shared-link validation:** Android receives the text intent; a narrow JNI call sends bounded text to Rust, which extracts only one validated YouTube video ID without fetching it. Kotlin delivers only that ID to the verified local page and retains the explicit playback confirmation. Automated offline parser tests and release build are separate from device JNI and physical share acceptance.
 
+4. **Comfort quote preferences:** Rust validates and atomically stores saved quote IDs, category choices and opt-in personalization. Android migrates the existing WebView preference, maintains a local fallback mirror and retries dirty changes on next launch. The actual quote UI and selection remain JavaScript; physical-device migration is not yet tested.
+
 ## Candidates — choose and validate each independently
 
-4. Inventory browser-stored preferences such as quote personalization and saved content. Decide data ownership, schema, bounded storage, first-use migration, failure feedback, concurrent edits and rollback before moving them. Preserve existing choices; do not move unrelated browser/server functionality without tests.
+5. Inventory remaining browser-stored preferences and saved content (including song ratings). Decide data ownership, schema, bounded storage, first-use migration, failure feedback, concurrent edits and rollback before moving them. Preserve existing choices; do not move unrelated browser/server functionality without tests.
 5. Audit remaining input validation and app settings; move self-contained policy and state transitions into Rust where duplication can be removed. Preserve playback priority and Telegram account semantics.
 6. Review artwork processing separately for quality, binary size and licensing before replacing Android bitmap APIs. No change just to increase a language metric.
 7. Review UI logic selectively. HTML/CSS/JS remain the current interface; any framework or UI rewrite needs separate approval and accessibility/interaction tests.

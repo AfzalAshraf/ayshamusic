@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 23/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 24/);
 });
 
 

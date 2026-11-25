@@ -69,6 +69,7 @@ pub struct PhoneState {
     pub library: Mutex<Library>,
     pub modes: Mutex<crate::play_modes::Modes>,
     pub theme: Mutex<Option<crate::color_theme::ThemePreference>>,
+    pub quotes: Mutex<Option<crate::quote_preferences::QuotePreferences>>,
     search_cache: AsyncMutex<Vec<(String,Instant,Vec<Track>)>>,
     pub mix: Mutex<crate::mix::Mix>,
     mix_slot: AsyncMutex<()>,
@@ -78,7 +79,7 @@ pub struct PhoneState {
 }
 pub type Phone = Arc<PhoneState>;
 pub fn new_state() -> Phone {
-    Arc::new(PhoneState { theme:Mutex::new(crate::color_theme::ThemePreference::open(theme_path().as_deref())), modes:Mutex::new(crate::play_modes::Modes::open(modes_path().as_deref())),library: Mutex::new(Library::default()), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
+    Arc::new(PhoneState { quotes:Mutex::new(crate::quote_preferences::QuotePreferences::open(quote_path().as_deref())), theme:Mutex::new(crate::color_theme::ThemePreference::open(theme_path().as_deref())), modes:Mutex::new(crate::play_modes::Modes::open(modes_path().as_deref())),library: Mutex::new(Library::default()), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
 }
 pub fn routes() -> Router<crate::SharedCache> {
     Router::new()
@@ -86,6 +87,7 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/search", get(search))
         .route("/api/playback_modes", get(get_modes).post(set_modes))
         .route("/api/color_theme", get(get_theme).post(set_theme))
+        .route("/api/quote_preferences", get(get_quotes).post(set_quotes))
         .route("/api/queue", get(queue))
         .route("/api/queue_add", post(queue_add))
         .route("/api/queue_clear", post(queue_clear))
@@ -97,6 +99,14 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/bt/status", get(bluetooth))
         .route("/api/recommendation/profile", get(profile_status))
         .route("/api/recommendation/reset", post(reset_learning))
+}
+fn quote_path()->Option<std::path::PathBuf>{crate::paths().map(|(files,_)|std::path::Path::new(files).join("quote-preferences.json"))}
+async fn get_quotes(Extension(state):Extension<Phone>)->Json<Value>{Json(json!({"preferences":*state.quotes.lock().unwrap()}))}
+async fn set_quotes(Extension(state):Extension<Phone>,Json(value):Json<crate::quote_preferences::QuotePreferences>)->(StatusCode,Json<Value>){
+    if !value.valid(){return error(StatusCode::UNPROCESSABLE_ENTITY,"Invalid quote preferences");}
+    let mut quotes=state.quotes.lock().unwrap();
+    if value.save(quote_path().as_deref()).is_err(){return error(StatusCode::INTERNAL_SERVER_ERROR,"Quote preferences could not be saved");}
+    *quotes=Some(value.clone());(StatusCode::OK,Json(json!({"preferences":value})))
 }
 fn theme_path()->Option<std::path::PathBuf>{crate::paths().map(|(files,_)|std::path::Path::new(files).join("color-theme.json"))}
 async fn get_theme(Extension(state):Extension<Phone>)->Json<Value>{
