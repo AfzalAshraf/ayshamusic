@@ -70,6 +70,9 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState == null) acceptShare(intent)
         setupWebView()
         loadServerUrl()
+        if (Build.VERSION.SDK_INT <= 28 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 101)
+        }
         if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 100)
         }
@@ -256,13 +259,14 @@ class MainActivity : AppCompatActivity() {
     private fun publishAppSettings() {
         val view=webView ?: return
         if(!trustedSettingsPage(view))return
-        val value=org.json.JSONObject().put("icon",AppIcons.title(this))
+        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("legacyStorage",Build.VERSION.SDK_INT <= 28)
         view.evaluateJavascript("if(window.renderNativeAppSettings)renderNativeAppSettings("+value.toString()+")",null)
     }
 
     private fun handleAppAction(path:String) {
         when(path){
             "/icons" -> showIconPicker()
+            "/storage-settings" -> if(Build.VERSION.SDK_INT<=28) startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))
 
         }
     }

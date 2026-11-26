@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 25/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 26/);
 });
 
 
@@ -187,7 +187,8 @@ test('shared links are ID-only and handed to the verified local page, not loaded
   assert.match(activity,/RustBridge.sharedVideoId/);assert.match(activity,/JSONObject.quote\(id\)/);
   assert.match(activity,/if \(!localPageReady \|\| !MediaApi.isBackendVerified\(\)\) return/);
   assert.doesNotMatch(activity,/request.grant\(request.resources\)/);
-  assert.doesNotMatch(manifest,/READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MEDIA_CONTENT_CONTROL/);
+  assert.doesNotMatch(manifest,/READ_EXTERNAL_STORAGE|MEDIA_CONTENT_CONTROL/);
+  assert.match(manifest,/WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/);
   const storage=read('src/tg_storage.rs');assert.match(storage,/\.document\(uploaded\)/);assert.match(storage,/Attribute::Audio/);assert.match(storage,/song_metadata::filename/);
   assert.match(read('android-app/app/build.gradle.kts'),/Production release requires your release keystore/);
 });

@@ -59,5 +59,11 @@ object RustBridge {
     @Suppress("unused")
     fun squareCover(bytes: ByteArray): ByteArray? = AlbumArtwork.squareJpeg(bytes)
 
+    @Suppress("unused")
+    fun publishFavorite(path:String,id:String,title:String,artist:String):Boolean {
+        val context=AyshaMusicApplication.instance ?: return false
+        return FavoritePublisher.publish(context,path,id,title,artist)
+    }
+
     fun isServerStarted(): Boolean = serverStarted
 }

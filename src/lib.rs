@@ -12,6 +12,8 @@ mod mix;
 mod play_modes;
 mod color_theme;
 mod quote_preferences;
+mod local_favorites;
+mod favorite_download;
 mod shared_link;
 mod listening;
 mod range_media;
@@ -206,6 +208,9 @@ async fn serve(files_dir: String, cache_dir: String) {
         tokio::spawn(tg_storage::worker(cache.clone()));
     }
     let phone = android_catalog::new_state();
+    if let (Some(downloads), Some((_,cache)))=(phone.local_favorites.as_ref(),paths()) {
+        tokio::spawn(favorite_download::worker(downloads.clone(),std::path::PathBuf::from(cache)));
+    }
     let sampling = phone.clone();
     tokio::spawn(async move {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -1006,6 +1011,20 @@ mod android {
         let text=env.new_string(text).map_err(|_|"Android audio command allocation failed")?;
         let result=env.call_method(bridge.as_obj(),"platformCommand","(Ljava/lang/String;)V",&[jni::objects::JValue::Object(text.as_ref())]);
         if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
+    }
+
+    pub(super) fn publish_favorite(path:&std::path::Path,id:&str,title:&str,artist:&str)->bool {
+        let Some((vm,bridge))=PLATFORM.get() else{return false};
+        let Ok(mut env)=vm.attach_current_thread() else{return false};
+        let Some(path)=path.to_str() else{return false};
+        let Ok(path)=env.new_string(path) else{return false};
+        let Ok(id)=env.new_string(id) else{return false};
+        let Ok(title)=env.new_string(title) else{return false};
+        let Ok(artist)=env.new_string(artist) else{return false};
+        let result=env.call_method(bridge.as_obj(),"publishFavorite","(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z",&[
+            jni::objects::JValue::Object(path.as_ref()),jni::objects::JValue::Object(id.as_ref()),
+            jni::objects::JValue::Object(title.as_ref()),jni::objects::JValue::Object(artist.as_ref())]);
+        match result {Ok(value)=>value.z().unwrap_or(false),Err(_)=>{let _=env.exception_clear();false}}
     }
 
     pub(super) fn square_cover(bytes:&[u8])->Option<Vec<u8>> {

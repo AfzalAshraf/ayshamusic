@@ -306,6 +306,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
         <div id="tg-sync-list"><p class="sync-note">Your queue will appear here.</p></div>
         <p id="tg-sync-feedback" class="sync-note" role="status"></p>
       </article>
+      <article id="local-downloads-card" class="settings-card" hidden aria-labelledby="local-downloads-heading"><h3 id="local-downloads-heading">Favorite downloads</h3><p>Favorited songs download without re-encoding to Music / Aysha Music. This uses extra mobile data and storage. Quality is the best direct AAC the source offers, not a guarantee of original master quality.</p><p id="local-downloads-summary" role="status">Checking downloads…</p><div id="local-downloads-list"></div><div class="tg-actions"><button class="chip" onclick="retryLocalDownloads()">Retry failed downloads</button><button id="storage-settings" class="chip" onclick="nativeAppAction('storage-settings')" hidden>Storage permission</button></div><small>Downloads run while the app process is active. Removing a favorite never deletes a song already saved to your phone.</small></article>
       <article class="settings-card theme-card"><h3>Make it yours</h3><p>Choose your palette. Music and account settings stay unchanged.</p><div class="tg-actions" role="group" aria-label="Color theme"><button id="theme-crimson" class="chip" aria-pressed="true" onclick="setColorTheme('crimson')">Crimson</button><button id="theme-charcoal" class="chip" aria-pressed="false" onclick="setColorTheme('charcoal')">Charcoal</button><button id="theme-aurora" class="chip" aria-pressed="false" onclick="setColorTheme('aurora')">Aurora Glass</button></div></article>
       <p id="android-output-note" class="section-subtitle" hidden>Speaker and headphone output are managed by Android sound settings.</p>
       <article class="settings-card" aria-labelledby="app-icon-heading"><h3 id="app-icon-heading">Your Aysha icon</h3><p>Pick from Classic Silver, Rose Gold, Velvet, Cute Rose, Racing Red, Ivory, Butterflies, or Embossed Red.</p><p id="app-icon-current">Available in the Android app.</p><button id="choose-app-icon" class="chip" onclick="nativeAppAction('icons')" disabled>Choose app icon</button><small>Your music, Telegram session and settings stay unchanged. Some launchers refresh slowly.</small></article>
@@ -817,14 +818,17 @@ async function cancelTelegramSave(id) {
 }
 let nativeAppSettingsReady=false;
 function nativeAppAction(action) {
-  if (!nativeAppSettingsReady || action!=='icons') return;
-  window.location.href='aysha://app/icons';
+  if (!nativeAppSettingsReady || !['icons','storage-settings'].includes(action)) return;
+  window.location.href='aysha://app/'+action;
 }
 function renderNativeAppSettings(value) {
   if (!value || typeof value.icon!=='string') return;
   nativeAppSettingsReady=true;
   document.getElementById('app-icon-current').textContent='Current icon: '+value.icon;
   document.getElementById('choose-app-icon').disabled=false;
+  document.getElementById('local-downloads-card').hidden=false;
+  document.getElementById('storage-settings').hidden=!value.legacyStorage;
+  refreshLocalDownloads();
 }
 
 let themeRevision=0;
@@ -858,6 +862,26 @@ if (state.nativePlayback) {
       saveNativeTheme(current);
     }
   }).catch(()=>{});
+}
+let localDownloadsBusy=false;
+async function refreshLocalDownloads() {
+  if(!state.nativePlayback || localDownloadsBusy)return;
+  localDownloadsBusy=true;
+  try {
+    const result=await api('GET','/api/local_downloads');
+    const items=Array.isArray(result.items)?result.items:[];
+    const saved=items.filter(x=>x.status==='saved').length, queued=items.filter(x=>x.status==='queued'||x.status==='downloading').length, failed=items.filter(x=>x.status==='failed').length;
+    document.getElementById('local-downloads-summary').textContent=`${saved} saved · ${queued} waiting or downloading · ${failed} need attention`;
+    document.getElementById('local-downloads-list').innerHTML=items.filter(x=>x.status!=='saved').slice(0,20).map(x=>{
+      const total=Number(x.total),bytes=Number(x.bytes);const pct=total>0&&Number.isFinite(bytes)?' · '+Math.min(100,Math.floor(bytes/total*100))+'%':'';
+      return '<p class="sync-note">'+escapeHtml(x.title)+' — '+escapeHtml(x.status)+escapeHtml(pct)+(x.status==='failed'?': check storage or source, then retry':'')+'</p>';
+    }).join('');
+  }catch(_){document.getElementById('local-downloads-summary').textContent='Downloads unavailable. Restart the app or check storage.';}
+  finally{localDownloadsBusy=false;}
+}
+async function retryLocalDownloads() {
+  try{await nativeJson('/api/local_downloads/retry',{});await refreshLocalDownloads();}
+  catch(_){document.getElementById('local-downloads-summary').textContent='Could not retry. Check storage and try again.';}
 }
 let telegramStatusBusy = false;
 async function refreshTelegramSummary() {
@@ -1332,7 +1356,7 @@ async function toggleLike(t) {
     document.getElementById('liked-count').textContent = state.liked.length;
     if (currentTab === 'library') renderGrid(state.liked, 'full-history', true);
     if (currentTab === 'home') renderGrid(state.liked, 'recent-history', true);
-    songFeedback(already ? 'Removed from favorites.' : 'Added to favorites — find it in Library → Liked Songs.');
+    songFeedback(already ? 'Removed from favorites. Saved files stay on your phone.' : (state.nativePlayback ? 'Added to favorites and queued for download. Check Settings for progress.' : 'Added to favorites — find it in Library → Liked Songs.'));
   } catch (error) {
     songFeedback('Could not update favorites: ' + error.message);
   } finally {
@@ -2076,6 +2100,7 @@ async function pollStatus() {
 }
 setInterval(() => { if (!document.hidden) pollStatus(); }, 1000);
 setInterval(() => { if (!document.hidden && currentTab === 'settings') refreshTelegramSummary(); }, 2000);
+setInterval(() => { if (state.nativePlayback && !document.hidden && currentTab === 'settings') refreshLocalDownloads(); }, 2000);
 
 document.getElementById('audio-player').addEventListener('ended', function() {
   if (state.playMode === 'browser' && !state.stopped) {

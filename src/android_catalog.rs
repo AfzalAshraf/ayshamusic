@@ -67,6 +67,7 @@ impl Library {
 }
 pub struct PhoneState {
     pub library: Mutex<Library>,
+    pub local_favorites: Option<Arc<crate::local_favorites::LocalFavorites>>,
     pub modes: Mutex<crate::play_modes::Modes>,
     pub theme: Mutex<Option<crate::color_theme::ThemePreference>>,
     pub quotes: Mutex<Option<crate::quote_preferences::QuotePreferences>>,
@@ -79,7 +80,10 @@ pub struct PhoneState {
 }
 pub type Phone = Arc<PhoneState>;
 pub fn new_state() -> Phone {
-    Arc::new(PhoneState { quotes:Mutex::new(crate::quote_preferences::QuotePreferences::open(quote_path().as_deref())), theme:Mutex::new(crate::color_theme::ThemePreference::open(theme_path().as_deref())), modes:Mutex::new(crate::play_modes::Modes::open(modes_path().as_deref())),library: Mutex::new(Library::default()), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
+    let local_favorites=if cfg!(target_os="android") {crate::paths().and_then(|(files,_)|crate::local_favorites::LocalFavorites::open(&std::path::Path::new(files).join("local-favorites.sqlite")).ok()).map(Arc::new)}else{None};
+    let mut library=Library::default();
+    if let Some(store)=&local_favorites {if let Ok(liked)=store.liked(){library.liked=liked.into_iter().filter_map(|track|track.normalized().ok()).collect();}}
+    Arc::new(PhoneState { local_favorites,  quotes:Mutex::new(crate::quote_preferences::QuotePreferences::open(quote_path().as_deref())), theme:Mutex::new(crate::color_theme::ThemePreference::open(theme_path().as_deref())), modes:Mutex::new(crate::play_modes::Modes::open(modes_path().as_deref())),library: Mutex::new(library), search_cache: AsyncMutex::new(Vec::new()), mix: Mutex::new(crate::mix::Mix::default()), mix_slot: AsyncMutex::new(()), autoplay_error: Mutex::new(None), operation_slot: Semaphore::new(1), listening: Mutex::new(crate::listening::Listening::open(crate::paths().map(|(files,_)| std::path::Path::new(files).join("listening-preferences.json")))) })
 }
 pub fn routes() -> Router<crate::SharedCache> {
     Router::new()
@@ -92,6 +96,8 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/queue_add", post(queue_add))
         .route("/api/queue_clear", post(queue_clear))
         .route("/api/liked", get(liked))
+        .route("/api/local_downloads", get(local_downloads))
+        .route("/api/local_downloads/retry", post(retry_local_downloads))
         .route("/api/like", post(like))
         .route("/api/unlike", post(unlike))
         .route("/api/next", post(next))
@@ -199,6 +205,12 @@ fn parse_search(value: &Value) -> Result<Vec<Track>, &'static str> {
     Ok(out)
 }
 async fn queue(Extension(state): Extension<Phone>) -> Json<Value> { Json(json!(state.library.lock().unwrap().queue)) }
+async fn local_downloads(Extension(state):Extension<Phone>)->(StatusCode,Json<Value>) {
+    match state.local_favorites.as_ref().and_then(|d|d.status().ok()) {Some(v)=>(StatusCode::OK,Json(v)),None=>error(StatusCode::SERVICE_UNAVAILABLE,"Local downloads unavailable")}
+}
+async fn retry_local_downloads(Extension(state):Extension<Phone>)->(StatusCode,Json<Value>) {
+    match state.local_favorites.as_ref().and_then(|d|d.retry().ok()) {Some(n)=>(StatusCode::OK,Json(json!({"retried":n}))),None=>error(StatusCode::SERVICE_UNAVAILABLE,"Local downloads unavailable")}
+}
 async fn liked(Extension(state): Extension<Phone>) -> Json<Value> { Json(json!(state.library.lock().unwrap().liked)) }
 async fn queue_add(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (StatusCode, Json<Value>) {
     let Ok(track) = track.normalized() else { return error(StatusCode::BAD_REQUEST, "invalid_video_id"); };
@@ -218,14 +230,16 @@ async fn like(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (
     let mut library = state.library.lock().unwrap();
     if !library.liked.iter().any(|t| t.id == track.id) {
         if library.liked.len() >= 200 { return error(StatusCode::CONFLICT, "Favorites are full"); }
+        if cfg!(target_os="android") && state.local_favorites.as_ref().is_none_or(|db|db.like(&track).is_err()) {return error(StatusCode::SERVICE_UNAVAILABLE,"Could not queue local download");}
         library.liked.push(track.clone());
     }
     state.listening.lock().unwrap().like(&track,true);
     (StatusCode::OK, Json(json!({"status":"ok"})))
 }
-async fn unlike(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> Json<Value> {
+async fn unlike(Extension(state): Extension<Phone>, Json(track): Json<Track>) -> (StatusCode,Json<Value>) {
+    if cfg!(target_os="android") && state.local_favorites.as_ref().is_none_or(|db|db.unlike(&track.id).is_err()) {return error(StatusCode::SERVICE_UNAVAILABLE,"Could not update favorite");}
     state.library.lock().unwrap().liked.retain(|t| t.id != track.id);
-    state.listening.lock().unwrap().like(&track,false); Json(json!({"status":"ok"}))
+    state.listening.lock().unwrap().like(&track,false); (StatusCode::OK,Json(json!({"status":"ok"})))
 }
 async fn profile_status(Extension(state): Extension<Phone>) -> Json<Value> {
     let model=state.listening.lock().unwrap();
