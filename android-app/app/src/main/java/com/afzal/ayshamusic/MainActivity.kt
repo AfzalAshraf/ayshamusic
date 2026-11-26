@@ -70,13 +70,12 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState == null) acceptShare(intent)
         setupWebView()
         loadServerUrl()
-        if (Build.VERSION.SDK_INT <= 28 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 101)
-        }
-        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 100)
-        }
-        
+        // Existing write and notification permissions; music access is requested from Library.
+        val permissions=mutableListOf<String>()
+        if(Build.VERSION.SDK_INT<=28 && androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        if(Build.VERSION.SDK_INT>=33 && androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+        if(permissions.isNotEmpty())androidx.core.app.ActivityCompat.requestPermissions(this,permissions.toTypedArray(),101)
+
         // Register predictive back callback (Android 14+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             registerPredictiveBack()
@@ -259,14 +258,19 @@ class MainActivity : AppCompatActivity() {
     private fun publishAppSettings() {
         val view=webView ?: return
         if(!trustedSettingsPage(view))return
-        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("legacyStorage",Build.VERSION.SDK_INT <= 28)
+        val value=org.json.JSONObject().put("icon",AppIcons.title(this)).put("legacyStorage",Build.VERSION.SDK_INT <= 28).put("musicPermissionMissing",!LocalMusic.hasReadAccess(this))
         view.evaluateJavascript("if(window.renderNativeAppSettings)renderNativeAppSettings("+value.toString()+")",null)
     }
 
     private fun handleAppAction(path:String) {
         when(path){
             "/icons" -> showIconPicker()
-            "/storage-settings" -> if(Build.VERSION.SDK_INT<=28) startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))
+            "/music-permission" -> {
+                val permission=if(Build.VERSION.SDK_INT>=33) android.Manifest.permission.READ_MEDIA_AUDIO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+                if(androidx.core.content.ContextCompat.checkSelfPermission(this,permission)!=android.content.pm.PackageManager.PERMISSION_GRANTED) androidx.core.app.ActivityCompat.requestPermissions(this,arrayOf(permission),102)
+                else startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))
+            }
+            "/storage-settings" -> startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))
 
         }
     }

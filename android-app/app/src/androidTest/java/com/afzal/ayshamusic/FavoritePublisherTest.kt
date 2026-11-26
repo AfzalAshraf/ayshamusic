@@ -30,6 +30,13 @@ class FavoritePublisherTest {
             assertTrue(FavoritePublisher.publish(context,file.absolutePath,id,"Fixture song","Fixture artist"))
             val row=existing();assertNotNull(row);created=android.content.ContentUris.withAppendedId(collection,row!!)
             assertArrayEquals(bytes,context.contentResolver.openInputStream(created!!).use{it!!.readBytes()})
+            val songs=org.json.JSONObject(LocalMusic.list(context)).getJSONArray("items")
+            assertTrue((0 until songs.length()).any{songs.getJSONObject(it).getString("id")==id})
+            val fd=LocalMusic.open(context,id);assertTrue(fd>=0)
+            android.os.ParcelFileDescriptor.adoptFd(fd).use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { assertArrayEquals(bytes,it.readBytes()) }
+            }
+            assertEquals(-1,LocalMusic.open(context,"../../bad"))
             file.writeBytes(byteArrayOf(1,2,3));assertTrue(FavoritePublisher.publish(context,file.absolutePath,id,"Fixture song","Fixture artist"))
             assertArrayEquals(bytes,context.contentResolver.openInputStream(created!!).use{it!!.readBytes()})
             assertFalse(FavoritePublisher.publish(context,file.absolutePath,"../../bad","x",""))

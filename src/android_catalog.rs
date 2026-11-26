@@ -97,6 +97,7 @@ pub fn routes() -> Router<crate::SharedCache> {
         .route("/api/queue_clear", post(queue_clear))
         .route("/api/liked", get(liked))
         .route("/api/local_downloads", get(local_downloads))
+        .route("/api/local_music", get(local_music))
         .route("/api/local_downloads/retry", post(retry_local_downloads))
         .route("/api/like", post(like))
         .route("/api/unlike", post(unlike))
@@ -205,6 +206,15 @@ fn parse_search(value: &Value) -> Result<Vec<Track>, &'static str> {
     Ok(out)
 }
 async fn queue(Extension(state): Extension<Phone>) -> Json<Value> { Json(json!(state.library.lock().unwrap().queue)) }
+async fn local_music()->(StatusCode,Json<Value>) {
+    #[cfg(target_os="android")]
+    {
+        let result=tokio::task::spawn_blocking(crate::android::list_local_songs).await.ok().flatten();
+        return match result {Some(value)=>(StatusCode::OK,Json(value)),None=>error(StatusCode::SERVICE_UNAVAILABLE,"Music folder unavailable")};
+    }
+    #[cfg(not(target_os="android"))]
+    {error(StatusCode::SERVICE_UNAVAILABLE,"Music folder available on Android")}
+}
 async fn local_downloads(Extension(state):Extension<Phone>)->(StatusCode,Json<Value>) {
     match state.local_favorites.as_ref().and_then(|d|d.status().ok()) {Some(v)=>(StatusCode::OK,Json(v)),None=>error(StatusCode::SERVICE_UNAVAILABLE,"Local downloads unavailable")}
 }

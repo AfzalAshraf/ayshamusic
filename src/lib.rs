@@ -14,6 +14,7 @@ mod color_theme;
 mod quote_preferences;
 mod local_favorites;
 mod favorite_download;
+#[cfg(unix)] mod local_media;
 mod shared_link;
 mod listening;
 mod range_media;
@@ -519,6 +520,19 @@ async fn start_track(
     };
 
     if forced.is_none() {
+        // A completed local file wins before any Telegram or provider request.
+        #[cfg(target_os="android")]
+        {
+            let id=video_id.to_owned();
+            let local=tokio::task::spawn_blocking(move || android::open_local_media(&id)).await.ok().flatten();
+            if *PLAY_TICKET.lock().unwrap()!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Playback was stopped while preparing".into()));}
+            if let Some(media)=local {
+                if start_native(media,ticket).await.is_ok() {
+                    return Ok(json!({"status":"playing","video_id":video_id,"source":"local"}));
+                }
+                if *PLAY_TICKET.lock().unwrap()!=ticket {return Err(api_error(StatusCode::CONFLICT,"play_cancelled","Playback was stopped while preparing".into()));}
+            }
+        }
         if let Some(cache)=cache_manager() {
             // Telegram must not add a15s cloud search to every uncached skip.
             if let Ok(Ok(Some(media)))=tokio::time::timeout(std::time::Duration::from_secs(4),tg_storage::lookup(&cache,video_id)).await {
@@ -1011,6 +1025,34 @@ mod android {
         let text=env.new_string(text).map_err(|_|"Android audio command allocation failed")?;
         let result=env.call_method(bridge.as_obj(),"platformCommand","(Ljava/lang/String;)V",&[jni::objects::JValue::Object(text.as_ref())]);
         if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
+    }
+
+    pub(super) fn open_local_media(id:&str)->Option<crate::player::Media> {
+        use std::os::fd::FromRawFd;
+        if !crate::youtube::valid_video_id(id){return None;}
+        let (vm,bridge)=PLATFORM.get()?;
+        let mut env=vm.attach_current_thread().ok()?;
+        let value=env.new_string(id).ok()?;
+        let result=env.call_method(bridge.as_obj(),"openLocalSong","(Ljava/lang/String;)I",&[jni::objects::JValue::Object(value.as_ref())]);
+        let fd=match result {Ok(value)=>value.i().ok()?,Err(_)=>{let _=env.exception_clear();return None;}};
+        if fd<0{return None;}
+        // LocalMusic detached this read-only descriptor and transfers ownership.
+        let file=unsafe{std::fs::File::from_raw_fd(fd)};
+        let fetch=crate::local_media::LocalFile::new(file).ok()?;
+        let len=fetch.len();
+        Some(crate::player::Media{video_id:id.into(),title:None,client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(fetch))})
+    }
+    pub(super) fn list_local_songs()->Option<serde_json::Value> {
+        let (vm,bridge)=PLATFORM.get()?;let mut env=vm.attach_current_thread().ok()?;
+        let value=match env.call_method(bridge.as_obj(),"listLocalSongs","()Ljava/lang/String;",&[]) {Ok(value)=>value,Err(_)=>{let _=env.exception_clear();return None;}};
+        let object=value.l().ok()?;if object.is_null(){return None;}
+        let string=JString::from(object);let text:String=env.get_string(&string).ok()?.into();
+        if text.len()>512*1024{return None;}
+        let mut result:serde_json::Value=serde_json::from_str(&text).ok()?;
+        let items=result.get_mut("items")?.as_array_mut()?;
+        items.truncate(500);
+        items.retain(|v|v["id"].as_str().is_some_and(crate::youtube::valid_video_id) && v["title"].as_str().is_some_and(|s|s.chars().count()<=300) && v["artist"].as_str().is_some_and(|s|s.chars().count()<=150));
+        Some(result)
     }
 
     pub(super) fn can_publish_favorites()->bool {

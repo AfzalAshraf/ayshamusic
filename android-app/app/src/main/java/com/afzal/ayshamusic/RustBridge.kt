@@ -60,6 +60,18 @@ object RustBridge {
     fun squareCover(bytes: ByteArray): ByteArray? = AlbumArtwork.squareJpeg(bytes)
 
     @Suppress("unused")
+    fun listLocalSongs():String {
+        val context=AyshaMusicApplication.instance ?: return "{\"items\":[],\"error\":\"Storage unavailable\"}"
+        return LocalMusic.list(context)
+    }
+
+    @Suppress("unused")
+    fun openLocalSong(id:String):Int {
+        val context=AyshaMusicApplication.instance ?: return -1
+        return LocalMusic.open(context,id)
+    }
+
+    @Suppress("unused")
     fun canPublishFavorites():Boolean {
         val context=AyshaMusicApplication.instance ?: return false
         return FavoritePublisher.canPublish(context)

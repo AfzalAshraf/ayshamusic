@@ -247,6 +247,7 @@ button{border:0}svg.app-icon{width:22px;height:22px;fill:none;stroke:currentColo
       <div class="grid-cards" id="explore-cards"></div>
     </div>
     <div class="tab-page" id="tab-library">
+      <section id="downloaded-section" hidden><div class="section-title">Downloaded Songs</div><p class="section-subtitle" id="downloaded-status" role="status">Checking your music folder…</p><button class="chip" id="music-permission" onclick="nativeAppAction('music-permission')" hidden>Allow music access</button> <button class="chip" onclick="loadDownloadedSongs()">Refresh</button> <button class="chip" onclick="nativeAppAction('storage-settings')">App permissions</button><div class="grid-cards" id="downloaded-songs"></div></section>
       <div class="section-title">Liked Songs <span class="liked-count" id="liked-count">0</span></div>
       <div class="grid-cards" id="full-history"></div>
       <div class="section-title">Queue <span id="queue-count">0</span> <button class="chip" onclick="queueClear()" style="float:right">Clear</button> <span style="color:var(--sub);font-size:11px">auto-plays next</span></div>
@@ -818,7 +819,7 @@ async function cancelTelegramSave(id) {
 }
 let nativeAppSettingsReady=false;
 function nativeAppAction(action) {
-  if (!nativeAppSettingsReady || !['icons','storage-settings'].includes(action)) return;
+  if (!nativeAppSettingsReady || !['icons','storage-settings','music-permission'].includes(action)) return;
   window.location.href='aysha://app/'+action;
 }
 function renderNativeAppSettings(value) {
@@ -827,7 +828,8 @@ function renderNativeAppSettings(value) {
   document.getElementById('app-icon-current').textContent='Current icon: '+value.icon;
   document.getElementById('choose-app-icon').disabled=false;
   document.getElementById('local-downloads-card').hidden=false;
-  document.getElementById('storage-settings').hidden=!value.legacyStorage;
+  document.getElementById('storage-settings').hidden=!(value.legacyStorage || value.musicPermissionMissing);
+  document.getElementById('downloaded-section').hidden=false;
   refreshLocalDownloads();
 }
 
@@ -1580,7 +1582,19 @@ async function loadHome() {
   if (failed) throw failed.reason;
 }
 
+async function loadDownloadedSongs() {
+  if (!nativeAppSettingsReady) return;
+  const status=document.getElementById('downloaded-status');
+  try {
+    const result=await api('GET','/api/local_music');
+    const items=Array.isArray(result.items)?result.items:[];
+    renderGrid(items,'downloaded-songs',true);
+    document.getElementById('music-permission').hidden=!result.permission_required;
+    status.textContent=result.error || (result.permission_required ? 'Some songs may be hidden. Allow music access to find songs saved by an earlier install, then tap Refresh.' : (items.length ? 'Saved in Music / Aysha Music. These play without internet.' : 'No saved songs found in Music / Aysha Music.'));
+  } catch (_) {status.textContent='Could not read the music folder. Check app permissions and tap Refresh.';}
+}
 async function loadLiked() {
+  loadDownloadedSongs();
   renderSongRatings();
   await refreshFavorites();
   renderGrid(state.liked, 'full-history', true);
