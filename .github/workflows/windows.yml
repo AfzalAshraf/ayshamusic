@@ -1,0 +1,31 @@
+name: Windows Rust desktop candidate
+on:
+  push:
+    branches: ["arena/**", main]
+    paths: ["windows-app/**", "src/**", "Cargo.toml", "Cargo.lock", ".github/workflows/windows.yml"]
+  pull_request:
+    paths: ["windows-app/**", "src/**", "Cargo.toml", "Cargo.lock", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build native Rust desktop candidate
+        working-directory: windows-app
+        run: cargo build --release
+      - name: Run offline Rust desktop tests
+        working-directory: windows-app
+        run: cargo test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aysha-windows-rust-candidate
+          path: |
+            windows-app/target/release/aysha-windows.exe
+            windows-app/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14

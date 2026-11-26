@@ -19,6 +19,9 @@
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
+    <!-- Stable window background while WebView and local backend start. -->
+    <style name="Theme.AyshaMusic.Launcher" parent="Theme.AyshaMusic.Fullscreen" />
+
     <color name="black">#030303</color>
     <color name="white">#FFFFFF</color>
     <color name="accent_red">#FF0000</color>

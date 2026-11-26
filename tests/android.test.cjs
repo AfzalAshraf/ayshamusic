@@ -35,7 +35,7 @@ test('startup waits for the on-phone API and retains external-server independenc
   assert.match(activity, /MediaApi.verifyBackend\(\)/);
   assert.match(activity, /for \(attempt in 1\.\.30\)/);
   assert.doesNotMatch(activity, /192\.168\.|vercel\.app|e2b\.app/);
-  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 24/);
+  assert.match(read('android-app/app/build.gradle.kts'), /versionCode = 25/);
 });
 
 
@@ -203,4 +203,14 @@ test('native icon picker remains while automatic updater is removed', () => {
   assert.match(activity, /request\.isForMainFrame && trustedSettingsPage/);
   assert.doesNotMatch(activity, /AppUpdater|install-update|check-update/);
   assert.doesNotMatch(read('src/index.html'), /app-update-heading|check-update|auto-app-update/);
+});
+
+
+test('Android startup surfaces are dark before the local page paints', () => {
+  const activity=read('android-app/app/src/main/java/com/afzal/ayshamusic/MainActivity.kt');
+  const color=activity.indexOf('setBackgroundColor(android.graphics.Color.rgb(3, 3, 3))');
+  assert.ok(color>0 && color<activity.indexOf('setContentView(webView!!)'));
+  assert.match(read('android-app/app/src/main/AndroidManifest.xml'),/@style\/Theme.AyshaMusic.Launcher/);
+  assert.match(read('android-app/app/src/main/res/values/styles.xml'),/android:windowBackground">@color\/black/);
+  assert.match(read('android-app/app/src/main/res/values-v31/styles.xml'),/android:windowSplashScreenBackground">@color\/black/);
 });

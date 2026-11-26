@@ -27,7 +27,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.AyshaMusic.Fullscreen"
+            android:theme="@style/Theme.AyshaMusic.Launcher"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTop">

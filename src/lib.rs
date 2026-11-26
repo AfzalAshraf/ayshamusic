@@ -142,6 +142,16 @@ pub fn boot(files_dir: String, cache_dir: String) {
 pub fn router(state: SharedCache) -> Router {
     router_with_phone(state, android_catalog::new_state())
 }
+/// In-process Rust desktop adapter. It binds no TCP port and deliberately does
+/// not initialize Android's Telegram archive or background service.
+#[cfg(target_os = "windows")]
+pub fn windows_desktop_router(files_dir: String, cache_dir: String) -> Result<Router, &'static str> {
+    std::fs::create_dir_all(&files_dir).map_err(|_| "Could not create desktop data directory")?;
+    std::fs::create_dir_all(&cache_dir).map_err(|_| "Could not create desktop cache directory")?;
+    PATHS.set((files_dir, cache_dir)).map_err(|_| "Desktop backend already initialized")?;
+    Ok(router(Arc::new(None)))
+}
+
 fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Router {
     Router::new()
         .merge(android_catalog::routes())

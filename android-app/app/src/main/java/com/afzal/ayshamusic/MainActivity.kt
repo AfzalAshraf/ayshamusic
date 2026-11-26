@@ -55,6 +55,9 @@ class MainActivity : AppCompatActivity() {
 
         // Create WebView programmatically (no layout XML needed)
         webView = WebView(this).apply {
+            // WebView defaults to white before the local page first paints.
+            // Set the background before attaching it to the window.
+            setBackgroundColor(android.graphics.Color.rgb(3, 3, 3))
             id = View.generateViewId()
             layoutParams = android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
