@@ -1013,6 +1013,14 @@ mod android {
         if result.is_err() {let _=env.exception_clear();return Err("Android audio command failed".into());}Ok(())
     }
 
+    pub(super) fn can_publish_favorites()->bool {
+        let Some((vm,bridge))=PLATFORM.get() else{return false};
+        let Ok(mut env)=vm.attach_current_thread() else{return false};
+        match env.call_method(bridge.as_obj(),"canPublishFavorites","()Z",&[]) {
+            Ok(value)=>value.z().unwrap_or(false),Err(_)=>{let _=env.exception_clear();false}
+        }
+    }
+
     pub(super) fn publish_favorite(path:&std::path::Path,id:&str,title:&str,artist:&str)->bool {
         let Some((vm,bridge))=PLATFORM.get() else{return false};
         let Ok(mut env)=vm.attach_current_thread() else{return false};

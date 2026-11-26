@@ -12,6 +12,8 @@ import java.io.File
 
 /** Copies a completed Rust staging file to public Music; never deletes an existing song. */
 object FavoritePublisher {
+    fun canPublish(context:Context):Boolean = Build.VERSION.SDK_INT>=29 ||
+        androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED
     fun publish(context:Context,path:String,id:String,title:String,artist:String):Boolean {
         if(!Regex("^[A-Za-z0-9_-]{11}$").matches(id))return false
         val root=File(context.cacheDir,"favorite-downloads").canonicalFile

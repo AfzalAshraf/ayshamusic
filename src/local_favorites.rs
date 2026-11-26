@@ -7,6 +7,7 @@ use std::{path::Path, sync::Mutex};
 pub struct LocalFavorites { db:Mutex<Connection> }
 impl LocalFavorites {
     pub fn open(path: &Path)->rusqlite::Result<Self> {Self::from_connection(Connection::open(path)?)}
+    #[cfg(test)] pub fn test_memory()->Self {Self::from_connection(Connection::open_in_memory().unwrap()).unwrap()}
     fn from_connection(db:Connection)->rusqlite::Result<Self> {
         db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS favorites (id TEXT PRIMARY KEY, title TEXT NOT NULL, artist TEXT NOT NULL, favorite INTEGER NOT NULL, status TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, total INTEGER, error TEXT); UPDATE favorites SET status='queued', bytes=0, total=NULL WHERE favorite=1 AND status='downloading';")?;
         Ok(Self{db:Mutex::new(db)})
