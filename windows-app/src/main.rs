@@ -23,6 +23,11 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
             tokio::spawn(async move {
                 let kind=request.kind;
                 let response=async {
+                    if kind=="local-play" {
+                        let path=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("No file selected")?;
+                        ayshamusic::windows_play_local_file(std::path::PathBuf::from(path)).await?;
+                        return Ok(json!({"status":"playing"}));
+                    }
                     let bytes=request.body.map(|v|v.to_string()).unwrap_or_default();
                     let req=Request::builder().method(request.method).uri(request.path).header("content-type","application/json").body(Body::from(bytes)).map_err(|_|"Invalid desktop request".to_owned())?;
                     let response=app.oneshot(req).await.map_err(|_|"Desktop backend unavailable".to_owned())?;
@@ -36,6 +41,12 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
         }});
     }).map_err(|_|"Could not start desktop worker".to_owned())?;
     Ok((tx,rx))
+}
+
+fn playback_error(error:&str)->String {
+    if error.contains("media_range_http_403") {
+        "The music provider refused this audio (403). Online playback is unavailable for this request. You can open a saved M4A file instead.".into()
+    } else {error.to_owned()}
 }
 
 struct Aysha {
@@ -62,11 +73,11 @@ impl eframe::App for Aysha {
             match msg.result {
                 Ok(value)=> match msg.kind {
                     "search"=>{self.searching=false;self.results=value.as_array().cloned().unwrap_or_default();self.status=if self.results.is_empty(){"No songs found."}else{"Choose a song."}.into();},
-                    "play"=>{self.starting=false;self.status="Playing requested song.".into();},
+                    "play"|"local-play"=>{self.starting=false;self.status="Playing requested song.".into();},
                     "player"=>self.player=value,
                     _=>{},
                 },
-                Err(error)=>{if msg.kind=="search"{self.searching=false;}if msg.kind=="play"{self.starting=false;}self.status=error;},
+                Err(error)=>{if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.status=playback_error(&error);},
             }
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,12,18)).inner_margin(28.0)).show(ctx,|ui| {
@@ -78,6 +89,17 @@ impl eframe::App for Aysha {
                 let text=ui.add(egui::TextEdit::singleline(&mut self.query).hint_text("Search music").desired_width(330.0));
                 let enter=text.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter));
                 if ui.add_enabled(!self.searching,egui::Button::new("Search")).clicked() || enter {self.search();}
+            });
+            ui.horizontal(|ui| {
+                if ui.add_enabled(!self.starting,egui::Button::new("Open M4A file…")).clicked() {
+                    if let Some(path)=rfd::FileDialog::new().add_filter("M4A audio", &["m4a"]).pick_file() {
+                        if let Some(path)=path.to_str() {
+                            self.starting=true; self.status="Opening local song…".into();
+                            self.send("local-play",Method::POST,String::new(),Some(json!({"path":path})));
+                        } else {self.status="Could not read this file name.".into();}
+                    }
+                }
+                ui.label("Play a saved song without internet (M4A, up to 64 MB).");
             });
             ui.label(&self.status);
             ui.separator();
@@ -118,6 +140,11 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn provider_403_has_clear_message_and_other_errors_are_preserved() {
+        assert!(playback_error("audio_decode_failed; input: media_range_http_403").contains("provider refused"));
+        assert_eq!(playback_error("audio_output_unavailable"),"audio_output_unavailable");
+    }
     #[tokio::test]
     async fn embedded_backend_rejects_empty_search_and_never_opens_audio() {
         let root=std::env::temp_dir().join(format!("aysha-windows-test-{}",std::process::id()));

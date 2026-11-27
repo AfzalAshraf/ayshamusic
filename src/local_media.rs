@@ -1,6 +1,8 @@
 //! Seekable file-backed audio. Rust owns the descriptor and closes it on drop.
 use crate::range_media::{Block,Fetch,BLOCK};
-use std::{fs::File,io,os::unix::fs::FileExt};
+use std::{fs::File,io};
+#[cfg(unix)] use std::os::unix::fs::FileExt;
+#[cfg(windows)] use std::os::windows::fs::FileExt;
 const MAX_FILE:u64=64*1024*1024;
 
 pub struct LocalFile {file:File,len:u64}
@@ -17,7 +19,9 @@ impl LocalFile {
 fn read_exact_at(file:&File,bytes:&mut [u8],offset:u64)->io::Result<()> {
     let mut read=0;
     while read<bytes.len() {
-        match file.read_at(&mut bytes[read..],offset+read as u64) {
+        #[cfg(unix)] let result=file.read_at(&mut bytes[read..],offset+read as u64);
+        #[cfg(windows)] let result=file.seek_read(&mut bytes[read..],offset+read as u64);
+        match result {
             Ok(0)=>return Err(io::Error::new(io::ErrorKind::UnexpectedEof,"local audio truncated")),
             Ok(n)=>read+=n,
             Err(e) if e.kind()==io::ErrorKind::Interrupted=>continue,

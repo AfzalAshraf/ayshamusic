@@ -14,7 +14,7 @@ mod color_theme;
 mod quote_preferences;
 mod local_favorites;
 mod favorite_download;
-#[cfg(unix)] mod local_media;
+#[cfg(any(unix, windows))] mod local_media;
 mod shared_link;
 mod listening;
 mod range_media;
@@ -153,6 +153,25 @@ pub fn windows_desktop_router(files_dir: String, cache_dir: String) -> Result<Ro
     std::fs::create_dir_all(&cache_dir).map_err(|_| "Could not create desktop cache directory")?;
     PATHS.set((files_dir, cache_dir)).map_err(|_| "Desktop backend already initialized")?;
     Ok(router(Arc::new(None)))
+}
+
+/// Play a file explicitly selected in the native Windows app. No HTTP endpoint
+/// accepts paths; the file is read locally and never uploaded or modified.
+#[cfg(target_os = "windows")]
+pub async fn windows_play_local_file(path: std::path::PathBuf) -> Result<(), String> {
+    let title=path.file_name().and_then(|v|v.to_str()).unwrap_or("Local song").chars().take(200).collect::<String>();
+    let ticket={
+        let mut current=PLAY_TICKET.lock().unwrap();*current=current.wrapping_add(1);
+        if let Some(player)=started_player(){player.stop().map_err(|_|"Could not stop current playback".to_owned())?;}
+        *current
+    };
+    let fetch=tokio::task::spawn_blocking(move || {
+        let file=std::fs::File::open(path).map_err(|_|"Could not open the selected file".to_owned())?;
+        local_media::LocalFile::new(file).map_err(|_|"Not a supported M4A file, or file is larger than 64 MB".to_owned())
+    }).await.map_err(|_|"Could not read the selected file".to_owned())??;
+    let len=fetch.len();
+    let media=player::Media{video_id:"local-file".into(),title:Some(title),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(fetch))};
+    start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("Could not play this audio file").to_owned())
 }
 
 fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Router {
