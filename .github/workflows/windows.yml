@@ -40,11 +40,14 @@ jobs:
           if ((Get-FileHash $dest -Algorithm SHA256).Hash.ToLower() -ne "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d") { throw "yt-dlp checksum mismatch" }
           & $dest --ignore-config --version
           if ($LASTEXITCODE -ne 0) { throw "yt-dlp version check failed" }
-          $selected = & $dest --ignore-config --no-plugin-dirs --no-js-runtimes --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats.json --print format_id -f 'bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]'
-          if ($LASTEXITCODE -ne 0 -or $selected -ne "mp4-aac") { throw "Offline AAC selection fixture failed: $selected" }
+          $selected = & $dest --ignore-config --no-plugin-dirs --no-js-runtimes --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats.json --print format_id -f 'bestaudio[acodec^=opus][ext=webm]/bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]'
+          if ($LASTEXITCODE -ne 0 -or $selected -ne "webm-opus") { throw "Offline audio selection fixture failed: $selected" }
+          $aacSelected = & $dest --ignore-config --no-plugin-dirs --no-js-runtimes --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats-aac.json --print format_id -f 'bestaudio[acodec^=opus][ext=webm]/bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]'
+          if ($LASTEXITCODE -ne 0 -or $aacSelected -ne "mp4-aac") { throw "Offline AAC fallback fixture failed: $aacSelected" }
+          Copy-Item windows-app/THIRD_PARTY.txt windows-app/target/release/THIRD_PARTY.txt
           $originalErrorActionPreference = $ErrorActionPreference
           $ErrorActionPreference = 'Continue'
-          $debugOutput = (& $dest --verbose --ignore-config --no-plugin-dirs --no-js-runtimes --js-runtimes "deno:$denoPath" --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats.json --print format_id -f 'bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]' 2>&1 | Out-String)
+          $debugOutput = (& $dest --verbose --ignore-config --no-plugin-dirs --no-js-runtimes --js-runtimes "deno:$denoPath" --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats.json --print format_id -f 'bestaudio[acodec^=opus][ext=webm]/bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]' 2>&1 | Out-String)
           $runtimeStatus = $LASTEXITCODE
           $ErrorActionPreference = $originalErrorActionPreference
           if ($runtimeStatus -ne 0 -or $debugOutput -notmatch 'JS runtimes:.*deno') { throw "Offline yt-dlp runtime recognition test failed: $debugOutput" }
@@ -58,6 +61,7 @@ jobs:
             windows-app/target/release/yt-dlp.exe
             windows-app/target/release/deno.exe
             windows-app/target/release/DENO-LICENSE.txt
+            windows-app/target/release/THIRD_PARTY.txt
             windows-app/target/release/YT-DLP-LICENSE.txt
           if-no-files-found: error
           retention-days: 14

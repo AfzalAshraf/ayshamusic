@@ -272,7 +272,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
     impl Fetch for Rejected {fn fetch(&self,_:u64,_:u64)->io::Result<crate::range_media::Block>{Err(io::Error::other("media_range_http_403"))}}
     #[tokio::test] async fn failed_replacement_stops_old_output_before_fetch_and_does_not_leave_orphan_audio(){
         let (mut player,_)=fixture(false);let log=recorded(&mut player);
-        let ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Rejected))}).unwrap();
+        let ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Rejected)),#[cfg(target_os="windows")] source:None}).unwrap();
         let result=tokio::time::timeout(std::time::Duration::from_secs(2),ready).await.unwrap().unwrap();
         assert!(result.unwrap_err().contains("403"));
         let commands=log.lock().unwrap();
@@ -323,7 +323,7 @@ async fn media_for(player:Player,token:String,method:Method,headers:HeaderMap)->
             if value["op"]=="play" {if let Some(reply)=played.lock().unwrap().take(){let _=reply.send(value);}}Ok(())
         });
         let (release,waiting)=std::sync::mpsc::channel();
-        let _ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Waiting(Mutex::new(waiting))))}).unwrap();
+        let _ready=player.play(Media{video_id:"dQw4w9WgXcQ".into(),title:None,client:"fixture",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:Some(Box::new(Waiting(Mutex::new(waiting)))),#[cfg(target_os="windows")] source:None}).unwrap();
         player.pause().unwrap();release.send(()).unwrap();
         let command=tokio::time::timeout(std::time::Duration::from_secs(2),received).await.unwrap().unwrap();
         assert_eq!(command["revision"],1);assert_eq!(command["play_when_ready"],false);

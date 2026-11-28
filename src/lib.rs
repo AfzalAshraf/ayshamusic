@@ -172,7 +172,7 @@ pub async fn windows_play_local_file(path: std::path::PathBuf, generation:std::s
         local_media::LocalFile::new(file).map_err(|_|"Not a supported M4A file, or file is larger than 64 MB".to_owned())
     }).await.map_err(|_|"Could not read the selected file".to_owned())??;
     let len=fetch.len();
-    let media=player::Media{video_id:"local-file".into(),title:Some(title),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(fetch))};
+    let media=player::Media{video_id:"local-file".into(),title:Some(title),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(fetch)),#[cfg(target_os="windows")] source:None};
     start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("Could not play this audio file").to_owned())
 }
 
@@ -190,7 +190,22 @@ pub async fn windows_play_audio_bytes(bytes:Vec<u8>, generation:std::sync::Arc<s
         if let Some(player)=started_player(){player.stop().map_err(|_|"audio_stop_failed".to_owned())?;}
         *current
     };
-    let media=player::Media{video_id:"downloaded-audio".into(),title:Some("Online song".into()),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(local_media::MemoryFile::new(bytes)))};
+    let media=player::Media{video_id:"downloaded-audio".into(),title:Some("Online song".into()),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(local_media::MemoryFile::new(bytes))),#[cfg(target_os="windows")] source:None};
+    start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("audio_prepare_failed").to_owned())
+}
+
+/// Hand an already validated native Windows decoder to the shared audio output.
+#[cfg(target_os="windows")]
+pub async fn windows_play_decoded_source(source:Box<dyn rodio::Source + Send>, health:std::sync::Arc<std::sync::Mutex<Option<String>>>, generation:std::sync::Arc<std::sync::atomic::AtomicU64>, expected:u64)->Result<(),String> {
+    use std::sync::atomic::Ordering;
+    let ticket={
+        let mut current=PLAY_TICKET.lock().unwrap();
+        if generation.load(Ordering::SeqCst)!=expected {return Err("play_cancelled".into());}
+        *current=current.wrapping_add(1);
+        if let Some(player)=started_player(){player.stop().map_err(|_|"audio_stop_failed".to_owned())?;}
+        *current
+    };
+    let media=player::Media{video_id:"downloaded-audio".into(),title:Some("Online song".into()),client:"LOCAL",itag:0,url:String::new(),user_agent:"",content_length:None,fetch:None,source:Some((source,health))};
     start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("audio_prepare_failed").to_owned())
 }
 
@@ -599,6 +614,7 @@ async fn start_track(
                 video_id:audio.video_id.clone(),title:audio.title.clone(),client:audio.client,
                 itag:audio.itag,url:audio.url.clone(),user_agent:audio.user_agent(),
                 content_length:audio.content_length,fetch:None,
+                #[cfg(target_os="windows")] source:None,
             },ticket).await.map_err(|(_,error)|error["detail"].as_str().unwrap_or("audio_prepare_failed").to_string())?;
             Ok(audio)
         };
@@ -1367,7 +1383,7 @@ mod api_tests {
         let ticket=*PLAY_TICKET.lock().unwrap();
         let app=router(Arc::new(None));
         app.oneshot(post("/api/stop","{}")).await.unwrap();
-        let media=player::Media {video_id:"abcdefghijk".into(),title:None,client:"ANDROID",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:None};
+        let media=player::Media {video_id:"abcdefghijk".into(),title:None,client:"ANDROID",itag:140,url:String::new(),user_agent:"",content_length:None,fetch:None,#[cfg(target_os="windows")] source:None};
         let result=start_native(media,ticket).await.unwrap_err();
         assert_eq!(result.0,StatusCode::CONFLICT);assert_eq!(result.1.0["error"],"play_cancelled");
     }

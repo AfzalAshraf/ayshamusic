@@ -22,6 +22,8 @@ pub struct Media {
     pub user_agent: &'static str,
     pub content_length: Option<u64>,
     pub fetch: Option<Box<dyn crate::range_media::Fetch>>,
+    #[cfg(target_os="windows")]
+    pub source: Option<(Box<dyn Source + Send>, Arc<Mutex<Option<String>>>)>,
 }
 #[derive(Default)]
 struct Status {
@@ -118,6 +120,15 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                 if cancel.load(Ordering::Acquire) { let _ = ready.send(Err("playback_cancelled".into())); continue; }
                 if let Some(old) = &sink { old.stop(); }
                 let prepared = (|| -> Result<_, String> {
+                    #[cfg(target_os="windows")]
+                    let custom=media.source;
+                    #[cfg(target_os="windows")]
+                    let (pcm, duration, errors)=if let Some((source,errors))=custom {
+                        let duration=source.total_duration().map(|d|d.as_secs_f64());
+                        let pcm=crate::pcm_stream::PcmSource::prepare(source,cancel.clone()).map_err(|e|e.to_string())?;
+                        if let Some(error)=errors.lock().unwrap().clone(){return Err(error);}
+                        (pcm,duration,errors)
+                    } else {
                     let fetch: Box<dyn crate::range_media::Fetch> = match media.fetch {
                         Some(fetch) => fetch,
                         None => Box::new(HttpFetch::new(media.url, media.user_agent).map_err(|e| e.to_string())?),
@@ -134,6 +145,28 @@ fn audio_loop(rx: Receiver<Command>, status: Arc<Mutex<Status>>) {
                     let duration = decoder.total_duration().map(|d| d.as_secs_f64());
                     let pcm = crate::pcm_stream::PcmSource::prepare(decoder, cancel.clone()).map_err(|e| e.to_string())?;
                     if let Some(error) = errors.lock().unwrap().clone() { return Err(error); }
+                        (pcm,duration,errors)
+                    };
+                    #[cfg(not(target_os="windows"))]
+                    let (pcm,duration,errors)={
+                    let fetch: Box<dyn crate::range_media::Fetch> = match media.fetch {
+                        Some(fetch) => fetch,
+                        None => Box::new(HttpFetch::new(media.url, media.user_agent).map_err(|e| e.to_string())?),
+                    };
+                    let reader = RangeReader::new(fetch, media.content_length, cancel.clone()).map_err(|e| e.to_string())?;
+                    let len = reader.len();
+                    let errors = reader.health();
+                    let decoder = Decoder::builder().with_data(reader).with_byte_len(len)
+                        .with_hint("m4a").with_seekable(true).build()
+                        .map_err(|e| {
+                            let source=errors.lock().unwrap().clone();
+                            format!("audio_decode_failed: {e}{}", source.map(|s|format!("; input: {s}")).unwrap_or_default())
+                        })?;
+                    let duration = decoder.total_duration().map(|d| d.as_secs_f64());
+                    let pcm = crate::pcm_stream::PcmSource::prepare(decoder, cancel.clone()).map_err(|e| e.to_string())?;
+                    if let Some(error) = errors.lock().unwrap().clone() { return Err(error); }
+                        (pcm,duration,errors)
+                    };
                     if cancel.load(Ordering::Acquire) { return Err("playback_cancelled".into()); }
                     #[cfg(target_os = "android")]
                     if !crate::android::audio_context_ready() { return Err("Android audio context is not initialized; restart the app".into()); }

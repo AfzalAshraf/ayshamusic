@@ -3,6 +3,7 @@
 mod diagnostics;
 mod downloader;
 mod local_library;
+mod opus_source;
 mod library_settings;
 
 use axum::{body::{to_bytes, Body}, http::{Method, Request}};
@@ -40,7 +41,10 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                         if provider_blocked.load(Ordering::SeqCst) {return Err("provider_sign_in_or_bot_challenge".into());}
                         let id=request.body.as_ref().and_then(|v|v["video_id"].as_str()).ok_or("invalid_video_id")?;
                         let bytes=downloader::fetch(id,generation.clone(),seq).await?;
-                        ayshamusic::windows_play_audio_bytes(bytes,generation.clone(),seq).await?;
+                        if bytes.len()>=4 && bytes[..4]==[0x1a,0x45,0xdf,0xa3] {
+                            let (source,health)=tokio::task::spawn_blocking(move || opus_source::OpusSource::new(bytes)).await.map_err(|_|"opus_decoder_unavailable".to_owned())??;
+                            ayshamusic::windows_play_decoded_source(Box::new(source),health,generation.clone(),seq).await?;
+                        } else {ayshamusic::windows_play_audio_bytes(bytes,generation.clone(),seq).await?;}
                         return Ok(json!({"status":"playing"}));
                     }
                     if kind=="local-scan" || kind=="local-restore" || kind=="local-forget" {

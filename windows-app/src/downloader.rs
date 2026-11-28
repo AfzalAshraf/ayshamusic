@@ -7,8 +7,8 @@ use tokio::io::AsyncReadExt;
 const MAX_BYTES:usize=64*1024*1024;
 pub const VERSION:&str="2026.10.26";
 pub const DENO_VERSION:&str="2.9.8";
-// AAC without assuming yt-dlp's extension label is always m4a.
-const AUDIO_SELECTOR:&str="bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]";
+// Prefer an available direct Opus/WebM stream; fall back to compatible AAC.
+const AUDIO_SELECTOR:&str="bestaudio[acodec^=opus][ext=webm]/bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]";
 fn valid_id(id:&str)->bool{id.len()==11 && id.bytes().all(|c|c.is_ascii_alphanumeric()||c==b'_'||c==b'-')}
 fn classify(stderr:&str)->&'static str {
     let text=stderr.to_ascii_lowercase();
@@ -53,7 +53,9 @@ pub async fn fetch(id:&str,generation:Arc<AtomicU64>,expected:u64)->Result<Vec<u
         let status=child.wait().await.map_err(|_|"ytdlp_fetch_failed".to_string())?;
         let err=err_task.await.unwrap_or_default();
         if !status.success(){return Err(classify(&err).into());}
-        if bytes.len()<12 || &bytes[4..8]!=b"ftyp" {return Err("downloaded_audio_invalid".into());}
+        let mp4=bytes.len()>=12 && &bytes[4..8]==b"ftyp";
+        let webm=bytes.len()>=4 && bytes[..4]==[0x1a,0x45,0xdf,0xa3];
+        if !mp4 && !webm {return Err("downloaded_audio_invalid".into());}
         Ok(bytes)
     }).await;
     match result {Ok(value)=>value,Err(_)=>Err("ytdlp_timeout".into())}

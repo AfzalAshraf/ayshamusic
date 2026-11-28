@@ -44,7 +44,7 @@ fn saved_media(client:Arc<Client>,id:&str,message:&grammers_client::message::Mes
     let media=message.media()?;
     let size=media.size().filter(|size|*size>0 && (*size as u64)<=MAX_TRACK)?;
     let title=message.text().lines().nth(1).map(str::to_owned);
-    Some(player::Media{video_id:id.into(),title,client:"TELEGRAM",itag:140,url:String::new(),user_agent:"",content_length:Some(size as u64),fetch:Some(Box::new(TelegramFetch{client,media,total:size as u64,runtime:tokio::runtime::Handle::current()}))})
+    Some(player::Media{video_id:id.into(),title,client:"TELEGRAM",itag:140,url:String::new(),user_agent:"",content_length:Some(size as u64),fetch:Some(Box::new(TelegramFetch{client,media,total:size as u64,runtime:tokio::runtime::Handle::current()})),#[cfg(target_os="windows")] source:None})
 }
 pub async fn lookup(cache:&TelegramCacheManager,id:&str)->Result<Option<player::Media>,String> {
     if PAUSED.load(Ordering::Acquire) {return Ok(None);}
