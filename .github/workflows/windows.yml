@@ -25,7 +25,15 @@ jobs:
           if (-not $rejected) { throw 'Signing script did not reject the invalid timestamp URL' }
       - name: Build native Rust desktop candidate
         working-directory: windows-app
-        run: cargo build --release
+        shell: pwsh
+        run: |
+          cmd /c "cargo build --release > build-log.txt 2>&1"
+          $code = $LASTEXITCODE
+          Get-Content build-log.txt | Write-Output
+          if ($code -ne 0) {
+            Get-Content build-log.txt -Tail 60 | ForEach-Object { Write-Output ("::error::" + $_.Replace('%','%25')) }
+            exit $code
+          }
       - name: Run offline Rust desktop tests
         working-directory: windows-app
         run: cargo test
