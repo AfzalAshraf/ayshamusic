@@ -176,13 +176,21 @@ impl std::error::Error for ResolveError {}
 
 /// A shared HTTP client sized for phone networks.
 pub fn http_client() -> Result<Client, reqwest::Error> {
-    Client::builder()
+    let builder=Client::builder()
         .connect_timeout(Duration::from_secs(8))
         .timeout(Duration::from_secs(12))
         .redirect(reqwest::redirect::Policy::none())
-        .pool_max_idle_per_host(2)
-        .build()
+        .pool_max_idle_per_host(2);
+    // The Windows media reader uses no proxy. Keep metadata and media on the
+    // same explicit route, rather than accidentally resolving behind a proxy
+    // and fetching its signed URL directly. Never rotate or fall back routes.
+    #[cfg(target_os="windows")]
+    let builder=windows_direct_network(builder);
+    builder.build()
 }
+
+#[cfg(target_os="windows")]
+fn windows_direct_network(builder:reqwest::ClientBuilder)->reqwest::ClientBuilder {builder.no_proxy()}
 
 /// Client for `googlevideo` bytes.
 ///
@@ -858,6 +866,37 @@ fn select_audio(formats: &[AdaptiveFormat]) -> Result<&AdaptiveFormat, ResolveEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os="windows")]
+    #[tokio::test]
+    async fn windows_direct_network_disables_explicit_proxy_offline() {
+        use std::io::{Read,Write};
+        use std::net::TcpListener;
+        let target=TcpListener::bind("127.0.0.1:0").unwrap();
+        let target_addr=target.local_addr().unwrap();
+        target.set_nonblocking(true).unwrap();
+        let proxy=TcpListener::bind("127.0.0.1:0").unwrap();
+        proxy.set_nonblocking(true).unwrap();
+        let server=std::thread::spawn(move || {
+            let deadline=std::time::Instant::now()+std::time::Duration::from_secs(4);
+            while std::time::Instant::now()<deadline {
+                if let Ok((mut conn,_))=target.accept() {
+                    let mut bytes=[0u8;2048];let _=conn.read(&mut bytes);
+                    conn.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok").unwrap();
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            false
+        });
+        let proxy_url=format!("http://{}",proxy.local_addr().unwrap());
+        let builder=Client::builder().proxy(reqwest::Proxy::all(proxy_url).unwrap()).timeout(Duration::from_secs(2));
+        let client=windows_direct_network(builder).build().unwrap();
+        let result=client.get(format!("http://{target_addr}/fixture")).send().await;
+        assert!(server.join().unwrap(),"request did not reach the direct fixture");
+        assert_eq!(result.unwrap().text().await.unwrap(),"ok");
+        assert!(matches!(proxy.accept(),Err(e) if e.kind()==std::io::ErrorKind::WouldBlock));
+    }
 
     fn visionos_fixture() -> Value {
         json!({"playabilityStatus":{"status":"OK"},

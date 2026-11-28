@@ -8,7 +8,7 @@ Choose **Open M4A file** for a single compatible file, or **Choose music folder*
 
 ## Online playback is unresolved
 
-The existing Rust search and source resolver are early implementations. Online playback previously produced HTTP 403 on the user's Windows device. This build does not fix that provider refusal and does not bypass bot challenges. The Windows path uses only one existing source profile; it doesn't automatically rotate profiles following a refusal. No live provider probes are run by CI. A provider may deny access or change its interfaces at any time. Local playback is independent of the online provider.
+The existing Rust search and source resolver are early implementations. Online playback previously produced HTTP 403 on the user's Windows device. This build does not fix that provider refusal and does not bypass bot challenges. The Windows path uses only one existing source profile; it doesn't automatically rotate profiles following a refusal. Windows metadata and audio requests both use direct connections rather than configured proxies; networks that require a proxy may fail. This aligns the request routes but has not been shown to fix the user's provider 403. No live provider probes are run by CI. A provider may deny access or change its interfaces at any time. Local playback is independent of the online provider.
 
 ## Error reports
 

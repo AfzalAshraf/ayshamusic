@@ -56,7 +56,7 @@ pub fn event(operation: &'static str, raw: &str, status: Option<u16>) -> Event {
 
 pub fn report(events:&[Event], player:&Value) -> String {
     let state=match player["state"].as_str() {Some("idle")=>"idle",Some("playing")=>"playing",Some("paused")=>"paused",Some("buffering")=>"buffering",Some("error")=>"error",Some("stopped")=>"stopped",_=>"unknown"};
-    let mut out=format!("Aysha Music Windows diagnostic report\nApp version: {}\nPlatform: Windows ({})\nAudio engine: Rust / system audio\nOnline source: Rust candidate\nPlayer state: {}\n",env!("CARGO_PKG_VERSION"),std::env::consts::ARCH,state);
+    let mut out=format!("Aysha Music Windows diagnostic report\nApp version: {}\nPlatform: Windows ({})\nAudio engine: Rust / system audio\nOnline source: Rust candidate\nNetwork route: direct (proxy disabled)\nPlayer state: {}\n",env!("CARGO_PKG_VERSION"),std::env::consts::ARCH,state);
     if events.is_empty(){out.push_str("\nNo errors recorded in this session.\n");}
     else {out.push_str("\nRecent errors (oldest first):\n");for (i,event) in events.iter().enumerate(){out.push_str(&format!("\n{}. Operation: {}\n{}\n",i+1,event.operation,event.detail));}}
     out.push_str("\nPrivacy: no song names, search text, local paths, URLs, credentials or raw provider messages are intentionally included. Review before sharing.\n");

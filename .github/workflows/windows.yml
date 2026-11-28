@@ -21,6 +21,8 @@ jobs:
       - name: Run offline Rust desktop tests
         working-directory: windows-app
         run: cargo test
+      - name: Test Windows metadata network policy (offline)
+        run: cargo test --manifest-path Cargo.toml --features phone --lib windows_direct_network_disables_explicit_proxy_offline
       - uses: actions/upload-artifact@v4
         with:
           name: aysha-windows-rust-candidate
