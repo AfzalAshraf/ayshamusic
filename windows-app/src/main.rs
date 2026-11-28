@@ -90,7 +90,7 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
 }
 
 fn online_challenge(error:&str)->bool {
-    matches!(error,"ytdlp_sign_in_or_bot_challenge"|"provider_sign_in_or_bot_challenge")
+    error.split(", ").any(|code| matches!(code,"ytdlp_sign_in_or_bot_challenge"|"provider_sign_in_or_bot_challenge"))
 }
 
 fn playback_error(error:&str)->String {

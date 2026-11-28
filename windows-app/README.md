@@ -23,3 +23,5 @@ Build on Windows with Rust and MSVC: `cargo build --release --manifest-path wind
 ## Audio dependencies
 
 Windows WebM/Opus decoding uses Symphonia (MPL-2.0), symphonia-adapter-libopus (MIT OR Apache-2.0), and statically built libopus (BSD-style license). These components are included for decoding; they do not transcode or alter the downloaded audio.
+
+The diagnostic report includes fixed categories for selected yt-dlp warnings when available; raw warnings are not retained in the report. Some yt-dlp causes are logged only at debug level and are not captured, so an unqualified format error does not identify the cause. This diagnostic change does not itself fix provider availability.
