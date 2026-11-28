@@ -7,17 +7,7 @@ pub struct Event { pub operation: &'static str, pub detail: String }
 
 fn codes(text: &str) -> Vec<&'static str> {
     let known = [
-        ("ytdlp_sign_in_or_bot_challenge", "ytdlp_sign_in_or_bot_challenge"),
-        ("ytdlp_http_403", "ytdlp_http_403"),
-        ("ytdlp_format_unavailable", "ytdlp_format_unavailable"),
-        ("ytdlp_js_runtime_unavailable", "ytdlp_js_runtime_unavailable"),
-        ("ytdlp_fetch_failed", "ytdlp_fetch_failed"),
-        ("ytdlp_missing", "ytdlp_missing"),
-        ("ytdlp_start_failed", "ytdlp_start_failed"),
-        ("ytdlp_read_failed", "ytdlp_read_failed"),
-        ("ytdlp_size_limit", "ytdlp_size_limit"),
-        ("ytdlp_timeout", "ytdlp_timeout"),
-        ("downloaded_audio_invalid", "downloaded_audio_invalid"),
+        ("local_folder_unavailable", "local_folder_unavailable"),
         ("media_range_http_403", "media_range_http_403"),
         ("media_range_http_404", "media_range_http_404"),
         ("media_range_http_429", "media_range_http_429"),
@@ -48,7 +38,7 @@ fn codes(text: &str) -> Vec<&'static str> {
 }
 
 pub fn event(operation: &'static str, raw: &str, status: Option<u16>) -> Event {
-    let operation=match operation {"play"=>"online playback", "local-play"=>"local file playback", "search"=>"search", "control"=>"player control", "player"=>"player status", _=>"application"};
+    let operation=match operation {"play"=>"online playback", "local-play"=>"local file playback", "local-scan"=>"local folder scan", "search"=>"search", "control"=>"player control", "player"=>"player status", _=>"application"};
     let mut lines=Vec::new();
     if let Some(code)=status {lines.push(format!("Backend HTTP status: {code}"));}
     // Only known names and codes are retained, never provider-controlled text.
@@ -66,7 +56,7 @@ pub fn event(operation: &'static str, raw: &str, status: Option<u16>) -> Event {
 
 pub fn report(events:&[Event], player:&Value) -> String {
     let state=match player["state"].as_str() {Some("idle")=>"idle",Some("playing")=>"playing",Some("paused")=>"paused",Some("buffering")=>"buffering",Some("error")=>"error",Some("stopped")=>"stopped",_=>"unknown"};
-    let mut out=format!("Aysha Music Windows diagnostic report\nApp version: {}\nPlatform: Windows ({})\nAudio engine: Rust / system audio\nOnline downloader: yt-dlp {}\nPlayer state: {}\n",env!("CARGO_PKG_VERSION"),std::env::consts::ARCH,crate::downloader::VERSION,state);
+    let mut out=format!("Aysha Music Windows diagnostic report\nApp version: {}\nPlatform: Windows ({})\nAudio engine: Rust / system audio\nOnline source: Rust candidate\nPlayer state: {}\n",env!("CARGO_PKG_VERSION"),std::env::consts::ARCH,state);
     if events.is_empty(){out.push_str("\nNo errors recorded in this session.\n");}
     else {out.push_str("\nRecent errors (oldest first):\n");for (i,event) in events.iter().enumerate(){out.push_str(&format!("\n{}. Operation: {}\n{}\n",i+1,event.operation,event.detail));}}
     out.push_str("\nPrivacy: no song names, search text, local paths, URLs, credentials or raw provider messages are intentionally included. Review before sharing.\n");

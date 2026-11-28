@@ -21,22 +21,9 @@ jobs:
       - name: Run offline Rust desktop tests
         working-directory: windows-app
         run: cargo test
-      - name: Package pinned yt-dlp executable
-        shell: pwsh
-        run: |
-          $dest = "windows-app/target/release/yt-dlp.exe"
-          Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe" -OutFile $dest
-          if ((Get-FileHash $dest -Algorithm SHA256).Hash.ToLower() -ne "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d") { throw "yt-dlp checksum mismatch" }
-          & $dest --ignore-config --version
-          if ($LASTEXITCODE -ne 0) { throw "yt-dlp version check failed" }
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.10.26/LICENSE" -OutFile "windows-app/target/release/YT-DLP-LICENSE.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: aysha-windows-rust-candidate
-          path: |
-            windows-app/target/release/aysha-windows.exe
-            windows-app/target/release/yt-dlp.exe
-            windows-app/target/release/YT-DLP-LICENSE.txt
-            windows-app/Cargo.lock
+          path: windows-app/target/release/aysha-windows.exe
           if-no-files-found: error
           retention-days: 14

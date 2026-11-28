@@ -39,20 +39,6 @@ impl Fetch for LocalFile {
     }
 }
 
-#[cfg(windows)]
-pub struct MemoryFile {bytes:Vec<u8>}
-#[cfg(windows)]
-impl MemoryFile {pub fn new(bytes:Vec<u8>)->Self {Self{bytes}}}
-#[cfg(windows)]
-impl Fetch for MemoryFile {
-    fn fetch(&self,start:u64,end:u64)->io::Result<Block> {
-        let len=self.bytes.len() as u64;
-        if start>end || start>=len || end-start>=BLOCK as u64 {return Err(io::Error::other("memory range invalid"));}
-        let end=end.min(len-1);
-        Ok(Block{bytes:self.bytes[start as usize..=end as usize].to_vec(),total:len})
-    }
-}
-
 #[cfg(test)] mod tests {
     use super::*;use std::io::Write;
     #[test] fn local_ranges_are_bounded_and_detect_truncation() {
