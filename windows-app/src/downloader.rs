@@ -1,10 +1,12 @@
 //! Explicitly requested, packaged yt-dlp subprocess. No config, cookies,
-//! plugins, remote components, JS runtimes, retries, or client rotation.
+//! plugins, remote components, retries, or client rotation. A pinned local
+//! Deno runtime is used by yt-dlp's bundled JavaScript component.
 use std::{path::PathBuf, process::Stdio, sync::{Arc,atomic::{AtomicU64,Ordering}}, time::Duration};
 use tokio::io::AsyncReadExt;
 
 const MAX_BYTES:usize=64*1024*1024;
 pub const VERSION:&str="2026.10.26";
+pub const DENO_VERSION:&str="2.9.8";
 // AAC without assuming yt-dlp's extension label is always m4a.
 const AUDIO_SELECTOR:&str="bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]";
 fn valid_id(id:&str)->bool{id.len()==11 && id.bytes().all(|c|c.is_ascii_alphanumeric()||c==b'_'||c==b'-')}
@@ -16,17 +18,19 @@ fn classify(stderr:&str)->&'static str {
     else if text.contains("javascript runtime") || text.contains("js runtime") {"ytdlp_js_runtime_unavailable"}
     else {"ytdlp_fetch_failed"}
 }
-fn executable()->Result<PathBuf,&'static str> {
-    let exe=std::env::current_exe().map_err(|_|"ytdlp_missing")?;
-    let path=exe.parent().ok_or("ytdlp_missing")?.join("yt-dlp.exe");
-    if !path.is_file(){return Err("ytdlp_missing");} Ok(path)
+fn bundled_executable(name:&str,error:&'static str)->Result<PathBuf,&'static str> {
+    let exe=std::env::current_exe().map_err(|_|error)?;
+    let path=exe.parent().ok_or(error)?.join(name);
+    if !path.is_file(){return Err(error);} Ok(path)
 }
 
 pub async fn fetch(id:&str,generation:Arc<AtomicU64>,expected:u64)->Result<Vec<u8>,String> {
     if !valid_id(id){return Err("invalid_video_id".into());}
-    let exe=executable().map_err(str::to_owned)?;
+    let exe=bundled_executable("yt-dlp.exe","ytdlp_missing").map_err(str::to_owned)?;
+    let runtime=bundled_executable("deno.exe","ytdlp_js_runtime_missing").map_err(str::to_owned)?;
+    let runtime_arg=format!("deno:{}",runtime.to_str().ok_or("ytdlp_js_runtime_missing")?);
     let mut command=tokio::process::Command::new(exe);
-    command.args(["--ignore-config","--no-plugin-dirs","--no-cache-dir","--no-update","--no-playlist","--no-progress","--no-warnings","--proxy","","--no-remote-components","--no-js-runtimes","--no-check-formats","--retries","0","--fragment-retries","0","--extractor-retries","0","--socket-timeout","15","--max-filesize","64M","--extractor-args","youtube:player_client=web","-f",AUDIO_SELECTOR,"-o","-","--",&format!("https://www.youtube.com/watch?v={id}")]);
+    command.args(["--ignore-config","--no-plugin-dirs","--no-cache-dir","--no-update","--no-playlist","--no-progress","--no-warnings","--proxy","","--no-remote-components","--no-js-runtimes","--js-runtimes",&runtime_arg,"--no-check-formats","--retries","0","--fragment-retries","0","--extractor-retries","0","--socket-timeout","15","--max-filesize","64M","--extractor-args","youtube:player_client=web","--extractor-args","youtube-ejs:jitless=true","-f",AUDIO_SELECTOR,"-o","-","--",&format!("https://www.youtube.com/watch?v={id}")]);
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     #[cfg(windows)] {command.creation_flags(0x08000000);}
     let mut child=command.spawn().map_err(|_|"ytdlp_start_failed".to_string())?;

@@ -92,6 +92,7 @@ fn online_challenge(error:&str)->bool {
 fn playback_error(error:&str)->String {
     if online_challenge(error) {"The provider requires sign-in or a bot check. Online playback has stopped; no bypass was attempted.".into()}
     else if error=="ytdlp_missing" {"yt-dlp.exe is missing. Extract the complete ZIP and keep both executables together.".into()}
+    else if error=="ytdlp_js_runtime_missing" {"deno.exe is missing. Extract the complete ZIP and keep all executable files together.".into()}
     else if error.starts_with("ytdlp_") {format!("Online audio could not be prepared ({error}). View the error report for details.")}
     else if error.starts_with("local_settings_") {"Could not read or save the music folder setting. Check app storage access.".into()}
     else if error=="local_folder_unavailable" {"Could not read that folder. Choose another folder or check access permissions.".into()}
