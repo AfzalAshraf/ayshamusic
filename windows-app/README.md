@@ -4,7 +4,7 @@ This is an **early candidate**, not a production-ready or full Android clone. Th
 
 ## Local music
 
-Choose **Open M4A file** for a single compatible file, or **Choose music folder** to browse M4A files directly in a folder such as one copied from the phone. The folder scan is non-recursive and bounded to 500 songs and 5,000 directory entries. The chosen folder path is remembered in a local SQLite settings database and rescanned on startup. Use **Refresh folder** to rescan or **Forget folder** to remove the saved setting without deleting music. The player reads the file; it never imports, modifies, or deletes it. Files must be compatible M4A/AAC and at most 64 MiB. The previous Windows candidate's local file playback was confirmed by the user; this folder browser and saved-setting behavior require real-device testing.
+Choose **Open audio file** or **Choose music folder**. Supported local formats are M4A with AAC, MP3, WAV with PCM, FLAC, Ogg Vorbis, and WebM Opus. Containers may hold other codecs that are not supported (notably Ogg Opus); renaming a file does not convert it. The folder scan is non-recursive and bounded to 500 songs and 5,000 entries. It remembers the chosen folder; Refresh rescans, and Forget removes only the setting. Files are read without modification or upload. M4A and WebM files are limited to 64 MiB; the other formats to 512 MiB. Local file access is independent of the online source. Offline decoder fixtures are tested in CI, but actual Windows speaker output for the newly added formats has not been verified.
 
 ## Online playback is unresolved
 

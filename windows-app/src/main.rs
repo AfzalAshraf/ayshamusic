@@ -3,6 +3,7 @@
 mod diagnostics;
 mod downloader;
 mod local_library;
+mod local_audio;
 mod opus_source;
 mod library_settings;
 
@@ -66,7 +67,13 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                     }
                     if kind=="local-play" {
                         let path=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("No file selected")?;
-                        ayshamusic::windows_play_local_file(std::path::PathBuf::from(path),generation.clone(),seq).await?;
+                        let path=std::path::PathBuf::from(path);
+                        if path.extension().and_then(|v|v.to_str()).is_some_and(|v|v.eq_ignore_ascii_case("m4a")) {
+                            ayshamusic::windows_play_local_file(path,generation.clone(),seq).await?;
+                        } else {
+                            let (source,health)=tokio::task::spawn_blocking(move || local_audio::prepare(&path)).await.map_err(|_|"local_audio_open_failed".to_owned())??;
+                            ayshamusic::windows_play_decoded_source(source,health,generation.clone(),seq).await?;
+                        }
                         return Ok(json!({"status":"playing"}));
                     }
                     let bytes=request.body.map(|v|v.to_string()).unwrap_or_default();
@@ -97,8 +104,12 @@ fn playback_error(error:&str)->String {
     if online_challenge(error) {"The provider requires sign-in or a bot check. Online playback has stopped; no bypass was attempted.".into()}
     else if error=="ytdlp_missing" {"yt-dlp.exe is missing. Extract the complete ZIP and keep both executables together.".into()}
     else if error=="ytdlp_js_runtime_missing" {"deno.exe is missing. Extract the complete ZIP and keep all executable files together.".into()}
+    else if error.contains("ytdlp_images_only") {"The online source returned images but no audio. Nothing was downloaded; local files can still play.".into()}
     else if error.starts_with("ytdlp_") {format!("Online audio could not be prepared ({error}). View the error report for details.")}
     else if error.starts_with("local_settings_") {"Could not read or save the music folder setting. Check app storage access.".into()}
+    else if error=="local_audio_decode_failed" || error=="local_audio_unsupported" || error.starts_with("opus_") {"This file's audio format or codec is not supported, or the file is damaged.".into()}
+    else if error=="local_audio_size_invalid" {"This audio file is empty or exceeds the supported size limit.".into()}
+    else if error=="local_audio_open_failed" {"Could not open the selected audio file.".into()}
     else if error=="local_folder_unavailable" {"Could not read that folder. Choose another folder or check access permissions.".into()}
     else if error.contains("media_range_http_403") {"The provider refused this audio (403). Online playback is unavailable for this request; a local M4A file may still play.".into()}
     else {error.to_owned()}
@@ -143,7 +154,7 @@ impl eframe::App for Aysha {
                     "local-scan"|"local-restore"=>{
                         self.scanning=false;self.local_songs=value["items"].as_array().cloned().unwrap_or_default();
                         self.local_folder=value["folder"].as_str().map(str::to_owned);
-                        self.local_notice=if value["scan_error"]==true {"Saved folder is unavailable. Reconnect it, refresh, choose another, or forget it.".into()} else if value["save_failed"]==true {"Folder opened, but could not be remembered. Check app storage access.".into()} else if self.local_folder.is_none(){"Choose a music folder to browse your saved songs.".into()} else if value["truncated"]==true {"Showing up to 500 songs from the first 5,000 entries.".into()} else {format!("{} local M4A songs found.",self.local_songs.len())};
+                        self.local_notice=if value["scan_error"]==true {"Saved folder is unavailable. Reconnect it, refresh, choose another, or forget it.".into()} else if value["save_failed"]==true {"Folder opened, but could not be remembered. Check app storage access.".into()} else if self.local_folder.is_none(){"Choose a music folder to browse your saved songs.".into()} else if value["truncated"]==true {"Showing up to 500 songs from the first 5,000 entries.".into()} else {format!("{} local audio files found.",self.local_songs.len())};
                     },
                     "local-forget"=>{self.scanning=false;self.local_songs.clear();self.local_folder=None;self.local_notice="Folder forgotten. Your music files were not deleted.".into();},
                     "play"|"local-play"=>{self.starting=false;self.status="Playing requested song.".into();},
@@ -169,8 +180,8 @@ impl eframe::App for Aysha {
                 if ui.add_enabled(!self.searching,egui::Button::new("Search")).clicked() || enter {self.search();}
             });
             ui.horizontal(|ui| {
-                if ui.add_enabled(!self.starting,egui::Button::new("Open M4A file…")).clicked() {
-                    if let Some(path)=rfd::FileDialog::new().add_filter("M4A audio", &["m4a"]).pick_file() {
+                if ui.add_enabled(!self.starting,egui::Button::new("Open audio file…")).clicked() {
+                    if let Some(path)=rfd::FileDialog::new().add_filter("Supported audio", &["m4a", "mp3", "wav", "flac", "ogg", "webm"]).pick_file() {
                         if let Some(path)=path.to_str() {
                             self.play_local(path);
                         } else {self.status="Could not read this file name.".into();}
@@ -211,7 +222,7 @@ impl eframe::App for Aysha {
                     self.scanning=true;self.send("local-forget",Method::POST,String::new(),None);
                 }
             });
-            ui.label(if self.local_notice.is_empty(){"Choose a folder containing saved M4A songs."}else{&self.local_notice});
+            ui.label(if self.local_notice.is_empty(){"Choose a folder containing saved audio files."}else{&self.local_notice});
             let mut local_selected=None;
             egui::ScrollArea::vertical().id_salt("local-library").max_height(150.0).show(ui,|ui| {
                 for track in &self.local_songs {ui.horizontal(|ui| {

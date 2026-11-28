@@ -205,7 +205,7 @@ pub async fn windows_play_decoded_source(source:Box<dyn rodio::Source + Send>, h
         if let Some(player)=started_player(){player.stop().map_err(|_|"audio_stop_failed".to_owned())?;}
         *current
     };
-    let media=player::Media{video_id:"downloaded-audio".into(),title:Some("Online song".into()),client:"LOCAL",itag:0,url:String::new(),user_agent:"",content_length:None,fetch:None,source:Some((source,health))};
+    let media=player::Media{video_id:"decoded-audio".into(),title:Some("Audio".into()),client:"LOCAL",itag:0,url:String::new(),user_agent:"",content_length:None,fetch:None,source:Some((source,health))};
     start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("audio_prepare_failed").to_owned())
 }
 

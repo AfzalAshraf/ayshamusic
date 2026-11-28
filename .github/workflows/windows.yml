@@ -52,6 +52,8 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $selected -ne "webm-opus") { throw "Offline audio selection fixture failed: $selected" }
           $aacSelected = & $dest --ignore-config --no-plugin-dirs --no-js-runtimes --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats-aac.json --print format_id -f 'bestaudio[acodec^=opus][ext=webm]/bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]'
           if ($LASTEXITCODE -ne 0 -or $aacSelected -ne "mp4-aac") { throw "Offline AAC fallback fixture failed: $aacSelected" }
+          python windows-app/fixtures/test_offline_download.py $dest
+          if ($LASTEXITCODE -ne 0) { throw "Offline audio download fixture failed" }
           Copy-Item windows-app/THIRD_PARTY.txt windows-app/target/release/THIRD_PARTY.txt
           $originalErrorActionPreference = $ErrorActionPreference
           $ErrorActionPreference = 'Continue'
