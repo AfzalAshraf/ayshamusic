@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod diagnostics;
+mod downloader;
 mod local_library;
 
 use axum::{body::{to_bytes, Body}, http::{Method, Request}};
@@ -22,16 +23,24 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
     std::thread::Builder::new().name("aysha-desktop-backend".into()).spawn(move || {
         let Ok(runtime)=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() else {let _=results.send(ResultMessage{kind:"error",result:Err("Could not start Rust backend".into()),http_status:None});return;};
         let generation=std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let provider_blocked=std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         runtime.block_on(async move { while let Some(request)=requests.recv().await {
             use std::sync::atomic::Ordering;
             let changes_playback=request.kind=="play" || request.kind=="local-play" || (request.kind=="control" && request.path=="/api/stop");
             let seq=if changes_playback {generation.fetch_add(1,Ordering::SeqCst)+1} else {generation.load(Ordering::SeqCst)};
-            let generation=generation.clone();
+            let generation=generation.clone();let provider_blocked=provider_blocked.clone();
             let app=app.clone();let results=results.clone();
             tokio::spawn(async move {
                 let kind=request.kind;
                 let mut http_status=None;
                 let response=async {
+                    if kind=="play" {
+                        if provider_blocked.load(Ordering::SeqCst) {return Err("provider_sign_in_or_bot_challenge".into());}
+                        let id=request.body.as_ref().and_then(|v|v["video_id"].as_str()).ok_or("invalid_video_id")?;
+                        let bytes=downloader::fetch(id,generation.clone(),seq).await?;
+                        ayshamusic::windows_play_audio_bytes(bytes,generation.clone(),seq).await?;
+                        return Ok(json!({"status":"playing"}));
+                    }
                     if kind=="local-scan" {
                         let folder=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("local_folder_unavailable")?;
                         let path=std::path::PathBuf::from(folder);
@@ -50,6 +59,9 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                     if !status.is_success() || value["status"]=="error" || value["status"]=="failed" {return Err(value["detail"].as_str().or_else(||value["error"].as_str()).unwrap_or("Request failed").chars().take(8192).collect());}
                     Ok(value)
                 }.await;
+                if let Err(ref error)=response {
+                    if kind=="play" && (online_challenge(error)) {provider_blocked.store(true,Ordering::SeqCst);}
+                }
                 if !matches!(kind,"play"|"local-play") || generation.load(Ordering::SeqCst)==seq {
                     let _=results.send(ResultMessage{kind,result:response,http_status});
                 }
@@ -59,8 +71,15 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
     Ok((tx,rx))
 }
 
+fn online_challenge(error:&str)->bool {
+    matches!(error,"ytdlp_sign_in_or_bot_challenge"|"provider_sign_in_or_bot_challenge")
+}
+
 fn playback_error(error:&str)->String {
-    if error=="local_folder_unavailable" {"Could not read that folder. Choose another folder or check access permissions.".into()}
+    if online_challenge(error) {"The provider requires sign-in or a bot check. Online playback has stopped; no bypass was attempted.".into()}
+    else if error=="ytdlp_missing" {"yt-dlp.exe is missing. Extract the complete ZIP and keep both executables together.".into()}
+    else if error.starts_with("ytdlp_") {format!("Online audio could not be prepared ({error}). View the error report for details.")}
+    else if error=="local_folder_unavailable" {"Could not read that folder. Choose another folder or check access permissions.".into()}
     else if error.contains("media_range_http_403") {"The provider refused this audio (403). Online playback is unavailable for this request; a local M4A file may still play.".into()}
     else {error.to_owned()}
 }
@@ -69,7 +88,7 @@ struct Aysha {
     tx:tokio::sync::mpsc::UnboundedSender<RequestSpec>,rx:mpsc::Receiver<ResultMessage>,
     query:String,results:Vec<Value>, status:String, player:Value,searching:bool, starting:bool,
     events:Vec<diagnostics::Event>, show_report:bool, last_player_error:String,
-    local_songs:Vec<Value>,scanning:bool,local_notice:String,
+    local_songs:Vec<Value>,scanning:bool,local_notice:String,provider_blocked:bool,
 }
 impl Aysha {
     fn record_error(&mut self,kind:&'static str,error:&str,status:Option<u16>) {
@@ -89,10 +108,10 @@ impl Aysha {
         self.send("local-play",Method::POST,String::new(),Some(json!({"path":path})));
     }
     fn play(&mut self,track:Value) {
-        if self.starting {return;}
+        if self.starting || self.provider_blocked {return;}
         let Some(id)=track["id"].as_str() else{return};
         self.send("play",Method::POST,"/api/play".into(),Some(json!({"video_id":id,"track":track})));
-        self.starting=true;self.status="Preparing song…".into();
+        self.starting=true;self.status="Preparing audio with yt-dlp… This uses data and may take time.".into();
     }
 }
 impl eframe::App for Aysha {
@@ -111,7 +130,7 @@ impl eframe::App for Aysha {
                     },
                     _=>{},
                 },
-                Err(error)=>{if msg.kind=="local-scan"{self.scanning=false;}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
+                Err(error)=>{if msg.kind=="play" && (online_challenge(&error)) {self.provider_blocked=true;}if msg.kind=="local-scan"{self.scanning=false;}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
             }
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,12,18)).inner_margin(28.0)).show(ctx,|ui| {
@@ -169,10 +188,11 @@ impl eframe::App for Aysha {
             });
             if let Some(path)=local_selected {self.play_local(&path);}
             ui.separator();ui.heading("Online search results");
+            if self.provider_blocked {ui.label("Online playback stopped because the provider requested sign-in or a bot check. Local files remain available.");}
             let mut selected=None;
             egui::ScrollArea::vertical().id_salt("online-results").show(ui,|ui| {for (index,track) in self.results.iter().enumerate() {
                 let title=track["title"].as_str().unwrap_or("YouTube track");let artist=track["artist"].as_str().unwrap_or("");
-                ui.horizontal(|ui|{if ui.add_enabled(!self.starting,egui::Button::new("Play")).clicked(){selected=Some(index);}ui.label(format!("{title}  ·  {artist}"));});
+                ui.horizontal(|ui|{if ui.add_enabled(!self.starting && !self.provider_blocked,egui::Button::new("Play")).clicked(){selected=Some(index);}ui.label(format!("{title}  ·  {artist}"));});
             }});
             if let Some(index)=selected {self.play(self.results[index].clone());}
         });
@@ -197,7 +217,7 @@ fn main() -> eframe::Result {
         if status.send(RequestSpec{kind:"player",method:Method::GET,path:"/api/player".into(),body:None}).is_err(){break;}
         std::thread::sleep(Duration::from_secs(1));
     });
-    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:false,local_notice:String::new()};
+    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:false,local_notice:String::new(),provider_blocked:false};
     let options=eframe::NativeOptions{viewport:egui::ViewportBuilder::default().with_inner_size([880.0,680.0]).with_min_inner_size([480.0,420.0]),..Default::default()};
     eframe::run_native("Aysha Music",options,Box::new(|_|Ok(Box::new(app))))
 }
@@ -205,6 +225,12 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn challenge_is_terminal_but_format_error_is_not_challenge() {
+        assert!(online_challenge("ytdlp_sign_in_or_bot_challenge"));
+        assert!(online_challenge("provider_sign_in_or_bot_challenge"));
+        assert!(!online_challenge("ytdlp_format_unavailable"));
+    }
     #[test]
     fn provider_403_has_clear_message_and_other_errors_are_preserved() {
         assert!(playback_error("audio_decode_failed; input: media_range_http_403").contains("provider refused"));

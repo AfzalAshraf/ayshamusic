@@ -1,0 +1,1 @@
+{"id": "fixture0001", "title": "Offline fixture", "extractor": "generic", "formats": [{"format_id": "webm-opus", "url": "https://example.invalid/opus", "ext": "webm", "vcodec": "none", "acodec": "opus", "abr": 160}, {"format_id": "mp4-aac", "url": "https://example.invalid/audio", "ext": "mp4", "vcodec": "none", "acodec": "mp4a.40.2", "abr": 128}]}

@@ -24,3 +24,7 @@ Use this skill when working on Aysha app features or upgrades. The user's standi
 - Keep secrets, Telegram sessions, existing files and user's choices intact. Never ask for private keys, credentials or auth codes in chat.
 - Retain a small, audited JNI/API boundary. Validate both sides, do not expose arbitrary code/URLs, and test realistic lifecycle, restart, ordering and error cases.
 - Each milestone must leave the app usable and independently revertible without data loss.
+
+## Windows exception selected by user
+
+On Windows, the user explicitly selected a packaged yt-dlp process for online acquisition in preference to the single Rust-only candidate. This is not a change to Android's standalone Media3-only runtime requirement. Keep the GUI and audio engine in Rust, bound input/CPU/storage, never log secrets, avoid auto-updates and do not bypass provider sign-in/bot challenges. Explain that the packaged yt-dlp includes Python and that a build or an offline format fixture does not prove live provider playback. Keep changes small, preserve local-file playback and use the manually maintained architecture map in `docs/WINDOWS_ARCHITECTURE.md`; this is not a Graphify-generated graph.

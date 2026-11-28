@@ -23,9 +23,23 @@ jobs:
         run: cargo test
       - name: Test Windows metadata network policy (offline)
         run: cargo test --manifest-path Cargo.toml --features phone --lib windows_direct_network_disables_explicit_proxy_offline
+      - name: Package pinned yt-dlp executable
+        shell: pwsh
+        run: |
+          $dest = "windows-app/target/release/yt-dlp.exe"
+          Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe" -OutFile $dest
+          if ((Get-FileHash $dest -Algorithm SHA256).Hash.ToLower() -ne "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d") { throw "yt-dlp checksum mismatch" }
+          & $dest --ignore-config --version
+          if ($LASTEXITCODE -ne 0) { throw "yt-dlp version check failed" }
+          $selected = & $dest --ignore-config --no-plugin-dirs --no-js-runtimes --no-remote-components --no-cache-dir --no-check-formats --simulate --load-info-json windows-app/fixtures/formats.json --print format_id -f 'bestaudio[acodec^=mp4a][ext=m4a]/bestaudio[acodec^=mp4a][ext=mp4]'
+          if ($LASTEXITCODE -ne 0 -or $selected -ne "mp4-aac") { throw "Offline AAC selection fixture failed: $selected" }
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.10.26/LICENSE" -OutFile "windows-app/target/release/YT-DLP-LICENSE.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: aysha-windows-rust-candidate
-          path: windows-app/target/release/aysha-windows.exe
+          path: |
+            windows-app/target/release/aysha-windows.exe
+            windows-app/target/release/yt-dlp.exe
+            windows-app/target/release/YT-DLP-LICENSE.txt
           if-no-files-found: error
           retention-days: 14
