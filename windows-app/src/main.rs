@@ -212,14 +212,14 @@ impl eframe::App for Aysha {
             });
         });
         egui::TopBottomPanel::bottom("player-bar").frame(egui::Frame::NONE.fill(Color32::from_rgb(29,23,30)).inner_margin(egui::Margin::symmetric(20,12))).show(ctx,|ui| {
-            let state=self.player["state"].as_str().unwrap_or("idle");
+            let state=self.player["state"].as_str().unwrap_or("idle").to_owned();
             let position=self.player["position_secs"].as_f64().unwrap_or(0.0).max(0.0);
             let duration=self.player["duration_secs"].as_f64().filter(|d|d.is_finite() && *d>0.0);
             ui.horizontal_wrapped(|ui| {
                 ui.label(RichText::new("♪").size(26.0).color(ROSE));
                 ui.vertical(|ui| {
                     ui.label(RichText::new(if self.now_playing.is_empty(){"Nothing playing"}else{&self.now_playing}).strong().size(15.0));
-                    ui.label(RichText::new(if self.starting {"Preparing audio"} else {state}).size(11.0).color(MUTED));
+                    ui.label(RichText::new(if self.starting {"Preparing audio"} else {state.as_str()}).size(11.0).color(MUTED));
                 });
                 ui.add_space(20.0);
                 let (label,route)=if state=="playing" {("Pause","/api/pause")}else{("Play","/api/resume")};
