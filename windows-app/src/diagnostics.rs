@@ -18,6 +18,8 @@ fn codes(text: &str) -> Vec<&'static str> {
         ("ytdlp_size_limit", "ytdlp_size_limit"),
         ("ytdlp_timeout", "ytdlp_timeout"),
         ("downloaded_audio_invalid", "downloaded_audio_invalid"),
+        ("local_settings_unavailable", "local_settings_unavailable"),
+        ("local_settings_invalid", "local_settings_invalid"),
         ("local_folder_unavailable", "local_folder_unavailable"),
         ("media_range_http_403", "media_range_http_403"),
         ("media_range_http_404", "media_range_http_404"),
@@ -49,7 +51,7 @@ fn codes(text: &str) -> Vec<&'static str> {
 }
 
 pub fn event(operation: &'static str, raw: &str, status: Option<u16>) -> Event {
-    let operation=match operation {"play"=>"online playback", "local-play"=>"local file playback", "local-scan"=>"local folder scan", "search"=>"search", "control"=>"player control", "player"=>"player status", _=>"application"};
+    let operation=match operation {"play"=>"online playback", "local-play"=>"local file playback", "local-scan"=>"local folder scan", "local-restore"=>"local folder restore", "local-forget"=>"local folder forget", "search"=>"search", "control"=>"player control", "player"=>"player status", _=>"application"};
     let mut lines=Vec::new();
     if let Some(code)=status {lines.push(format!("Backend HTTP status: {code}"));}
     // Only known names and codes are retained, never provider-controlled text.

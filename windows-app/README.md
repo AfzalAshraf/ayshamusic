@@ -4,7 +4,7 @@ This is an **early candidate**, not a production-ready or full Android clone. Th
 
 ## Local music
 
-Choose **Open M4A file** for a single compatible file, or **Choose music folder** to browse M4A files directly in a folder such as one copied from the phone. The folder scan is non-recursive and bounded to 500 songs and 5,000 directory entries. It is not retained after app exit. The player reads the file; it never imports, modifies, or deletes it. Files must be compatible M4A/AAC and at most 64 MiB. The previous Windows candidate's local file playback was confirmed by the user; this new folder browser and build require real-device testing.
+Choose **Open M4A file** for a single compatible file, or **Choose music folder** to browse M4A files directly in a folder such as one copied from the phone. The folder scan is non-recursive and bounded to 500 songs and 5,000 directory entries. The chosen folder path is remembered in a local SQLite settings database and rescanned on startup. Use **Refresh folder** to rescan or **Forget folder** to remove the saved setting without deleting music. The player reads the file; it never imports, modifies, or deletes it. Files must be compatible M4A/AAC and at most 64 MiB. The previous Windows candidate's local file playback was confirmed by the user; this folder browser and saved-setting behavior require real-device testing.
 
 ## Online playback is unresolved
 

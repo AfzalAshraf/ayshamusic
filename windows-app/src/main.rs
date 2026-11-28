@@ -3,6 +3,7 @@
 mod diagnostics;
 mod downloader;
 mod local_library;
+mod library_settings;
 
 use axum::{body::{to_bytes, Body}, http::{Method, Request}};
 use eframe::egui::{self, Color32, RichText};
@@ -17,6 +18,7 @@ struct ResultMessage { kind: &'static str, result: Result<Value, String>, http_s
 fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Receiver<ResultMessage>), String> {
     let root = std::env::var_os("LOCALAPPDATA").ok_or("Windows local app data is unavailable")?;
     let root = std::path::PathBuf::from(root).join("AyshaMusicRustDesktop");
+    let library_db=root.join("data").join("windows-library-settings.sqlite3");
     let app=ayshamusic::windows_desktop_router(root.join("data").to_string_lossy().into_owned(),root.join("cache").to_string_lossy().into_owned()).map_err(str::to_owned)?;
     let (tx,mut requests)=tokio::sync::mpsc::unbounded_channel::<RequestSpec>();
     let (results,rx)=mpsc::channel::<ResultMessage>();
@@ -28,7 +30,7 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
             use std::sync::atomic::Ordering;
             let changes_playback=request.kind=="play" || request.kind=="local-play" || (request.kind=="control" && request.path=="/api/stop");
             let seq=if changes_playback {generation.fetch_add(1,Ordering::SeqCst)+1} else {generation.load(Ordering::SeqCst)};
-            let generation=generation.clone();let provider_blocked=provider_blocked.clone();
+            let generation=generation.clone();let provider_blocked=provider_blocked.clone();let library_db=library_db.clone();
             let app=app.clone();let results=results.clone();
             tokio::spawn(async move {
                 let kind=request.kind;
@@ -41,10 +43,22 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                         ayshamusic::windows_play_audio_bytes(bytes,generation.clone(),seq).await?;
                         return Ok(json!({"status":"playing"}));
                     }
-                    if kind=="local-scan" {
-                        let folder=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("local_folder_unavailable")?;
-                        let path=std::path::PathBuf::from(folder);
-                        return tokio::task::spawn_blocking(move || local_library::scan(&path)).await.map_err(|_|"local_folder_unavailable".to_owned())?;
+                    if kind=="local-scan" || kind=="local-restore" || kind=="local-forget" {
+                        let folder=request.body.as_ref().and_then(|v|v["path"].as_str()).map(str::to_owned);
+                        let save=request.body.as_ref().and_then(|v|v["save"].as_bool()).unwrap_or(false);
+                        return tokio::task::spawn_blocking(move || {
+                            if kind=="local-forget" {library_settings::forget(&library_db)?;return Ok(json!({"forgotten":true}));}
+                            let folder=if kind=="local-restore" {library_settings::load(&library_db)?} else {folder};
+                            let Some(folder)=folder else {return Ok(json!({"items":[],"folder":null}));};
+                            let mut result=match local_library::scan(std::path::Path::new(&folder)) {
+                                Ok(value)=>value,
+                                Err(_) if kind=="local-restore"=>return Ok(json!({"items":[],"folder":folder,"scan_error":true})),
+                                Err(error)=>return Err(error),
+                            };
+                            let saved=if save {library_settings::save(&library_db,&folder).is_ok()} else {true};
+                            result["folder"]=json!(folder);result["save_failed"]=json!(!saved);
+                            Ok(result)
+                        }).await.map_err(|_|"local_settings_unavailable".to_owned())?;
                     }
                     if kind=="local-play" {
                         let path=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("No file selected")?;
@@ -79,6 +93,7 @@ fn playback_error(error:&str)->String {
     if online_challenge(error) {"The provider requires sign-in or a bot check. Online playback has stopped; no bypass was attempted.".into()}
     else if error=="ytdlp_missing" {"yt-dlp.exe is missing. Extract the complete ZIP and keep both executables together.".into()}
     else if error.starts_with("ytdlp_") {format!("Online audio could not be prepared ({error}). View the error report for details.")}
+    else if error.starts_with("local_settings_") {"Could not read or save the music folder setting. Check app storage access.".into()}
     else if error=="local_folder_unavailable" {"Could not read that folder. Choose another folder or check access permissions.".into()}
     else if error.contains("media_range_http_403") {"The provider refused this audio (403). Online playback is unavailable for this request; a local M4A file may still play.".into()}
     else {error.to_owned()}
@@ -88,7 +103,7 @@ struct Aysha {
     tx:tokio::sync::mpsc::UnboundedSender<RequestSpec>,rx:mpsc::Receiver<ResultMessage>,
     query:String,results:Vec<Value>, status:String, player:Value,searching:bool, starting:bool,
     events:Vec<diagnostics::Event>, show_report:bool, last_player_error:String,
-    local_songs:Vec<Value>,scanning:bool,local_notice:String,provider_blocked:bool,
+    local_songs:Vec<Value>,scanning:bool,local_notice:String,local_folder:Option<String>,provider_blocked:bool,
 }
 impl Aysha {
     fn record_error(&mut self,kind:&'static str,error:&str,status:Option<u16>) {
@@ -120,7 +135,12 @@ impl eframe::App for Aysha {
             match msg.result {
                 Ok(value)=> match msg.kind {
                     "search"=>{self.searching=false;self.results=value.as_array().cloned().unwrap_or_default();self.status=if self.results.is_empty(){"No songs found."}else{"Choose a song."}.into();},
-                    "local-scan"=>{self.scanning=false;self.local_songs=value["items"].as_array().cloned().unwrap_or_default();self.local_notice=if value["truncated"]==true {"Showing up to 500 songs from the first 5,000 entries.".into()} else {format!("{} local M4A songs found.",self.local_songs.len())};},
+                    "local-scan"|"local-restore"=>{
+                        self.scanning=false;self.local_songs=value["items"].as_array().cloned().unwrap_or_default();
+                        self.local_folder=value["folder"].as_str().map(str::to_owned);
+                        self.local_notice=if value["scan_error"]==true {"Saved folder is unavailable. Reconnect it, refresh, choose another, or forget it.".into()} else if value["save_failed"]==true {"Folder opened, but could not be remembered. Check app storage access.".into()} else if self.local_folder.is_none(){"Choose a music folder to browse your saved songs.".into()} else if value["truncated"]==true {"Showing up to 500 songs from the first 5,000 entries.".into()} else {format!("{} local M4A songs found.",self.local_songs.len())};
+                    },
+                    "local-forget"=>{self.scanning=false;self.local_songs.clear();self.local_folder=None;self.local_notice="Folder forgotten. Your music files were not deleted.".into();},
                     "play"|"local-play"=>{self.starting=false;self.status="Playing requested song.".into();},
                     "player"=>{
                         let error=value["error"].as_str().unwrap_or("").to_owned();
@@ -130,7 +150,7 @@ impl eframe::App for Aysha {
                     },
                     _=>{},
                 },
-                Err(error)=>{if msg.kind=="play" && (online_challenge(&error)) {self.provider_blocked=true;}if msg.kind=="local-scan"{self.scanning=false;}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
+                Err(error)=>{if msg.kind=="play" && (online_challenge(&error)) {self.provider_blocked=true;}if matches!(msg.kind,"local-scan"|"local-restore"|"local-forget"){self.scanning=false;self.local_notice=playback_error(&error);}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
             }
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,12,18)).inner_margin(28.0)).show(ctx,|ui| {
@@ -155,7 +175,7 @@ impl eframe::App for Aysha {
                     if let Some(folder)=rfd::FileDialog::new().pick_folder() {
                         if let Some(path)=folder.to_str() {
                             self.scanning=true;self.local_notice="Reading folder…".into();
-                            self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path})));
+                            self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":true})));
                         } else {self.local_notice="Could not read the folder name.".into();}
                     }
                 }
@@ -178,7 +198,15 @@ impl eframe::App for Aysha {
                 }
             });
             ui.separator();ui.heading("Local music folder");
-            ui.label(if self.local_notice.is_empty(){"Choose a folder containing saved M4A songs. The folder is not saved between sessions."}else{&self.local_notice});
+            ui.horizontal(|ui| {
+                if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Refresh folder")).clicked() {
+                    if let Some(path)=self.local_folder.clone(){self.scanning=true;self.local_notice="Reading folder…".into();self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":false})));}
+                }
+                if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Forget folder")).clicked() {
+                    self.scanning=true;self.send("local-forget",Method::POST,String::new(),None);
+                }
+            });
+            ui.label(if self.local_notice.is_empty(){"Choose a folder containing saved M4A songs."}else{&self.local_notice});
             let mut local_selected=None;
             egui::ScrollArea::vertical().id_salt("local-library").max_height(150.0).show(ui,|ui| {
                 for track in &self.local_songs {ui.horizontal(|ui| {
@@ -217,7 +245,8 @@ fn main() -> eframe::Result {
         if status.send(RequestSpec{kind:"player",method:Method::GET,path:"/api/player".into(),body:None}).is_err(){break;}
         std::thread::sleep(Duration::from_secs(1));
     });
-    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:false,local_notice:String::new(),provider_blocked:false};
+    let _=tx.send(RequestSpec{kind:"local-restore",method:Method::GET,path:String::new(),body:None});
+    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:true,local_notice:"Loading saved music folder…".into(),local_folder:None,provider_blocked:false};
     let options=eframe::NativeOptions{viewport:egui::ViewportBuilder::default().with_inner_size([880.0,680.0]).with_min_inner_size([480.0,420.0]),..Default::default()};
     eframe::run_native("Aysha Music",options,Box::new(|_|Ok(Box::new(app))))
 }

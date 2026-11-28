@@ -9,6 +9,7 @@ flowchart LR
   Download -->|bounded AAC MP4 bytes| Audio["Rust player\nsrc/player.rs"]
   UI -->|choose local file or folder| Library["Local library\nwindows-app/src/local_library.rs"]
   Library -->|user-selected M4A| Audio
+  UI -->|remember or forget chosen folder| Settings["Local SQLite settings\nwindows-app/src/library_settings.rs"]
   UI --> Report["Privacy-filtered report\nwindows-app/src/diagnostics.rs"]
   Backend --> Audio
   Audio --> Windows["Windows audio APIs"]
