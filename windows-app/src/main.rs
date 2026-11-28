@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod diagnostics;
+
 use axum::{body::{to_bytes, Body}, http::{Method, Request}};
 use eframe::egui::{self, Color32, RichText};
 use serde_json::{json, Value};
@@ -8,7 +10,7 @@ use tower::ServiceExt;
 
 #[derive(Clone)]
 struct RequestSpec { kind: &'static str, method: Method, path: String, body: Option<Value> }
-struct ResultMessage { kind: &'static str, result: Result<Value, String> }
+struct ResultMessage { kind: &'static str, result: Result<Value, String>, http_status: Option<u16> }
 
 fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Receiver<ResultMessage>), String> {
     let root = std::env::var_os("LOCALAPPDATA").ok_or("Windows local app data is unavailable")?;
@@ -17,11 +19,12 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
     let (tx,mut requests)=tokio::sync::mpsc::unbounded_channel::<RequestSpec>();
     let (results,rx)=mpsc::channel::<ResultMessage>();
     std::thread::Builder::new().name("aysha-desktop-backend".into()).spawn(move || {
-        let Ok(runtime)=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() else {let _=results.send(ResultMessage{kind:"error",result:Err("Could not start Rust backend".into())});return;};
+        let Ok(runtime)=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() else {let _=results.send(ResultMessage{kind:"error",result:Err("Could not start Rust backend".into()),http_status:None});return;};
         runtime.block_on(async move { while let Some(request)=requests.recv().await {
             let app=app.clone();let results=results.clone();
             tokio::spawn(async move {
                 let kind=request.kind;
+                let mut http_status=None;
                 let response=async {
                     if kind=="local-play" {
                         let path=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("No file selected")?;
@@ -31,12 +34,12 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                     let bytes=request.body.map(|v|v.to_string()).unwrap_or_default();
                     let req=Request::builder().method(request.method).uri(request.path).header("content-type","application/json").body(Body::from(bytes)).map_err(|_|"Invalid desktop request".to_owned())?;
                     let response=app.oneshot(req).await.map_err(|_|"Desktop backend unavailable".to_owned())?;
-                    let status=response.status();let bytes=to_bytes(response.into_body(),256*1024).await.map_err(|_|"Backend response too large".to_owned())?;
+                    let status=response.status();http_status=Some(status.as_u16());let bytes=to_bytes(response.into_body(),256*1024).await.map_err(|_|"Backend response too large".to_owned())?;
                     let value:Value=serde_json::from_slice(&bytes).map_err(|_|"Invalid backend response".to_owned())?;
-                    if !status.is_success() || value["status"]=="error" || value["status"]=="failed" {return Err(value["detail"].as_str().or_else(||value["error"].as_str()).unwrap_or("Request failed").chars().take(300).collect());}
+                    if !status.is_success() || value["status"]=="error" || value["status"]=="failed" {return Err(value["detail"].as_str().or_else(||value["error"].as_str()).unwrap_or("Request failed").chars().take(8192).collect());}
                     Ok(value)
                 }.await;
-                let _=results.send(ResultMessage{kind,result:response});
+                let _=results.send(ResultMessage{kind,result:response,http_status});
             });
         }});
     }).map_err(|_|"Could not start desktop worker".to_owned())?;
@@ -52,8 +55,14 @@ fn playback_error(error:&str)->String {
 struct Aysha {
     tx:tokio::sync::mpsc::UnboundedSender<RequestSpec>,rx:mpsc::Receiver<ResultMessage>,
     query:String,results:Vec<Value>, status:String, player:Value,searching:bool, starting:bool,
+    events:Vec<diagnostics::Event>, show_report:bool, last_player_error:String,
 }
 impl Aysha {
+    fn record_error(&mut self,kind:&'static str,error:&str,status:Option<u16>) {
+        let event=diagnostics::event(kind,error,status);
+        if self.events.len()==10 {self.events.remove(0);}
+        self.events.push(event);
+    }
     fn send(&self,kind:&'static str,method:Method,path:String,body:Option<Value>) {let _=self.tx.send(RequestSpec{kind,method,path,body});}
     fn search(&mut self) {
         let q=self.query.trim();if q.is_empty() || q.chars().count()>200 {self.status="Enter a search of 1–200 characters.".into();return;}
@@ -74,10 +83,15 @@ impl eframe::App for Aysha {
                 Ok(value)=> match msg.kind {
                     "search"=>{self.searching=false;self.results=value.as_array().cloned().unwrap_or_default();self.status=if self.results.is_empty(){"No songs found."}else{"Choose a song."}.into();},
                     "play"|"local-play"=>{self.starting=false;self.status="Playing requested song.".into();},
-                    "player"=>self.player=value,
+                    "player"=>{
+                        let error=value["error"].as_str().unwrap_or("").to_owned();
+                        if !error.is_empty() && error!=self.last_player_error { self.record_error("player",&error,None); }
+                        self.last_player_error=error;
+                        self.player=value;
+                    },
                     _=>{},
                 },
-                Err(error)=>{if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.status=playback_error(&error);},
+                Err(error)=>{if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
             }
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,12,18)).inner_margin(28.0)).show(ctx,|ui| {
@@ -102,6 +116,11 @@ impl eframe::App for Aysha {
                 ui.label("Play a saved song without internet (M4A, up to 64 MB).");
             });
             ui.label(&self.status);
+            ui.horizontal(|ui| {
+                if ui.button("View error report").clicked() {self.show_report=true;}
+                if ui.button("Copy error report").clicked() {ctx.copy_text(diagnostics::report(&self.events,&self.player));self.status="Report sent to clipboard. Review it before sharing.".into();}
+                if ui.button("Clear errors").clicked() {self.events.clear();}
+            });
             ui.separator();
             let song=self.player["track"]["title"].as_str().or_else(||self.player["title"].as_str()).unwrap_or("Choose a song");
             ui.heading(song);
@@ -121,6 +140,16 @@ impl eframe::App for Aysha {
             }});
             if let Some(index)=selected {self.play(self.results[index].clone());}
         });
+        if self.show_report {
+            let mut open=true;
+            egui::Window::new("Diagnostic report").open(&mut open).resizable(true).show(ctx,|ui| {
+                ui.label("Review this report before sharing. Raw provider messages and personal data are excluded.");
+                let mut report=diagnostics::report(&self.events,&self.player);
+                ui.add(egui::TextEdit::multiline(&mut report).desired_width(620.0).desired_rows(16).interactive(false));
+                if ui.button("Copy report").clicked(){ctx.copy_text(report);}
+            });
+            self.show_report=open;
+        }
         ctx.request_repaint_after(Duration::from_millis(250));
     }
 }
@@ -132,7 +161,7 @@ fn main() -> eframe::Result {
         if status.send(RequestSpec{kind:"player",method:Method::GET,path:"/api/player".into(),body:None}).is_err(){break;}
         std::thread::sleep(Duration::from_secs(1));
     });
-    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false};
+    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new()};
     let options=eframe::NativeOptions{viewport:egui::ViewportBuilder::default().with_inner_size([880.0,680.0]).with_min_inner_size([480.0,420.0]),..Default::default()};
     eframe::run_native("Aysha Music",options,Box::new(|_|Ok(Box::new(app))))
 }

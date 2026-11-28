@@ -9,3 +9,7 @@ Build on Windows (Rust and MSVC C++ build tools installed): `cargo build --relea
 ## Local files and online limitations
 
 Use **Open M4A file** to play a compatible local M4A/AAC file (up to 64 MB), including one copied from your phone. The app only reads the file; it does not import, upload, or delete it. This works independently of the online provider. A provider HTTP 403 is now reported clearly; this change does **not** fix or bypass an online provider refusal. Windows playback remains unverified on physical hardware.
+
+## Sharing diagnostics
+
+After an error, choose **View error report** to review it, or **Copy error report** and paste it into your support conversation. Reports hold up to 10 errors from this app session and are not sent automatically or saved to disk. They include the app version, architecture, player state, operation, backend status and recognized source/error codes. Unknown raw error text is intentionally omitted; provider messages, song/search details, file paths, URLs and credentials are not intentionally included. Review before sharing. Reports cannot capture a crash before the interface starts. Clear errors or restart the app to clear the in-memory history. This is diagnostics, not a fix for provider 403 errors.
