@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod diagnostics;
+mod downloader;
 
 use axum::{body::{to_bytes, Body}, http::{Method, Request}};
 use eframe::egui::{self, Color32, RichText};
@@ -20,12 +21,23 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
     let (results,rx)=mpsc::channel::<ResultMessage>();
     std::thread::Builder::new().name("aysha-desktop-backend".into()).spawn(move || {
         let Ok(runtime)=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() else {let _=results.send(ResultMessage{kind:"error",result:Err("Could not start Rust backend".into()),http_status:None});return;};
+        let generation=std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
         runtime.block_on(async move { while let Some(request)=requests.recv().await {
+            use std::sync::atomic::Ordering;
+            let changes_playback=request.kind=="play" || request.kind=="local-play" || (request.kind=="control" && request.path=="/api/stop");
+            let seq=if changes_playback {generation.fetch_add(1,Ordering::SeqCst)+1} else {generation.load(Ordering::SeqCst)};
+            let generation=generation.clone();
             let app=app.clone();let results=results.clone();
             tokio::spawn(async move {
                 let kind=request.kind;
                 let mut http_status=None;
                 let response=async {
+                    if kind=="play" {
+                        let id=request.body.as_ref().and_then(|v|v["video_id"].as_str()).ok_or("invalid_video_id")?;
+                        let bytes=downloader::fetch(id,generation.clone(),seq).await?;
+                        ayshamusic::windows_play_audio_bytes(bytes,generation.clone(),seq).await?;
+                        return Ok(json!({"status":"playing"}));
+                    }
                     if kind=="local-play" {
                         let path=request.body.as_ref().and_then(|v|v["path"].as_str()).ok_or("No file selected")?;
                         ayshamusic::windows_play_local_file(std::path::PathBuf::from(path)).await?;
@@ -39,7 +51,9 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
                     if !status.is_success() || value["status"]=="error" || value["status"]=="failed" {return Err(value["detail"].as_str().or_else(||value["error"].as_str()).unwrap_or("Request failed").chars().take(8192).collect());}
                     Ok(value)
                 }.await;
-                let _=results.send(ResultMessage{kind,result:response,http_status});
+                if !matches!(kind,"play"|"local-play") || generation.load(Ordering::SeqCst)==seq {
+                    let _=results.send(ResultMessage{kind,result:response,http_status});
+                }
             });
         }});
     }).map_err(|_|"Could not start desktop worker".to_owned())?;
@@ -47,7 +61,10 @@ fn worker() -> Result<(tokio::sync::mpsc::UnboundedSender<RequestSpec>, mpsc::Re
 }
 
 fn playback_error(error:&str)->String {
-    if error.contains("media_range_http_403") {
+    if error=="ytdlp_sign_in_or_bot_challenge" {"The provider requires sign-in or a bot check. Playback stopped; no bypass was attempted.".into()}
+    else if error=="ytdlp_missing" {"yt-dlp.exe is missing. Extract the complete ZIP and keep both executable files together.".into()}
+    else if error.starts_with("ytdlp_") {format!("Online audio could not be downloaded ({error}). View the error report for details.")}
+    else if error.contains("media_range_http_403") {
         "The music provider refused this audio (403). Online playback is unavailable for this request. You can open a saved M4A file instead.".into()
     } else {error.to_owned()}
 }
@@ -73,7 +90,7 @@ impl Aysha {
         if self.starting {return;}
         let Some(id)=track["id"].as_str() else{return};
         self.send("play",Method::POST,"/api/play".into(),Some(json!({"video_id":id,"track":track})));
-        self.starting=true;self.status="Preparing song…".into();
+        self.starting=true;self.status="Downloading audio for playback… (up to 64 MB; uses data)".into();
     }
 }
 impl eframe::App for Aysha {
@@ -129,7 +146,7 @@ impl eframe::App for Aysha {
             ui.label(format!("{} · {}:{:02}",state,seconds/60,seconds%60));
             ui.horizontal(|ui| {
                 for (label,route) in [("Previous","/api/prev"),("Pause","/api/pause"),("Resume","/api/resume"),("Next","/api/next"),("Stop","/api/stop")] {
-                    if ui.button(label).clicked() {self.send("control",Method::POST,route.into(),Some(json!({})));}
+                    if ui.button(label).clicked() {if route=="/api/stop" {self.starting=false;self.status="Stopped.".into();}self.send("control",Method::POST,route.into(),Some(json!({})));}
                 }
             });
             ui.separator();ui.heading("Search results");

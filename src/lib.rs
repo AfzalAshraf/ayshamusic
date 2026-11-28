@@ -174,6 +174,24 @@ pub async fn windows_play_local_file(path: std::path::PathBuf) -> Result<(), Str
     start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("Could not play this audio file").to_owned())
 }
 
+/// Accept only bounded MP4 audio fetched by the separately packaged Windows
+/// downloader; a cancellation generation prevents a late download starting.
+#[cfg(target_os="windows")]
+pub async fn windows_play_audio_bytes(bytes:Vec<u8>, generation:std::sync::Arc<std::sync::atomic::AtomicU64>, expected:u64) -> Result<(),String> {
+    use std::sync::atomic::Ordering;
+    if bytes.len()<12 || bytes.len()>64*1024*1024 || &bytes[4..8]!=b"ftyp" {return Err("downloaded_audio_invalid".into());}
+    let len=bytes.len() as u64;
+    let ticket={
+        let mut current=PLAY_TICKET.lock().unwrap();
+        if generation.load(Ordering::SeqCst)!=expected {return Err("play_cancelled".into());}
+        *current=current.wrapping_add(1);
+        if let Some(player)=started_player(){player.stop().map_err(|_|"audio_stop_failed".to_owned())?;}
+        *current
+    };
+    let media=player::Media{video_id:"downloaded-audio".into(),title:Some("Online song".into()),client:"LOCAL",itag:140,url:String::new(),user_agent:"",content_length:Some(len),fetch:Some(Box::new(local_media::MemoryFile::new(bytes)))};
+    start_native(media,ticket).await.map_err(|(_,value)|value["detail"].as_str().unwrap_or("audio_prepare_failed").to_owned())
+}
+
 fn router_with_phone(state: SharedCache, phone: android_catalog::Phone) -> Router {
     Router::new()
         .merge(android_catalog::routes())
