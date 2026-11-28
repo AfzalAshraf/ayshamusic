@@ -15,6 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Check signing script rejects invalid timestamp configuration
+        shell: pwsh
+        run: |
+          $rejected = $false
+          try {
+            & ./windows-app/sign-candidate.ps1 -CertificateThumbprint ('0' * 40) -SignToolPath 'not-present.exe' -TimestampUrl 'https://user:password@example.invalid/'
+          } catch { $rejected = $_.Exception.Message -like '*TimestampUrl*' }
+          if (-not $rejected) { throw 'Signing script did not reject the invalid timestamp URL' }
       - name: Build native Rust desktop candidate
         working-directory: windows-app
         run: cargo build --release

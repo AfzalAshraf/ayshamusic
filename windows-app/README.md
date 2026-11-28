@@ -25,3 +25,31 @@ Build on Windows with Rust and MSVC: `cargo build --release --manifest-path wind
 Windows WebM/Opus decoding uses Symphonia (MPL-2.0), symphonia-adapter-libopus (MIT OR Apache-2.0), and statically built libopus (BSD-style license). These components are included for decoding; they do not transcode or alter the downloaded audio.
 
 The diagnostic report includes fixed categories for selected yt-dlp warnings when available; raw warnings are not retained in the report. Some yt-dlp causes are logged only at debug level and are not captured, so an unqualified format error does not identify the cause. This diagnostic change does not itself fix provider availability.
+
+## Signing a Windows candidate
+
+The CI artifact is **unsigned**. `sign-candidate.ps1` can sign a locally built
+`aysha-windows.exe` with a code-signing certificate already in the current
+Windows user's `Personal` certificate store, using Windows SDK SignTool and an
+RFC 3161 timestamp service supplied by the certificate provider. The script
+makes a separate copy, signs it using SHA-256, and verifies it with SignTool;
+it does not upload or import a certificate or private key. Hardware-backed
+keys may require the provider's software and an interactive approval.
+
+Run on the signing machine, replacing the values locally:
+
+```powershell
+./windows-app/sign-candidate.ps1 -CertificateThumbprint '<40 hex characters>' `
+  -SignToolPath '<full path to Windows SDK signtool.exe>' `
+  -TimestampUrl '<provider RFC 3161 timestamp URL>'
+```
+
+Copy the verified executable into a new folder alongside the exact packaged
+`yt-dlp.exe`, `deno.exe`, and license files. Verify the signatures and policy
+requirements for those third-party executables separately; signing Aysha does
+not sign them. Certificate trust, timestamping and Application Control policy
+are separate checks, so a successful signature is **not** a guarantee that a
+specific computer will allow it. Obtain a certificate through a trusted issuer;
+do not commit or send private keys, passwords, or certificates in chat.
+No signing certificate is included in this repository and CI does not sign
+artifacts.
