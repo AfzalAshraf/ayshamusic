@@ -120,6 +120,35 @@ struct Aysha {
     query:String,results:Vec<Value>, status:String, player:Value,searching:bool, starting:bool,
     events:Vec<diagnostics::Event>, show_report:bool, last_player_error:String,
     local_songs:Vec<Value>,scanning:bool,local_notice:String,local_folder:Option<String>,provider_blocked:bool,
+    page:Page, pending_title:String, now_playing:String,
+}
+#[derive(Clone,Copy,PartialEq,Eq)]
+enum Page { Home, Search, Library, Settings }
+const ROSE:Color32=Color32::from_rgb(248,105,130);
+const MUTED:Color32=Color32::from_rgb(169,158,169);
+fn clock(seconds:f64)->String {
+    let seconds=if seconds.is_finite() && seconds>=0.0 {seconds as u64}else{0};
+    format!("{}:{:02}",seconds/60,seconds%60)
+}
+fn navigation(ui:&mut egui::Ui,page:&mut Page) {
+    for (name,target) in [("Home",Page::Home),("Search",Page::Search),("Your library",Page::Library),("Settings",Page::Settings)] {
+        if ui.selectable_label(*page==target,name).clicked(){*page=target;}
+    }
+}
+fn configure_style(ctx:&egui::Context) {
+    let mut style=(*ctx.style()).clone();
+    style.visuals=egui::Visuals::dark();
+    style.visuals.override_text_color=Some(Color32::from_rgb(245,239,243));
+    style.visuals.panel_fill=Color32::from_rgb(17,14,19);
+    style.visuals.window_fill=Color32::from_rgb(31,25,32);
+    style.visuals.widgets.noninteractive.bg_fill=Color32::from_rgb(33,27,34);
+    style.visuals.widgets.inactive.bg_fill=Color32::from_rgb(42,34,43);
+    style.visuals.widgets.hovered.bg_fill=Color32::from_rgb(75,52,63);
+    style.visuals.widgets.active.bg_fill=Color32::from_rgb(113,54,71);
+    style.visuals.selection.bg_fill=Color32::from_rgb(150,55,82);
+    style.spacing.item_spacing=egui::vec2(12.0,10.0);
+    style.spacing.button_padding=egui::vec2(14.0,9.0);
+    ctx.set_style(style);
 }
 impl Aysha {
     fn record_error(&mut self,kind:&'static str,error:&str,status:Option<u16>) {
@@ -135,12 +164,14 @@ impl Aysha {
     }
     fn play_local(&mut self,path:&str) {
         if self.starting{return;}
+        self.pending_title=std::path::Path::new(path).file_stem().and_then(|v|v.to_str()).unwrap_or("Local song").chars().take(200).collect();
         self.starting=true;self.status="Opening local song…".into();
         self.send("local-play",Method::POST,String::new(),Some(json!({"path":path})));
     }
     fn play(&mut self,track:Value) {
         if self.starting || self.provider_blocked {return;}
         let Some(id)=track["id"].as_str() else{return};
+        self.pending_title=track["title"].as_str().unwrap_or("Online song").chars().take(200).collect();
         self.send("play",Method::POST,"/api/play".into(),Some(json!({"video_id":id,"track":track})));
         self.starting=true;self.status="Preparing audio with yt-dlp… This uses data and may take time.".into();
     }
@@ -157,7 +188,7 @@ impl eframe::App for Aysha {
                         self.local_notice=if value["scan_error"]==true {"Saved folder is unavailable. Reconnect it, refresh, choose another, or forget it.".into()} else if value["save_failed"]==true {"Folder opened, but could not be remembered. Check app storage access.".into()} else if self.local_folder.is_none(){"Choose a music folder to browse your saved songs.".into()} else if value["truncated"]==true {"Showing up to 500 songs from the first 5,000 entries.".into()} else {format!("{} local audio files found.",self.local_songs.len())};
                     },
                     "local-forget"=>{self.scanning=false;self.local_songs.clear();self.local_folder=None;self.local_notice="Folder forgotten. Your music files were not deleted.".into();},
-                    "play"|"local-play"=>{self.starting=false;self.status="Playing requested song.".into();},
+                    "play"|"local-play"=>{self.starting=false;self.now_playing=self.pending_title.clone();self.status="Playing requested song.".into();},
                     "player"=>{
                         let error=value["error"].as_str().unwrap_or("").to_owned();
                         if !error.is_empty() && error!=self.last_player_error { self.record_error("player",&error,None); }
@@ -166,79 +197,148 @@ impl eframe::App for Aysha {
                     },
                     _=>{},
                 },
-                Err(error)=>{if msg.kind=="play" && (online_challenge(&error)) {self.provider_blocked=true;}if matches!(msg.kind,"local-scan"|"local-restore"|"local-forget"){self.scanning=false;self.local_notice=playback_error(&error);}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
+                Err(error)=>{if msg.kind=="play" && (online_challenge(&error)) {self.provider_blocked=true;}if matches!(msg.kind,"local-scan"|"local-restore"|"local-forget"){self.scanning=false;self.local_notice=playback_error(&error);}if msg.kind=="search"{self.searching=false;}if msg.kind=="play" || msg.kind=="local-play"{self.starting=false;self.now_playing.clear();}self.record_error(msg.kind,&error,msg.http_status);self.status=playback_error(&error);},
             }
         }
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,12,18)).inner_margin(28.0)).show(ctx,|ui| {
-            ui.heading(RichText::new("Aysha Music").size(30.0).color(Color32::from_rgb(249,112,135)));
-            ui.label("Made with ❤️ for Aysha — with love, from Afzal");
-            ui.add_space(16.0);
-            ui.label(RichText::new("Windows · early Rust desktop candidate").color(Color32::LIGHT_GRAY));
+        let wide=ctx.screen_rect().width()>=700.0;
+        egui::TopBottomPanel::top("topbar").frame(egui::Frame::NONE.fill(Color32::from_rgb(24,19,25)).inner_margin(egui::Margin::symmetric(24,16))).show(ctx,|ui| {
             ui.horizontal(|ui| {
-                let text=ui.add(egui::TextEdit::singleline(&mut self.query).hint_text("Search music").desired_width(330.0));
-                let enter=text.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter));
-                if ui.add_enabled(!self.searching,egui::Button::new("Search")).clicked() || enter {self.search();}
+                ui.label(RichText::new("♪").size(27.0).color(ROSE));
+                ui.label(RichText::new("AYSHA").size(21.0).strong());
+                ui.label(RichText::new("MUSIC").size(12.0).color(ROSE).strong());
+                ui.add_space(24.0);
+                if !wide { navigation(ui,&mut self.page); }
+                else { ui.label(RichText::new("YOUR MUSIC, YOUR MOMENT").size(11.0).color(MUTED)); }
             });
-            ui.horizontal(|ui| {
-                if ui.add_enabled(!self.starting,egui::Button::new("Open audio file…")).clicked() {
-                    if let Some(path)=rfd::FileDialog::new().add_filter("Supported audio", &["m4a", "mp3", "wav", "flac", "ogg", "webm"]).pick_file() {
-                        if let Some(path)=path.to_str() {
-                            self.play_local(path);
-                        } else {self.status="Could not read this file name.".into();}
-                    }
-                }
-                if ui.add_enabled(!self.scanning,egui::Button::new("Choose music folder…")).clicked() {
-                    if let Some(folder)=rfd::FileDialog::new().pick_folder() {
-                        if let Some(path)=folder.to_str() {
-                            self.scanning=true;self.local_notice="Reading folder…".into();
-                            self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":true})));
-                        } else {self.local_notice="Could not read the folder name.".into();}
-                    }
-                }
-            });
-            ui.label(&self.status);
-            ui.horizontal(|ui| {
-                if ui.button("View error report").clicked() {self.show_report=true;}
-                if ui.button("Copy error report").clicked() {ctx.copy_text(diagnostics::report(&self.events,&self.player));self.status="Report sent to clipboard. Review it before sharing.".into();}
-                if ui.button("Clear errors").clicked() {self.events.clear();}
-            });
-            ui.separator();
-            let song=self.player["track"]["title"].as_str().or_else(||self.player["title"].as_str()).unwrap_or("Choose a song");
-            ui.heading(song);
+        });
+        egui::TopBottomPanel::bottom("player-bar").frame(egui::Frame::NONE.fill(Color32::from_rgb(29,23,30)).inner_margin(egui::Margin::symmetric(20,12))).show(ctx,|ui| {
             let state=self.player["state"].as_str().unwrap_or("idle");
-            let seconds=self.player["position_secs"].as_f64().unwrap_or(0.0).max(0.0) as u64;
-            ui.label(format!("{} · {}:{:02}",state,seconds/60,seconds%60));
-            ui.horizontal(|ui| {
-                for (label,route) in [("Previous","/api/prev"),("Pause","/api/pause"),("Resume","/api/resume"),("Next","/api/next"),("Stop","/api/stop")] {
-                    if ui.button(label).clicked() {if route=="/api/stop" {self.starting=false;self.status="Stopped.".into();}self.send("control",Method::POST,route.into(),Some(json!({})));}
+            let position=self.player["position_secs"].as_f64().unwrap_or(0.0).max(0.0);
+            let duration=self.player["duration_secs"].as_f64().filter(|d|d.is_finite() && *d>0.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new("♪").size(26.0).color(ROSE));
+                ui.vertical(|ui| {
+                    ui.label(RichText::new(if self.now_playing.is_empty(){"Nothing playing"}else{&self.now_playing}).strong().size(15.0));
+                    ui.label(RichText::new(if self.starting {"Preparing audio"} else {state}).size(11.0).color(MUTED));
+                });
+                ui.add_space(20.0);
+                let (label,route)=if state=="playing" {("Pause","/api/pause")}else{("Play","/api/resume")};
+                if ui.add_enabled(!self.starting && (state=="playing" || state=="paused"),egui::Button::new(label)).clicked(){self.send("control",Method::POST,route.into(),Some(json!({})));}
+                if ui.add_enabled(self.starting || state=="playing" || state=="paused",egui::Button::new("Stop")).clicked(){
+                    self.starting=false;self.now_playing.clear();self.status="Stopped.".into();self.send("control",Method::POST,"/api/stop".into(),Some(json!({})));
+                }
+                ui.label(RichText::new(format!("{} / {}",clock(position),duration.map(clock).unwrap_or_else(||"--:--".into()))).color(MUTED).size(12.0));
+            });
+            let fraction=duration.map(|d|(position/d).clamp(0.0,1.0) as f32).unwrap_or(0.0);
+            ui.add(egui::ProgressBar::new(fraction).desired_width(ui.available_width()).fill(ROSE));
+        });
+        if wide {
+            egui::SidePanel::left("navigation").resizable(false).exact_width(190.0).frame(egui::Frame::NONE.fill(Color32::from_rgb(22,18,23)).inner_margin(egui::Margin::symmetric(18,24))).show(ctx,|ui| {
+                ui.label(RichText::new("DISCOVER").size(10.0).color(MUTED).strong());ui.add_space(8.0);
+                ui.vertical(|ui|navigation(ui,&mut self.page));
+                ui.add_space(28.0);ui.separator();ui.add_space(12.0);
+                ui.label(RichText::new("Made with ❤️ for Aysha — with love, from Afzal").size(12.0).color(MUTED));
+            });
+        }
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(Color32::from_rgb(17,14,19)).inner_margin(egui::Margin::symmetric(28,24))).show(ctx,|ui| {
+            egui::ScrollArea::vertical().id_salt("main-content").show(ui,|ui| {
+                match self.page {
+                    Page::Home=>{
+                        ui.label(RichText::new("A LITTLE SPACE FOR YOUR MUSIC").size(11.0).color(ROSE).strong());
+                        ui.add_space(8.0);ui.label(RichText::new("Music feels better here.").size(32.0).strong());
+                        ui.label(RichText::new("Search for something you love, or listen to the music already on your PC.").color(MUTED).size(15.0));
+                        ui.add_space(20.0);
+                        egui::Frame::NONE.fill(Color32::from_rgb(51,31,41)).corner_radius(14).inner_margin(20).show(ui,|ui| {
+                            ui.set_min_width((ui.available_width()-40.0).max(100.0));
+                            ui.label(RichText::new("YOUR MUSIC, READY WHEN YOU ARE").size(11.0).color(ROSE).strong());
+                            ui.add_space(8.0);ui.label(RichText::new("Make yourself at home.").size(22.0).strong());
+                            ui.label(RichText::new("Your saved audio lives in Your library.").color(MUTED));ui.add_space(10.0);
+                            ui.horizontal_wrapped(|ui|{
+                                if ui.button("Open your library").clicked(){self.page=Page::Library;}
+                                if ui.button("Search music").clicked(){self.page=Page::Search;}
+                            });
+                        });
+                        ui.add_space(22.0);ui.label(RichText::new("Your library").size(20.0).strong());
+                        ui.label(RichText::new(&self.local_notice).color(MUTED));
+                        ui.add_space(12.0);ui.label(RichText::new(&self.status).color(MUTED));
+                    },
+                    Page::Search=>{
+                        ui.label(RichText::new("DISCOVER").size(11.0).color(ROSE).strong());
+                        ui.label(RichText::new("Search music").size(30.0).strong());
+                        ui.label(RichText::new("Find a song or artist.").color(MUTED));ui.add_space(12.0);
+                        ui.horizontal(|ui|{
+                            let text=ui.add(egui::TextEdit::singleline(&mut self.query).hint_text("Search songs and artists").desired_width((ui.available_width()-110.0).clamp(100.0,500.0)));
+                            let enter=text.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter));
+                            if ui.add_enabled(!self.searching,egui::Button::new(if self.searching {"Searching…"}else{"Search"})).clicked() || (enter && !self.searching) {self.search();}
+                        });
+                        ui.add_space(16.0);ui.label(RichText::new(&self.status).color(MUTED));
+                        if self.provider_blocked {ui.label(RichText::new("The provider requested sign-in or a bot check. Online playback is paused for this session.").color(ROSE));}
+                        ui.add_space(14.0);
+                        if !self.results.is_empty() {ui.label(RichText::new("Songs").size(21.0).strong());}
+                        let mut selected=None;
+                        for (index,track) in self.results.iter().enumerate() {
+                            let title=track["title"].as_str().unwrap_or("Online track");let artist=track["artist"].as_str().unwrap_or("");
+                            egui::Frame::NONE.fill(Color32::from_rgb(31,26,32)).corner_radius(8).inner_margin(12).show(ui,|ui| {
+                                ui.set_min_width((ui.available_width()-24.0).max(100.0));
+                                ui.horizontal_wrapped(|ui| {
+                                    if ui.add_enabled(!self.starting && !self.provider_blocked,egui::Button::new("Play")).clicked(){selected=Some(index);}
+                                    ui.vertical(|ui|{ui.label(RichText::new(title).strong());if !artist.is_empty(){ui.label(RichText::new(artist).color(MUTED).size(12.0));}});
+                                });
+                            });
+                        }
+                        if let Some(index)=selected {self.play(self.results[index].clone());}
+                    },
+                    Page::Library=>{
+                        ui.label(RichText::new("YOUR COLLECTION").size(11.0).color(ROSE).strong());
+                        ui.label(RichText::new("Your library").size(30.0).strong());
+                        ui.label(RichText::new("Play audio files saved on this PC. Your files stay where they are.").color(MUTED));ui.add_space(16.0);
+                        ui.horizontal_wrapped(|ui| {
+                            if ui.add_enabled(!self.starting,egui::Button::new("Open audio file…")).clicked() {
+                                if let Some(path)=rfd::FileDialog::new().add_filter("Supported audio", &["m4a", "mp3", "wav", "flac", "ogg", "webm"]).pick_file() {
+                                    if let Some(path)=path.to_str(){self.play_local(path);} else {self.status="Could not read this file name.".into();}
+                                }
+                            }
+                            if ui.add_enabled(!self.scanning,egui::Button::new("Choose music folder…")).clicked() {
+                                if let Some(folder)=rfd::FileDialog::new().pick_folder() {
+                                    if let Some(path)=folder.to_str() {self.scanning=true;self.local_notice="Reading folder…".into();self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":true})));}
+                                    else {self.local_notice="Could not read the folder name.".into();}
+                                }
+                            }
+                            if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Refresh")).clicked() {
+                                if let Some(path)=self.local_folder.clone(){self.scanning=true;self.local_notice="Reading folder…".into();self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":false})));}
+                            }
+                            if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Forget folder")).clicked(){self.scanning=true;self.send("local-forget",Method::POST,String::new(),None);}
+                        });
+                        ui.add_space(10.0);ui.label(RichText::new(&self.local_notice).color(MUTED));ui.label(RichText::new(&self.status).color(MUTED));ui.add_space(12.0);
+                        let mut selected=None;
+                        for (index,track) in self.local_songs.iter().enumerate() {
+                            egui::Frame::NONE.fill(Color32::from_rgb(31,26,32)).corner_radius(8).inner_margin(12).show(ui,|ui|{
+                                ui.set_min_width((ui.available_width()-24.0).max(100.0));
+                                ui.horizontal_wrapped(|ui|{
+                                    if ui.add_enabled(!self.starting,egui::Button::new("Play")).clicked(){selected=track["path"].as_str().map(str::to_owned);}
+                                    ui.label(RichText::new(format!("{:02}",index+1)).color(MUTED));ui.label(RichText::new(track["name"].as_str().unwrap_or("Local song")).strong());
+                                });
+                            });
+                        }
+                        if let Some(path)=selected{self.play_local(&path);}
+                    },
+                    Page::Settings=>{
+                        ui.label(RichText::new("YOUR APP").size(11.0).color(ROSE).strong());
+                        ui.label(RichText::new("Settings").size(30.0).strong());ui.add_space(8.0);
+                        ui.label(RichText::new("Diagnostics").size(20.0).strong());
+                        ui.label(RichText::new("Reports stay on this device unless you choose to copy them.").color(MUTED));
+                        ui.horizontal_wrapped(|ui|{
+                            if ui.button("View error report").clicked(){self.show_report=true;}
+                            if ui.button("Copy error report").clicked(){ctx.copy_text(diagnostics::report(&self.events,&self.player));self.status="Report sent to clipboard. Review it before sharing.".into();}
+                            if ui.button("Clear errors").clicked(){self.events.clear();}
+                        });
+                        ui.add_space(18.0);ui.label(RichText::new("About").size(20.0).strong());
+                        ui.label(RichText::new(format!("Aysha Music for Windows · v{}",env!("CARGO_PKG_VERSION"))).color(MUTED));
+                        ui.label(RichText::new("Early candidate · online playback may be unavailable").color(MUTED));
+                        ui.add_space(18.0);ui.label("Made with ❤️ for Aysha — with love, from Afzal");
+                    },
                 }
             });
-            ui.separator();ui.heading("Local music folder");
-            ui.horizontal(|ui| {
-                if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Refresh folder")).clicked() {
-                    if let Some(path)=self.local_folder.clone(){self.scanning=true;self.local_notice="Reading folder…".into();self.send("local-scan",Method::POST,String::new(),Some(json!({"path":path,"save":false})));}
-                }
-                if ui.add_enabled(!self.scanning && self.local_folder.is_some(),egui::Button::new("Forget folder")).clicked() {
-                    self.scanning=true;self.send("local-forget",Method::POST,String::new(),None);
-                }
-            });
-            ui.label(if self.local_notice.is_empty(){"Choose a folder containing saved audio files."}else{&self.local_notice});
-            let mut local_selected=None;
-            egui::ScrollArea::vertical().id_salt("local-library").max_height(150.0).show(ui,|ui| {
-                for track in &self.local_songs {ui.horizontal(|ui| {
-                    if ui.add_enabled(!self.starting,egui::Button::new("Play")).clicked(){local_selected=track["path"].as_str().map(str::to_owned);}
-                    ui.label(track["name"].as_str().unwrap_or("Local song"));
-                });}
-            });
-            if let Some(path)=local_selected {self.play_local(&path);}
-            ui.separator();ui.heading("Online search results");
-            if self.provider_blocked {ui.label("Online playback stopped because the provider requested sign-in or a bot check. Local files remain available.");}
-            let mut selected=None;
-            egui::ScrollArea::vertical().id_salt("online-results").show(ui,|ui| {for (index,track) in self.results.iter().enumerate() {
-                let title=track["title"].as_str().unwrap_or("YouTube track");let artist=track["artist"].as_str().unwrap_or("");
-                ui.horizontal(|ui|{if ui.add_enabled(!self.starting && !self.provider_blocked,egui::Button::new("Play")).clicked(){selected=Some(index);}ui.label(format!("{title}  ·  {artist}"));});
-            }});
-            if let Some(index)=selected {self.play(self.results[index].clone());}
         });
         if self.show_report {
             let mut open=true;
@@ -262,9 +362,9 @@ fn main() -> eframe::Result {
         std::thread::sleep(Duration::from_secs(1));
     });
     let _=tx.send(RequestSpec{kind:"local-restore",method:Method::GET,path:String::new(),body:None});
-    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:true,local_notice:"Loading saved music folder…".into(),local_folder:None,provider_blocked:false};
-    let options=eframe::NativeOptions{viewport:egui::ViewportBuilder::default().with_inner_size([880.0,680.0]).with_min_inner_size([480.0,420.0]),..Default::default()};
-    eframe::run_native("Aysha Music",options,Box::new(|_|Ok(Box::new(app))))
+    let app=Aysha{tx,rx,query:String::new(),results:vec![],status:"Search for a song to begin.".into(),player:json!({}),searching:false,starting:false,events:Vec::new(),show_report:false,last_player_error:String::new(),local_songs:Vec::new(),scanning:true,local_notice:"Loading saved music folder…".into(),local_folder:None,provider_blocked:false,page:Page::Home,pending_title:String::new(),now_playing:String::new()};
+    let options=eframe::NativeOptions{viewport:egui::ViewportBuilder::default().with_inner_size([1120.0,760.0]).with_min_inner_size([580.0,480.0]),..Default::default()};
+    eframe::run_native("Aysha Music",options,Box::new(|cc|{configure_style(&cc.egui_ctx);Ok(Box::new(app))}))
 }
 
 #[cfg(test)]

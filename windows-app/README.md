@@ -4,7 +4,7 @@ This is an **early candidate**, not a production-ready or full Android clone. Th
 
 ## Local music
 
-Choose **Open audio file** or **Choose music folder**. Supported local formats are M4A with AAC, MP3, WAV with PCM, FLAC, Ogg Vorbis, and WebM Opus. Containers may hold other codecs that are not supported (notably Ogg Opus); renaming a file does not convert it. The folder scan is non-recursive and bounded to 500 songs and 5,000 entries. It remembers the chosen folder; Refresh rescans, and Forget removes only the setting. Files are read without modification or upload. M4A and WebM files are limited to 64 MiB; the other formats to 512 MiB. Local file access is independent of the online source. Offline decoder fixtures are tested in CI, but actual Windows speaker output for the newly added formats has not been verified.
+Open **Your library**, then choose **Open audio file** or **Choose music folder**. Supported local formats are M4A with AAC, MP3, WAV with PCM, FLAC, Ogg Vorbis, and WebM Opus. Containers may hold other codecs that are not supported (notably Ogg Opus); renaming a file does not convert it. The folder scan is non-recursive and bounded to 500 songs and 5,000 entries. It remembers the chosen folder; Refresh rescans, and Forget removes only the setting. Files are read without modification or upload. M4A and WebM files are limited to 64 MiB; the other formats to 512 MiB. Local file access is independent of the online source. Offline decoder fixtures are tested in CI, but actual Windows speaker output for the newly added formats has not been verified.
 
 ## Online playback is unresolved
 
@@ -12,7 +12,7 @@ Search uses the existing early Rust implementation; online song preparation now 
 
 ## Error reports
 
-Use **View error report**, then **Copy error report**, to share recent recognized errors. Reports are held in memory, never sent automatically or written to disk, and omit raw provider messages, track names, search text, file paths, URLs, and credentials. Unknown details are omitted for privacy. Review the report before sharing. Reports cannot capture failures before the UI starts.
+Open **Settings**, then use **View error report** and **Copy report**, to share recent recognized errors. Reports are held in memory, never sent automatically or written to disk, and omit raw provider messages, track names, search text, file paths, URLs, and credentials. Unknown details are omitted for privacy. Review the report before sharing. Reports cannot capture failures before the UI starts.
 
 ## Limitations and development
 
